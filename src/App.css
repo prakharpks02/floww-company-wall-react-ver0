@@ -1,0 +1,322 @@
+@import "tailwindcss";
+
+/* Custom Rich Text Editor Styling */
+.rich-text-editor {
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.rich-text-editor-toolbar {
+  background-color: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 8px;
+}
+
+.rich-text-editor-content {
+  min-height: 150px;
+  padding: 16px;
+  color: #111827;
+  line-height: 1.5;
+}
+
+.rich-text-editor-content:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px #9f7aea;
+}
+
+/* Custom contentEditable styles */
+[contenteditable] {
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+[contenteditable]:empty::before {
+  content: attr(data-placeholder);
+  color: #9ca3af;
+  pointer-events: none;
+}
+
+[contenteditable] p {
+  margin: 0 0 8px 0;
+  color: #111827 !important;
+}
+
+[contenteditable] ul {
+  margin: 0 0 8px 20px;
+  padding-left: 0;
+  color: #111827 !important;
+  list-style-type: disc;
+}
+
+[contenteditable] li {
+  margin: 0 0 4px 0;
+  color: #111827 !important;
+}
+
+[contenteditable] strong {
+  font-weight: 600;
+  color: #111827 !important;
+}
+
+[contenteditable] em {
+  font-style: italic;
+  color: #111827 !important;
+}
+
+[contenteditable] br {
+  display: block;
+  margin: 4px 0;
+  content: "";
+}
+
+/* Mention styles */
+.mention {
+  background-color: #f3f0ff;
+  color: #9f7aea;
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.mention:hover {
+  background-color: #e9e5f5;
+  color: #8b5cf6;
+}
+
+/* Prose styling for post content */
+.prose {
+  max-width: none;
+  color: #111827 !important;
+}
+
+.prose * {
+  color: #111827 !important;
+}
+
+.prose p {
+  margin-bottom: 0.75rem;
+  color: #111827 !important;
+}
+
+.prose p:last-child {
+  margin-bottom: 0;
+}
+
+.prose strong {
+  font-weight: 600;
+  color: #1f2937 !important;
+}
+
+.prose em {
+  font-style: italic;
+  color: #374151 !important;
+}
+
+.prose ul {
+  list-style-type: disc;
+  margin-left: 1.25rem;
+  margin-bottom: 0.75rem;
+  color: #111827 !important;
+}
+
+.prose ul li {
+  margin-bottom: 0.25rem;
+  color: #111827 !important;
+}
+
+/* Force text color for any nested elements */
+.prose p *, 
+.prose li *, 
+.prose strong *, 
+.prose em * {
+  color: inherit !important;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Animation classes */
+.fade-in {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Loading spinner */
+.spinner {
+  border: 2px solid #f3f4f6;
+  border-top: 2px solid #4f46e5;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Media query for mobile responsiveness */
+@media (max-width: 768px) {
+  .rich-text-editor-content {
+    min-height: 120px;
+    padding: 12px;
+  }
+}
+
+/* Ensure light mode text is always visible */
+.prose, .prose * {
+  color: #111827 !important;
+}
+
+/* Notification dropdown z-index fix */
+.notification-dropdown {
+  z-index: 1000;
+}
+
+/* Prose styling for post content */
+.prose {
+  max-width: none;
+  color: #111827 !important;
+}
+
+.prose * {
+  color: #111827 !important;
+}
+
+.prose p {
+  margin-bottom: 0.75rem;
+  color: #111827 !important;
+}
+
+.prose p:last-child {
+  margin-bottom: 0;
+}
+
+.prose strong {
+  font-weight: 600;
+  color: #1f2937 !important;
+}
+
+.prose em {
+  font-style: italic;
+  color: #374151 !important;
+}
+
+.prose ul {
+  list-style-type: disc;
+  margin-left: 1.25rem;
+  margin-bottom: 0.75rem;
+  color: #111827 !important;
+}
+
+.prose ul li {
+  margin-bottom: 0.25rem;
+  color: #111827 !important;
+}
+
+/* Force text color for any nested elements */
+.prose p *, 
+.prose li *, 
+.prose strong *, 
+.prose em * {
+  color: inherit !important;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Animation classes */
+.fade-in {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Loading spinner */
+.spinner {
+  border: 2px solid #f3f4f6;
+  border-top: 2px solid #4f46e5;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Media query for mobile responsiveness */
+@media (max-width: 768px) {
+  .ql-toolbar {
+    padding: 8px;
+  }
+  
+  .ql-editor {
+    min-height: 120px;
+    padding: 12px;
+  }
+}
+
+/* Dark mode support - Ensure light mode text is always visible */
+.prose, .prose * {
+  color: #111827 !important;
+}
+
+/* Notification dropdown z-index fix */
+.notification-dropdown {
+  z-index: 1000;
+}
