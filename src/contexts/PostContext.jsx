@@ -306,27 +306,30 @@ export const PostProvider = ({ children }) => {
   };
 
   // Function to load all posts for home feed
-  const loadAllPosts = async () => {
-    try {
-     
-      const backendPosts = await postsAPI.getPosts();
-      
-      if (backendPosts && (backendPosts.data || backendPosts.posts) && (backendPosts.data?.length > 0 || backendPosts.posts?.length > 0)) {
-        const postsData = backendPosts.data || backendPosts.posts;
-      
-        
-        // Normalize all posts to ensure consistent format
-        const normalizedPosts = postsData.map(normalizePost);
-        setPosts(normalizedPosts);
-      } else {
-        console.log('📝 No posts found in home feed');
-        setPosts([]);
-      }
-    } catch (error) {
-    
-      setPosts([]);
+const loadAllPosts = async () => {
+  try {
+    const backendPosts = await postsAPI.getPosts();
+    let postsData = [];
+
+    // Defensive: Try both keys, fallback to empty array
+    if (Array.isArray(backendPosts.data) && backendPosts.data.length > 0) {
+      postsData = backendPosts.data;
+    } else if (Array.isArray(backendPosts.posts) && backendPosts.posts.length > 0) {
+      postsData = backendPosts.posts;
+    } else {
+      // Log the full response for debugging
+      console.warn('🛑 No posts found in backend response:', backendPosts);
+      postsData = [];
     }
-  };
+
+    // Normalize and set posts
+    const normalizedPosts = postsData.map(normalizePost);
+    setPosts(normalizedPosts);
+  } catch (error) {
+    console.error('❌ Failed to load posts for home feed:', error.message);
+    setPosts([]);
+  }
+};
 
   const createPost = async (postData) => {
 
@@ -564,12 +567,12 @@ export const PostProvider = ({ children }) => {
       // Finally, reload posts from backend to ensure consistency (with a small delay to let user see the immediate feedback)
     
       setTimeout(() => {
-        reloadPosts().then(() => {
-        
+        loadAllPosts().then(() => {
+          // ...
         }).catch(error => {
           console.error('❌ Failed to reload posts after reaction:', error);
         });
-      }, 500); // 500ms delay to let the user see the immediate feedback
+      }, 500);
 
     } catch (error) {
       console.error('❌ Failed to add/remove reaction:', error.message);
