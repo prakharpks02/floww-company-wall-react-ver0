@@ -371,6 +371,8 @@ export const postsAPI = {
     try {
       // Get author_id from stored user session
       const userId = userAPI.getCurrentUserId();
+      console.log('🔍 API getMyPosts - Current user ID:', userId);
+      
       if (!userId) {
         throw new Error('User not logged in. Please login first.');
       }
@@ -379,6 +381,8 @@ export const postsAPI = {
         author_id: userId
       };
 
+      console.log('🔍 API getMyPosts - Request body:', requestBody);
+      console.log('🔍 API getMyPosts - Endpoint:', endpoint);
       logApiCall('POST', endpoint, requestBody);
 
       const response = await fetchWithTimeout(endpoint, {
@@ -387,12 +391,14 @@ export const postsAPI = {
       });
       
       const result = await handleResponse(response);
+      console.log('🔍 API getMyPosts - Full response:', result);
       console.log(`✅ Retrieved ${result.data?.length || 0} posts for current user:`, userId);
       console.log('🔍 API getMyPosts - First post structure:', result.data?.[0]);
       
       return result;
     } catch (error) {
       console.error('❌ Get my posts error:', error.message);
+      console.error('❌ Full error details:', error);
       throw error;
     }
   },

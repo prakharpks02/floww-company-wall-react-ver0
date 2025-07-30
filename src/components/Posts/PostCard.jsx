@@ -25,7 +25,7 @@ import {
   AlertTriangle
 } from 'lucide-react';
 
-const PostCard = ({ post, showAuthorInfo = true, isPublicView = false }) => {
+const PostCard = ({ post, showAuthorInfo = true, isPublicView = false, activeView = 'home' }) => {
   const { user } = useAuth();
   
   // Check if this post belongs to the current user (moved outside normalizePost for component-level access)
@@ -247,7 +247,7 @@ const PostCard = ({ post, showAuthorInfo = true, isPublicView = false }) => {
     
     // Use reaction system for likes - this will add/remove like reaction
     // and automatically increase/decrease the like count for each user
-    addReaction(postId, 'like', '❤️');
+    addReaction(postId, 'like', '❤️', activeView);
   };
 
   const handleComment = () => {
@@ -420,8 +420,11 @@ const PostCard = ({ post, showAuthorInfo = true, isPublicView = false }) => {
     const postId = getPostId();
     if (!postId) return;
     
+    // Get the emoji for this reaction type
+    const emoji = emojiReactions.find(r => r.name === reactionType)?.emoji || '👍';
+    
     // Add the emoji reaction (likes are handled separately by the heart button)
-    addReaction(postId, reactionType);
+    addReaction(postId, reactionType, emoji, activeView);
     setShowReactions(false);
   };
 

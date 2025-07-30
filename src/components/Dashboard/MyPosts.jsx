@@ -17,60 +17,73 @@ import {
 
 const MyPosts = () => {
   const { user } = useAuth();
-  const { deletePost, getUserPosts, posts: allPosts } = usePost();
+  const { deletePost, posts: allPosts, reloadPosts } = usePost();
   const [myPosts, setMyPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [error, setError] = useState(null);
 
-  // Fetch user's posts
-  const fetchMyPosts = async () => {
+  // Filter posts for current user
+  const filterMyPosts = () => {
     if (!user) return;
     
     try {
       setLoading(true);
       setError(null);
       
-      // Use user.id as author_id for API call
-      // console.log('Fetching posts for user:', user.id);
-      // const userPosts = await getUserPosts(user.id);
-      // console.log('Fetched posts:', userPosts);
-      // console.log('Post structure check - first post:', userPosts[0]);
-      // console.log('Post fields in first post:', userPosts[0] ? Object.keys(userPosts[0]) : 'No posts');
-      // console.log('Author fields:', {
-      //   authorName: userPosts[0]?.authorName,
-      //   author_name: userPosts[0]?.author_name,
-      //   username: userPosts[0]?.username,
-      //   authorAvatar: userPosts[0]?.authorAvatar,
-      //   author_avatar: userPosts[0]?.author_avatar,
-      //   avatar: userPosts[0]?.avatar
-      // });
-      // console.log('Timestamp fields:', {
-      //   timestamp: userPosts[0]?.timestamp,
-      //   created_at: userPosts[0]?.created_at,
-      //   createdAt: userPosts[0]?.createdAt
-      // });
-      // console.log('Post IDs:', userPosts.map(p => ({ id: p.id, post_id: p.post_id, timestamp: p.timestamp })));
-      setMyPosts(userPosts);
-    } catch (apiError) {
-      console.log('Failed to fetch user posts:', apiError);
+      console.log('Filtering posts for user:', user.id);
+      console.log('All posts from context:', allPosts);
       
-      // Fallback to filtering local posts by author_id or user_id
-      const userPosts = allPosts.filter(post => 
-        post.authorId === user.id || 
-        post.author_id === user.id ||
-        post.user_id === user.id
-      );
-      console.log('Using local posts fallback:', userPosts);
+      // Filter posts by author_id or user_id
+      const userPosts = allPosts.filter(post => {
+        const postAuthorId = post.authorId || post.author_id || post.user_id;
+        const postAuthorUserId = post.author?.user_id || post.author?.id;
+        const currentUserId = user.id || user.user_id;
+        
+        console.log('🔍 Filtering post:', {
+          postId: post.post_id || post.id,
+          postAuthorId,
+          postAuthorUserId,
+          currentUserId,
+          matches: postAuthorId === currentUserId || postAuthorUserId === currentUserId
+        });
+        
+        return postAuthorId === currentUserId || postAuthorUserId === currentUserId;
+      });
+      
+      console.log('Filtered posts for user:', userPosts);
+      console.log('Post structure check - first post:', userPosts[0]);
+      if (userPosts[0]) {
+        console.log('Post fields in first post:', Object.keys(userPosts[0]));
+        console.log('Author fields:', {
+          authorName: userPosts[0]?.authorName,
+          author_name: userPosts[0]?.author_name,
+          username: userPosts[0]?.username,
+          authorAvatar: userPosts[0]?.authorAvatar,
+          author_avatar: userPosts[0]?.author_avatar,
+          avatar: userPosts[0]?.avatar,
+          author: userPosts[0]?.author
+        });
+        console.log('Timestamp fields:', {
+          timestamp: userPosts[0]?.timestamp,
+          created_at: userPosts[0]?.created_at,
+          createdAt: userPosts[0]?.createdAt
+        });
+        console.log('Post IDs:', userPosts.map(p => ({ id: p.id, post_id: p.post_id, timestamp: p.timestamp })));
+      }
+      
       setMyPosts(userPosts);
+    } catch (error) {
+      console.error('Error filtering posts:', error);
+      setError('Failed to load posts');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchMyPosts();
-  }, [user?.id]); // Add user.id as dependency
+    filterMyPosts();
+  }, [user?.id, allPosts]); // Add user.id and allPosts as dependencies
 
   const handleCreatePost = async () => {
     // The CreatePost component will handle the post creation
@@ -93,7 +106,24 @@ const MyPosts = () => {
   };
 
   const getPostStats = (post) => {
-    const likes = post.likes?.length || Object.values(post.reactions || {}).reduce((sum, count) => sum + count, 0) || 0;
+    // Calculate likes more specifically - look for 'like' reactions first, then fallback to all reactions
+    let likes = 0;
+    if (post.likes?.length) {
+      likes = post.likes.length;
+    } else if (post.reactions?.like?.count) {
+      likes = post.reactions.like.count;
+    } else if (post.reactions) {
+      // If no specific 'like' reaction, sum all reaction counts as a fallback
+      likes = Object.values(post.reactions).reduce((sum, reaction) => {
+        if (typeof reaction === 'object' && reaction.count) {
+          return sum + reaction.count;
+        } else if (typeof reaction === 'number') {
+          return sum + reaction;
+        }
+        return sum;
+      }, 0);
+    }
+    
     const comments = post.comments?.length || 0;
     const shares = post.shares || 0;
     
@@ -227,6 +257,7 @@ const MyPosts = () => {
               <PostCard 
                 post={post} 
                 showAuthorInfo={false}
+                activeView="myposts"
               />
               
               {/* Action buttons overlay */}
@@ -250,7 +281,7 @@ const MyPosts = () => {
           onClose={() => {
             setShowCreateModal(false);
             // Refresh posts when modal closes to show newly created post
-            fetchMyPosts();
+            filterMyPosts();
           }} 
         />
       )}

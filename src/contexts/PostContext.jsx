@@ -108,7 +108,7 @@ export const PostProvider = ({ children }) => {
 
   // Normalize post data to ensure consistent format
   const normalizePost = (rawPost) => {
- 
+    console.log('🔍 PostContext normalizePost - Raw post:', rawPost);
     
     let normalizedReactions = {};
     
@@ -119,18 +119,42 @@ export const PostProvider = ({ children }) => {
     } 
     // Fallback to old reactions array format
     else if (rawPost.reactions) {
-  
+      console.log('🔍 PostContext normalizePost - Using reactions array format');
       normalizedReactions = normalizeReactions(rawPost.reactions);
     }
     
-  
+    // Extract author information from backend format
+    const authorId = rawPost.author?.user_id || rawPost.author?.id || rawPost.authorId || rawPost.author_id || rawPost.user_id;
+    const authorName = rawPost.author?.username || rawPost.author?.name || rawPost.authorName || rawPost.author_name;
+    const authorAvatar = rawPost.author?.avatar || rawPost.authorAvatar || rawPost.author_avatar;
+    
+    console.log('🔍 PostContext normalizePost - Author info:', {
+      authorId,
+      authorName,
+      authorAvatar,
+      originalAuthor: rawPost.author
+    });
     
     const normalized = {
       ...rawPost,
+      // Ensure consistent author ID fields
+      authorId: authorId,
+      author_id: authorId,
+      user_id: authorId,
+      // Ensure consistent author name fields
+      authorName: authorName,
+      author_name: authorName,
+      username: authorName,
+      // Ensure consistent author avatar fields
+      authorAvatar: authorAvatar,
+      author_avatar: authorAvatar,
+      avatar: authorAvatar,
+      // Normalize reactions
       reactions: normalizedReactions || {},
       likes: rawPost.likes || []
     };
   
+    console.log('🔍 PostContext normalizePost - Normalized post:', normalized);
     return normalized;
   };
 
@@ -240,37 +264,39 @@ export const PostProvider = ({ children }) => {
   useEffect(() => {
     const loadPosts = async () => {
       try {
-      
+        console.log('🔄 PostContext - Loading posts for user:', user?.user_id || user?.id);
+        
         const backendPosts = await postsAPI.getMyPosts();
+        console.log('🔄 PostContext - Backend response:', backendPosts);
         
         if (backendPosts && backendPosts.data && backendPosts.data.length > 0) {
-      
-        
+          console.log('✅ PostContext - Found posts:', backendPosts.data.length);
           
           // Normalize all posts to ensure consistent format
           const normalizedPosts = backendPosts.data.map(post => {
             const normalized = normalizePost(post);
-    
+            console.log('🔄 PostContext - Normalized post:', normalized);
             return normalized;
           });
           
           setPosts(normalizedPosts);
         } else {
-          console.log('📝 No posts found for current user, showing empty state');
+          console.log('📝 PostContext - No posts found for current user, showing empty state');
           setPosts([]);
         }
       } catch (error) {
-        console.error('❌ Failed to load user posts from backend:', error.message);
-        console.log('📝 Showing empty posts state due to backend error');
+        console.error('❌ PostContext - Failed to load user posts from backend:', error.message);
+        console.log('📝 PostContext - Showing empty posts state due to backend error');
         setPosts([]);
       }
     };
 
     // Only load posts if user is authenticated
     if (user) {
+      console.log('🔄 PostContext - User authenticated, loading posts...');
       loadPosts();
     } else {
-      console.log('⚠️ No authenticated user, skipping post loading');
+      console.log('⚠️ PostContext - No authenticated user, skipping post loading');
       setPosts([]);
     }
   }, [user]);
@@ -477,7 +503,7 @@ const loadAllPosts = async () => {
   };
 
   // Add reaction function - handles both emoji reactions and likes
-  const addReaction = async (postId, reactionType, emoji = null) => {
+  const addReaction = async (postId, reactionType, emoji = null, activeView = 'home') => {
     if (!user?.user_id && !user?.id) return;
 
     // Always use 'like' as the reactionType for likes, never the emoji
@@ -565,14 +591,23 @@ const loadAllPosts = async () => {
      
 
       // Finally, reload posts from backend to ensure consistency (with a small delay to let user see the immediate feedback)
-    
+      // Use the appropriate reload function based on the active view
       setTimeout(() => {
-        loadAllPosts().then(() => {
-          // ...
-        }).catch(error => {
-          console.error('❌ Failed to reload posts after reaction:', error);
-        });
-      }, 500);
+        if (activeView === 'myposts') {
+          reloadPosts().then(() => {
+            console.log('✅ Reloaded user posts after reaction');
+          }).catch(error => {
+            console.error('❌ Failed to reload user posts after reaction:', error);
+          });
+        } else {
+          // Default to home feed
+          loadAllPosts().then(() => {
+            console.log('✅ Reloaded home feed after reaction');
+          }).catch(error => {
+            console.error('❌ Failed to reload home feed after reaction:', error);
+          });
+        }
+      }, 500); // 500ms delay to let the user see the immediate feedback
 
     } catch (error) {
       console.error('❌ Failed to add/remove reaction:', error.message);
@@ -588,9 +623,16 @@ const loadAllPosts = async () => {
         removeUserReaction(postId, safeReactionType);
       }
 
-      reloadPosts().catch(reloadError => {
-        
-      });
+      // Reload the appropriate feed based on active view
+      if (activeView === 'myposts') {
+        reloadPosts().catch(reloadError => {
+          console.error('❌ Failed to reload user posts after reaction error:', reloadError);
+        });
+      } else {
+        loadAllPosts().catch(reloadError => {
+          console.error('❌ Failed to reload home feed after reaction error:', reloadError);
+        });
+      }
 
       // Don't throw the error to prevent potential page refreshes
      

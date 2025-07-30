@@ -1,7 +1,7 @@
 import React from 'react';
 import PostCard from './PostCard';
 
-const PostFeed = ({ posts }) => {
+const PostFeed = ({ posts, activeView = 'home' }) => {
   if (posts.length === 0) {
     return (
       <div className="text-center py-12">
@@ -21,7 +21,7 @@ const PostFeed = ({ posts }) => {
   return (
     <div className="space-y-6">
       {posts.map((post, index) => (
-        <PostCard key={post.id || post.post_id || `post-${index}`} post={post} />
+        <PostCard key={post.id || post.post_id || `post-${index}`} post={post} activeView={activeView} />
       ))}
     </div>
   );

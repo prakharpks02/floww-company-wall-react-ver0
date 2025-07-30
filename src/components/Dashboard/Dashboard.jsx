@@ -84,7 +84,7 @@ const Dashboard = () => {
         </div>
 
         {/* Posts Feed */}
-        <PostFeed posts={filteredPosts} />
+        <PostFeed posts={filteredPosts} activeView={activeView} />
       </>
     );
   };
