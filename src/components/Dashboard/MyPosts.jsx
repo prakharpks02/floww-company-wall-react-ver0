@@ -35,6 +35,22 @@ const MyPosts = () => {
       console.log('Fetching posts for user:', user.id);
       const userPosts = await getUserPosts(user.id);
       console.log('Fetched posts:', userPosts);
+      console.log('Post structure check - first post:', userPosts[0]);
+      console.log('Post fields in first post:', userPosts[0] ? Object.keys(userPosts[0]) : 'No posts');
+      console.log('Author fields:', {
+        authorName: userPosts[0]?.authorName,
+        author_name: userPosts[0]?.author_name,
+        username: userPosts[0]?.username,
+        authorAvatar: userPosts[0]?.authorAvatar,
+        author_avatar: userPosts[0]?.author_avatar,
+        avatar: userPosts[0]?.avatar
+      });
+      console.log('Timestamp fields:', {
+        timestamp: userPosts[0]?.timestamp,
+        created_at: userPosts[0]?.created_at,
+        createdAt: userPosts[0]?.createdAt
+      });
+      console.log('Post IDs:', userPosts.map(p => ({ id: p.id, post_id: p.post_id, timestamp: p.timestamp })));
       setMyPosts(userPosts);
     } catch (apiError) {
       console.log('Failed to fetch user posts:', apiError);
@@ -206,8 +222,8 @@ const MyPosts = () => {
             </button>
           </div>
         ) : (
-          myPosts.map((post) => (
-            <div key={post.id} className="relative">
+          myPosts.map((post, index) => (
+            <div key={post.id || post.post_id || `post-${index}`} className="relative">
               <PostCard 
                 post={post} 
                 showAuthorInfo={false}

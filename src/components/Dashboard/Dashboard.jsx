@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Header from './Header';
 import Sidebar from './Sidebar';
 import PostFeed from '../Posts/PostFeed';
@@ -14,9 +14,18 @@ const Dashboard = () => {
   });
   const [showCreatePost, setShowCreatePost] = useState(false);
   const [activeView, setActiveView] = useState('home'); // 'home' or 'myposts'
-  const { getFilteredPosts } = usePost();
+  const { getFilteredPosts, loadAllPosts, reloadPosts } = usePost();
 
   const filteredPosts = getFilteredPosts(filters);
+
+  // Load appropriate posts based on active view
+  useEffect(() => {
+    if (activeView === 'home') {
+      loadAllPosts(); // Load all posts for home feed
+    } else if (activeView === 'myposts') {
+      reloadPosts(); // Load user's posts only
+    }
+  }, [activeView]);
 
   const handleSearchChange = (searchValue) => {
     setFilters(prev => ({ ...prev, search: searchValue }));

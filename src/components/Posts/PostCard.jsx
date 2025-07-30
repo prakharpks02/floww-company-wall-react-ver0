@@ -25,8 +25,71 @@ import {
   AlertTriangle
 } from 'lucide-react';
 
-const PostCard = ({ post, isPublicView = false }) => {
+const PostCard = ({ post, showAuthorInfo = true, isPublicView = false }) => {
   const { user } = useAuth();
+  
+  // Check if this post belongs to the current user (moved outside normalizePost for component-level access)
+  const isCurrentUserPost = post.author?.user_id === user?.user_id || 
+                            post.author_id === user?.user_id || 
+                            post.author_id === user?.id ||
+                            post.user_id === user?.user_id ||
+                            post.user_id === user?.id;
+  
+  // Normalize post data to handle different field names from backend
+  const normalizePost = (rawPost) => {
+    console.log('🔍 Checking if current user post:', {
+      'rawPost.author?.user_id': rawPost.author?.user_id,
+      'rawPost.author?.username': rawPost.author?.username,
+      'rawPost.author_id': rawPost.author_id,
+      'rawPost.user_id': rawPost.user_id, 
+      'user?.user_id': user?.user_id,
+      'user?.id': user?.id,
+      'user?.name': user?.name,
+      'isCurrentUserPost': isCurrentUserPost,
+      'backend_has_author': !!rawPost.author
+    });
+    
+    // Temporary debug alert to see user data
+    if (!user) {
+      console.log('❌ No user found in PostCard!');
+    } else {
+      console.log('✅ User found in PostCard:', user);
+    }
+    
+    return {
+      ...rawPost,
+      // Use backend author data if available, otherwise fall back to current user data
+      authorName: rawPost.author?.username || rawPost.authorName || rawPost.author_name || rawPost.username || 
+                  (isCurrentUserPost ? (user?.name || user?.username) : 'Unknown User'),
+      authorAvatar: rawPost.author?.avatar || rawPost.authorAvatar || rawPost.author_avatar || rawPost.avatar || 
+                    (isCurrentUserPost ? user?.avatar : 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80'),
+      authorPosition: rawPost.author?.position || rawPost.authorPosition || rawPost.author_position || rawPost.position || 
+                      (isCurrentUserPost ? (user?.position || 'Employee') : 'Employee'),
+      authorEmail: rawPost.author?.email || rawPost.authorEmail || rawPost.author_email,
+      // Ensure consistent timestamp field - backend uses created_at
+      timestamp: rawPost.timestamp || rawPost.created_at || rawPost.createdAt || new Date().toISOString(),
+      // Ensure consistent ID field - backend uses post_id
+      id: rawPost.id || rawPost.post_id || `post-${Date.now()}`,
+      post_id: rawPost.post_id || rawPost.id, // Keep original post_id for backend operations
+      // Ensure other fields have fallbacks
+      content: rawPost.content || rawPost.post_content || '',
+      tags: rawPost.tags || [],
+      images: rawPost.images || rawPost.media || [],
+      videos: rawPost.videos || [],
+      documents: rawPost.documents || [],
+      links: rawPost.links || [],
+      mentions: rawPost.mentions || [],
+      comments: rawPost.comments || [],
+      reactions: rawPost.reactions || rawPost.reaction_counts || {},
+      likes: rawPost.likes || []
+    };
+  };
+
+  const normalizedPost = normalizePost(post);
+  
+  console.log('🔍 PostCard - Original post:', post);
+  console.log('🔍 PostCard - Normalized post:', normalizedPost);
+  console.log('🔍 Current user:', user);
   const { likePost, deletePost, addComment, likeComment, deleteComment, addReply, deleteReply, addReaction } = usePost();
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState('');
@@ -43,8 +106,8 @@ const PostCard = ({ post, isPublicView = false }) => {
   const [replyText, setReplyText] = useState('');
   const [shareCount, setShareCount] = useState(0);
 
-  const isLiked = post.likes?.includes(user?.id);
-  const isAuthor = post.authorId === user?.id;
+  const isLiked = normalizedPost.likes?.includes(user?.id);
+  const isAuthor = isCurrentUserPost;
 
   // Available emoji reactions
   const emojiReactions = [
@@ -76,7 +139,12 @@ const PostCard = ({ post, isPublicView = false }) => {
   };
 
   const handleDelete = () => {
-    deletePost(post.id);
+    console.log('🔍 Deleting post:', normalizedPost);
+    console.log('🔍 Post ID for deletion:', normalizedPost.id);
+    console.log('🔍 Post post_id for deletion:', normalizedPost.post_id);
+    
+    // Use post_id for backend operations
+    deletePost(normalizedPost.post_id || normalizedPost.id);
     setShowConfirmDelete(false);
   };
 
@@ -144,13 +212,13 @@ const PostCard = ({ post, isPublicView = false }) => {
     setShareCount(prev => prev + 1);
     
     // Create share URL
-    const shareUrl = `${window.location.origin}/post/${post.id}`;
-    const shareText = `Check out this post by ${post.authorName}: ${post.content.replace(/<[^>]*>/g, '').substring(0, 100)}...`;
+    const shareUrl = `${window.location.origin}/post/${normalizedPost.id}`;
+    const shareText = `Check out this post by ${normalizedPost.authorName}: ${normalizedPost.content.replace(/<[^>]*>/g, '').substring(0, 100)}...`;
     
     // Try to use Web Share API if available
     if (navigator.share) {
       navigator.share({
-        title: `Post by ${post.authorName}`,
+        title: `Post by ${normalizedPost.authorName}`,
         text: shareText,
         url: shareUrl,
       }).catch(err => {
@@ -199,9 +267,9 @@ const PostCard = ({ post, isPublicView = false }) => {
   };
 
   const getUserReaction = () => {
-    if (!post.reactions) return null;
+    if (!normalizedPost.reactions) return null;
     
-    for (const [reactionType, reaction] of Object.entries(post.reactions)) {
+    for (const [reactionType, reaction] of Object.entries(normalizedPost.reactions)) {
       if (reaction.users?.includes(user?.id)) {
         return reactionType;
       }
@@ -210,14 +278,14 @@ const PostCard = ({ post, isPublicView = false }) => {
   };
 
   const getTotalReactions = () => {
-    if (!post.reactions) return 0;
-    return Object.values(post.reactions).reduce((total, reaction) => total + reaction.count, 0);
+    if (!normalizedPost.reactions) return 0;
+    return Object.values(normalizedPost.reactions).reduce((total, reaction) => total + reaction.count, 0);
   };
 
   const getTopReactions = () => {
-    if (!post.reactions) return [];
+    if (!normalizedPost.reactions) return [];
     
-    return Object.entries(post.reactions)
+    return Object.entries(normalizedPost.reactions)
       .sort(([,a], [,b]) => b.count - a.count)
       .slice(0, 3)
       .map(([type, reaction]) => ({
@@ -239,19 +307,19 @@ const PostCard = ({ post, isPublicView = false }) => {
 
   const renderAttachments = () => {
     const hasAttachments = 
-      post.images?.length > 0 || 
-      post.videos?.length > 0 || 
-      post.documents?.length > 0 || 
-      post.links?.length > 0;
+      normalizedPost.images?.length > 0 || 
+      normalizedPost.videos?.length > 0 || 
+      normalizedPost.documents?.length > 0 || 
+      normalizedPost.links?.length > 0;
 
     if (!hasAttachments) return null;
 
     return (
       <div className="mt-4 space-y-4">
         {/* Images */}
-        {post.images?.length > 0 && (
+        {normalizedPost.images?.length > 0 && (
           <div className="grid grid-cols-2 gap-2">
-            {post.images.map((image) => (
+            {normalizedPost.images.map((image) => (
               <div key={image.id} className="relative group">
                 <img
                   src={image.url}
@@ -272,9 +340,9 @@ const PostCard = ({ post, isPublicView = false }) => {
         )}
 
         {/* Videos */}
-        {post.videos?.length > 0 && (
+        {normalizedPost.videos?.length > 0 && (
           <div className="space-y-4">
-            {post.videos.map((video) => (
+            {normalizedPost.videos.map((video) => (
               <VideoPlayer
                 key={video.id}
                 src={video.url}
@@ -286,9 +354,9 @@ const PostCard = ({ post, isPublicView = false }) => {
         )}
 
         {/* Documents */}
-        {post.documents?.length > 0 && (
+        {normalizedPost.documents?.length > 0 && (
           <div className="space-y-4">
-            {post.documents.map((doc) => (
+            {normalizedPost.documents.map((doc) => (
               <div key={doc.id}>
                 {doc.isPDF && doc.url ? (
                   // PDF Preview (like video)
@@ -332,9 +400,9 @@ const PostCard = ({ post, isPublicView = false }) => {
         )}
 
         {/* Links */}
-        {post.links?.length > 0 && (
+        {normalizedPost.links?.length > 0 && (
           <div className="space-y-2">
-            {post.links.map((link) => (
+            {normalizedPost.links.map((link) => (
               <div key={link.id} className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
@@ -368,16 +436,19 @@ const PostCard = ({ post, isPublicView = false }) => {
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center space-x-3">
           <img
-            src={post.authorAvatar}
-            alt={post.authorName}
+            src={normalizedPost.authorAvatar}
+            alt={normalizedPost.authorName}
             className="h-10 w-10 rounded-full object-cover"
           />
           <div>
-            <h3 className="font-semibold text-gray-900">{post.authorName}</h3>
-            <p className="text-sm text-gray-500">{post.authorPosition}</p>
+            <h3 className="font-semibold text-gray-900">{normalizedPost.authorName}</h3>
+            <p className="text-sm text-gray-500">{normalizedPost.authorPosition}</p>
             <p className="text-xs text-gray-400">
-              {formatDistanceToNow(new Date(post.timestamp), { addSuffix: true })}
-              {post.updatedAt && ' • edited'}
+              {normalizedPost.timestamp && !isNaN(new Date(normalizedPost.timestamp)) 
+                ? formatDistanceToNow(new Date(normalizedPost.timestamp), { addSuffix: true })
+                : 'Just now'
+              }
+              {normalizedPost.updatedAt && ' • edited'}
             </p>
           </div>
         </div>
@@ -398,6 +469,8 @@ const PostCard = ({ post, isPublicView = false }) => {
                 <>
                   <button
                     onClick={() => {
+                      console.log('🔍 Opening edit modal for post:', normalizedPost);
+                      console.log('🔍 Post ID for editing:', normalizedPost.id);
                       setShowEditModal(true);
                       setShowMenu(false);
                     }}
@@ -448,33 +521,39 @@ const PostCard = ({ post, isPublicView = false }) => {
       </div>
 
       {/* Tags */}
-      {post.tags?.length > 0 && (
+      {normalizedPost.tags?.length > 0 && (
         <div className="flex flex-wrap gap-2 mb-4">
-          {post.tags.map((tag) => (
-            <span
-              key={tag}
-              className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium text-white"
-              style={{ backgroundColor: '#9f7aea' }}
-            >
-              <Hash className="h-3 w-3 mr-1" />
-              {tag}
-            </span>
-          ))}
+          {normalizedPost.tags.map((tag, index) => {
+            // Handle both string tags and object tags from backend
+            const tagName = typeof tag === 'string' ? tag : tag.tag_name || tag.name || 'tag';
+            const tagKey = typeof tag === 'string' ? tag : tag.tag_name || tag.name || `tag-${index}`;
+            
+            return (
+              <span
+                key={tagKey}
+                className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium text-white"
+                style={{ backgroundColor: '#9f7aea' }}
+              >
+                <Hash className="h-3 w-3 mr-1" />
+                {tagName}
+              </span>
+            );
+          })}
         </div>
       )}
 
       {/* Post Content */}
       <div className="mb-4">
-        {renderContent(post.content)}
+        {renderContent(normalizedPost.content)}
       </div>
 
       {/* Attachments */}
       {renderAttachments()}
 
       {/* Mentions */}
-      {post.mentions?.length > 0 && (
+      {normalizedPost.mentions?.length > 0 && (
         <div className="mt-4 flex flex-wrap gap-2">
-          {post.mentions.map((mention) => (
+          {normalizedPost.mentions.map((mention) => (
             <span
               key={mention.id}
               className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-pink-100 text-pink-800"
@@ -530,9 +609,9 @@ const PostCard = ({ post, isPublicView = false }) => {
             >
               <Heart className={`h-5 w-5 ${isLiked && !getUserReaction() ? 'fill-current' : ''}`} />
               <span>Like</span>
-              {post.likes?.length > 0 && (
+              {normalizedPost.likes?.length > 0 && (
                 <span className="text-xs bg-gray-100 px-2 py-1 rounded-full">
-                  {post.likes.length}
+                  {normalizedPost.likes.length}
                 </span>
               )}
             </button>
@@ -668,7 +747,7 @@ const PostCard = ({ post, isPublicView = false }) => {
 
           {/* Comments List */}
           <div className="space-y-3">
-            {post.comments?.map((comment) => (
+            {normalizedPost.comments?.map((comment) => (
               <div key={comment.id} className="flex space-x-3">
                 <img
                   src={comment.authorAvatar}
@@ -683,7 +762,10 @@ const PostCard = ({ post, isPublicView = false }) => {
                           {comment.authorName}
                         </span>
                         <span className="text-xs text-gray-500">
-                          {formatDistanceToNow(new Date(comment.timestamp), { addSuffix: true })}
+                          {comment.timestamp && !isNaN(new Date(comment.timestamp))
+                            ? formatDistanceToNow(new Date(comment.timestamp), { addSuffix: true })
+                            : 'Just now'
+                          }
                         </span>
                       </div>
                       {/* Delete button for comment author */}
@@ -868,7 +950,10 @@ const PostCard = ({ post, isPublicView = false }) => {
                                     {reply.authorName}
                                   </span>
                                   <span className="text-xs text-gray-500">
-                                    {formatDistanceToNow(new Date(reply.timestamp), { addSuffix: true })}
+                                    {reply.timestamp && !isNaN(new Date(reply.timestamp))
+                                      ? formatDistanceToNow(new Date(reply.timestamp), { addSuffix: true })
+                                      : 'Just now'
+                                    }
                                   </span>
                                 </div>
                                 {/* Delete button for reply author */}
@@ -899,7 +984,7 @@ const PostCard = ({ post, isPublicView = false }) => {
       {/* Edit Modal */}
       {showEditModal && (
         <CreatePost
-          editingPost={post}
+          editingPost={normalizedPost}
           onClose={() => setShowEditModal(false)}
         />
       )}

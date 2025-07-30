@@ -19,7 +19,13 @@ const Sidebar = ({ filters, setFilters, onCreatePost, activeView, onViewChange }
   // Calculate post counts per tag
   const getTagCount = (tag) => {
     if (tag === 'all') return posts.length;
-    return posts.filter(post => post.tags.includes(tag)).length;
+    return posts.filter(post => {
+      if (!post.tags || !Array.isArray(post.tags)) return false;
+      return post.tags.some(postTag => {
+        const tagName = typeof postTag === 'string' ? postTag : postTag.tag_name || postTag.name;
+        return tagName === tag;
+      });
+    }).length;
   };
 
   return (

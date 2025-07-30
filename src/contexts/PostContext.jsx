@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from './AuthContext';
+import { postsAPI } from '../services/api';
 
 const PostContext = createContext();
 
@@ -24,45 +25,75 @@ export const PostProvider = ({ children }) => {
     'Training Materials'
   ]);
 
-  // Load posts from localStorage on mount
+  // Load posts from backend API on mount
   useEffect(() => {
-    const storedPosts = JSON.parse(localStorage.getItem('hrPosts') || '[]');
-    if (storedPosts.length > 0) {
-      setPosts(storedPosts);
-    } else {
-      // Initialize with sample posts if no stored posts
-      const samplePosts = [
-        {
-          id: '688485a0e9beaf67620d6676',
-          post_id: '43368POS55750',
-          authorId: 'USR43368',
-          author_id: 'USR43368',
-          user_id: 'USR43368',
-          authorName: 'Sarah Johnson',
-          authorAvatar: 'https://images.unsplash.com/photo-1494790108755-2616b5b34b7d?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
-          authorPosition: 'HR Manager',
-          content: 'Just finished our weekly sprint demo! Great progress by the team 🚀',
-          images: [],
-          videos: [],
-          documents: [],
-          links: [],
-          tags: ['update', 'team', 'sprint'],
-          mentions: ['harry123', 'jane_doe'],
-          timestamp: '2025-07-26T13:07:03.207607',
-          likes: ['2', '3', '4'],
-          comments: [],
-          reactions: {},
-          is_pinned: false,
-          is_comments_allowed: true,
-          is_broadcast: false,
-          created_at: '2025-07-26T13:07:03.207607',
-          updated_at: '2025-07-26T13:07:03.207607'
+    const loadPosts = async () => {
+      try {
+        console.log('🚀 Loading user posts from backend...');
+        const backendPosts = await postsAPI.getMyPosts();
+        
+        if (backendPosts && backendPosts.data && backendPosts.data.length > 0) {
+          console.log('✅ Loaded user posts from backend:', backendPosts.data.length);
+          setPosts(backendPosts.data);
+        } else {
+          console.log('📝 No posts found for current user, showing empty state');
+          setPosts([]);
         }
-      ];
-      setPosts(samplePosts);
-      localStorage.setItem('hrPosts', JSON.stringify(samplePosts));
+      } catch (error) {
+        console.error('❌ Failed to load user posts from backend:', error.message);
+        console.log('📝 Showing empty posts state due to backend error');
+        setPosts([]);
+      }
+    };
+
+    // Only load posts if user is authenticated
+    if (user) {
+      loadPosts();
+    } else {
+      console.log('⚠️ No authenticated user, skipping post loading');
+      setPosts([]);
     }
-  }, []);
+  }, [user]);
+
+  // Standalone function to reload posts (can be called after edit/delete)
+  const reloadPosts = async () => {
+    try {
+      console.log('🔄 Reloading user posts from backend...');
+      const backendPosts = await postsAPI.getMyPosts();
+      
+      if (backendPosts && backendPosts.data && backendPosts.data.length > 0) {
+        console.log('✅ Reloaded user posts from backend:', backendPosts.data.length);
+        setPosts(backendPosts.data);
+      } else {
+        console.log('📝 No posts found for current user after reload');
+        setPosts([]);
+      }
+    } catch (error) {
+      console.error('❌ Failed to reload user posts from backend:', error.message);
+      setPosts([]);
+    }
+  };
+
+  // Function to load all posts for home feed
+  const loadAllPosts = async () => {
+    try {
+      console.log('🚀 Loading all posts from backend for home feed...');
+      const backendPosts = await postsAPI.getPosts();
+      
+      if (backendPosts && (backendPosts.data || backendPosts.posts) && (backendPosts.data?.length > 0 || backendPosts.posts?.length > 0)) {
+        const postsData = backendPosts.data || backendPosts.posts;
+        console.log('✅ Loaded all posts from backend:', postsData.length);
+        setPosts(postsData);
+      } else {
+        console.log('📝 No posts found in home feed');
+        setPosts([]);
+      }
+    } catch (error) {
+      console.error('❌ Failed to load all posts from backend:', error.message);
+      console.log('📝 Showing empty posts state due to backend error');
+      setPosts([]);
+    }
+  };
 
   const createPost = async (postData) => {
     console.log('Current user object:', user);
@@ -71,8 +102,17 @@ export const PostProvider = ({ children }) => {
     const userId = getCurrentUserId();
     const authorId = getCurrentAuthorId();
     
-    console.log('Using locally stored user_id:', userId);
-    console.log('Using locally stored author_id:', authorId);
+    console.log('📍 PostContext - Using user_id:', userId);
+    console.log('📍 PostContext - Using author_id:', authorId);
+    console.log('📍 PostContext - user object user_id:', user?.user_id);
+    console.log('📍 PostContext - user object author_id:', user?.author_id);
+    
+    // Verify that user_id equals author_id
+    if (userId !== authorId) {
+      console.error('❌ CRITICAL: user_id and author_id do NOT match!', { userId, authorId });
+    } else {
+      console.log('✅ VERIFIED: user_id and author_id match correctly');
+    }
     
     // IMPORTANT: Only use the logged-in user's existing ID
     if (!user || !userId || !authorId) {
@@ -85,13 +125,23 @@ export const PostProvider = ({ children }) => {
     const authorAvatar = user.avatar || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80';
     const authorPosition = user.position || 'Employee';
 
-    console.log('✅ Using stored IDs - user_id:', userId, 'author_id:', authorId);
+    console.log('✅ Using consistent IDs - user_id:', userId, 'author_id:', authorId);
 
     try {
-      // Create post locally (frontend only)
+      console.log('🚀 Creating post via backend API...');
+      const backendResult = await postsAPI.createPost({
+        content: postData.content,
+        media: postData.images || postData.videos || [],
+        mentions: postData.mentions || [],
+        tags: postData.tags || []
+      });
+      
+      console.log('✅ Backend post creation successful:', backendResult);
+      
+      // Create frontend post object with backend data
       const newPost = {
-        id: uuidv4(),
-        post_id: `43368POS${Date.now()}`,
+        id: backendResult.post_id || backendResult.id || uuidv4(),
+        post_id: backendResult.post_id || `${authorId}POS${Date.now()}`,
         authorId: authorId,
         author_id: authorId,
         user_id: authorId,
@@ -105,65 +155,63 @@ export const PostProvider = ({ children }) => {
         links: postData.links || [],
         tags: postData.tags || [],
         mentions: postData.mentions || [],
-        timestamp: new Date().toISOString(),
+        timestamp: backendResult.created_at || new Date().toISOString(),
         likes: [],
         comments: [],
         reactions: {},
         is_pinned: false,
         is_comments_allowed: true,
         is_broadcast: false,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        created_at: backendResult.created_at || new Date().toISOString(),
+        updated_at: backendResult.updated_at || new Date().toISOString()
       };
 
-      // Store posts in localStorage
-      const existingPosts = JSON.parse(localStorage.getItem('hrPosts') || '[]');
-      const updatedPosts = [newPost, ...existingPosts];
-      localStorage.setItem('hrPosts', JSON.stringify(updatedPosts));
-
+      // Update posts state (no local storage)
       setPosts(prevPosts => [newPost, ...prevPosts]);
-      console.log('✅ Post created locally:', newPost);
+      console.log('✅ Post created successfully:', newPost);
       
       return newPost;
 
     } catch (error) {
-      console.error('Post creation failed:', error);
+      console.error('❌ Post creation failed:', error.message);
       throw new Error('Failed to create post: ' + error.message);
     }
   };
 
-  const editPost = (postId, updatedData) => {
-    setPosts(prevPosts =>
-      prevPosts.map(post =>
-        post.id === postId
-          ? { ...post, ...updatedData, updatedAt: new Date().toISOString() }
-          : post
-      )
-    );
+  const editPost = async (postId, updatedData) => {
+    if (!user) return;
 
-    // Update localStorage
-    const updatedPosts = posts.map(post =>
-      post.id === postId
-        ? { ...post, ...updatedData, updatedAt: new Date().toISOString() }
-        : post
-    );
-    localStorage.setItem('hrPosts', JSON.stringify(updatedPosts));
+    try {
+      console.log('🔍 PostContext editPost - Post ID:', postId);
+      console.log('🔍 PostContext editPost - Updated data:', updatedData);
+      
+      // Call the API to update the post
+      const apiResponse = await postsAPI.updatePost(postId, updatedData);
+      console.log('🔍 PostContext editPost - API response:', apiResponse);
+      
+      // Reload posts from backend to get the latest data
+      await reloadPosts();
+      
+      console.log('✅ Post updated and reloaded:', postId);
+    } catch (error) {
+      console.error('Error updating post:', error);
+      throw error;
+    }
   };
 
   const deletePost = async (postId) => {
     if (!user) return;
 
     try {
+      // Call the API to delete the post
+      await postsAPI.deletePost(postId);
+      
       // Remove from local state
       setPosts(prevPosts => prevPosts.filter(post => post.id !== postId));
-      
-      // Update localStorage
-      const updatedPosts = posts.filter(post => post.id !== postId);
-      localStorage.setItem('hrPosts', JSON.stringify(updatedPosts));
-      
-      console.log('✅ Post deleted locally:', postId);
+      console.log('✅ Post deleted:', postId);
     } catch (error) {
       console.error('Error deleting post:', error);
+      throw error;
     }
   };
 
@@ -186,23 +234,6 @@ export const PostProvider = ({ children }) => {
         return post;
       })
     );
-
-    // Update localStorage
-    const updatedPosts = posts.map(post => {
-      if (post.id === postId) {
-        const likes = post.likes || [];
-        const hasLiked = likes.includes(user.id);
-        
-        return {
-          ...post,
-          likes: hasLiked
-            ? likes.filter(id => id !== user.id)
-            : [...likes, user.id]
-        };
-      }
-      return post;
-    });
-    localStorage.setItem('hrPosts', JSON.stringify(updatedPosts));
   };
 
   const addComment = (postId, commentData) => {
@@ -225,26 +256,32 @@ export const PostProvider = ({ children }) => {
           : post
       )
     );
-
-    // Update localStorage
-    const updatedPosts = posts.map(post =>
-      post.id === postId
-        ? { ...post, comments: [...(post.comments || []), newComment] }
-        : post
-    );
-    localStorage.setItem('hrPosts', JSON.stringify(updatedPosts));
   };
 
   const getUserPosts = async (userId) => {
     try {
-      // Filter posts by user ID from localStorage
+      // Check if requesting posts for current user
+      const currentUserId = getCurrentUserId();
+      
+      if (userId === currentUserId) {
+        // Use backend API for current user's posts
+        console.log('🚀 Fetching current user posts from backend...');
+        const backendPosts = await postsAPI.getMyPosts();
+        
+        if (backendPosts && backendPosts.data) {
+          console.log('✅ Retrieved current user posts from backend:', backendPosts.data.length);
+          return backendPosts.data;
+        }
+      }
+      
+      // Fallback: Filter posts from current state for other users
       const userPosts = posts.filter(post => 
         post.authorId === userId || 
         post.author_id === userId || 
         post.user_id === userId
       );
       
-      console.log('✅ Retrieved user posts locally:', userPosts);
+      console.log('✅ Retrieved user posts from state:', userPosts.length);
       return userPosts;
     } catch (error) {
       console.error('Error getting user posts:', error);
@@ -260,14 +297,6 @@ export const PostProvider = ({ children }) => {
           : post
       )
     );
-
-    // Update localStorage
-    const updatedPosts = posts.map(post =>
-      post.id === postId
-        ? { ...post, is_pinned: !post.is_pinned }
-        : post
-    );
-    localStorage.setItem('hrPosts', JSON.stringify(updatedPosts));
   };
 
   const searchPosts = (query) => {
@@ -277,13 +306,19 @@ export const PostProvider = ({ children }) => {
     return posts.filter(post =>
       post.content.toLowerCase().includes(lowercaseQuery) ||
       post.authorName.toLowerCase().includes(lowercaseQuery) ||
-      (post.tags && post.tags.some(tag => tag.toLowerCase().includes(lowercaseQuery)))
+      (post.tags && post.tags.some(tag => {
+        const tagName = typeof tag === 'string' ? tag : tag.tag_name || tag.name || '';
+        return tagName.toLowerCase().includes(lowercaseQuery);
+      }))
     );
   };
 
   const getPostsByTag = (tag) => {
     return posts.filter(post => 
-      post.tags && post.tags.includes(tag)
+      post.tags && post.tags.some(postTag => {
+        const tagName = typeof postTag === 'string' ? postTag : postTag.tag_name || postTag.name;
+        return tagName === tag;
+      })
     );
   };
 
@@ -293,7 +328,10 @@ export const PostProvider = ({ children }) => {
     // Filter by tag
     if (filters.tag && filters.tag !== 'all') {
       filteredPosts = filteredPosts.filter(post => 
-        post.tags && post.tags.includes(filters.tag)
+        post.tags && post.tags.some(postTag => {
+          const tagName = typeof postTag === 'string' ? postTag : postTag.tag_name || postTag.name;
+          return tagName === filters.tag;
+        })
       );
     }
 
@@ -303,7 +341,10 @@ export const PostProvider = ({ children }) => {
       filteredPosts = filteredPosts.filter(post =>
         post.content.toLowerCase().includes(searchQuery) ||
         post.authorName.toLowerCase().includes(searchQuery) ||
-        (post.tags && post.tags.some(tag => tag.toLowerCase().includes(searchQuery)))
+        (post.tags && post.tags.some(tag => {
+          const tagName = typeof tag === 'string' ? tag : tag.tag_name || tag.name || '';
+          return tagName.toLowerCase().includes(searchQuery);
+        }))
       );
     }
 
@@ -322,7 +363,9 @@ export const PostProvider = ({ children }) => {
     pinPost,
     searchPosts,
     getPostsByTag,
-    getFilteredPosts
+    getFilteredPosts,
+    reloadPosts,
+    loadAllPosts
   };
 
   return (

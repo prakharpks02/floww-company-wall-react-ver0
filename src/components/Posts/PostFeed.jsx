@@ -20,8 +20,8 @@ const PostFeed = ({ posts }) => {
 
   return (
     <div className="space-y-6">
-      {posts.map((post) => (
-        <PostCard key={post.id} post={post} />
+      {posts.map((post, index) => (
+        <PostCard key={post.id || post.post_id || `post-${index}`} post={post} />
       ))}
     </div>
   );
