@@ -263,4 +263,60 @@ Currently, two official plugins are available:
 
 ## Expanding the ESLint configuration
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+
+
+---
+
+# 📊 Technical Report: PostCard Component & API Integration
+
+## Overview
+
+The `PostCard` component is a central part of the platform, responsible for rendering individual posts, handling user interactions, and integrating with backend APIs for all post-related actions. It is designed to be robust, flexible, and compatible with multiple backend data formats.
+
+## Key Features
+
+- **Post Normalization:** Handles various backend field names and formats, ensuring consistent rendering regardless of API response structure.
+- **Attachments:** Supports images, videos, documents (PDF and others), and links, each with appropriate UI and preview logic.
+- **Reactions & Likes:** Implements emoji reactions (👍, ❤️, 😊, 😂, 😮, 😢, 😡, 🎉) and traditional likes, with logic to support both legacy and new backend formats (`reactions` array, `reaction_counts` object).
+- **Comments & Replies:** Allows users to add, like, reply to, and delete comments and replies, with support for reactions on comments.
+- **User Actions:** Edit/delete for post authors, report/block for others, with confirmation modals for destructive actions.
+- **Share Functionality:** Uses the Web Share API or clipboard fallback for sharing posts.
+- **UI/UX:** Responsive, modern design with accessibility and usability in mind.
+
+## API Calls & Integration
+
+The following API-related actions are invoked from the `PostCard.jsx` component (actual implementations are abstracted in hooks and service files):
+
+- `addReaction(postId, reactionType, emoji?)`: Add or toggle a reaction for a post.
+- `addComment(postId, commentText)`: Add a comment to a post.
+- `likeComment(postId, commentId)`: Like a comment.
+- `deleteComment(postId, commentId)`: Delete a comment.
+- `addReply(postId, commentId, replyText)`: Add a reply to a comment.
+- `deleteReply(postId, commentId, replyId)`: Delete a reply.
+- `deletePost(postId)`: Delete a post.
+- `hasUserReacted(postId, reactionType)`: Check if the user has reacted to a post.
+
+These functions are likely connected to backend REST APIs for posts, comments, reactions, and user management. See `src/services/api.js` and context hooks for details.
+
+## Data Flow
+
+- Data is passed to `PostCard` as the `post` prop.
+- User context is accessed via `useAuth()`.
+- Post actions are managed via `usePost()`, which abstracts API calls and state updates.
+- UI state (modals, dropdowns, input fields) is managed with React `useState`.
+
+## Security & Validation
+
+- Actions like liking, commenting, and reacting are disabled for public (not logged-in) users.
+- Confirmation is required for destructive actions (delete, block).
+- Clipboard and sharing actions have fallbacks for browser compatibility.
+
+## Summary
+
+The `PostCard` component provides a robust, user-friendly interface for post interaction, supporting:
+- Data normalization for flexible backend integration
+- Rich media and attachment support
+- Full suite of social actions (like, react, comment, reply, share)
+- Modern, accessible UI/UX
+
+For more details, see the code in `src/components/Posts/PostCard.jsx` and related context/service files.

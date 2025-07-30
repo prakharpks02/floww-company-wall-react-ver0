@@ -34,7 +34,7 @@ The API is organized into the following modules:
 - **`api.media`** - File upload and media management
 - **`api.notifications`** - User notifications
 - **`api.admin`** - Administrative functions
-- **`api.utility`** - Health checks and server info
+
 - **`api.auth`** - Convenience authentication methods
 - **`api.quick`** - Quick access methods for common operations
 - **`api.storage`** - Local storage management
@@ -118,6 +118,13 @@ await api.posts.deletePost(postId);
 // Like/Unlike post
 const result = await api.posts.toggleLike(postId);
 
+// Add post reaction
+const reaction = await api.posts.addReaction(postId, 'love', '❤️');
+// Available reaction types: 'like', 'love', 'laugh', 'angry', 'sad', etc.
+
+// Remove post reaction
+await api.posts.removeReaction(postId, 'love');
+
 // Add comment
 const comment = await api.posts.addComment(postId, {
   content: "Great post!"
@@ -170,8 +177,8 @@ await api.admin.deletePostAdmin(postId);
 ## Utility APIs
 
 ```javascript
-// Health check
-const health = await api.utility.healthCheck();
+
+
 
 // Get server info
 const info = await api.utility.getServerInfo();
@@ -213,8 +220,7 @@ const user = await api.quick.getUser(userId);
 // Quick feed fetch
 const posts = await api.quick.getFeed(page = 1);
 
-// Quick ping
-const health = await api.quick.ping();
+
 ```
 
 ## Storage Management
@@ -353,15 +359,15 @@ try {
 // Admin: Get all users and manage them
 try {
   const users = await api.admin.getAllUsers();
-  console.log('All users:', users);
+  // console.log('All users:', users);
   
   // Block a user
   await api.admin.toggleUserBlock('user123', true);
-  console.log('User blocked');
+  // console.log('User blocked');
   
   // Delete inappropriate post
   await api.admin.deletePostAdmin('post456');
-  console.log('Post deleted by admin');
+  // console.log('Post deleted by admin');
   
 } catch (error) {
   console.error('Admin operation failed:', error.message);

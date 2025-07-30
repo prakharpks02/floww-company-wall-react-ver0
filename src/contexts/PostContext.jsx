@@ -16,6 +16,16 @@ export const usePost = () => {
 export const PostProvider = ({ children }) => {
   const { user, getCurrentUserId, getCurrentAuthorId } = useAuth();
   const [posts, setPosts] = useState([]);
+  const [userReactions, setUserReactions] = useState(() => {
+    // Load user reactions from localStorage on initialization
+    try {
+      const stored = localStorage.getItem('userReactions');
+      return stored ? JSON.parse(stored) : {};
+    } catch (error) {
+      
+      return {};
+    }
+  }); // Track user's reactions locally
   const [tags] = useState([
     'Announcements',
     'Achievements',
@@ -25,16 +35,226 @@ export const PostProvider = ({ children }) => {
     'Training Materials'
   ]);
 
+  // Helper function to normalize reactions from various backend formats to frontend object format
+  const normalizeReactions = (reactionsArray) => {
+
+    
+    if (!Array.isArray(reactionsArray)) {
+      // If it's already an object, return as is
+      console.log('🔍 PostContext normalizeReactions - Not an array, returning as is:', reactionsArray);
+      return reactionsArray || {};
+    }
+    
+    if (reactionsArray.length === 0) {
+    
+      return {};
+    }
+    
+    const reactionsObject = {};
+    
+    // Group reactions by type
+    reactionsArray.forEach((reaction, index) => {
+  
+      const reactionType = reaction.reaction_type;
+      const userId = reaction.user_id;
+      
+
+      if (!reactionsObject[reactionType]) {
+        reactionsObject[reactionType] = {
+          users: [],
+          count: 0
+        };
+      }
+      
+      // Add user if not already in the list
+      if (!reactionsObject[reactionType].users.includes(userId)) {
+        reactionsObject[reactionType].users.push(userId);
+        reactionsObject[reactionType].count++;
+        
+      } else {
+       
+      }
+    });
+    
+
+    return reactionsObject;
+  };
+
+  // Helper function to normalize reaction_counts format to frontend object format
+  const normalizeReactionCounts = (reactionCounts, currentUserId) => {
+ 
+    
+    if (!reactionCounts || typeof reactionCounts !== 'object') {
+   
+      return {};
+    }
+    
+    const reactionsObject = {};
+    
+    // Convert reaction_counts format (e.g., {like: 1, love: 2}) to frontend format
+    Object.entries(reactionCounts).forEach(([reactionType, count]) => {
+      if (count > 0) {
+        reactionsObject[reactionType] = {
+          users: [], // We don't have user list in reaction_counts format, will be populated from other sources
+          count: count
+        };
+      
+      }
+    });
+    
+   
+    return reactionsObject;
+  };
+
+  // Normalize post data to ensure consistent format
+  const normalizePost = (rawPost) => {
+ 
+    
+    let normalizedReactions = {};
+    
+    // Handle new reaction_counts format first (takes priority)
+    if (rawPost.reaction_counts) {
+      console.log('🔍 PostContext normalizePost - Using reaction_counts format');
+      normalizedReactions = normalizeReactionCounts(rawPost.reaction_counts, user?.user_id || user?.id);
+    } 
+    // Fallback to old reactions array format
+    else if (rawPost.reactions) {
+  
+      normalizedReactions = normalizeReactions(rawPost.reactions);
+    }
+    
+  
+    
+    const normalized = {
+      ...rawPost,
+      reactions: normalizedReactions || {},
+      likes: rawPost.likes || []
+    };
+  
+    return normalized;
+  };
+
+  // Helper function to check if current user has reacted to a post
+  const hasUserReacted = (postId, reactionType) => {
+    const currentUserId = user?.user_id || user?.id;
+    const postReactions = userReactions[postId];
+    if (postReactions && postReactions[reactionType]) {
+      return true;
+    }
+    return false;
+  };
+
+  // Helper function to add user reaction to local state
+  const addUserReaction = (postId, reactionType) => {
+    const currentUserId = user?.user_id || user?.id;
+    setUserReactions(prev => {
+      const updated = {
+        ...prev,
+        [postId]: {
+          ...prev[postId],
+          [reactionType]: true
+        }
+      };
+      
+      // Persist to localStorage
+      try {
+        localStorage.setItem('userReactions', JSON.stringify(updated));
+      } catch (error) {
+        console.error('Failed to save user reactions to localStorage:', error);
+      }
+      
+      return updated;
+    });
+    
+  };
+
+  // Helper function to remove user reaction from local state
+  const removeUserReaction = (postId, reactionType) => {
+    const currentUserId = user?.user_id || user?.id;
+    setUserReactions(prev => {
+      const updated = { ...prev };
+      if (updated[postId]) {
+        delete updated[postId][reactionType];
+        // Clean up empty post entry
+        if (Object.keys(updated[postId]).length === 0) {
+          delete updated[postId];
+        }
+      }
+      
+      // Persist to localStorage
+      try {
+        localStorage.setItem('userReactions', JSON.stringify(updated));
+      } catch (error) {
+        console.error('Failed to save user reactions to localStorage:', error);
+      }
+      
+      return updated;
+    });
+   
+  };
+
+  // Sync user reactions from posts data when available
+  useEffect(() => {
+    if (!user?.user_id && !user?.id) return;
+    
+    const currentUserId = user?.user_id || user?.id;
+    const updatedReactions = { ...userReactions };
+    let hasUpdates = false;
+    
+    posts.forEach(post => {
+      const postId = post.post_id || post.id;
+      if (!postId) return;
+      
+      // Check if post has detailed reaction data with user lists
+      if (post.reactions && typeof post.reactions === 'object') {
+        Object.entries(post.reactions).forEach(([reactionType, reactionData]) => {
+          if (reactionData.users && Array.isArray(reactionData.users)) {
+            const userHasReacted = reactionData.users.includes(currentUserId);
+            
+            // Update local tracking if we find the user in the reaction list
+            if (userHasReacted && !hasUserReacted(postId, reactionType)) {
+              if (!updatedReactions[postId]) {
+                updatedReactions[postId] = {};
+              }
+              updatedReactions[postId][reactionType] = true;
+              hasUpdates = true;
+              console.log(`🔍 PostContext - Synced user reaction: ${postId} -> ${reactionType}`);
+            }
+          }
+        });
+      }
+    });
+    
+    // Update state and localStorage if we found new reactions
+    if (hasUpdates) {
+      setUserReactions(updatedReactions);
+      try {
+        localStorage.setItem('userReactions', JSON.stringify(updatedReactions));
+      } catch (error) {
+
+      }
+    }
+  }, [posts, user]);
+
   // Load posts from backend API on mount
   useEffect(() => {
     const loadPosts = async () => {
       try {
-        console.log('🚀 Loading user posts from backend...');
+      
         const backendPosts = await postsAPI.getMyPosts();
         
         if (backendPosts && backendPosts.data && backendPosts.data.length > 0) {
-          console.log('✅ Loaded user posts from backend:', backendPosts.data.length);
-          setPosts(backendPosts.data);
+      
+        
+          
+          // Normalize all posts to ensure consistent format
+          const normalizedPosts = backendPosts.data.map(post => {
+            const normalized = normalizePost(post);
+    
+            return normalized;
+          });
+          
+          setPosts(normalizedPosts);
         } else {
           console.log('📝 No posts found for current user, showing empty state');
           setPosts([]);
@@ -58,14 +278,25 @@ export const PostProvider = ({ children }) => {
   // Standalone function to reload posts (can be called after edit/delete)
   const reloadPosts = async () => {
     try {
-      console.log('🔄 Reloading user posts from backend...');
+    
       const backendPosts = await postsAPI.getMyPosts();
       
       if (backendPosts && backendPosts.data && backendPosts.data.length > 0) {
-        console.log('✅ Reloaded user posts from backend:', backendPosts.data.length);
-        setPosts(backendPosts.data);
+       
+        backendPosts.data.forEach((post, index) => {
+        
+        });
+        
+        // Normalize all posts to ensure consistent format
+        const normalizedPosts = backendPosts.data.map(normalizePost);
+        
+        normalizedPosts.forEach((post, index) => {
+         
+        });
+        
+        setPosts(normalizedPosts);
       } else {
-        console.log('📝 No posts found for current user after reload');
+      
         setPosts([]);
       }
     } catch (error) {
@@ -77,35 +308,34 @@ export const PostProvider = ({ children }) => {
   // Function to load all posts for home feed
   const loadAllPosts = async () => {
     try {
-      console.log('🚀 Loading all posts from backend for home feed...');
+     
       const backendPosts = await postsAPI.getPosts();
       
       if (backendPosts && (backendPosts.data || backendPosts.posts) && (backendPosts.data?.length > 0 || backendPosts.posts?.length > 0)) {
         const postsData = backendPosts.data || backendPosts.posts;
-        console.log('✅ Loaded all posts from backend:', postsData.length);
-        setPosts(postsData);
+      
+        
+        // Normalize all posts to ensure consistent format
+        const normalizedPosts = postsData.map(normalizePost);
+        setPosts(normalizedPosts);
       } else {
         console.log('📝 No posts found in home feed');
         setPosts([]);
       }
     } catch (error) {
-      console.error('❌ Failed to load all posts from backend:', error.message);
-      console.log('📝 Showing empty posts state due to backend error');
+    
       setPosts([]);
     }
   };
 
   const createPost = async (postData) => {
-    console.log('Current user object:', user);
+
     
     // Get the stored user_id and author_id locally
     const userId = getCurrentUserId();
     const authorId = getCurrentAuthorId();
     
-    console.log('📍 PostContext - Using user_id:', userId);
-    console.log('📍 PostContext - Using author_id:', authorId);
-    console.log('📍 PostContext - user object user_id:', user?.user_id);
-    console.log('📍 PostContext - user object author_id:', user?.author_id);
+   
     
     // Verify that user_id equals author_id
     if (userId !== authorId) {
@@ -125,10 +355,10 @@ export const PostProvider = ({ children }) => {
     const authorAvatar = user.avatar || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80';
     const authorPosition = user.position || 'Employee';
 
-    console.log('✅ Using consistent IDs - user_id:', userId, 'author_id:', authorId);
+    
 
     try {
-      console.log('🚀 Creating post via backend API...');
+ 
       const backendResult = await postsAPI.createPost({
         content: postData.content,
         media: postData.images || postData.videos || [],
@@ -166,11 +396,14 @@ export const PostProvider = ({ children }) => {
         updated_at: backendResult.updated_at || new Date().toISOString()
       };
 
+      // Normalize the new post to ensure consistent format
+      const normalizedNewPost = normalizePost(newPost);
+
       // Update posts state (no local storage)
-      setPosts(prevPosts => [newPost, ...prevPosts]);
-      console.log('✅ Post created successfully:', newPost);
+      setPosts(prevPosts => [normalizedNewPost, ...prevPosts]);
+      console.log('✅ Post created successfully:', normalizedNewPost);
       
-      return newPost;
+      return normalizedNewPost;
 
     } catch (error) {
       console.error('❌ Post creation failed:', error.message);
@@ -182,8 +415,7 @@ export const PostProvider = ({ children }) => {
     if (!user) return;
 
     try {
-      console.log('🔍 PostContext editPost - Post ID:', postId);
-      console.log('🔍 PostContext editPost - Updated data:', updatedData);
+
       
       // Call the API to update the post
       const apiResponse = await postsAPI.updatePost(postId, updatedData);
@@ -194,7 +426,7 @@ export const PostProvider = ({ children }) => {
       
       console.log('✅ Post updated and reloaded:', postId);
     } catch (error) {
-      console.error('Error updating post:', error);
+     
       throw error;
     }
   };
@@ -208,40 +440,23 @@ export const PostProvider = ({ children }) => {
       
       // Remove from local state
       setPosts(prevPosts => prevPosts.filter(post => post.id !== postId));
-      console.log('✅ Post deleted:', postId);
+     
     } catch (error) {
-      console.error('Error deleting post:', error);
+     
       throw error;
     }
   };
 
-  const likePost = (postId) => {
-    if (!user?.id) return;
-
-    setPosts(prevPosts =>
-      prevPosts.map(post => {
-        if (post.id === postId) {
-          const likes = post.likes || [];
-          const hasLiked = likes.includes(user.id);
-          
-          return {
-            ...post,
-            likes: hasLiked
-              ? likes.filter(id => id !== user.id)
-              : [...likes, user.id]
-          };
-        }
-        return post;
-      })
-    );
-  };
+  // NOTE: likePost function removed - likes now handled through addReaction system
+  // with proper toggle behavior using add/remove reaction API endpoints
 
   const addComment = (postId, commentData) => {
     if (!user) return;
 
+    const userId = user?.user_id || user?.id;
     const newComment = {
       id: uuidv4(),
-      authorId: user.id,
+      authorId: userId,
       authorName: user.name,
       authorAvatar: user.avatar,
       content: commentData.content,
@@ -258,6 +473,127 @@ export const PostProvider = ({ children }) => {
     );
   };
 
+  // Add reaction function - handles both emoji reactions and likes
+  const addReaction = async (postId, reactionType, emoji = null) => {
+    if (!user?.user_id && !user?.id) return;
+
+    // Always use 'like' as the reactionType for likes, never the emoji
+    const safeReactionType = reactionType === '❤️' ? 'like' : reactionType;
+    const userAlreadyReacted = hasUserReacted(postId, safeReactionType);
+    const shouldRemoveReaction = userAlreadyReacted;
+    const shouldAddReaction = !userAlreadyReacted;
+
+    try {
+      const userId = user?.user_id || user?.id;
+      // For likes, do NOT send the emoji to the backend if it doesn't expect it
+      const reactionEmoji = safeReactionType === 'like' ? undefined : (emoji || '👍');
+
+     
+
+      // Find the current post to see its current state
+      const currentPost = posts.find(p => p.id === postId || p.post_id === postId);
+    
+      // First, optimistically update local user reaction state
+      if (userAlreadyReacted) {
+        removeUserReaction(postId, safeReactionType);
+      } else {
+        addUserReaction(postId, safeReactionType);
+      }
+
+      // Then, optimistically update the UI for immediate feedback
+      setPosts(prevPosts =>
+        prevPosts.map(post => {
+          if (post.id === postId || post.post_id === postId) {
+            const currentReactions = post.reactions || {};
+            let updatedReactions = { ...currentReactions };
+
+         
+
+            if (userAlreadyReacted) {
+              // Remove reaction (toggle off)
+              if (updatedReactions[safeReactionType]) {
+                updatedReactions[safeReactionType] = {
+                  ...updatedReactions[safeReactionType],
+                  count: Math.max(0, (updatedReactions[safeReactionType]?.count || 1) - 1)
+                };
+
+                // Remove empty reactions
+                if (updatedReactions[safeReactionType].count === 0) {
+                  delete updatedReactions[safeReactionType];
+                }
+              }
+            } else {
+              // Add reaction (toggle on)
+              updatedReactions[safeReactionType] = {
+                users: [], // We don't track users in reaction_counts format
+                count: (updatedReactions[safeReactionType]?.count || 0) + 1
+              };
+            }
+
+          
+
+            return {
+              ...post,
+              reactions: updatedReactions
+            };
+          }
+          return post;
+        })
+      );
+
+      // Then call backend API based on the ORIGINAL state (before optimistic updates)
+      let result;
+      if (shouldRemoveReaction) {
+        // User already had this reaction, so remove it
+        
+        result = await postsAPI.removeReaction(postId, safeReactionType);
+
+      } else if (shouldAddReaction) {
+        // User didn't have this reaction, so add it
+        console.log('🔄 PostContext addReaction - Adding new reaction to backend...');
+        if (safeReactionType === 'like') {
+          result = await postsAPI.addReaction(postId, safeReactionType);
+        } else {
+          result = await postsAPI.addReaction(postId, safeReactionType, reactionEmoji);
+        }
+        console.log('✅ Reaction added successfully:', result);
+      }
+
+     
+
+      // Finally, reload posts from backend to ensure consistency (with a small delay to let user see the immediate feedback)
+    
+      setTimeout(() => {
+        reloadPosts().then(() => {
+        
+        }).catch(error => {
+          console.error('❌ Failed to reload posts after reaction:', error);
+        });
+      }, 500); // 500ms delay to let the user see the immediate feedback
+
+    } catch (error) {
+      console.error('❌ Failed to add/remove reaction:', error.message);
+
+      // If API call fails, revert the optimistic update by reloading posts
+      // and reverting local user reaction state based on ORIGINAL state
+      console.log('🔄 API failed, reverting optimistic update...');
+      if (shouldRemoveReaction) {
+        // We tried to remove but failed, so add it back
+        addUserReaction(postId, safeReactionType);
+      } else if (shouldAddReaction) {
+        // We tried to add but failed, so remove it
+        removeUserReaction(postId, safeReactionType);
+      }
+
+      reloadPosts().catch(reloadError => {
+        
+      });
+
+      // Don't throw the error to prevent potential page refreshes
+     
+    }
+  };
+
   const getUserPosts = async (userId) => {
     try {
       // Check if requesting posts for current user
@@ -265,11 +601,11 @@ export const PostProvider = ({ children }) => {
       
       if (userId === currentUserId) {
         // Use backend API for current user's posts
-        console.log('🚀 Fetching current user posts from backend...');
+  
         const backendPosts = await postsAPI.getMyPosts();
         
         if (backendPosts && backendPosts.data) {
-          console.log('✅ Retrieved current user posts from backend:', backendPosts.data.length);
+        
           return backendPosts.data;
         }
       }
@@ -281,10 +617,10 @@ export const PostProvider = ({ children }) => {
         post.user_id === userId
       );
       
-      console.log('✅ Retrieved user posts from state:', userPosts.length);
+     
       return userPosts;
     } catch (error) {
-      console.error('Error getting user posts:', error);
+    
       return [];
     }
   };
@@ -357,7 +693,7 @@ export const PostProvider = ({ children }) => {
     createPost,
     editPost,
     deletePost,
-    likePost,
+    // likePost removed - now handled through addReaction
     addComment,
     getUserPosts,
     pinPost,
@@ -365,7 +701,10 @@ export const PostProvider = ({ children }) => {
     getPostsByTag,
     getFilteredPosts,
     reloadPosts,
-    loadAllPosts
+    loadAllPosts,
+    addReaction,
+    hasUserReacted,
+    userReactions
   };
 
   return (

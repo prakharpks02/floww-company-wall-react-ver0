@@ -22,6 +22,7 @@ const Dashboard = () => {
   useEffect(() => {
     if (activeView === 'home') {
       loadAllPosts(); // Load all posts for home feed
+ 
     } else if (activeView === 'myposts') {
       reloadPosts(); // Load user's posts only
     }

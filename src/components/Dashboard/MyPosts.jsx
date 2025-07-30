@@ -32,25 +32,25 @@ const MyPosts = () => {
       setError(null);
       
       // Use user.id as author_id for API call
-      console.log('Fetching posts for user:', user.id);
-      const userPosts = await getUserPosts(user.id);
-      console.log('Fetched posts:', userPosts);
-      console.log('Post structure check - first post:', userPosts[0]);
-      console.log('Post fields in first post:', userPosts[0] ? Object.keys(userPosts[0]) : 'No posts');
-      console.log('Author fields:', {
-        authorName: userPosts[0]?.authorName,
-        author_name: userPosts[0]?.author_name,
-        username: userPosts[0]?.username,
-        authorAvatar: userPosts[0]?.authorAvatar,
-        author_avatar: userPosts[0]?.author_avatar,
-        avatar: userPosts[0]?.avatar
-      });
-      console.log('Timestamp fields:', {
-        timestamp: userPosts[0]?.timestamp,
-        created_at: userPosts[0]?.created_at,
-        createdAt: userPosts[0]?.createdAt
-      });
-      console.log('Post IDs:', userPosts.map(p => ({ id: p.id, post_id: p.post_id, timestamp: p.timestamp })));
+      // console.log('Fetching posts for user:', user.id);
+      // const userPosts = await getUserPosts(user.id);
+      // console.log('Fetched posts:', userPosts);
+      // console.log('Post structure check - first post:', userPosts[0]);
+      // console.log('Post fields in first post:', userPosts[0] ? Object.keys(userPosts[0]) : 'No posts');
+      // console.log('Author fields:', {
+      //   authorName: userPosts[0]?.authorName,
+      //   author_name: userPosts[0]?.author_name,
+      //   username: userPosts[0]?.username,
+      //   authorAvatar: userPosts[0]?.authorAvatar,
+      //   author_avatar: userPosts[0]?.author_avatar,
+      //   avatar: userPosts[0]?.avatar
+      // });
+      // console.log('Timestamp fields:', {
+      //   timestamp: userPosts[0]?.timestamp,
+      //   created_at: userPosts[0]?.created_at,
+      //   createdAt: userPosts[0]?.createdAt
+      // });
+      // console.log('Post IDs:', userPosts.map(p => ({ id: p.id, post_id: p.post_id, timestamp: p.timestamp })));
       setMyPosts(userPosts);
     } catch (apiError) {
       console.log('Failed to fetch user posts:', apiError);
@@ -86,7 +86,7 @@ const MyPosts = () => {
         post.id !== postId && 
         post.post_id !== postId
       ));
-      console.log('Post deleted successfully locally');
+      // console.log('Post deleted successfully locally');
     } catch (error) {
       console.error('Error deleting post:', error);
     }

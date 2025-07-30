@@ -197,9 +197,8 @@ export const testUtilityFunctions = async () => {
   try {
     console.log('🧪 Testing utility functions...');
     
-    // Health check
-    const health = await api.utility.healthCheck();
-    console.log('✅ Health check:', health);
+    
+
     
     // Server info
     const info = await api.utility.getServerInfo();
@@ -209,7 +208,7 @@ export const testUtilityFunctions = async () => {
     const ping = await api.quick.ping();
     console.log('✅ Quick ping:', ping);
     
-    return { health, info, ping };
+    return { info, ping };
   } catch (error) {
     console.error('❌ Utility functions test failed:', error.message);
     throw error;

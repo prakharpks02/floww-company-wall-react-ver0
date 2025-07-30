@@ -12,7 +12,7 @@ const APIDemo = () => {
 
   const logOutput = (message) => {
     setOutput(prev => prev + message + '\n');
-    console.log(message);
+    // console.log(message);
   };
 
   const clearOutput = () => {
@@ -231,7 +231,7 @@ const APIDemo = () => {
               <p className="ml-2">• POST /api/wall/media/upload</p>
               
               <p className="mt-2"><strong>Utility APIs:</strong></p>
-              <p className="ml-2">• GET /api/wall/health</p>
+       
               <p className="ml-2">• GET /api/wall/info</p>
             </div>
           </div>

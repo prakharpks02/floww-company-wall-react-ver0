@@ -352,7 +352,10 @@ export const postsAPI = {
       });
       
       const result = await handleResponse(response);
+      //  console.log('🔍 API getPosts - Full result:', result);
       console.log(`✅ Retrieved ${result.posts?.length || result.data?.length || 0} posts from home feed`);
+      console.log('🔍 API getPosts - First post structure:', result.posts?.[0] || result.data?.[0]);
+       
       
       return result;
     } catch (error) {
@@ -385,6 +388,7 @@ export const postsAPI = {
       
       const result = await handleResponse(response);
       console.log(`✅ Retrieved ${result.data?.length || 0} posts for current user:`, userId);
+      console.log('🔍 API getMyPosts - First post structure:', result.data?.[0]);
       
       return result;
     } catch (error) {
@@ -535,7 +539,13 @@ export const postsAPI = {
 
   // Like/Unlike post
   toggleLike: async (postId) => {
-    const endpoint = `${API_CONFIG.BASE_URL}/posts/${postId}/like`;
+    // Ensure postId is properly extracted if it's an object
+    const actualPostId = (typeof postId === 'object' && postId.post_id) ? postId.post_id : postId;
+    const endpoint = `${API_CONFIG.BASE_URL}/posts/${actualPostId}/reactions`;
+    
+    // console.log('🔍 API toggleLike - Original postId:', postId);
+    // console.log('🔍 API toggleLike - Actual postId:', actualPostId);
+    // console.log('🔍 API toggleLike - Endpoint:', endpoint);
     logApiCall('POST', endpoint);
     
     try {
@@ -544,14 +554,112 @@ export const postsAPI = {
         throw new Error('User not logged in');
       }
 
+      const requestBody = { user_id: String(userId) };
+      console.log('🔍 API toggleLike - Request body:', requestBody);
+
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
-        body: JSON.stringify({ user_id: userId })
+        body: JSON.stringify(requestBody)
       });
       
-      return await handleResponse(response);
+      const result = await handleResponse(response);
+      console.log('✅ Like toggled successfully for post:', actualPostId);
+      console.log('🔍 Backend response:', result);
+      
+      return result;
     } catch (error) {
       console.error('❌ Toggle like error:', error.message);
+      console.error('❌ Full error details:', error);
+      throw error;
+    }
+  },
+
+  // Add post reaction
+  addReaction: async (postId, reactionType, emoji) => {
+    // Ensure postId is properly extracted if it's an object
+    const actualPostId = (typeof postId === 'object' && postId.post_id) ? postId.post_id : postId;
+    const endpoint = `${API_CONFIG.BASE_URL}/posts/${actualPostId}/reactions`;
+    
+    try {
+      const userId = userAPI.getCurrentUserId();
+      if (!userId) {
+        throw new Error('User not logged in. Please login first.');
+      }
+
+      // Ensure userId is sent as string, not number
+      const requestBody = {
+        user_id: String(userId),
+        reaction_type: reactionType,
+        emoji: emoji
+      };
+
+      console.log('🔍 API addReaction - Original postId:', postId);
+      console.log('🔍 API addReaction - Actual postId:', actualPostId);
+      console.log('🔍 API addReaction - User ID (raw):', userId);
+      console.log('🔍 API addReaction - User ID (string):', String(userId));
+      console.log('🔍 API addReaction - Reaction Type:', reactionType);
+      console.log('🔍 API addReaction - Emoji:', emoji);
+      console.log('🔍 API addReaction - Request body:', requestBody);
+      console.log('🔍 API addReaction - Endpoint:', endpoint);
+      logApiCall('POST', endpoint, requestBody);
+
+      const response = await fetchWithTimeout(endpoint, {
+        method: 'POST',
+        body: JSON.stringify(requestBody)
+      });
+      
+      const result = await handleResponse(response);
+      console.log('✅ Reaction added successfully for post:', actualPostId);
+      console.log('🔍 Backend response:', result);
+      
+      return result;
+    } catch (error) {
+      console.error('❌ Add reaction error:', error.message);
+      console.error('❌ Full error details:', error);
+      throw error;
+    }
+  },
+
+  // Remove post reaction
+  removeReaction: async (postId, reactionType) => {
+    // Ensure postId is properly extracted if it's an object
+    const actualPostId = (typeof postId === 'object' && postId.post_id) ? postId.post_id : postId;
+    const endpoint = `${API_CONFIG.BASE_URL}/posts/${actualPostId}/reactions/delete`;
+    
+    try {
+      const userId = userAPI.getCurrentUserId();
+      if (!userId) {
+        throw new Error('User not logged in. Please login first.');
+      }
+
+      // Ensure userId is sent as string, not number
+      const requestBody = {
+        user_id: String(userId),
+        reaction_type: reactionType
+      };
+
+      console.log('🔍 API removeReaction - Original postId:', postId);
+      console.log('🔍 API removeReaction - Actual postId:', actualPostId);
+      console.log('🔍 API removeReaction - User ID (raw):', userId);
+      console.log('🔍 API removeReaction - User ID (string):', String(userId));
+      console.log('🔍 API removeReaction - Reaction Type:', reactionType);
+      console.log('🔍 API removeReaction - Request body:', requestBody);
+      console.log('🔍 API removeReaction - Endpoint:', endpoint);
+      logApiCall('POST', endpoint, requestBody);
+
+      const response = await fetchWithTimeout(endpoint, {
+        method: 'POST',
+        body: JSON.stringify(requestBody)
+      });
+      
+      const result = await handleResponse(response);
+      console.log('✅ Reaction removed successfully for post:', actualPostId);
+      console.log('🔍 Backend response:', result);
+      
+      return result;
+    } catch (error) {
+      console.error('❌ Remove reaction error:', error.message);
+      console.error('❌ Full error details:', error);
       throw error;
     }
   },
@@ -807,21 +915,6 @@ export const adminAPI = {
 // =============================================================================
 
 export const utilityAPI = {
-  // Health check
-  healthCheck: async () => {
-    const endpoint = `${API_CONFIG.BASE_URL}/health`;
-    
-    try {
-      const response = await fetchWithTimeout(endpoint, {
-        method: 'GET'
-      });
-      
-      return await handleResponse(response);
-    } catch (error) {
-      console.error('❌ Health check error:', error.message);
-      throw error;
-    }
-  },
 
   // Get server info
   getServerInfo: async () => {
@@ -888,8 +981,8 @@ const api = {
     // Quick posts fetch
     getFeed: (page = 1) => postsAPI.getPosts(page),
     
-    // Quick health check
-    ping: () => utilityAPI.healthCheck()
+  
+ 
   },
   
   // Error constants
@@ -927,8 +1020,5 @@ export default api;
 // Initialize API on load
 if (typeof window !== 'undefined') {
   // Browser environment - check connection on load
-  api.quick.ping().then(
-    () => console.log('🌐 API connection established'),
-    () => console.log('⚠️ API connection failed - using fallback mode')
-  );
+
 }

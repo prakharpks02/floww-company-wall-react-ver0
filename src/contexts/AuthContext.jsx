@@ -52,10 +52,10 @@ export const AuthProvider = ({ children }) => {
   const getCurrentUserId = () => {
     console.log('🔍 getCurrentUserId - Current user:', user);
     if (user && user.user_id) {
-      console.log('✅ Returning user_id:', user.user_id);
+      // console.log('✅ Returning user_id:', user.user_id);
       return user.user_id; // This is the same as author_id
     }
-    console.log('❌ No user_id found, returning null');
+    // console.log('❌ No user_id found, returning null');
     return null;
   };
 
@@ -127,7 +127,7 @@ export const AuthProvider = ({ children }) => {
         localStorage.setItem('userId', JSON.stringify(parsedUser.user_id));
         localStorage.setItem('userSession', JSON.stringify(parsedUser));
         
-        console.log('✅ Fixed and re-saved user with consistent IDs:', parsedUser);
+        // console.log('✅ Fixed and re-saved user with consistent IDs:', parsedUser);
       }
       
       setUser(parsedUser);
@@ -152,7 +152,7 @@ export const AuthProvider = ({ children }) => {
       // First try backend registration
       try {
         const result = await userAPI.createUser({ username, email });
-        console.log('✅ Backend registration successful:', result);
+        // console.log('✅ Backend registration successful:', result);
         
         // Extract user_id from backend response - check the correct structure
         const userId = result.data?.user_id || result.user_id || result.id || result.userId;

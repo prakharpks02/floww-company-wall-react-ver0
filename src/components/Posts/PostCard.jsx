@@ -37,26 +37,62 @@ const PostCard = ({ post, showAuthorInfo = true, isPublicView = false }) => {
   
   // Normalize post data to handle different field names from backend
   const normalizePost = (rawPost) => {
-    console.log('🔍 Checking if current user post:', {
-      'rawPost.author?.user_id': rawPost.author?.user_id,
-      'rawPost.author?.username': rawPost.author?.username,
-      'rawPost.author_id': rawPost.author_id,
-      'rawPost.user_id': rawPost.user_id, 
-      'user?.user_id': user?.user_id,
-      'user?.id': user?.id,
-      'user?.name': user?.name,
-      'isCurrentUserPost': isCurrentUserPost,
-      'backend_has_author': !!rawPost.author
-    });
+    // console.log('🔍 PostCard - Raw post data:', rawPost);
+    // console.log('🔍 PostCard - Raw reactions:', rawPost.reactions);
+    // console.log('🔍 PostCard - Raw reaction_counts:', rawPost.reaction_counts);
+    // console.log('🔍 PostCard - Raw reactions type:', typeof rawPost.reactions);
+    // console.log('🔍 PostCard - Raw reactions is array:', Array.isArray(rawPost.reactions));
     
-    // Temporary debug alert to see user data
-    if (!user) {
-      console.log('❌ No user found in PostCard!');
-    } else {
-      console.log('✅ User found in PostCard:', user);
+    // CRITICAL: Handle reactions normalization properly
+    let normalizedReactions = {};
+    
+    // Handle new reaction_counts format first (takes priority)
+    if (rawPost.reaction_counts && typeof rawPost.reaction_counts === 'object') {
+      // console.log('🔍 PostCard - Converting reaction_counts to object...');
+      Object.entries(rawPost.reaction_counts).forEach(([reactionType, count]) => {
+        if (count > 0) {
+          normalizedReactions[reactionType] = {
+            users: [], // We don't have user list in reaction_counts format
+            count: count
+          };
+          // console.log(`🔍 PostCard - Added ${reactionType} with count ${count} for reaction_counts format`);
+        }
+      });
+      // console.log('🔍 PostCard - Final normalized reactions from reaction_counts:', normalizedReactions);
+    }
+    // Fallback to old reactions array format
+    else if (Array.isArray(rawPost.reactions)) {
+      // console.log('🔍 PostCard - Converting reactions array to object...');
+      normalizedReactions = {};
+      
+      rawPost.reactions.forEach((reaction, index) => {
+        // console.log(`🔍 PostCard - Processing reaction ${index}:`, reaction);
+        const reactionType = reaction.reaction_type;
+        const userId = reaction.user_id;
+        
+        if (!normalizedReactions[reactionType]) {
+          normalizedReactions[reactionType] = {
+            users: [],
+            count: 0
+          };
+        }
+        
+        if (!normalizedReactions[reactionType].users.includes(userId)) {
+          normalizedReactions[reactionType].users.push(userId);
+          normalizedReactions[reactionType].count++;
+          // console.log(`🔍 PostCard - Added user ${userId} to ${reactionType}, count now: ${normalizedReactions[reactionType].count}`);
+        }
+      });
+      
+      // console.log('🔍 PostCard - Final normalized reactions from array:', normalizedReactions);
+    } 
+    // Already in object format or no reactions
+    else {
+      normalizedReactions = rawPost.reactions || {};
+      // console.log('🔍 PostCard - Reactions already in object format or empty:', normalizedReactions);
     }
     
-    return {
+    const normalized = {
       ...rawPost,
       // Use backend author data if available, otherwise fall back to current user data
       authorName: rawPost.author?.username || rawPost.authorName || rawPost.author_name || rawPost.username || 
@@ -68,8 +104,8 @@ const PostCard = ({ post, showAuthorInfo = true, isPublicView = false }) => {
       authorEmail: rawPost.author?.email || rawPost.authorEmail || rawPost.author_email,
       // Ensure consistent timestamp field - backend uses created_at
       timestamp: rawPost.timestamp || rawPost.created_at || rawPost.createdAt || new Date().toISOString(),
-      // Ensure consistent ID field - backend uses post_id
-      id: rawPost.id || rawPost.post_id || `post-${Date.now()}`,
+      // Ensure consistent ID field - backend uses post_id as primary field
+      id: rawPost.post_id || rawPost.id || `post-${Date.now()}`,
       post_id: rawPost.post_id || rawPost.id, // Keep original post_id for backend operations
       // Ensure other fields have fallbacks
       content: rawPost.content || rawPost.post_content || '',
@@ -80,17 +116,34 @@ const PostCard = ({ post, showAuthorInfo = true, isPublicView = false }) => {
       links: rawPost.links || [],
       mentions: rawPost.mentions || [],
       comments: rawPost.comments || [],
-      reactions: rawPost.reactions || rawPost.reaction_counts || {},
+      reactions: normalizedReactions,
       likes: rawPost.likes || []
     };
+    
+    // console.log('🔍 PostCard - Final normalized post:', normalized);
+    return normalized;
   };
 
   const normalizedPost = normalizePost(post);
   
-  console.log('🔍 PostCard - Original post:', post);
-  console.log('🔍 PostCard - Normalized post:', normalizedPost);
-  console.log('🔍 Current user:', user);
-  const { likePost, deletePost, addComment, likeComment, deleteComment, addReply, deleteReply, addReaction } = usePost();
+  // console.log('🔍 PostCard - Normalized post:', normalizedPost);
+  // console.log('🔍 PostCard - Normalized reactions:', normalizedPost.reactions);
+  
+  // Helper function to get the correct post ID
+  const getPostId = () => {
+    // Prioritize post_id from backend, then normalized id, then fallbacks
+    const postId = normalizedPost.post_id || normalizedPost.id || post.post_id || post.id;
+    // console.log('🔍 getPostId - Checking IDs:', {
+    //   'normalizedPost.post_id': normalizedPost.post_id,
+    //   'normalizedPost.id': normalizedPost.id,
+    //   'post.post_id': post.post_id,
+    //   'post.id': post.id,
+    //   'final postId': postId
+    // });
+    return postId;
+  };
+  // console.log('🔍 Current user:', user);
+  const { deletePost, addComment, likeComment, deleteComment, addReply, deleteReply, addReaction, hasUserReacted } = usePost();
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState('');
   const [showMenu, setShowMenu] = useState(false);
@@ -106,12 +159,64 @@ const PostCard = ({ post, showAuthorInfo = true, isPublicView = false }) => {
   const [replyText, setReplyText] = useState('');
   const [shareCount, setShareCount] = useState(0);
 
-  const isLiked = normalizedPost.likes?.includes(user?.id);
+  // Check if user has liked the post - moved after getPostId function is defined
+  const checkIsLiked = () => {
+    const postId = getPostId();
+    
+    // First check local user reaction tracking (most reliable for current session)
+    const hasReactedLocally = hasUserReacted ? hasUserReacted(postId, 'like') : false;
+    
+    // Then check various fallback methods
+    const isInLikesArray = normalizedPost.likes?.includes(user?.id) || 
+                          normalizedPost.likes?.includes(user?.user_id);
+                          
+    const isInLikeReactionUsers = normalizedPost.reactions?.like?.users?.includes(user?.id) ||
+                                 normalizedPost.reactions?.like?.users?.includes(user?.user_id);
+    
+    // For reaction_counts format, if there's a like count > 0, check if it's the user's own post
+    // This is a reasonable assumption since most users like their own posts
+    const hasLikeCount = normalizedPost.reactions?.like?.count > 0;
+    const isOwnPost = isCurrentUserPost;
+    const likelyUserLikedOwnPost = hasLikeCount && isOwnPost;
+    
+    // CRITICAL: For posts where we have reaction_counts but no user data,
+    // we need to make an educated guess. If it's the user's own post and has likes,
+    // they probably liked it themselves
+    const liked = hasReactedLocally || 
+                 isInLikesArray || 
+                 isInLikeReactionUsers || 
+                 likelyUserLikedOwnPost;
+    
+    // Debug logging for like status
+    // console.log('🔍 PostCard isLiked calculation:', {
+    //   postId: postId,
+    //   userId: user?.id,
+    //   userUserId: user?.user_id,
+    //   hasUserReactedFunction: typeof hasUserReacted,
+    //   hasReactedLocally: hasReactedLocally,
+    //   likesArray: normalizedPost.likes,
+    //   likeReaction: normalizedPost.reactions?.like,
+    //   likeReactionUsers: normalizedPost.reactions?.like?.users,
+    //   isInLikesArray: isInLikesArray,
+    //   isInLikeReactionUsers: isInLikeReactionUsers,
+    //   hasLikeCount: hasLikeCount,
+    //   isOwnPost: isOwnPost,
+    //   likelyUserLikedOwnPost: likelyUserLikedOwnPost,
+    //   finalIsLiked: liked,
+    //   allReactions: normalizedPost.reactions
+    // });
+    
+    return liked;
+  };
+  
+  const isLiked = checkIsLiked();
+  
+  
   const isAuthor = isCurrentUserPost;
 
-  // Available emoji reactions
+  // Available emoji reactions - using backend-compatible reaction type names
   const emojiReactions = [
-    { emoji: '👍', name: 'like', label: 'Like' },
+    { emoji: '👍', name: 'thumbs_up', label: 'Good' },
     { emoji: '❤️', name: 'love', label: 'Love' },
     { emoji: '😊', name: 'happy', label: 'Happy' },
     { emoji: '😂', name: 'laugh', label: 'Laugh' },
@@ -121,27 +226,41 @@ const PostCard = ({ post, showAuthorInfo = true, isPublicView = false }) => {
     { emoji: '🎉', name: 'celebrate', label: 'Celebrate' }
   ];
 
-  const handleLike = () => {
+  const handleLike = (event) => {
+    // Prevent any default behavior that might cause page refresh
+    event.preventDefault();
+    event.stopPropagation();
+    
     if (isPublicView || !user) return;
-    // If user has an emoji reaction, remove it first
-    if (getUserReaction()) {
-      addReaction(post.id, getUserReaction()); // This will remove the existing reaction
+    
+    const postId = getPostId();
+    // console.log('🔍 PostCard handleLike - Using post ID:', postId);
+    // console.log('🔍 PostCard handleLike - Current isLiked:', isLiked);
+    // console.log('🔍 PostCard handleLike - Current like count:', getTotalLikes());
+    // console.log('🔍 PostCard handleLike - Post reactions:', normalizedPost.reactions);
+    // console.log('🔍 PostCard handleLike - Post likes array:', normalizedPost.likes);
+    
+    if (!postId) {
+      console.error('❌ No valid post ID found for like action');
+      return;
     }
-    likePost(post.id);
+    
+    // Use reaction system for likes - this will add/remove like reaction
+    // and automatically increase/decrease the like count for each user
+    addReaction(postId, 'like', '❤️');
   };
 
   const handleComment = () => {
     if (isPublicView || !user) return;
-    if (commentText.trim()) {
-      addComment(post.id, commentText);
+    const postId = getPostId();
+    if (commentText.trim() && postId) {
+      addComment(postId, commentText);
       setCommentText('');
     }
   };
 
   const handleDelete = () => {
-    console.log('🔍 Deleting post:', normalizedPost);
-    console.log('🔍 Post ID for deletion:', normalizedPost.id);
-    console.log('🔍 Post post_id for deletion:', normalizedPost.post_id);
+   
     
     // Use post_id for backend operations
     deletePost(normalizedPost.post_id || normalizedPost.id);
@@ -150,13 +269,22 @@ const PostCard = ({ post, showAuthorInfo = true, isPublicView = false }) => {
 
   const handleCommentLike = (commentId) => {
     if (isPublicView || !user) return;
-    likeComment(post.id, commentId);
+    const postId = getPostId();
+    if (postId) {
+      likeComment(postId, commentId);
+    }
   };
 
-  const handleCommentReaction = (commentId, reactionType) => {
+  const handleCommentReaction = (commentId, reactionType, event) => {
+    // Prevent any default behavior that might cause page refresh
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    
     if (isPublicView || !user) return;
     // This would need to be implemented in PostContext
-    console.log('Comment reaction:', commentId, reactionType);
+    // console.log('Comment reaction:', commentId, reactionType);
     setShowCommentReactions(prev => ({ ...prev, [commentId]: false }));
   };
 
@@ -182,8 +310,33 @@ const PostCard = ({ post, showAuthorInfo = true, isPublicView = false }) => {
   const getCommentUserReaction = (comment) => {
     if (!comment.reactions) return null;
     
+    const postId = getPostId();
+    const commentId = comment.id;
+    
     for (const [reactionType, reaction] of Object.entries(comment.reactions)) {
-      if (reaction.users?.includes(user?.id)) {
+      // First check local user reaction tracking for comments (if implemented)
+      // For now, we'll use the existing user list checking since comments might not be tracked locally yet
+      const isInReactionUsers = reaction.users?.includes(user?.id) || reaction.users?.includes(user?.user_id);
+      
+      // For reaction_counts format on comments, if there's a reaction count > 0 and it's user's own comment,
+      // assume they reacted (similar logic to posts)
+      const hasReactionCount = reaction.count > 0;
+      const isOwnComment = comment.authorId === user?.id || comment.author?.user_id === user?.user_id;
+      const likelyUserReactedOwnComment = hasReactionCount && isOwnComment;
+      
+      // Check if user has this reaction on the comment
+      const userHasReaction = isInReactionUsers || likelyUserReactedOwnComment;
+      
+      if (userHasReaction) {
+        // console.log('🔍 PostCard getCommentUserReaction - Found user comment reaction:', {
+        //   postId: postId,
+        //   commentId: commentId,
+        //   reactionType: reactionType,
+        //   isInReactionUsers: isInReactionUsers,
+        //   isOwnComment: isOwnComment,
+        //   likelyUserReactedOwnComment: likelyUserReactedOwnComment,
+        //   userHasReaction: userHasReaction
+        // });
         return reactionType;
       }
     }
@@ -256,36 +409,86 @@ const PostCard = ({ post, showAuthorInfo = true, isPublicView = false }) => {
     return total;
   };
 
-  const handleReaction = (reactionType) => {
-    if (isPublicView || !user) return;
-    // If user has liked the post traditionally, remove the like first
-    if (isLiked) {
-      likePost(post.id); // This will remove the traditional like
+  const handleReaction = (reactionType, event) => {
+    // Prevent any default behavior that might cause page refresh
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
     }
-    addReaction(post.id, reactionType);
+    
+    if (isPublicView || !user) return;
+    const postId = getPostId();
+    if (!postId) return;
+    
+    // Add the emoji reaction (likes are handled separately by the heart button)
+    addReaction(postId, reactionType);
     setShowReactions(false);
   };
 
   const getUserReaction = () => {
     if (!normalizedPost.reactions) return null;
     
+    const postId = getPostId();
     for (const [reactionType, reaction] of Object.entries(normalizedPost.reactions)) {
-      if (reaction.users?.includes(user?.id)) {
-        return reactionType;
+      // Exclude 'like' reactions from showing in the emoji reaction display
+      // since likes are handled by the heart button
+      if (reactionType !== 'like') {
+        // First check local user reaction tracking (most reliable for current session)
+        const hasReactedLocally = hasUserReacted ? hasUserReacted(postId, reactionType) : false;
+        
+        // Then check if user is in the users array (fallback for old format)
+        const isInReactionUsers = reaction.users?.includes(user?.id) || reaction.users?.includes(user?.user_id);
+        
+        // For reaction_counts format, if there's a reaction count > 0 and it's user's own post,
+        // assume they reacted (similar logic to likes)
+        const hasReactionCount = reaction.count > 0;
+        const isOwnPost = isCurrentUserPost;
+        const likelyUserReactedOwnPost = hasReactionCount && isOwnPost;
+        
+        // Check if user has this reaction
+        const userHasReaction = hasReactedLocally || isInReactionUsers || likelyUserReactedOwnPost;
+        
+        if (userHasReaction) {
+          // console.log('🔍 PostCard getUserReaction - Found user reaction:', {
+          //   postId: postId,
+          //   reactionType: reactionType,
+          //   hasReactedLocally: hasReactedLocally,
+          //   isInReactionUsers: isInReactionUsers,
+          //   likelyUserReactedOwnPost: likelyUserReactedOwnPost,
+          //   userHasReaction: userHasReaction
+          // });
+          return reactionType;
+        }
       }
     }
     return null;
   };
 
+  // Get total like count from both likes array and like reactions
+  const getTotalLikes = () => {
+    const likesArrayCount = normalizedPost.likes?.length || 0;
+    const likeReactionCount = normalizedPost.reactions?.like?.count || 0;
+    
+    // If both exist, prioritize the reaction count as it's more current
+    if (likeReactionCount > 0) {
+      return likeReactionCount;
+    }
+    return likesArrayCount;
+  };
+
   const getTotalReactions = () => {
     if (!normalizedPost.reactions) return 0;
-    return Object.values(normalizedPost.reactions).reduce((total, reaction) => total + reaction.count, 0);
+    // Exclude 'like' reactions from the total count since they're shown in the heart button
+    return Object.entries(normalizedPost.reactions)
+      .filter(([reactionType]) => reactionType !== 'like')
+      .reduce((total, [, reaction]) => total + reaction.count, 0);
   };
 
   const getTopReactions = () => {
     if (!normalizedPost.reactions) return [];
     
     return Object.entries(normalizedPost.reactions)
+      .filter(([reactionType]) => reactionType !== 'like') // Exclude likes
       .sort(([,a], [,b]) => b.count - a.count)
       .slice(0, 3)
       .map(([type, reaction]) => ({
@@ -319,8 +522,8 @@ const PostCard = ({ post, showAuthorInfo = true, isPublicView = false }) => {
         {/* Images */}
         {normalizedPost.images?.length > 0 && (
           <div className="grid grid-cols-2 gap-2">
-            {normalizedPost.images.map((image) => (
-              <div key={image.id} className="relative group">
+            {normalizedPost.images.map((image, idx) => (
+              <div key={image.id || image.url || idx} className="relative group">
                 <img
                   src={image.url}
                   alt={image.name}
@@ -342,9 +545,9 @@ const PostCard = ({ post, showAuthorInfo = true, isPublicView = false }) => {
         {/* Videos */}
         {normalizedPost.videos?.length > 0 && (
           <div className="space-y-4">
-            {normalizedPost.videos.map((video) => (
+            {normalizedPost.videos.map((video, idx) => (
               <VideoPlayer
-                key={video.id}
+                key={video.id || video.url || idx}
                 src={video.url}
                 poster={video.thumbnail}
                 className="w-full max-w-2xl"
@@ -356,8 +559,8 @@ const PostCard = ({ post, showAuthorInfo = true, isPublicView = false }) => {
         {/* Documents */}
         {normalizedPost.documents?.length > 0 && (
           <div className="space-y-4">
-            {normalizedPost.documents.map((doc) => (
-              <div key={doc.id}>
+            {normalizedPost.documents.map((doc, idx) => (
+              <div key={doc.id || doc.url || idx}>
                 {doc.isPDF && doc.url ? (
                   // PDF Preview (like video)
                   <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
@@ -402,8 +605,8 @@ const PostCard = ({ post, showAuthorInfo = true, isPublicView = false }) => {
         {/* Links */}
         {normalizedPost.links?.length > 0 && (
           <div className="space-y-2">
-            {normalizedPost.links.map((link) => (
-              <div key={link.id} className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            {normalizedPost.links.map((link, idx) => (
+              <div key={link.id || link.url || idx} className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                     <ExternalLink className="h-6 w-6 text-blue-600" />
@@ -469,8 +672,8 @@ const PostCard = ({ post, showAuthorInfo = true, isPublicView = false }) => {
                 <>
                   <button
                     onClick={() => {
-                      console.log('🔍 Opening edit modal for post:', normalizedPost);
-                      console.log('🔍 Post ID for editing:', normalizedPost.id);
+                      // console.log('🔍 Opening edit modal for post:', normalizedPost);
+                      // console.log('🔍 Post ID for editing:', normalizedPost.id);
                       setShowEditModal(true);
                       setShowMenu(false);
                     }}
@@ -527,10 +730,9 @@ const PostCard = ({ post, showAuthorInfo = true, isPublicView = false }) => {
             // Handle both string tags and object tags from backend
             const tagName = typeof tag === 'string' ? tag : tag.tag_name || tag.name || 'tag';
             const tagKey = typeof tag === 'string' ? tag : tag.tag_name || tag.name || `tag-${index}`;
-            
             return (
               <span
-                key={tagKey}
+                key={tagKey || index}
                 className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium text-white"
                 style={{ backgroundColor: '#9f7aea' }}
               >
@@ -553,9 +755,9 @@ const PostCard = ({ post, showAuthorInfo = true, isPublicView = false }) => {
       {/* Mentions */}
       {normalizedPost.mentions?.length > 0 && (
         <div className="mt-4 flex flex-wrap gap-2">
-          {normalizedPost.mentions.map((mention) => (
+          {normalizedPost.mentions.map((mention, idx) => (
             <span
-              key={mention.id}
+              key={mention.id || mention.name || idx}
               className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-pink-100 text-pink-800"
             >
               <AtSign className="h-3 w-3 mr-1" />
@@ -574,7 +776,7 @@ const PostCard = ({ post, showAuthorInfo = true, isPublicView = false }) => {
               {/* Emoji Reactions */}
               <div className="flex items-center space-x-1">
                 {getTopReactions().map((reaction, index) => (
-                  <div key={reaction.type} className="flex items-center">
+                  <div key={reaction.type || index} className="flex items-center">
                     <span className="text-lg">{reaction.emoji}</span>
                     {index === getTopReactions().length - 1 && (
                       <span className="ml-1 text-gray-600">{getTotalReactions()}</span>
@@ -600,18 +802,18 @@ const PostCard = ({ post, showAuthorInfo = true, isPublicView = false }) => {
               disabled={isPublicView}
               title={isPublicView ? "Login to like posts" : "Like this post"}
               className={`flex items-center space-x-2 text-sm ${
-                isLiked && !getUserReaction()
+                isLiked
                   ? 'text-red-600'
                   : isPublicView 
                     ? 'text-gray-400 cursor-not-allowed'
                     : 'text-gray-500 hover:text-red-600'
               } transition-colors`}
             >
-              <Heart className={`h-5 w-5 ${isLiked && !getUserReaction() ? 'fill-current' : ''}`} />
+              <Heart className={`h-5 w-5 ${isLiked ? 'fill-current' : ''}`} />
               <span>Like</span>
-              {normalizedPost.likes?.length > 0 && (
+              {getTotalLikes() > 0 && (
                 <span className="text-xs bg-gray-100 px-2 py-1 rounded-full">
-                  {normalizedPost.likes.length}
+                  {getTotalLikes()}
                 </span>
               )}
             </button>
@@ -619,7 +821,15 @@ const PostCard = ({ post, showAuthorInfo = true, isPublicView = false }) => {
             {/* Emoji Reactions Button with Dropdown */}
             <div className="relative">
               <button
-                onClick={() => !isPublicView && setShowReactions(!showReactions)}
+                onClick={(event) => {
+                  // Prevent any default behavior that might cause page refresh
+                  event.preventDefault();
+                  event.stopPropagation();
+                  
+                  if (!isPublicView) {
+                    setShowReactions(!showReactions);
+                  }
+                }}
                 onMouseEnter={() => !isPublicView && setShowReactions(true)}
                 disabled={isPublicView}
                 title={isPublicView ? "Login to react to posts" : "React to this post"}
@@ -650,7 +860,7 @@ const PostCard = ({ post, showAuthorInfo = true, isPublicView = false }) => {
                   {emojiReactions.map((reaction) => (
                     <button
                       key={reaction.name}
-                      onClick={() => handleReaction(reaction.name)}
+                      onClick={(event) => handleReaction(reaction.name, event)}
                       className="p-2 hover:bg-gray-100 rounded-full transition-colors transform hover:scale-110"
                       title={reaction.label}
                     >
@@ -747,8 +957,8 @@ const PostCard = ({ post, showAuthorInfo = true, isPublicView = false }) => {
 
           {/* Comments List */}
           <div className="space-y-3">
-            {normalizedPost.comments?.map((comment) => (
-              <div key={comment.id} className="flex space-x-3">
+            {normalizedPost.comments?.map((comment, idx) => (
+              <div key={comment.id || idx} className="flex space-x-3">
                 <img
                   src={comment.authorAvatar}
                   alt={comment.authorName}
@@ -882,7 +1092,7 @@ const PostCard = ({ post, showAuthorInfo = true, isPublicView = false }) => {
                           {emojiReactions.map((reaction) => (
                             <button
                               key={reaction.name}
-                              onClick={() => handleCommentReaction(comment.id, reaction.name)}
+                              onClick={(event) => handleCommentReaction(comment.id, reaction.name, event)}
                               className="p-1 hover:bg-gray-100 rounded-full transition-colors transform hover:scale-110"
                               title={reaction.label}
                             >
@@ -935,8 +1145,8 @@ const PostCard = ({ post, showAuthorInfo = true, isPublicView = false }) => {
                   {/* Replies (if any) */}
                   {comment.replies?.length > 0 && (
                     <div className="mt-3 pl-4 border-l-2 border-gray-200 space-y-2">
-                      {comment.replies.map((reply) => (
-                        <div key={reply.id} className="flex space-x-2">
+                      {comment.replies.map((reply, idx) => (
+                        <div key={reply.id || idx} className="flex space-x-2">
                           <img
                             src={reply.authorAvatar}
                             alt={reply.authorName}
@@ -1071,7 +1281,7 @@ const PostCard = ({ post, showAuthorInfo = true, isPublicView = false }) => {
               <button
                 onClick={() => {
                   // Handle report submission
-                  console.log('Reporting post:', { postId: post.id, reason: reportReason, description: reportDescription });
+                  // console.log('Reporting post:', { postId: post.id, reason: reportReason, description: reportDescription });
                   setShowReportModal(false);
                   setReportReason('');
                   setReportDescription('');

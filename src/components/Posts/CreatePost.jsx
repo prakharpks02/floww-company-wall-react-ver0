@@ -164,9 +164,9 @@ const CreatePost = ({ onClose, editingPost = null }) => {
       };
 
       if (editingPost) {
-        console.log('🔍 Editing post with data:', editingPost);
-        console.log('🔍 Post ID being used:', editingPost.id);
-        console.log('🔍 Post post_id being used:', editingPost.post_id);
+        // console.log('🔍 Editing post with data:', editingPost);
+        // console.log('🔍 Post ID being used:', editingPost.id);
+        // console.log('🔍 Post post_id being used:', editingPost.post_id);
         
         // Include post_id in the update data for backend
         const updateData = {
