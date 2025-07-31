@@ -674,23 +674,20 @@ export const postsAPI = {
   addComment: async (postId, commentData) => {
     const endpoint = `${API_CONFIG.BASE_URL}/posts/${postId}/comments`;
     logApiCall('POST', endpoint, commentData);
-    
     try {
       const userId = userAPI.getCurrentUserId();
       if (!userId) {
         throw new Error('User not logged in');
       }
-
+      // The backend expects { user_id, content }
       const requestBody = {
-        content: commentData.content,
-        user_id: userId
+        user_id: userId,
+        content: commentData.content || commentData.comment // always send as 'content'
       };
-
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
         body: JSON.stringify(requestBody)
       });
-      
       return await handleResponse(response);
     } catch (error) {
       console.error('❌ Add comment error:', error.message);

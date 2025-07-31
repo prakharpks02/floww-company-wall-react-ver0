@@ -156,10 +156,12 @@ const PostCard = ({ post, showAuthorInfo = true, isPublicView = false, activeVie
   const [showReactions, setShowReactions] = useState(false);
   const [reactionsTimeout, setReactionsTimeout] = useState(null);
   const [showCommentReactions, setShowCommentReactions] = useState({});
+
   const [replyingTo, setReplyingTo] = useState(null);
   const [replyText, setReplyText] = useState('');
   const [shareCount, setShareCount] = useState(0);
   const [commentReactionsTimeouts, setCommentReactionsTimeouts] = useState({});
+    const [newCommentText, setNewCommentText] = useState('');
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -169,6 +171,33 @@ const PostCard = ({ post, showAuthorInfo = true, isPublicView = false, activeVie
       }
     };
   }, [reactionsTimeout]);
+
+  const handleAddNewComment = () => {
+  if (!newCommentText.trim()) return;
+
+  const newComment = {
+    id: Date.now(),
+    content: newCommentText.trim(),
+    authorName: user.name,
+    authorAvatar: user.avatar,
+    authorId: user.id,
+    timestamp: new Date().toISOString(),
+    reactions: {},
+    replies: [],
+  };
+
+  // Add to post comments
+  const updatedPost = {
+    ...normalizedPost,
+    comments: [...(normalizedPost.comments || []), newComment],
+  };
+
+  // Update state (assuming you have a setter for post)
+  setNormalizedPost(updatedPost);
+
+  setNewCommentText('');
+};
+
 
   // Improved hover handlers for reactions
   const handleReactionsMouseEnter = () => {
@@ -282,7 +311,7 @@ const PostCard = ({ post, showAuthorInfo = true, isPublicView = false, activeVie
     if (isPublicView || !user) return;
     const postId = getPostId();
     if (commentText.trim() && postId) {
-      addComment(postId, commentText);
+      addComment(postId, { user_id: user.id, comment: commentText });
       setCommentText('');
     }
   };
@@ -938,263 +967,292 @@ const handleCommentReaction = (commentId, reactionType, event) => {
       </div>
 
       {/* Comments Section */}
-      {showComments && (
-        <div className="space-y-3">
-          {normalizedPost.comments?.map((comment, idx) => {
-            // Normalize comment reactions array to object
-            let normalizedComment = { ...comment };
-            if (Array.isArray(comment.reactions)) {
-              const reactionsObj = {};
-              comment.reactions.forEach(reaction => {
-                const type = reaction.reaction_type;
-                if (!reactionsObj[type]) {
-                  reactionsObj[type] = { users: [], count: 0 };
-                }
-                if (!reactionsObj[type].users.includes(reaction.user_id)) {
-                  reactionsObj[type].users.push(reaction.user_id);
-                  reactionsObj[type].count++;
-                }
-              });
-              normalizedComment.reactions = reactionsObj;
+{showComments && (
+  <div className="space-y-3">
+    {/* Always show comment input box when comments are open */}
+    {!isPublicView && (
+      <div className="flex space-x-3 mb-2">
+        <img
+          src={user?.avatar}
+          alt={user?.name}
+          className="h-8 w-8 rounded-full object-cover"
+        />
+        <div className="flex-1 flex space-x-2">
+          <input
+            type="text"
+            value={commentText}
+            onChange={(e) => setCommentText(e.target.value)}
+            placeholder="Add a comment..."
+            className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-purple-500 focus:border-purple-500"
+            onKeyPress={(e) => e.key === 'Enter' && handleComment()}
+          />
+          <button
+            onClick={handleComment}
+            disabled={!commentText.trim()}
+            className="px-3 py-1 text-white rounded text-sm hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+            style={{ backgroundColor: '#9f7aea' }}
+          >
+            Post
+          </button>
+        </div>
+      </div>
+    )}
+    {/* If no comments */}
+    {Array.isArray(normalizedPost.comments) && normalizedPost.comments.length === 0 && (
+      <div className="text-sm text-gray-500">No comments yet. Be the first to comment!</div>
+    )}
+    {/* Render each comment with full UI */}
+    {Array.isArray(normalizedPost.comments) && normalizedPost.comments.length > 0 && (
+      normalizedPost.comments.map((comment, idx) => {
+        // Normalize comment reactions array to object
+        let normalizedComment = { ...comment };
+        if (Array.isArray(comment.reactions)) {
+          const reactionsObj = {};
+          comment.reactions.forEach(reaction => {
+            const type = reaction.reaction_type;
+            if (!reactionsObj[type]) {
+              reactionsObj[type] = { users: [], count: 0 };
             }
-            return (
-              <div key={comment.id || idx} className="flex space-x-3">
-                <img
-                  src={comment.authorAvatar}
-                  alt={comment.authorName}
-                  className="h-8 w-8 rounded-full object-cover"
-                />
-                <div className="flex-1">
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center space-x-2">
-                        <span className="font-medium text-sm text-gray-900">
-                          {comment.authorName}
-                        </span>
-                        <span className="text-xs text-gray-500">
-                          {comment.timestamp && !isNaN(new Date(comment.timestamp))
-                            ? formatDistanceToNow(new Date(comment.timestamp), { addSuffix: true })
-                            : 'Just now'
-                          }
-                        </span>
-                      </div>
-                      {/* Delete button for comment author */}
-                      {!isPublicView && comment.authorId === user?.id && (
-                        <button
-                          onClick={() => handleDeleteComment(comment.id)}
-                          className="text-gray-400 hover:text-red-600 transition-colors p-1 rounded"
-                          title="Delete comment"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </button>
-                      )}
-                    </div>
-                    <p className="text-sm text-gray-700">{comment.content}</p>
+            if (!reactionsObj[type].users.includes(reaction.user_id)) {
+              reactionsObj[type].users.push(reaction.user_id);
+              reactionsObj[type].count++;
+            }
+          });
+          normalizedComment.reactions = reactionsObj;
+        }
+        return (
+          <div key={comment.id || idx} className="flex space-x-3">
+            <img
+              src={comment.authorAvatar}
+              alt={comment.authorName}
+              className="h-8 w-8 rounded-full object-cover"
+            />
+            <div className="flex-1">
+              <div className="bg-gray-50 rounded-lg p-3">
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center space-x-2">
+                    <span className="font-medium text-sm text-gray-900">
+                      {comment.authorName}
+                    </span>
+                    <span className="text-xs text-gray-500">
+                      {comment.timestamp && !isNaN(new Date(comment.timestamp))
+                        ? formatDistanceToNow(new Date(comment.timestamp), { addSuffix: true })
+                        : 'Just now'
+                      }
+                    </span>
                   </div>
-
-                  {/* Comment Reactions Display */}
-                  {getCommentTotalReactions(normalizedComment) > 0 && (
-                    <div className="flex items-center space-x-2 mt-1 mb-2">
-                      <div className="flex items-center space-x-1">
-                        {getCommentTopReactions(normalizedComment).map((reaction, index) => (
-                          <div key={reaction.type} className="flex items-center">
-                            <span className="text-sm">{reaction.emoji}</span>
-                            {index === getCommentTopReactions(normalizedComment).length - 1 && (
-                              <span className="ml-1 text-xs text-gray-600">{getCommentTotalReactions(normalizedComment)}</span>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Comment Actions */}
-                  <div className="flex items-center space-x-4 mt-2">
-                    {/* Like Button with Hover Reactions for Comments */}
-                    <div
-                      className="relative"
-                      onMouseEnter={() => handleCommentReactionsMouseEnter(comment.id)}
-                      onMouseLeave={() => handleCommentReactionsMouseLeave(comment.id)}
-                    >
-                      <button
-                        onClick={() => handleCommentLike(comment.id)}
-                        disabled={isPublicView}
-                        title={isPublicView ? "Login to like or react to comments" : "Like or react to this comment"}
-                        className={`text-xs ${
-                          getCommentUserReaction(comment) || hasUserReacted(`comment_${comment.id}`, 'like')
-                            ? 'text-red-600'
-                            : isPublicView
-                              ? 'text-gray-400 cursor-not-allowed'
-                              : 'text-gray-500 hover:text-red-600'
-                        } transition-colors flex items-center space-x-1`}
-                      >
-                        {getCommentUserReaction(comment) ? (
-                          <span className="text-lg">
-                            {emojiReactions.find(r => r.name === getCommentUserReaction(comment))?.emoji || '😊'}
-                          </span>
-                        ) : (
-                          <Heart className={`h-3 w-3 ${hasUserReacted(`comment_${comment.id}`, 'like') ? 'fill-current' : ''}`} />
-                        )}
-                        <span>Like</span>
-                        {(() => {
-                          const reaction = getCommentUserReaction(comment) || 'like';
-                          return comment.reactions?.[reaction]?.count > 0 ? (
-                            <span className="bg-gray-200 px-1 rounded text-xs">
-                              {comment.reactions[reaction].count}
-                            </span>
-                          ) : null;
-                        })()}
-                      </button>
-                      {showCommentReactions[comment.id] && !isPublicView && (
-                        <div
-                          className="absolute bottom-full left-0 mb-2 bg-white border border-gray-200 rounded-full shadow-lg px-2 py-2 flex items-center space-x-1 z-20"
-                        >
-                          {emojiReactions.map((reaction) => (
-                            <button
-                              key={reaction.name}
-                              onClick={(event) => handleCommentReaction(comment.id, reaction.name, event)}
-                              className="p-2 hover:bg-gray-100 rounded-full transition-colors transform hover:scale-110"
-                              title={reaction.label}
-                            >
-                              <span className="text-xl">{reaction.emoji}</span>
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Reply Button */}
+                  {/* Delete button for comment author */}
+                  {!isPublicView && comment.authorId === user?.id && (
                     <button
-                      onClick={() => !isPublicView && setReplyingTo(replyingTo === comment.id ? null : comment.id)}
-                      disabled={isPublicView}
-                      title={isPublicView ? "Login to reply to comments" : "Reply to this comment"}
-                      className={`text-xs transition-colors flex items-center space-x-1 ${
-                        isPublicView
-                          ? 'text-gray-400 cursor-not-allowed'
-                          : 'text-gray-500 hover:text-blue-600'
-                      }`}
+                      onClick={() => handleDeleteComment(comment.id)}
+                      className="text-gray-400 hover:text-red-600 transition-colors p-1 rounded"
+                      title="Delete comment"
                     >
-                      <MessageCircle className="h-3 w-3" />
-                      <span>Reply</span>
+                      <Trash2 className="h-3 w-3" />
                     </button>
-
-                    {/* React Button */}
-                    {/* This section is removed as per the edit hint to remove the separate React button */}
-                  </div>
-
-                  {/* Reply Input - only show for logged in users */}
-                  {replyingTo === comment.id && !isPublicView && (
-                    <div className="mt-3 flex space-x-2">
-                      <img
-                        src={user?.avatar}
-                        alt={user?.name}
-                        className="h-6 w-6 rounded-full object-cover"
-                      />
-                      <div className="flex-1 flex space-x-2">
-                        <input
-                          type="text"
-                          value={replyText}
-                          onChange={(e) => setReplyText(e.target.value)}
-                          placeholder={`Reply to ${comment.authorName}...`}
-                          className="flex-1 px-2 py-1 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-purple-500 focus:border-purple-500"
-                          onKeyPress={(e) => e.key === 'Enter' && handleReply(comment.id)}
-                        />
-                        <button
-                          onClick={() => handleReply(comment.id)}
-                          disabled={!replyText.trim()}
-                          className="px-3 py-1 text-white rounded text-xs hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
-                          style={{ backgroundColor: '#9f7aea' }}
-                        >
-                          Reply
-                        </button>
-                        <button
-                          onClick={() => {
-                            setReplyingTo(null);
-                            setReplyText('');
-                          }}
-                          className="px-3 py-1 text-gray-600 bg-gray-200 rounded text-xs hover:bg-gray-300 transition-colors"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
                   )}
-
-                  {/* Replies (if any) */}
-                  {comment.replies?.length > 0 && (
-                    <div className="mt-3 pl-4 border-l-2 border-gray-200 space-y-2">
-                      {comment.replies.map((reply, idx) => {
-                        // Normalize reply reactions array to object
-                        let normalizedReply = { ...reply };
-                        if (Array.isArray(reply.reactions)) {
-                          const reactionsObj = {};
-                          reply.reactions.forEach(reaction => {
-                            const type = reaction.reaction_type;
-                            if (!reactionsObj[type]) {
-                              reactionsObj[type] = { users: [], count: 0 };
-                            }
-                            if (!reactionsObj[type].users.includes(reaction.user_id)) {
-                              reactionsObj[type].users.push(reaction.user_id);
-                              reactionsObj[type].count++;
-                            }
-                          });
-                          normalizedReply.reactions = reactionsObj;
-                        }
-                        return (
-                          <div key={reply.id || idx} className="flex space-x-2">
-                            <img
-                              src={reply.authorAvatar}
-                              alt={reply.authorName}
-                              className="h-6 w-6 rounded-full object-cover"
-                            />
-                            <div className="flex-1">
-                              <div className="bg-white rounded-lg p-2 border border-gray-200">
-                                <div className="flex items-center justify-between mb-1">
-                                  <div className="flex items-center space-x-2">
-                                    <span className="font-medium text-xs text-gray-900">
-                                      {reply.authorName}
-                                    </span>
-                                    <span className="text-xs text-gray-500">
-                                      {reply.timestamp && !isNaN(new Date(reply.timestamp))
-                                        ? formatDistanceToNow(new Date(reply.timestamp), { addSuffix: true })
-                                        : 'Just now'
-                                      }
-                                    </span>
-                                  </div>
-                                  {/* Delete button for reply author */}
-                                  {!isPublicView && reply.authorId === user?.id && (
-                                    <button
-                                      onClick={() => handleDeleteReply(comment.id, reply.id)}
-                                      className="text-gray-400 hover:text-red-600 transition-colors p-1 rounded"
-                                      title="Delete reply"
-                                    >
-                                      <Trash2 className="h-2 w-2" />
-                                    </button>
-                                  )}
-                                </div>
-                                <p className="text-xs text-gray-700">{reply.content}</p>
-                              </div>
-                              {/* Show reply reactions just like for comments */}
-                              {getCommentTotalReactions(normalizedReply) > 0 && (
-                                <div className="flex items-center space-x-1 mt-1">
-                                  {getCommentTopReactions(normalizedReply).map((reaction, index) => (
-                                    <span key={reaction.type} className="text-sm">{reaction.emoji}</span>
-                                  ))}
-                                  <span className="ml-1 text-xs text-gray-600">{getCommentTotalReactions(normalizedReply)}</span>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
+                </div>
+                <p className="text-sm text-gray-700">{comment.content ?? ''}</p>
+              </div>
+              {/* Comment Reactions Display */}
+              {getCommentTotalReactions(normalizedComment) > 0 && (
+                <div className="flex items-center space-x-2 mt-1 mb-2">
+                  <div className="flex items-center space-x-1">
+                    {getCommentTopReactions(normalizedComment).map((reaction, index) => (
+                      <div key={reaction.type} className="flex items-center">
+                        <span className="text-sm">{reaction.emoji}</span>
+                        {index === getCommentTopReactions(normalizedComment).length - 1 && (
+                          <span className="ml-1 text-xs text-gray-600">{getCommentTotalReactions(normalizedComment)}</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {/* Comment Actions */}
+              <div className="flex items-center space-x-4 mt-2">
+                {/* Like Button with Hover Reactions for Comments */}
+                <div
+                  className="relative"
+                  onMouseEnter={() => handleCommentReactionsMouseEnter(comment.id)}
+                  onMouseLeave={() => handleCommentReactionsMouseLeave(comment.id)}
+                >
+                  <button
+                    onClick={() => handleCommentLike(comment.id)}
+                    disabled={isPublicView}
+                    title={isPublicView ? "Login to like or react to comments" : "Like or react to this comment"}
+                    className={`text-xs ${
+                      getCommentUserReaction(comment) || hasUserReacted(`comment_${comment.id}`, 'like')
+                        ? 'text-red-600'
+                        : isPublicView
+                          ? 'text-gray-400 cursor-not-allowed'
+                          : 'text-gray-500 hover:text-red-600'
+                    } transition-colors flex items-center space-x-1`}
+                  >
+                    {getCommentUserReaction(comment) ? (
+                      <span className="text-lg">
+                        {emojiReactions.find(r => r.name === getCommentUserReaction(comment))?.emoji || '😊'}
+                      </span>
+                    ) : (
+                      <Heart className={`h-3 w-3 ${hasUserReacted(`comment_${comment.id}`, 'like') ? 'fill-current' : ''}`} />
+                    )}
+                    <span>Like</span>
+                    {(() => {
+                      const reaction = getCommentUserReaction(comment) || 'like';
+                      return comment.reactions?.[reaction]?.count > 0 ? (
+                        <span className="bg-gray-200 px-1 rounded text-xs">
+                          {comment.reactions[reaction].count}
+                        </span>
+                      ) : null;
+                    })()}
+                  </button>
+                  {showCommentReactions[comment.id] && !isPublicView && (
+                    <div
+                      className="absolute bottom-full left-0 mb-2 bg-white border border-gray-200 rounded-full shadow-lg px-2 py-2 flex items-center space-x-1 z-20"
+                    >
+                      {emojiReactions.map((reaction) => (
+                        <button
+                          key={reaction.name}
+                          onClick={(event) => handleCommentReaction(comment.id, reaction.name, event)}
+                          className="p-2 hover:bg-gray-100 rounded-full transition-colors transform hover:scale-110"
+                          title={reaction.label}
+                        >
+                          <span className="text-xl">{reaction.emoji}</span>
+                        </button>
+                      ))}
                     </div>
                   )}
                 </div>
+                {/* Reply Button */}
+                <button
+                  onClick={() => !isPublicView && setReplyingTo(replyingTo === comment.id ? null : comment.id)}
+                  disabled={isPublicView}
+                  title={isPublicView ? "Login to reply to comments" : "Reply to this comment"}
+                  className={`text-xs transition-colors flex items-center space-x-1 ${
+                    isPublicView
+                      ? 'text-gray-400 cursor-not-allowed'
+                      : 'text-gray-500 hover:text-blue-600'
+                  }`}
+                >
+                  <MessageCircle className="h-3 w-3" />
+                  <span>Reply</span>
+                </button>
               </div>
-            );
-          })}
-        </div>
-      )}
+              {/* Reply Input - only show for logged in users */}
+              {replyingTo === comment.id && !isPublicView && (
+                <div className="mt-3 flex space-x-2">
+                  <img
+                    src={user?.avatar}
+                    alt={user?.name}
+                    className="h-6 w-6 rounded-full object-cover"
+                  />
+                  <div className="flex-1 flex space-x-2">
+                    <input
+                      type="text"
+                      value={replyText}
+                      onChange={(e) => setReplyText(e.target.value)}
+                      placeholder={`Reply to ${comment.authorName}...`}
+                      className="flex-1 px-2 py-1 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-purple-500 focus:border-purple-500"
+                      onKeyPress={(e) => e.key === 'Enter' && handleReply(comment.id)}
+                    />
+                    <button
+                      onClick={() => handleReply(comment.id)}
+                      disabled={!replyText.trim()}
+                      className="px-3 py-1 text-white rounded text-xs hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+                      style={{ backgroundColor: '#9f7aea' }}
+                    >
+                      Reply
+                    </button>
+                    <button
+                      onClick={() => {
+                        setReplyingTo(null);
+                        setReplyText('');
+                      }}
+                      className="px-3 py-1 text-gray-600 bg-gray-200 rounded text-xs hover:bg-gray-300 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+              {/* Replies (if any) */}
+              {comment.replies?.length > 0 && (
+                <div className="mt-3 pl-4 border-l-2 border-gray-200 space-y-2">
+                  {comment.replies.map((reply, idx) => {
+                    // Normalize reply reactions array to object
+                    let normalizedReply = { ...reply };
+                    if (Array.isArray(reply.reactions)) {
+                      const reactionsObj = {};
+                      reply.reactions.forEach(reaction => {
+                        const type = reaction.reaction_type;
+                        if (!reactionsObj[type]) {
+                          reactionsObj[type] = { users: [], count: 0 };
+                        }
+                        if (!reactionsObj[type].users.includes(reaction.user_id)) {
+                          reactionsObj[type].users.push(reaction.user_id);
+                          reactionsObj[type].count++;
+                        }
+                      });
+                      normalizedReply.reactions = reactionsObj;
+                    }
+                    return (
+                      <div key={reply.id || idx} className="flex space-x-2">
+                        <img
+                          src={reply.authorAvatar}
+                          alt={reply.authorName}
+                          className="h-6 w-6 rounded-full object-cover"
+                        />
+                        <div className="flex-1">
+                          <div className="bg-white rounded-lg p-2 border border-gray-200">
+                            <div className="flex items-center justify-between mb-1">
+                              <div className="flex items-center space-x-2">
+                                <span className="font-medium text-xs text-gray-900">
+                                  {reply.authorName}
+                                </span>
+                                <span className="text-xs text-gray-500">
+                                  {reply.timestamp && !isNaN(new Date(reply.timestamp))
+                                    ? formatDistanceToNow(new Date(reply.timestamp), { addSuffix: true })
+                                    : 'Just now'
+                                  }
+                                </span>
+                              </div>
+                              {/* Delete button for reply author */}
+                              {!isPublicView && reply.authorId === user?.id && (
+                                <button
+                                  onClick={() => handleDeleteReply(comment.id, reply.id)}
+                                  className="text-gray-400 hover:text-red-600 transition-colors p-1 rounded"
+                                  title="Delete reply"
+                                >
+                                  <Trash2 className="h-2 w-2" />
+                                </button>
+                              )}
+                            </div>
+                            <p className="text-xs text-gray-700">{reply.content}</p>
+                          </div>
+                          {/* Show reply reactions just like for comments */}
+                          {getCommentTotalReactions(normalizedReply) > 0 && (
+                            <div className="flex items-center space-x-1 mt-1">
+                              {getCommentTopReactions(normalizedReply).map((reaction, index) => (
+                                <span key={reaction.type} className="text-sm">{reaction.emoji}</span>
+                              ))}
+                              <span className="ml-1 text-xs text-gray-600">{getCommentTotalReactions(normalizedReply)}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })
+    )}
+  </div>
+)}
+
+
 
       {/* Edit Modal */}
       {showEditModal && (
