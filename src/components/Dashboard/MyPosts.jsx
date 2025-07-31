@@ -192,7 +192,7 @@ const MyPosts = () => {
               <p className="text-2xl font-semibold text-gray-900">
                 {myPosts.reduce((sum, post) => sum + getPostStats(post).likes, 0)}
               </p>
-              <p className="text-sm text-gray-600">Total Likes</p>
+              <p className="text-sm text-gray-600">Total Reactions</p>
             </div>
           </div>
         </div>

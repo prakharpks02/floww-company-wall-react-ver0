@@ -682,8 +682,8 @@ export const postsAPI = {
       }
 
       const requestBody = {
-        ...commentData,
-        author_id: userId
+        content: commentData.content,
+        user_id: userId
       };
 
       const response = await fetchWithTimeout(endpoint, {
@@ -711,6 +711,139 @@ export const postsAPI = {
       return await handleResponse(response);
     } catch (error) {
       console.error('❌ Get comments error:', error.message);
+      throw error;
+    }
+  },
+
+  // Add reply to comment
+  addReply: async (postId, commentId, replyData) => {
+    const endpoint = `${API_CONFIG.BASE_URL}/posts/${postId}/comments/${commentId}/replies`;
+    logApiCall('POST', endpoint, replyData);
+    
+    try {
+      const userId = userAPI.getCurrentUserId();
+      if (!userId) {
+        throw new Error('User not logged in');
+      }
+
+      const requestBody = {
+        content: replyData.content,
+        user_id: userId
+      };
+
+      const response = await fetchWithTimeout(endpoint, {
+        method: 'POST',
+        body: JSON.stringify(requestBody)
+      });
+      
+      return await handleResponse(response);
+    } catch (error) {
+      console.error('❌ Add reply error:', error.message);
+      throw error;
+    }
+  },
+
+  // Delete comment (only post author can delete)
+  deleteComment: async (postId, commentId) => {
+    const endpoint = `${API_CONFIG.BASE_URL}/posts/${postId}/comments/${commentId}`;
+    logApiCall('DELETE', endpoint);
+    
+    try {
+      const response = await fetchWithTimeout(endpoint, {
+        method: 'DELETE'
+      });
+      
+      return await handleResponse(response);
+    } catch (error) {
+      console.error('❌ Delete comment error:', error.message);
+      throw error;
+    }
+  },
+
+  // Delete reply
+  deleteReply: async (postId, commentId, replyId) => {
+    const endpoint = `${API_CONFIG.BASE_URL}/posts/${postId}/comments/${commentId}/replies/${replyId}`;
+    logApiCall('DELETE', endpoint);
+    
+    try {
+      const response = await fetchWithTimeout(endpoint, {
+        method: 'DELETE'
+      });
+      
+      return await handleResponse(response);
+    } catch (error) {
+      console.error('❌ Delete reply error:', error.message);
+      throw error;
+    }
+  },
+
+  // Add reaction to comment
+  addCommentReaction: async (commentId, reactionType, emoji = null) => {
+    const endpoint = `${API_CONFIG.BASE_URL}/comments/${commentId}/reactions`;
+    logApiCall('POST', endpoint, { reactionType, emoji });
+    
+    try {
+      const userId = userAPI.getCurrentUserId();
+      if (!userId) {
+        throw new Error('User not logged in');
+      }
+
+      const requestBody = {
+        user_id: userId,
+        reaction_type: reactionType
+      };
+
+      const response = await fetchWithTimeout(endpoint, {
+        method: 'POST',
+        body: JSON.stringify(requestBody)
+      });
+      
+      return await handleResponse(response);
+    } catch (error) {
+      console.error('❌ Add comment reaction error:', error.message);
+      throw error;
+    }
+  },
+
+  // Delete reaction from comment
+  deleteCommentReaction: async (commentId, reactionType) => {
+    const endpoint = `${API_CONFIG.BASE_URL}/comments/${commentId}/reactions/delete`;
+    logApiCall('POST', endpoint, { reactionType });
+    
+    try {
+      const userId = userAPI.getCurrentUserId();
+      if (!userId) {
+        throw new Error('User not logged in');
+      }
+
+      const requestBody = {
+        reaction_type: reactionType,
+        user_id: userId
+      };
+
+      const response = await fetchWithTimeout(endpoint, {
+        method: 'POST',
+        body: JSON.stringify(requestBody)
+      });
+      
+      return await handleResponse(response);
+    } catch (error) {
+      console.error('❌ Delete comment reaction error:', error.message);
+      throw error;
+    }
+  },
+  // Delete comment by comment_id and user_id (POST)
+  deleteComment: async (commentId, userId) => {
+    const endpoint = `${API_CONFIG.BASE_URL}/comments/${commentId}/delete`;
+    logApiCall('POST', endpoint, { user_id: userId });
+    try {
+      const response = await fetchWithTimeout(endpoint, {
+        method: 'POST',
+        body: JSON.stringify({ user_id: userId })
+      });
+      return await handleResponse(response);
+    } catch (error) {
+      console.error('❌ Delete comment error:', error.message);
       throw error;
     }
   }

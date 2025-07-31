@@ -135,6 +135,26 @@ export const PostProvider = ({ children }) => {
       originalAuthor: rawPost.author
     });
     
+    // Normalize comments to handle backend format
+    const normalizedComments = rawPost.comments?.map(comment => {
+      const commentAuthorId = comment.author?.user_id || comment.author?.id || comment.authorId;
+      const commentAuthorName = comment.author?.username || comment.author?.name || comment.authorName;
+      const commentAuthorAvatar = comment.author?.avatar || comment.authorAvatar;
+      
+      return {
+        ...comment,
+        id: comment.comment_id || comment.id, // Use comment_id as the primary id
+        comment_id: comment.comment_id || comment.id, // Keep the backend comment_id
+        authorId: commentAuthorId,
+        authorName: commentAuthorName,
+        authorAvatar: commentAuthorAvatar,
+        timestamp: comment.created_at || comment.timestamp,
+        content: comment.content,
+        reactions: comment.reactions || {},
+        replies: comment.replies || []
+      };
+    }) || [];
+
     const normalized = {
       ...rawPost,
       // Ensure consistent author ID fields
@@ -151,7 +171,9 @@ export const PostProvider = ({ children }) => {
       avatar: authorAvatar,
       // Normalize reactions
       reactions: normalizedReactions || {},
-      likes: rawPost.likes || []
+      likes: rawPost.likes || [],
+      // Normalize comments
+      comments: normalizedComments
     };
   
     console.log('🔍 PostContext normalizePost - Normalized post:', normalized);
@@ -479,28 +501,191 @@ const loadAllPosts = async () => {
   // NOTE: likePost function removed - likes now handled through addReaction system
   // with proper toggle behavior using add/remove reaction API endpoints
 
-  const addComment = (postId, commentData) => {
+  const addComment = async (postId, commentData) => {
     if (!user) return;
 
+    try {
+      // Call the API to add comment
+      const result = await postsAPI.addComment(postId, commentData);
+      
+      // Optimistically update the UI
     const userId = user?.user_id || user?.id;
     const newComment = {
-      id: uuidv4(),
+        id: result.comment_id || result.id || uuidv4(),
+        comment_id: result.comment_id || result.id, // Store the backend comment_id
       authorId: userId,
       authorName: user.name,
       authorAvatar: user.avatar,
       content: commentData.content,
-      timestamp: new Date().toISOString(),
-      likes: []
+        timestamp: result.timestamp || new Date().toISOString(),
+        likes: [],
+        reactions: {}
     };
 
     setPosts(prevPosts =>
       prevPosts.map(post =>
-        post.id === postId
+          post.id === postId || post.post_id === postId
           ? { ...post, comments: [...(post.comments || []), newComment] }
           : post
       )
     );
+    } catch (error) {
+      console.error('❌ Add comment error:', error);
+      throw error;
+    }
   };
+
+  // Add reply to comment
+  const addReply = async (postId, commentId, replyData) => {
+    if (!user) return;
+
+    try {
+      // Call the API to add reply
+      const result = await postsAPI.addReply(postId, commentId, replyData);
+      
+      // Optimistically update the UI
+      const userId = user?.user_id || user?.id;
+      const newReply = {
+        id: result.reply_id || result.id || uuidv4(),
+        reply_id: result.reply_id || result.id, // Store the backend reply_id
+        authorId: userId,
+        authorName: user.name,
+        authorAvatar: user.avatar,
+        content: replyData.content,
+        timestamp: result.timestamp || new Date().toISOString(),
+        likes: [],
+        reactions: {}
+      };
+
+      setPosts(prevPosts =>
+        prevPosts.map(post => {
+          if (post.id === postId || post.post_id === postId) {
+            return {
+              ...post,
+              comments: post.comments?.map(comment => {
+                if (comment.id === commentId) {
+                  return {
+                    ...comment,
+                    replies: [...(comment.replies || []), newReply]
+                  };
+                }
+                return comment;
+              }) || []
+            };
+          }
+          return post;
+        })
+      );
+    } catch (error) {
+      console.error('❌ Add reply error:', error);
+      throw error;
+    }
+  };
+
+  // Delete comment (only post author can delete)
+  const deleteComment = async (postId, commentId) => {
+    if (!user) return;
+
+    try {
+      // Find the comment to get the backend comment_id
+      const post = posts.find(p => p.id === postId || p.post_id === postId);
+      const comment = post?.comments?.find(c => c.id === commentId || c.comment_id === commentId);
+      const backendCommentId = comment?.comment_id || commentId;
+      const userId = user?.user_id || user?.id;
+
+      await postsAPI.deleteComment(backendCommentId, userId);
+
+      // Optimistically update the UI
+      setPosts(prevPosts =>
+        prevPosts.map(post => {
+          if (post.id === postId || post.post_id === postId) {
+            return {
+              ...post,
+              comments: post.comments?.filter(comment => comment.id !== commentId && comment.comment_id !== commentId) || []
+            };
+          }
+          return post;
+        })
+      );
+    } catch (error) {
+      console.error('❌ Delete comment error:', error);
+      throw error;
+    }
+  };
+
+  // Delete reply
+  const deleteReply = async (postId, commentId, replyId) => {
+    if (!user) return;
+
+    try {
+      // Call the API to delete reply
+      await postsAPI.deleteReply(postId, commentId, replyId);
+      
+      // Optimistically update the UI
+      setPosts(prevPosts =>
+        prevPosts.map(post => {
+          if (post.id === postId || post.post_id === postId) {
+            return {
+              ...post,
+              comments: post.comments?.map(comment => {
+                if (comment.id === commentId) {
+                  return {
+                    ...comment,
+                    replies: comment.replies?.filter(reply => reply.id !== replyId) || []
+                  };
+                }
+                return comment;
+              }) || []
+            };
+          }
+          return post;
+        })
+      );
+    } catch (error) {
+      console.error('❌ Delete reply error:', error);
+      throw error;
+    }
+  };
+
+  // Add reaction to comment - handles both emoji reactions and likes
+  const addCommentReaction = async (commentId, reactionType, emoji = null) => {
+    if (!user?.user_id && !user?.id) return;
+
+    // Always use 'like' as the reactionType for likes, never the emoji
+    const safeReactionType = reactionType === '❤️' ? 'like' : reactionType;
+    const userId = user?.user_id || user?.id;
+
+    // Find the comment to get the backend comment_id
+    const post = posts.find(p => p.comments?.some(c => c.id === commentId || c.comment_id === commentId));
+    const comment = post?.comments?.find(c => c.id === commentId || c.comment_id === commentId);
+    const backendCommentId = comment?.comment_id || commentId;
+
+    // Find if user has any reaction on this comment
+    const userPrevReaction = comment && Object.keys(comment.reactions || {}).find(rt => {
+      const r = comment.reactions[rt];
+      return r && r.users && (r.users.includes(userId));
+    });
+
+    try {
+      // Remove previous reaction if exists and is different
+      if (userPrevReaction && userPrevReaction !== safeReactionType) {
+        await postsAPI.deleteCommentReaction(backendCommentId, userPrevReaction);
+      }
+      // If user is toggling off the same reaction, just remove it
+      if (userPrevReaction === safeReactionType) {
+        await postsAPI.deleteCommentReaction(backendCommentId, safeReactionType);
+      } else {
+        // Add the new reaction
+        await postsAPI.addCommentReaction(backendCommentId, safeReactionType, emoji);
+      }
+      // UI update logic remains as before (optimistic update)
+    } catch (error) {
+      console.error('❌ Comment reaction error:', error);
+      throw error;
+    }
+  };
+
+
 
   // Add reaction function - handles both emoji reactions and likes
   const addReaction = async (postId, reactionType, emoji = null, activeView = 'home') => {
@@ -740,6 +925,10 @@ const loadAllPosts = async () => {
     deletePost,
     // likePost removed - now handled through addReaction
     addComment,
+    addReply,
+    deleteComment,
+    deleteReply,
+    addCommentReaction,
     getUserPosts,
     pinPost,
     searchPosts,

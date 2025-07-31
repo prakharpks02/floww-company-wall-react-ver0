@@ -5,6 +5,7 @@ import PostFeed from '../Posts/PostFeed';
 import CreatePost from '../Posts/CreatePost';
 import MyPosts from './MyPosts';
 import ResponsiveLayout from '../Layout/ResponsiveLayout';
+import ScrollToTop from './ScrollToTop';
 import { usePost } from '../../contexts/PostContext';
 
 const Dashboard = () => {
@@ -100,6 +101,9 @@ const Dashboard = () => {
       )}
 
       {renderMainContent()}
+      
+      {/* Scroll to Top Button */}
+      <ScrollToTop />
     </ResponsiveLayout>
   );
 };
