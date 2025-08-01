@@ -137,9 +137,13 @@ export const PostProvider = ({ children }) => {
     
     // Normalize comments to handle backend format
     const normalizedComments = rawPost.comments?.map(comment => {
-      const commentAuthorId = comment.author?.user_id || comment.author?.id || comment.authorId;
-      const commentAuthorName = comment.author?.username || comment.author?.name || comment.authorName;
-      const commentAuthorAvatar = comment.author?.avatar || comment.authorAvatar;
+      const commentAuthorId = comment.author?.user_id || comment.author?.id || comment.authorId || comment.author_id;
+      const commentAuthorName = comment.author?.username || comment.author?.name || comment.authorName || 
+                               (comment.author_id && user && comment.author_id === user.user_id ? user.name || user.username : null) ||
+                               'Unknown User';
+      const commentAuthorAvatar = comment.author?.avatar || comment.authorAvatar || 
+                                 (comment.author_id && user && comment.author_id === user.user_id ? user.avatar : null) ||
+                                 'https://ui-avatars.com/api/?name=' + encodeURIComponent(commentAuthorName) + '&background=random';
       
       return {
         ...comment,
@@ -150,7 +154,29 @@ export const PostProvider = ({ children }) => {
         authorAvatar: commentAuthorAvatar,
         timestamp: comment.created_at || comment.timestamp,
         content: comment.content,
-        reactions: comment.reactions || {},
+        reactions: (() => {
+          // Normalize comment reactions from array to object format
+          if (Array.isArray(comment.reactions)) {
+            const reactionsObj = {};
+            comment.reactions.forEach(reaction => {
+              const type = reaction.reaction_type || reaction.type;
+              const userId = reaction.user_id || reaction.userId;
+              
+              if (!reactionsObj[type]) {
+                reactionsObj[type] = { users: [], count: 0 };
+              }
+              if (!reactionsObj[type].users.includes(userId)) {
+                reactionsObj[type].users.push(userId);
+                reactionsObj[type].count++;
+              }
+            });
+            return reactionsObj;
+          } else if (comment.reactions && typeof comment.reactions === 'object') {
+            return comment.reactions;
+          } else {
+            return {};
+          }
+        })(),
         replies: comment.replies || []
       };
     }) || [];
@@ -509,18 +535,20 @@ const loadAllPosts = async () => {
       const result = await postsAPI.addComment(postId, commentData);
       
       // Optimistically update the UI
-    const userId = user?.user_id || user?.id;
-    const newComment = {
+      const userId = user?.user_id || user?.id;
+      const newComment = {
         id: result.comment_id || result.id || uuidv4(),
         comment_id: result.comment_id || result.id, // Store the backend comment_id
-      authorId: userId,
-      authorName: user.name,
-      authorAvatar: user.avatar,
-      content: commentData.content,
-        timestamp: result.timestamp || new Date().toISOString(),
-        likes: [],
-        reactions: {}
-    };
+        author: {
+          user_id: userId,
+          username: user.username || user.name,
+          email: user.email
+        },
+        content: commentData.content,
+        created_at: result.timestamp || new Date().toISOString(),
+        replies: [],
+        reactions: []
+      };
 
     setPosts(prevPosts =>
       prevPosts.map(post =>
