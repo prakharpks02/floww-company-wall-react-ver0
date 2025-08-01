@@ -12,7 +12,7 @@ const APIDemo = () => {
 
   const logOutput = (message) => {
     setOutput(prev => prev + message + '\n');
-    // console.log(message);
+   
   };
 
   const clearOutput = () => {

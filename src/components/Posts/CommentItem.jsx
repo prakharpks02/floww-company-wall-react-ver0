@@ -48,32 +48,9 @@ const CommentItem = ({
     comment.author === user.username
   );
 
-  console.log('🔍 CommentItem props debug:', {
-    hasHandleEditComment: typeof handleEditComment,
-    hasHandleCommentReply: typeof handleCommentReply,
-    hasHandleDeleteComment: typeof handleDeleteComment,
-    handleEditCommentFunction: handleEditComment,
-    isCommentAuthor
-  });
+ 
 
-  console.log('🔍 CommentItem rendering:', {
-    commentId: comment.comment_id || comment.id,
-    reactions: comment.reactions,
-    author: comment.author,
-    authorStructure: {
-      hasAuthor: !!comment.author,
-      authorType: typeof comment.author,
-      authorKeys: comment.author ? Object.keys(comment.author) : 'no author',
-      username: comment.author?.username,
-      user_id: comment.author?.user_id
-    },
-    user: user?.username,
-    content: comment.content,
-    contentLength: comment.content ? comment.content.length : 0,
-    fullComment: comment,
-    allKeys: Object.keys(comment),
-    allValues: Object.entries(comment)
-  });
+
 
   // Normalize the comment data to ensure consistent structure
   const normalizedComment = {
@@ -99,27 +76,10 @@ const CommentItem = ({
     created_at: comment.created_at || comment.createdAt || comment.timestamp
   };
 
-  console.log('🔍 CommentItem normalized:', {
-    commentId: normalizedComment.comment_id || normalizedComment.id,
-    normalizedReactions: normalizedComment.reactions,
-    hasReactions: Object.keys(normalizedComment.reactions || {}).length > 0,
-    originalReactions: comment.reactions,
-    reactionType: typeof comment.reactions,
-    rawReactionData: comment.reactions,
-    isReactionsArray: Array.isArray(comment.reactions),
-    author: comment.author,
-    content: comment.content,
-    contentIsNull: comment.content === null
-  });
 
   const handleCommentReaction = (reactionType) => {
     if (isPublicView) return;
-    
-    console.log('🔍 CommentItem handleCommentReaction called:', {
-      commentId: comment.comment_id || comment.id,
-      reactionType,
-      currentUserReaction: getCommentUserReaction(normalizedComment)
-    });
+  
     
     handleReactToComment(comment.comment_id || comment.id, reactionType);
   };
@@ -144,14 +104,7 @@ const CommentItem = ({
   };
 
   const handleSaveEdit = () => {
-    console.log('🔍 handleSaveEdit called:', {
-      editContent: editContent.trim(),
-      commentContent: comment.content,
-      hasEditContent: !!editContent.trim(),
-      contentChanged: editContent !== comment.content,
-      handleEditComment: typeof handleEditComment,
-      commentId: comment.comment_id || comment.id
-    });
+  
     
     if (editContent.trim() && editContent !== comment.content) {
       handleEditComment(comment.comment_id || comment.id, editContent.trim());
@@ -268,12 +221,7 @@ const CommentItem = ({
           (() => {
             const content = comment.content;
             
-            console.log('🔍 Comment content detection:', {
-              commentId: comment.comment_id || comment.id,
-              content: content,
-              hasContent: !!(content && content.toString().trim()),
-              author: comment.author
-            });
+        
             
             if (content && content.toString().trim()) {
               return (
@@ -328,20 +276,10 @@ const CommentItem = ({
             >
               {(() => {
                 const userReaction = getCommentUserReaction(normalizedComment);
-                console.log('🔍 CommentItem emoji rendering:', {
-                  commentId: comment.comment_id || comment.id,
-                  userReaction,
-                  normalizedReactions: normalizedComment.reactions
-                });
-                
+         
                 if (userReaction && userReaction !== 'like') {
                   // Show the emoji for the user's reaction
-                  const reactionEmoji = emojiReactions.find(r => r.name === userReaction);
-                  console.log('🔍 Found reaction emoji:', {
-                    userReaction,
-                    reactionEmoji,
-                    emojiReactionsArray: emojiReactions
-                  });
+              
                   return (
                     <span className="text-lg">
                       {reactionEmoji?.emoji || '👍'}
@@ -349,7 +287,7 @@ const CommentItem = ({
                   );
                 } else {
                   // Show heart for like or default state
-                  console.log('🔍 Showing heart for like or default');
+         
                   return (
                     <Heart className={`h-4 w-4 ${
                       userReaction === 'like' 
@@ -381,13 +319,7 @@ const CommentItem = ({
                   return total;
                 }, 0);
                 
-                console.log('🔍 Reaction count calculation:', {
-                  commentId: comment.comment_id || comment.id,
-                  reactions,
-                  totalCount,
-                  hasReactions: totalCount > 0
-                });
-                
+              
                 return totalCount > 0 ? (
                   <span className="text-xs bg-gray-100 px-2 py-1 rounded-full">
                     {totalCount}

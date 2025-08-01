@@ -17,7 +17,7 @@ export const AuthProvider = ({ children }) => {
 
   // Helper function to store user data consistently in localStorage
   const storeUserLocally = (userData) => {
-    console.log('🔍 Storing user data locally:', userData);
+
     
     const userSession = {
       id: userData.user_id || userData.id || `USR${Date.now()}`, // Generate ID if not provided
@@ -34,7 +34,6 @@ export const AuthProvider = ({ children }) => {
     
     localStorage.setItem('hrUser', JSON.stringify(userSession));
     setUser(userSession);
-    console.log('✅ User stored locally:', userSession);
     return userSession;
   };
 
@@ -97,7 +96,7 @@ export const AuthProvider = ({ children }) => {
     const storedUser = localStorage.getItem('hrUser');
     if (storedUser) {
       const parsedUser = JSON.parse(storedUser);
-      console.log('Loaded user from localStorage:', parsedUser);
+  
       setUser(parsedUser);
     } else {
       console.log('No stored user found in localStorage');

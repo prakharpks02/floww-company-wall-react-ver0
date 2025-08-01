@@ -149,7 +149,7 @@ const PostModals = ({
               <button
                 onClick={() => {
                   // Handle block user
-                  console.log('Blocking user:', post.authorId);
+                
                   setShowBlockModal(false);
                   // Show success message
                   alert(`You have blocked ${post.authorName}. You can unblock them anytime from your settings.`);

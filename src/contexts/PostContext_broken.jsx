@@ -511,8 +511,8 @@ export const PostProvider = ({ children }) => {
         posts = response.posts;
       } else if (Array.isArray(response)) {
         posts = response;
-      } else if (response.data && Array.isArray(response.data)) {
-        posts = response.data;
+      } else if (response.data.posts && Array.isArray(response.data.posts)) {
+        posts = response.data.posts;
       }
       
       // Transform API posts to match our frontend structure

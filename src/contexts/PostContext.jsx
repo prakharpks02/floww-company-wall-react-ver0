@@ -199,7 +199,9 @@ export const PostProvider = ({ children }) => {
       reactions: normalizedReactions || {},
       likes: rawPost.likes || [],
       // Normalize comments
-      comments: normalizedComments
+      comments: normalizedComments,
+      // Ensure tags are properly handled
+      tags: rawPost.tags || rawPost.post_tags || []
     };
   
     console.log('🔍 PostContext normalizePost - Normalized post:', normalized);
@@ -317,8 +319,19 @@ export const PostProvider = ({ children }) => {
         const backendPosts = await postsAPI.getMyPosts();
         console.log('🔄 PostContext - Backend response:', backendPosts);
         
-        if (backendPosts && backendPosts.data && backendPosts.data.length > 0) {
-          console.log('✅ PostContext - Found posts:', backendPosts.data.length);
+        if (backendPosts?.data?.posts && Array.isArray(backendPosts.data.posts) && backendPosts.data.posts.length > 0) {
+          console.log('✅ PostContext - Found posts:', backendPosts.data.posts.length);
+          
+          // Normalize all posts to ensure consistent format
+          const normalizedPosts = backendPosts.data.posts.map(post => {
+            const normalized = normalizePost(post);
+            console.log('🔄 PostContext - Normalized post:', normalized);
+            return normalized;
+          });
+          
+          setPosts(normalizedPosts);
+        } else if (backendPosts && backendPosts.data && backendPosts.data.length > 0) {
+          console.log('✅ PostContext - Found posts (legacy format):', backendPosts.data.length);
           
           // Normalize all posts to ensure consistent format
           const normalizedPosts = backendPosts.data.map(post => {
@@ -355,7 +368,21 @@ export const PostProvider = ({ children }) => {
     
       const backendPosts = await postsAPI.getMyPosts();
       
-      if (backendPosts && backendPosts.data && backendPosts.data.length > 0) {
+      if (backendPosts?.data?.posts && Array.isArray(backendPosts.data.posts) && backendPosts.data.posts.length > 0) {
+       
+        backendPosts.data.posts.forEach((post, index) => {
+        
+        });
+        
+        // Normalize all posts to ensure consistent format
+        const normalizedPosts = backendPosts.data.posts.map(normalizePost);
+        
+        normalizedPosts.forEach((post, index) => {
+         
+        });
+        
+        setPosts(normalizedPosts);
+      } else if (backendPosts && backendPosts.data && backendPosts.data.length > 0) {
        
         backendPosts.data.forEach((post, index) => {
         
@@ -385,8 +412,10 @@ const loadAllPosts = async () => {
     const backendPosts = await postsAPI.getPosts();
     let postsData = [];
 
-    // Defensive: Try both keys, fallback to empty array
-    if (Array.isArray(backendPosts.data) && backendPosts.data.length > 0) {
+    // Defensive: Try different response structures
+    if (Array.isArray(backendPosts.data?.posts) && backendPosts.data.posts.length > 0) {
+      postsData = backendPosts.data.posts;
+    } else if (Array.isArray(backendPosts.data) && backendPosts.data.length > 0) {
       postsData = backendPosts.data;
     } else if (Array.isArray(backendPosts.posts) && backendPosts.posts.length > 0) {
       postsData = backendPosts.posts;
@@ -1084,7 +1113,10 @@ const loadAllPosts = async () => {
   
         const backendPosts = await postsAPI.getMyPosts();
         
-        if (backendPosts && backendPosts.data) {
+        if (backendPosts?.data?.posts) {
+        
+          return backendPosts.data.posts;
+        } else if (backendPosts && backendPosts.data) {
         
           return backendPosts.data;
         }
@@ -1139,16 +1171,26 @@ const loadAllPosts = async () => {
   };
 
   const getFilteredPosts = (filters = {}) => {
+    console.log('🔍 getFilteredPosts - Input filters:', filters);
+    console.log('🔍 getFilteredPosts - Total posts:', posts.length);
+    
     let filteredPosts = [...posts];
 
     // Filter by tag
     if (filters.tag && filters.tag !== 'all') {
-      filteredPosts = filteredPosts.filter(post => 
-        post.tags && post.tags.some(postTag => {
+      console.log('🔍 getFilteredPosts - Filtering by tag:', filters.tag);
+      
+      filteredPosts = filteredPosts.filter(post => {
+        console.log('🔍 getFilteredPosts - Post tags:', post.tags, 'Post ID:', post.id || post.post_id);
+        
+        return post.tags && post.tags.some(postTag => {
           const tagName = typeof postTag === 'string' ? postTag : postTag.tag_name || postTag.name;
+          console.log('🔍 getFilteredPosts - Comparing tag:', tagName, 'with filter:', filters.tag);
           return tagName === filters.tag;
-        })
-      );
+        });
+      });
+      
+      console.log('🔍 getFilteredPosts - Posts after tag filter:', filteredPosts.length);
     }
 
     // Filter by search query
@@ -1164,6 +1206,7 @@ const loadAllPosts = async () => {
       );
     }
 
+    console.log('🔍 getFilteredPosts - Final filtered posts:', filteredPosts.length);
     return filteredPosts;
   };
 

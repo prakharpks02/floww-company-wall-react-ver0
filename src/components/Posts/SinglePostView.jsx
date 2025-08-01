@@ -29,7 +29,7 @@ const SinglePostView = () => {
         );
         
         if (localPost) {
-          console.log('🔍 SinglePostView - Found post in local state:', localPost);
+      
           
           // Ensure the local post has proper avatar structure
           const normalizedLocalPost = {
@@ -46,27 +46,27 @@ const SinglePostView = () => {
         }
         
         // If not found locally, fetch from API
-        console.log('🔍 SinglePostView - Fetching post from API:', postId);
+     
         const response = await postsAPI.getPostById(postId);
         
-        if (response && response.data) {
-          console.log('🔍 SinglePostView - API response:', response);
+        if (response && response.data.posts) {
+      
           
           // Normalize the post data to ensure proper structure
           const normalizedPost = {
-            ...response.data,
+            ...response.data.posts,
             // Ensure authorName is properly set
-            authorName: response.data.author?.username || response.data.authorName || response.data.author_name || 'Anonymous',
+            authorName: response.data.posts.author?.username || response.data.posts.authorName || response.data.posts.author_name || 'Anonymous',
             // Ensure authorAvatar has a fallback
-            authorAvatar: response.data.author?.avatar || response.data.authorAvatar || response.data.author_avatar || 
+            authorAvatar: response.data.posts.author?.avatar || response.data.posts.authorAvatar || response.data.posts.author_avatar || 
                          'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
             // Ensure authorPosition is set
-            authorPosition: response.data.author?.position || response.data.authorPosition || response.data.author_position || 'Employee',
+            authorPosition: response.data.posts.author?.position || response.data.posts.authorPosition || response.data.posts.author_position || 'Employee',
             // Ensure proper timestamp
-            timestamp: response.data.timestamp || response.data.created_at || response.data.createdAt || new Date().toISOString()
+            timestamp: response.data.posts.timestamp || response.data.posts.created_at || response.data.posts.createdAt || new Date().toISOString()
           };
           
-          console.log('🔍 SinglePostView - Normalized post:', normalizedPost);
+      
           setPost(normalizedPost);
         } else if (response) {
           setPost(response);

@@ -30,9 +30,7 @@ const MyPosts = () => {
     try {
       setLoading(true);
       setError(null);
-      
-      console.log('Filtering posts for user:', user.id);
-      console.log('All posts from context:', allPosts);
+
       
       // Filter posts by author_id or user_id
       const userPosts = allPosts.filter(post => {
@@ -40,37 +38,12 @@ const MyPosts = () => {
         const postAuthorUserId = post.author?.user_id || post.author?.id;
         const currentUserId = user.id || user.user_id;
         
-        console.log('🔍 Filtering post:', {
-          postId: post.post_id || post.id,
-          postAuthorId,
-          postAuthorUserId,
-          currentUserId,
-          matches: postAuthorId === currentUserId || postAuthorUserId === currentUserId
-        });
+      
         
         return postAuthorId === currentUserId || postAuthorUserId === currentUserId;
       });
       
-      console.log('Filtered posts for user:', userPosts);
-      console.log('Post structure check - first post:', userPosts[0]);
-      if (userPosts[0]) {
-        console.log('Post fields in first post:', Object.keys(userPosts[0]));
-        console.log('Author fields:', {
-          authorName: userPosts[0]?.authorName,
-          author_name: userPosts[0]?.author_name,
-          username: userPosts[0]?.username,
-          authorAvatar: userPosts[0]?.authorAvatar,
-          author_avatar: userPosts[0]?.author_avatar,
-          avatar: userPosts[0]?.avatar,
-          author: userPosts[0]?.author
-        });
-        console.log('Timestamp fields:', {
-          timestamp: userPosts[0]?.timestamp,
-          created_at: userPosts[0]?.created_at,
-          createdAt: userPosts[0]?.createdAt
-        });
-        console.log('Post IDs:', userPosts.map(p => ({ id: p.id, post_id: p.post_id, timestamp: p.timestamp })));
-      }
+     
       
       setMyPosts(userPosts);
     } catch (error) {
@@ -99,7 +72,7 @@ const MyPosts = () => {
         post.id !== postId && 
         post.post_id !== postId
       ));
-      // console.log('Post deleted successfully locally');
+    
     } catch (error) {
       console.error('Error deleting post:', error);
     }
@@ -148,26 +121,29 @@ const MyPosts = () => {
   return (
     <div className="max-w-4xl mx-auto p-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center">
-            <FileText className="h-6 w-6 mr-2" style={{ color: '#9f7aea' }} />
-            My Posts
-          </h1>
-          <p className="text-gray-600 mt-1">
-            Manage and view all your posts in one place
-          </p>
-        </div>
-        
-        <button
-          onClick={handleCreatePost}
-          className="flex items-center space-x-2 text-white px-4 py-2 rounded-lg font-medium transition-opacity hover:opacity-90"
-          style={{ backgroundColor: '#9f7aea' }}
-        >
-          <Plus className="h-5 w-5" />
-          <span>New Post</span>
-        </button>
-      </div>
+     <div className="flex items-center justify-between mb-6 mt-24">
+  {/* Left Section - Heading and Subtext */}
+  <div>
+    <h1 className="text-2xl font-bold text-gray-900 flex items-center">
+      <FileText className="h-6 w-6 mr-2" style={{ color: '#9f7aea' }} />
+      My Posts
+    </h1>
+    <p className="text-gray-600 mt-2">
+      Manage and view all your posts in one place.
+    </p>
+  </div>
+
+  {/* Right Section - New Post Button */}
+  <button
+    onClick={handleCreatePost}
+    className="flex items-center space-x-2 text-white px-4 py-2 rounded-lg font-medium transition-opacity hover:opacity-90"
+    style={{ backgroundColor: '#9f7aea' }}
+  >
+    <Plus className="h-5 w-5" />
+    <span>New Post</span>
+  </button>
+</div>
+
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">

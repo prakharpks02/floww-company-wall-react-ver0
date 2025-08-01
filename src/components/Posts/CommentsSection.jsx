@@ -66,14 +66,7 @@ const CommentsSection = ({
       {/* Render each comment with full UI */}
       {Array.isArray(normalizedPost.comments) && normalizedPost.comments.length > 0 && (
         normalizedPost.comments.map((comment, idx) => {
-          console.log('🔍 CommentsSection passing comment:', {
-            index: idx,
-            comment,
-            commentKeys: Object.keys(comment),
-            hasContent: !!comment.content,
-            hasReactions: !!comment.reactions,
-            reactionType: typeof comment.reactions
-          });
+   
           
           return (
             <div key={comment.comment_id || comment.id || idx}>

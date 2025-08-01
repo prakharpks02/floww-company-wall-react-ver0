@@ -273,9 +273,9 @@ api.errors = {
 ```javascript
 try {
   const result = await api.posts.createPost(postData);
-  console.log('Success:', result);
+
 } catch (error) {
-  console.error('Error:', error.message);
+
   
   // Handle specific error types
   if (error.message.includes('timeout')) {
@@ -359,15 +359,15 @@ try {
 // Admin: Get all users and manage them
 try {
   const users = await api.admin.getAllUsers();
-  // console.log('All users:', users);
+  
   
   // Block a user
   await api.admin.toggleUserBlock('user123', true);
-  // console.log('User blocked');
+
   
   // Delete inappropriate post
   await api.admin.deletePostAdmin('post456');
-  // console.log('Post deleted by admin');
+ 
   
 } catch (error) {
   console.error('Admin operation failed:', error.message);
