@@ -344,32 +344,41 @@ export const usePostCard = (post, activeView = 'home') => {
     for (const [reactionType, reaction] of Object.entries(comment.reactions)) {
       console.log('🔍 Checking reaction type:', reactionType, 'with data:', reaction);
       
-      // Check if user is in the users array for this reaction type
-      const hasReaction = reaction.users?.some(userId => {
-        const match = currentUserIds.includes(userId);
-        console.log('🔍 Checking userId:', userId, 'against currentUserIds:', currentUserIds, 'match:', match);
-        return match;
-      });
+      // Handle different reaction data formats
+      let hasReaction = false;
       
-      // For reaction_counts format, if there's a reaction count > 0 and it's user's own comment,
-      // assume they reacted (similar logic to posts)
-      const hasReactionCount = reaction.count > 0;
-      const isOwnComment = currentUserIds.includes(comment.authorId) || 
-                          currentUserIds.includes(comment.author?.user_id) ||
-                          currentUserIds.includes(comment.author?.id);
-      const likelyUserReactedOwnComment = hasReactionCount && isOwnComment;
+      if (Array.isArray(reaction)) {
+        // Format: [{ user_id: 123 }, { user_id: 456 }] (from optimistic updates)
+        hasReaction = reaction.some(r => 
+          currentUserIds.includes(r.user_id) || 
+          currentUserIds.includes(r.id)
+        );
+        console.log('🔍 Array format - checking user IDs in reaction array');
+      } else if (reaction.users && Array.isArray(reaction.users)) {
+        // Format: { users: [123, 456], count: 2 } (from API)
+        hasReaction = reaction.users.some(userId => {
+          const match = currentUserIds.includes(userId);
+          console.log('🔍 Checking userId:', userId, 'against currentUserIds:', currentUserIds, 'match:', match);
+          return match;
+        });
+      } else if (reaction.count > 0) {
+        // For reaction_counts format, if there's a reaction count > 0 and it's user's own comment,
+        // assume they reacted (similar logic to posts)
+        const isOwnComment = currentUserIds.includes(comment.authorId) || 
+                            currentUserIds.includes(comment.author?.user_id) ||
+                            currentUserIds.includes(comment.author?.id);
+        hasReaction = isOwnComment;
+        console.log('🔍 Count format - own comment reaction check');
+      }
       
       console.log('🔍 Reaction check results:', {
         reactionType,
         hasReaction,
-        hasReactionCount,
-        isOwnComment,
-        likelyUserReactedOwnComment
+        reactionFormat: Array.isArray(reaction) ? 'array' : 'object',
+        reaction
       });
       
-      const userHasReaction = hasReaction || likelyUserReactedOwnComment;
-      
-      if (userHasReaction) {
+      if (hasReaction) {
         console.log('🔍 User has reaction:', reactionType);
         return reactionType;
       }

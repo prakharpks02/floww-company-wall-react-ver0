@@ -203,7 +203,7 @@ const CommentItem = ({
                   console.log('🔍 Showing heart for like or default');
                   return (
                     <Heart className={`h-4 w-4 ${
-                      userReaction === 'like' || hasUserReacted(`comment_${comment.comment_id || comment.id}`, 'like') 
+                      userReaction === 'like' 
                         ? 'fill-current text-red-600' 
                         : ''
                     }`} />
@@ -287,29 +287,22 @@ const CommentItem = ({
         </div>
       </div>
 
-      {/* Show Reaction Details */}
+      {/* Show Reaction Count Only (no detailed breakdown) */}
       {(() => {
         const reactions = normalizedComment.reactions || {};
-        const hasValidReactions = Object.entries(reactions).some(([_, users]) => 
-          Array.isArray(users) && users.length > 0
-        );
+        const totalCount = Object.values(reactions).reduce((total, users) => {
+          if (Array.isArray(users)) {
+            return total + users.length;
+          }
+          return total;
+        }, 0);
         
-        if (!hasValidReactions) return null;
-        
-        return (
+        // Only show total count if there are reactions, but no detailed breakdown
+        return totalCount > 1 ? (
           <div className="mt-2 text-xs text-gray-500">
-            {Object.entries(reactions).map(([reactionType, users]) => {
-              if (!Array.isArray(users) || users.length === 0) return null;
-              const emoji = emojiReactions.find(r => r.name === reactionType)?.emoji || '👍';
-              const count = users.length;
-              return (
-                <span key={reactionType} className="mr-3">
-                  {emoji} {count} {count === 1 ? 'person' : 'people'}
-                </span>
-              );
-            })}
+            {totalCount} reactions
           </div>
-        );
+        ) : null;
       })()}
 
       {/* Reply Input (if replying to this comment) */}

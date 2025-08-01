@@ -706,7 +706,64 @@ const loadAllPosts = async () => {
         // Add the new reaction
         await postsAPI.addCommentReaction(backendCommentId, safeReactionType, emoji);
       }
-      // UI update logic remains as before (optimistic update)
+
+      // ✅ OPTIMISTIC UI UPDATE - Update local state immediately
+      setPosts(prevPosts => 
+        prevPosts.map(p => {
+          if (!p.comments?.some(c => c.id === commentId || c.comment_id === commentId)) {
+            return p;
+          }
+          
+          return {
+            ...p,
+            comments: p.comments.map(c => {
+              if (c.id !== commentId && c.comment_id !== commentId) {
+                return c;
+              }
+              
+              // Create updated reactions object
+              const updatedReactions = { ...c.reactions };
+              
+              // First, remove user from ALL reaction types (since user can only have one reaction)
+              Object.keys(updatedReactions).forEach(reactionType => {
+                if (Array.isArray(updatedReactions[reactionType])) {
+                  updatedReactions[reactionType] = updatedReactions[reactionType].filter(
+                    r => r.user_id !== userId
+                  );
+                  // Remove the reaction type if no users left
+                  if (updatedReactions[reactionType].length === 0) {
+                    delete updatedReactions[reactionType];
+                  }
+                }
+              });
+              
+              // Add user to new reaction (unless toggling off the same reaction)
+              if (userPrevReaction !== safeReactionType) {
+                if (!updatedReactions[safeReactionType]) {
+                  updatedReactions[safeReactionType] = [];
+                }
+                // Add the user to the new reaction type
+                updatedReactions[safeReactionType].push({ user_id: userId });
+              }
+              
+              console.log('🔍 Optimistic comment reaction update:', {
+                commentId,
+                oldReactions: c.reactions,
+                newReactions: updatedReactions,
+                safeReactionType,
+                userPrevReaction,
+                userId
+              });
+              
+              return {
+                ...c,
+                reactions: updatedReactions
+              };
+            })
+          };
+        })
+      );
+
     } catch (error) {
       console.error('❌ Comment reaction error:', error);
       throw error;
