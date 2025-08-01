@@ -241,8 +241,14 @@ export const usePostCard = (post, activeView = 'home') => {
   const handleShare = () => {
     setShareCount(prev => prev + 1);
     
-    const shareUrl = `${window.location.origin}/post/${normalizedPost.id}`;
+    // Use the actual post ID from the API (post_id format)
+    const actualPostId = normalizedPost.post_id || normalizedPost.id;
+    const shareUrl = `${window.location.origin}/post/${actualPostId}`;
     const shareText = `Check out this post by ${normalizedPost.authorName}: ${normalizedPost.content.replace(/<[^>]*>/g, '').substring(0, 100)}...`;
+    
+    console.log('🔍 Share - Post ID:', actualPostId);
+    console.log('🔍 Share - Share URL:', shareUrl);
+    console.log('🔍 Share - Share Text:', shareText);
     
     if (navigator.share) {
       navigator.share({
@@ -250,25 +256,30 @@ export const usePostCard = (post, activeView = 'home') => {
         text: shareText,
         url: shareUrl,
       }).catch(err => {
-        console.log('Error sharing:', err);
+        console.log('Error sharing via navigator.share:', err);
         copyToClipboard(shareUrl);
       });
     } else {
       copyToClipboard(shareUrl);
     }
+    
+    // Show success message
+    console.log('✅ Share link copied:', shareUrl);
   };
 
   const copyToClipboard = (text) => {
+    console.log('🔍 Copying to clipboard:', text);
     navigator.clipboard.writeText(text).then(() => {
-      alert('Link copied to clipboard!');
+      alert('✅ Shareable link copied to clipboard! You can now share this post with anyone.');
     }).catch(() => {
+      // Fallback for older browsers
       const textArea = document.createElement('textarea');
       textArea.value = text;
       document.body.appendChild(textArea);
       textArea.select();
       document.execCommand('copy');
       document.body.removeChild(textArea);
-      alert('Link copied to clipboard!');
+      alert('✅ Shareable link copied to clipboard! You can now share this post with anyone.');
     });
   };
 

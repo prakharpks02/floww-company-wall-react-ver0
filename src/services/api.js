@@ -425,7 +425,7 @@ export const postsAPI = {
 
   // Get single post by ID
   getPostById: async (postId) => {
-    const endpoint = `${API_CONFIG.BASE_URL}/posts/${postId}`;
+    const endpoint = `${API_CONFIG.BASE_URL}/posts/${postId}/get_single_post`;
     logApiCall('GET', endpoint);
     
     try {
@@ -837,7 +837,7 @@ export const postsAPI = {
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
         body: JSON.stringify({ user_id: userId })
-      });
+    });
       return await handleResponse(response);
     } catch (error) {
       console.error('❌ Delete comment error:', error.message);
