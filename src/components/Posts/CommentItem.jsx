@@ -169,7 +169,16 @@ const CommentItem = ({
             onMouseLeave={() => handleCommentReactionsMouseLeave?.(comment.comment_id || comment.id)}
           >
             <button
-              onClick={() => handleCommentReaction('like')}
+              onClick={() => {
+                const userReaction = getCommentUserReaction(normalizedComment);
+                if (userReaction) {
+                  // User has a reaction, remove it (toggle off)
+                  handleCommentReaction(userReaction);
+                } else {
+                  // User has no reaction, add like
+                  handleCommentReaction('like');
+                }
+              }}
               disabled={isPublicView}
               className={`flex items-center space-x-2 text-sm ${
                 isPublicView 

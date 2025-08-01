@@ -688,10 +688,34 @@ const loadAllPosts = async () => {
     const comment = post?.comments?.find(c => c.id === commentId || c.comment_id === commentId);
     const backendCommentId = comment?.comment_id || commentId;
 
-    // Find if user has any reaction on this comment
+    // Find if user has any reaction on this comment (handle both formats)
     const userPrevReaction = comment && Object.keys(comment.reactions || {}).find(rt => {
       const r = comment.reactions[rt];
-      return r && r.users && (r.users.includes(userId));
+      if (!r) return false;
+      
+      // Handle array format from optimistic updates: [{user_id: 123}, {user_id: 456}]
+      if (Array.isArray(r)) {
+        return r.some(reaction => 
+          reaction.user_id === userId || 
+          reaction.id === userId
+        );
+      }
+      
+      // Handle object format from API: {users: [123, 456], count: 2}
+      if (r.users && Array.isArray(r.users)) {
+        return r.users.includes(userId);
+      }
+      
+      return false;
+    });
+
+    console.log('🔍 PostContext userPrevReaction detection:', {
+      commentId,
+      userId,
+      userPrevReaction,
+      safeReactionType,
+      commentReactions: comment?.reactions,
+      willToggleOff: userPrevReaction === safeReactionType
     });
 
     try {
