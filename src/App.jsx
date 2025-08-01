@@ -8,7 +8,9 @@ import ErrorBoundary from './components/ErrorBoundary';
 import LoginPage from './components/Auth/LoginPage';
 import Dashboard from './components/Dashboard/Dashboard';
 import SinglePostView from './components/Posts/SinglePostView';
+
 import './App.css';
+import NotFound from './components/NotFound';
 
 function AppRoutes() {
   const { user } = useAuth();
@@ -31,6 +33,7 @@ function AppRoutes() {
         path="/" 
         element={<Navigate to={user ? "/dashboard" : "/login"} />} 
       />
+      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 }
