@@ -1,5 +1,5 @@
-import React from 'react';
-import { Trash2, Heart, MessageCircle } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Trash2, Heart, MessageCircle, Edit, MoreHorizontal } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 const CommentItem = ({ 
@@ -8,7 +8,9 @@ const CommentItem = ({
   isPublicView,
   emojiReactions,
   handleDeleteComment,
+  handleEditComment,
   handleReactToComment,
+  handleCommentReply,
   getCommentUserReaction,
   hasUserReacted,
   onToggleReply,
@@ -17,6 +19,43 @@ const CommentItem = ({
   handleCommentReactionsMouseLeave,
   replyingTo
 }) => {
+  // Local state for editing and replying
+  const [isEditing, setIsEditing] = useState(false);
+  const [editContent, setEditContent] = useState(comment.content || '');
+  const [replyContent, setReplyContent] = useState('');
+  const [showMenu, setShowMenu] = useState(false);
+  const menuRef = useRef(null);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setShowMenu(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // Check if current user is the comment author
+  const isCommentAuthor = user && (
+    comment.author?.user_id === user.user_id ||
+    comment.author?.user_id === user.id ||
+    comment.author?.username === user.username ||
+    comment.author === user.username
+  );
+
+  console.log('🔍 CommentItem props debug:', {
+    hasHandleEditComment: typeof handleEditComment,
+    hasHandleCommentReply: typeof handleCommentReply,
+    hasHandleDeleteComment: typeof handleDeleteComment,
+    handleEditCommentFunction: handleEditComment,
+    isCommentAuthor
+  });
+
   console.log('🔍 CommentItem rendering:', {
     commentId: comment.comment_id || comment.id,
     reactions: comment.reactions,
@@ -97,6 +136,51 @@ const CommentItem = ({
     handleDeleteComment(comment.comment_id || comment.id);
   };
 
+  const handleEdit = () => {
+    if (isPublicView || !isCommentAuthor) return;
+    setIsEditing(true);
+    setEditContent(comment.content || '');
+    setShowMenu(false);
+  };
+
+  const handleSaveEdit = () => {
+    console.log('🔍 handleSaveEdit called:', {
+      editContent: editContent.trim(),
+      commentContent: comment.content,
+      hasEditContent: !!editContent.trim(),
+      contentChanged: editContent !== comment.content,
+      handleEditComment: typeof handleEditComment,
+      commentId: comment.comment_id || comment.id
+    });
+    
+    if (editContent.trim() && editContent !== comment.content) {
+      handleEditComment(comment.comment_id || comment.id, editContent.trim());
+    }
+    setIsEditing(false);
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditContent(comment.content || '');
+  };
+
+  const handleSubmitReply = () => {
+    if (replyContent.trim()) {
+      handleCommentReply(comment.comment_id || comment.id, replyContent.trim());
+      setReplyContent('');
+      if (onToggleReply) {
+        onToggleReply(null);
+      }
+    }
+  };
+
+  const handleCancelReply = () => {
+    setReplyContent('');
+    if (onToggleReply) {
+      onToggleReply(null);
+    }
+  };
+
   return (
     <div className="bg-gray-50 p-3 rounded-lg mb-2">
       {/* Comment Header */}
@@ -117,46 +201,102 @@ const CommentItem = ({
           </div>
         </div>
         
-        {/* Delete Button (only show for comment author or post owner) */}
-        {!isPublicView && user && (
-          (comment.author?.username === user.username || 
-           comment.author === user.username) && (
+        {/* Action Menu (only show for comment author) */}
+        {!isPublicView && isCommentAuthor && (
+          <div className="relative" ref={menuRef}>
             <button
-              onClick={handleDelete}
-              className="text-gray-400 hover:text-red-600 transition-colors"
+              onClick={() => setShowMenu(!showMenu)}
+              className="text-gray-400 hover:text-gray-600 transition-colors p-1"
             >
-              <Trash2 className="h-4 w-4" />
+              <MoreHorizontal className="h-4 w-4" />
             </button>
-          )
+            
+            {showMenu && (
+              <div className="absolute right-0 top-8 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-10 min-w-[120px]">
+                <button
+                  onClick={handleEdit}
+                  className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                >
+                  <Edit className="h-3 w-3" />
+                  Edit
+                </button>
+                <button
+                  onClick={() => {
+                    handleDelete();
+                    setShowMenu(false);
+                  }}
+                  className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                >
+                  <Trash2 className="h-3 w-3" />
+                  Delete
+                </button>
+              </div>
+            )}
+          </div>
         )}
       </div>
 
       {/* Comment Content */}
       <div className="mb-3">
-        {(() => {
-          const content = comment.content;
-          
-          console.log('🔍 Comment content detection:', {
-            commentId: comment.comment_id || comment.id,
-            content: content,
-            hasContent: !!(content && content.toString().trim()),
-            author: comment.author
-          });
-          
-          if (content && content.toString().trim()) {
-            return (
-              <p className="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap">
-                {content.toString().trim()}
-              </p>
-            );
-          } else {
-            return (
-              <p className="text-gray-400 text-sm italic">
-                {content === null ? 'Comment content is empty' : 'No content available'}
-              </p>
-            );
-          }
-        })()}
+        {isEditing ? (
+          /* Edit Mode */
+          <div className="space-y-2">
+            <textarea
+              value={editContent}
+              onChange={(e) => setEditContent(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none"
+              rows="3"
+              placeholder="Edit your comment..."
+            />
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleSaveEdit}
+                className="px-3 py-1 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors"
+              >
+                Save
+              </button>
+              <button
+                onClick={handleCancelEdit}
+                className="px-3 py-1 text-gray-500 text-sm hover:text-gray-700 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          /* Display Mode */
+          (() => {
+            const content = comment.content;
+            
+            console.log('🔍 Comment content detection:', {
+              commentId: comment.comment_id || comment.id,
+              content: content,
+              hasContent: !!(content && content.toString().trim()),
+              author: comment.author
+            });
+            
+            if (content && content.toString().trim()) {
+              return (
+                <div>
+                  <p className="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap">
+                    {content.toString().trim()}
+                  </p>
+                  {comment.edited && (
+                    <p className="text-xs text-gray-400 mt-1 italic">
+                      (edited)
+                    </p>
+                  )}
+                </div>
+              );
+            } else {
+              return (
+                <p className="text-gray-400 text-sm italic">
+                  {content === null ? 'Comment content is empty' : 'No content available'}
+                </p>
+              );
+            }
+          })()
+        )}
       </div>
 
       {/* Comment Actions */}
@@ -318,22 +458,53 @@ const CommentItem = ({
       {replyingTo === (comment.comment_id || comment.id) && (
         <div className="mt-3 p-3 bg-gray-100 rounded-lg">
           <p className="text-xs text-gray-600 mb-2">Replying to {comment.author?.username || comment.author || 'Anonymous'}</p>
-          <div className="flex items-center space-x-2">
-            <input
-              type="text"
+          <div className="space-y-2">
+            <textarea
+              value={replyContent}
+              onChange={(e) => setReplyContent(e.target.value)}
               placeholder="Write a reply..."
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none"
+              rows="2"
             />
-            <button className="px-4 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors">
-              Reply
-            </button>
-            <button 
-              onClick={() => onToggleReply(null)}
-              className="px-3 py-2 text-gray-500 text-sm hover:text-gray-700 transition-colors"
-            >
-              Cancel
-            </button>
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={handleSubmitReply}
+                disabled={!replyContent.trim()}
+                className="px-4 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Reply
+              </button>
+              <button 
+                onClick={handleCancelReply}
+                className="px-3 py-2 text-gray-500 text-sm hover:text-gray-700 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
+        </div>
+      )}
+
+      {/* Display Replies */}
+      {comment.replies && comment.replies.length > 0 && (
+        <div className="mt-3 pl-4 border-l-2 border-gray-200 space-y-2">
+          {comment.replies.map((reply) => (
+            <div key={reply.id || reply.reply_id} className="bg-white p-2 rounded-lg">
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium text-gray-900">
+                    {reply.author?.username || reply.author || 'Anonymous'}
+                  </span>
+                  <span className="text-xs text-gray-500">
+                    {reply.created_at ? formatDistanceToNow(new Date(reply.created_at), { addSuffix: true }) : 'Just now'}
+                  </span>
+                </div>
+              </div>
+              <p className="text-xs text-gray-700 leading-relaxed">
+                {reply.content}
+              </p>
+            </div>
+          ))}
         </div>
       )}
     </div>

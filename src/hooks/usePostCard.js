@@ -4,7 +4,18 @@ import { usePost } from './../contexts/PostContext';
 
 export const usePostCard = (post, activeView = 'home') => {
   const { user } = useAuth();
-  const { deletePost, addComment, addReply, deleteComment, deleteReply, addCommentReaction, addReaction, hasUserReacted } = usePost();
+  const { 
+    deletePost, 
+    addComment, 
+    editComment,
+    addReply, 
+    addCommentReply,
+    deleteComment, 
+    deleteReply, 
+    addCommentReaction, 
+    addReaction, 
+    hasUserReacted 
+  } = usePost();
 
   // State management
   const [showComments, setShowComments] = useState(false);
@@ -203,6 +214,19 @@ export const usePostCard = (post, activeView = 'home') => {
       addReply(post.id, commentId, replyText);
       setReplyText('');
       setReplyingTo(null);
+    }
+  };
+
+  const handleCommentReply = (commentId, replyContent) => {
+    const postId = getPostId();
+    if (replyContent.trim() && postId) {
+      addCommentReply(postId, commentId, replyContent.trim());
+    }
+  };
+
+  const handleEditComment = (commentId, newContent) => {
+    if (newContent.trim()) {
+      editComment(commentId, newContent.trim());
     }
   };
 
@@ -487,6 +511,8 @@ export const usePostCard = (post, activeView = 'home') => {
     handleCommentLike,
     handleCommentReaction,
     handleReply,
+    handleCommentReply,
+    handleEditComment,
     handleDeleteComment,
     handleDeleteReply,
     handleShare,

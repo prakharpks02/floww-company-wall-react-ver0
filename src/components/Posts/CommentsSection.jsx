@@ -12,6 +12,8 @@ const CommentsSection = ({
   user,
   emojiReactions,
   handleDeleteComment,
+  handleEditComment,
+  handleCommentReply,
   getCommentUserReaction,
   getCommentTopReactions,
   getCommentTotalReactions,
@@ -81,7 +83,9 @@ const CommentsSection = ({
               isPublicView={isPublicView}
               emojiReactions={emojiReactions}
               handleDeleteComment={handleDeleteComment}
+              handleEditComment={handleEditComment}
               handleReactToComment={handleCommentReaction}
+              handleCommentReply={handleCommentReply}
               getCommentUserReaction={getCommentUserReaction}
               getCommentTopReactions={getCommentTopReactions}
               getCommentTotalReactions={getCommentTotalReactions}

@@ -675,6 +675,147 @@ const loadAllPosts = async () => {
     }
   };
 
+  // Edit comment (only comment author can edit)
+  const editComment = async (commentId, newContent) => {
+    if (!user) return;
+
+    console.log('🔍 PostContext editComment called:', {
+      commentId,
+      newContent,
+      userId: user?.user_id || user?.id
+    });
+
+    try {
+      const userId = user?.user_id || user?.id;
+      const apiResponse = await postsAPI.editComment(commentId, userId, newContent);
+      
+      console.log('🔍 PostContext editComment API response:', apiResponse);
+
+      // First, let's see the current state before updating
+      setPosts(prevPosts => {
+        console.log('🔍 PostContext before edit - current posts:', prevPosts.length);
+        
+        const updatedPosts = prevPosts.map(post => {
+          console.log('🔍 PostContext checking post:', {
+            postId: post.id || post.post_id,
+            commentsCount: post.comments?.length || 0,
+            hasComments: !!post.comments
+          });
+          
+          if (post.comments && post.comments.length > 0) {
+            console.log('🔍 PostContext post comments before edit:', post.comments.map(c => ({
+              id: c.comment_id || c.id,
+              content: c.content,
+              contentType: typeof c.content
+            })));
+          }
+          
+          return {
+            ...post,
+            comments: post.comments?.map(comment => {
+              console.log('🔍 PostContext checking comment for edit:', {
+                commentIdToEdit: commentId,
+                commentId: comment.comment_id,
+                commentIdAlt: comment.id,
+                currentContent: comment.content,
+                currentContentType: typeof comment.content,
+                newContent: newContent,
+                newContentType: typeof newContent,
+                willUpdate: comment.id === commentId || comment.comment_id === commentId
+              });
+              
+              if (comment.id === commentId || comment.comment_id === commentId) {
+                const updatedComment = {
+                  ...comment,
+                  content: newContent,
+                  edited: true,
+                  edited_at: new Date().toISOString()
+                };
+                console.log('🔍 PostContext updated comment result:', {
+                  original: comment,
+                  updated: updatedComment,
+                  contentChanged: comment.content !== newContent
+                });
+                return updatedComment;
+              }
+              return comment;
+            }) || []
+          };
+        });
+        
+        console.log('🔍 PostContext updated posts after edit - checking first post comments:', 
+          updatedPosts[0]?.comments?.map(c => ({
+            id: c.comment_id || c.id,
+            content: c.content,
+            contentType: typeof c.content
+          }))
+        );
+        return updatedPosts;
+      });
+      
+      // Also check if we need to refresh from server
+      console.log('🔍 PostContext checking if we should refresh post data from server...');
+      
+    } catch (error) {
+      console.error('❌ Edit comment error:', error);
+      throw error;
+    }
+  };
+
+  // Add reply to comment
+  const addCommentReply = async (postId, commentId, replyContent) => {
+    if (!user) return;
+
+    try {
+      const userId = user?.user_id || user?.id;
+      const post = posts.find(p => p.id === postId || p.post_id === postId);
+      const comment = post?.comments?.find(c => c.id === commentId || c.comment_id === commentId);
+      const backendCommentId = comment?.comment_id || commentId;
+      const backendPostId = post?.post_id || postId;
+
+      const response = await postsAPI.addCommentReply(backendPostId, backendCommentId, userId, replyContent);
+
+      // Create optimistic reply object
+      const newReply = {
+        id: response?.reply_id || `reply-${Date.now()}`,
+        reply_id: response?.reply_id,
+        content: replyContent,
+        author: {
+          user_id: userId,
+          username: user?.username || user?.name || 'You'
+        },
+        created_at: new Date().toISOString(),
+        reactions: {}
+      };
+
+      // Optimistically update the UI
+      setPosts(prevPosts =>
+        prevPosts.map(post => {
+          if (post.id === postId || post.post_id === postId) {
+            return {
+              ...post,
+              comments: post.comments?.map(comment => {
+                if (comment.id === commentId || comment.comment_id === commentId) {
+                  return {
+                    ...comment,
+                    replies: [...(comment.replies || []), newReply]
+                  };
+                }
+                return comment;
+              }) || []
+            };
+          }
+          return post;
+        })
+      );
+
+      return response;
+    } catch (error) {
+      console.error('❌ Add comment reply error:', error);
+      throw error;
+    }
+  };
+
   // Add reaction to comment - handles both emoji reactions and likes
   const addCommentReaction = async (commentId, reactionType, emoji = null) => {
     if (!user?.user_id && !user?.id) return;
@@ -1034,7 +1175,9 @@ const loadAllPosts = async () => {
     deletePost,
     // likePost removed - now handled through addReaction
     addComment,
+    editComment,
     addReply,
+    addCommentReply,
     deleteComment,
     deleteReply,
     addCommentReaction,

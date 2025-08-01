@@ -57,6 +57,8 @@ const PostCard = ({ post, showAuthorInfo = true, isPublicView = false, activeVie
     handleCommentLike,
     handleCommentReaction,
     handleReply,
+    handleCommentReply,
+    handleEditComment,
     handleDeleteComment,
     handleDeleteReply,
     handleShare,
@@ -272,6 +274,8 @@ const PostCard = ({ post, showAuthorInfo = true, isPublicView = false, activeVie
         user={user}
         emojiReactions={emojiReactions}
         handleDeleteComment={handleDeleteComment}
+        handleEditComment={handleEditComment}
+        handleCommentReply={handleCommentReply}
         getCommentUserReaction={getCommentUserReaction}
         getCommentTopReactions={getCommentTopReactions}
         getCommentTotalReactions={getCommentTotalReactions}

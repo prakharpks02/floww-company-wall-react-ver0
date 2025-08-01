@@ -843,6 +843,61 @@ export const postsAPI = {
       console.error('❌ Delete comment error:', error.message);
       throw error;
     }
+  },
+
+  // Edit comment by comment_id and user_id (POST)
+  editComment: async (commentId, userId, content) => {
+    const endpoint = `${API_CONFIG.BASE_URL}/comments/${commentId}/edit`;
+    
+    // Try multiple field names to match backend expectations
+    const requestBody = {
+      user_id: userId,
+      content: content,        // Primary field name
+      comment: content,        // Fallback field name
+      new_content: content     // Alternative field name
+    };
+    
+    console.log('🔍 API editComment:', {
+      commentId,
+      userId,
+      content,
+      requestBody,
+      endpoint
+    });
+    
+    logApiCall('POST', endpoint, requestBody);
+    try {
+      const response = await fetchWithTimeout(endpoint, {
+        method: 'POST',
+        body: JSON.stringify(requestBody)
+      });
+      
+      const result = await handleResponse(response);
+      console.log('🔍 API editComment response:', result);
+      return result;
+    } catch (error) {
+      console.error('❌ Edit comment error:', error.message);
+      throw error;
+    }
+  },
+
+  // Add reply to comment
+  addCommentReply: async (postId, commentId, userId, content) => {
+    const endpoint = `${API_CONFIG.BASE_URL}/posts/${postId}/comments/${commentId}/replies`;
+    logApiCall('POST', endpoint, { user_id: userId, content });
+    try {
+      const response = await fetchWithTimeout(endpoint, {
+        method: 'POST',
+        body: JSON.stringify({ 
+          user_id: userId,
+          content: content 
+        })
+      });
+      return await handleResponse(response);
+    } catch (error) {
+      console.error('❌ Add comment reply error:', error.message);
+      throw error;
+    }
   }
 };
 
