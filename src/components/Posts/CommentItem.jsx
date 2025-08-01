@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Trash2, Heart, MessageCircle, Edit, MoreHorizontal } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import CommentReply from './CommentReply';
 
 const CommentItem = ({ 
   comment, 
@@ -11,6 +12,7 @@ const CommentItem = ({
   handleEditComment,
   handleReactToComment,
   handleCommentReply,
+  handleDeleteReply,
   getCommentUserReaction,
   hasUserReacted,
   onToggleReply,
@@ -139,8 +141,8 @@ const CommentItem = ({
       {/* Comment Header */}
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center space-x-2">
-          <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
-            <span className="text-sm font-medium text-gray-600">
+          <div className="w-8 h-8 bg-gradient-to-br from-purple-400 to-blue-500 rounded-full flex items-center justify-center">
+            <span className="text-sm font-medium text-white">
               {(comment.author?.username || comment.author || 'A')[0].toUpperCase()}
             </span>
           </div>
@@ -279,10 +281,10 @@ const CommentItem = ({
          
                 if (userReaction && userReaction !== 'like') {
                   // Show the emoji for the user's reaction
-              
+                  const reaction = emojiReactions.find(r => r.name === userReaction);
                   return (
                     <span className="text-lg">
-                      {reactionEmoji?.emoji || '👍'}
+                      {reaction?.emoji || '👍'}
                     </span>
                   );
                 } else {
@@ -389,7 +391,16 @@ const CommentItem = ({
       {/* Reply Input (if replying to this comment) */}
       {replyingTo === (comment.comment_id || comment.id) && (
         <div className="mt-3 p-3 bg-gray-100 rounded-lg">
-          <p className="text-xs text-gray-600 mb-2">Replying to {comment.author?.username || comment.author || 'Anonymous'}</p>
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-6 h-6 bg-gradient-to-br from-purple-400 to-blue-500 rounded-full flex items-center justify-center">
+              <span className="text-xs font-medium text-white">
+                {(comment.author?.username || comment.author || 'A')[0].toUpperCase()}
+              </span>
+            </div>
+            <p className="text-xs text-gray-600">
+              Replying to <span className="font-medium">{comment.author?.username || comment.author || 'Anonymous'}</span>
+            </p>
+          </div>
           <div className="space-y-2">
             <textarea
               value={replyContent}
@@ -419,23 +430,22 @@ const CommentItem = ({
 
       {/* Display Replies */}
       {comment.replies && comment.replies.length > 0 && (
-        <div className="mt-3 pl-4 border-l-2 border-gray-200 space-y-2">
+        <div className="mt-3 pl-4 border-l-2 border-purple-200 space-y-2">
           {comment.replies.map((reply) => (
-            <div key={reply.id || reply.reply_id} className="bg-white p-2 rounded-lg">
-              <div className="flex items-center justify-between mb-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-medium text-gray-900">
-                    {reply.author?.username || reply.author || 'Anonymous'}
-                  </span>
-                  <span className="text-xs text-gray-500">
-                    {reply.created_at ? formatDistanceToNow(new Date(reply.created_at), { addSuffix: true }) : 'Just now'}
-                  </span>
-                </div>
-              </div>
-              <p className="text-xs text-gray-700 leading-relaxed">
-                {reply.content}
-              </p>
-            </div>
+            <CommentReply
+              key={reply.id || reply.reply_id}
+              reply={reply}
+              user={user}
+              isPublicView={isPublicView}
+              commentId={comment.comment_id || comment.id}
+              emojiReactions={emojiReactions}
+              handleDeleteReply={handleDeleteReply}
+              handleReactToComment={handleReactToComment}
+              getCommentUserReaction={getCommentUserReaction}
+              showCommentReactions={showCommentReactions}
+              handleCommentReactionsMouseEnter={handleCommentReactionsMouseEnter}
+              handleCommentReactionsMouseLeave={handleCommentReactionsMouseLeave}
+            />
           ))}
         </div>
       )}

@@ -79,6 +79,7 @@ const CommentsSection = ({
               handleEditComment={handleEditComment}
               handleReactToComment={handleCommentReaction}
               handleCommentReply={handleCommentReply}
+              handleDeleteReply={handleDeleteReply}
               getCommentUserReaction={getCommentUserReaction}
               getCommentTopReactions={getCommentTopReactions}
               getCommentTotalReactions={getCommentTotalReactions}
@@ -93,24 +94,6 @@ const CommentsSection = ({
               setReplyText={setReplyText}
               handleReply={handleReply}
             />
-            
-            {/* Replies (if any) */}
-            {comment.replies?.length > 0 && (
-              <div className="mt-3 pl-4 border-l-2 border-gray-200 space-y-2">
-                {comment.replies.map((reply, idx) => (
-                  <CommentReply
-                    key={reply.id || idx}
-                    reply={reply}
-                    user={user}
-                    isPublicView={isPublicView}
-                    commentId={comment.comment_id || comment.id}
-                    handleDeleteReply={handleDeleteReply}
-                    getCommentTopReactions={getCommentTopReactions}
-                    getCommentTotalReactions={getCommentTotalReactions}
-                  />
-                ))}
-              </div>
-            )}
           </div>
           );
         })

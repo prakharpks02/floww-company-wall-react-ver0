@@ -199,9 +199,7 @@ export const PostProvider = ({ children }) => {
       reactions: normalizedReactions || {},
       likes: rawPost.likes || [],
       // Normalize comments
-      comments: normalizedComments,
-      // Ensure tags are properly handled
-      tags: rawPost.tags || rawPost.post_tags || []
+      comments: normalizedComments
     };
   
     console.log('🔍 PostContext normalizePost - Normalized post:', normalized);
@@ -319,32 +317,29 @@ export const PostProvider = ({ children }) => {
         const backendPosts = await postsAPI.getMyPosts();
         console.log('🔄 PostContext - Backend response:', backendPosts);
         
-        if (backendPosts?.data?.posts && Array.isArray(backendPosts.data.posts) && backendPosts.data.posts.length > 0) {
-          console.log('✅ PostContext - Found posts:', backendPosts.data.posts.length);
-          
-          // Normalize all posts to ensure consistent format
-          const normalizedPosts = backendPosts.data.posts.map(post => {
-            const normalized = normalizePost(post);
-            console.log('🔄 PostContext - Normalized post:', normalized);
-            return normalized;
-          });
-          
-          setPosts(normalizedPosts);
-        } else if (backendPosts && backendPosts.data && backendPosts.data.length > 0) {
-          console.log('✅ PostContext - Found posts (legacy format):', backendPosts.data.length);
-          
-          // Normalize all posts to ensure consistent format
-          const normalizedPosts = backendPosts.data.map(post => {
-            const normalized = normalizePost(post);
-            console.log('🔄 PostContext - Normalized post:', normalized);
-            return normalized;
-          });
-          
-          setPosts(normalizedPosts);
+        let postsData = [];
+
+        // Check the new nested structure (same as loadAllPosts)
+        if (backendPosts.data && Array.isArray(backendPosts.data.posts)) {
+          postsData = backendPosts.data.posts;
+          console.log('✅ PostContext - Found posts in nested structure:', postsData.length);
+        } else if (Array.isArray(backendPosts.data)) {
+          // Fallback to old structure if present
+          postsData = backendPosts.data;
+          console.log('✅ PostContext - Found posts in old structure:', postsData.length);
         } else {
           console.log('📝 PostContext - No posts found for current user, showing empty state');
-          setPosts([]);
+          postsData = [];
         }
+
+        // Normalize all posts to ensure consistent format
+        const normalizedPosts = postsData.map(post => {
+          const normalized = normalizePost(post);
+          console.log('🔄 PostContext - Normalized post:', normalized);
+          return normalized;
+        });
+        
+        setPosts(normalizedPosts);
       } catch (error) {
         console.error('❌ PostContext - Failed to load user posts from backend:', error.message);
         console.log('📝 PostContext - Showing empty posts state due to backend error');
@@ -365,41 +360,23 @@ export const PostProvider = ({ children }) => {
   // Standalone function to reload posts (can be called after edit/delete)
   const reloadPosts = async () => {
     try {
-    
       const backendPosts = await postsAPI.getMyPosts();
-      
-      if (backendPosts?.data?.posts && Array.isArray(backendPosts.data.posts) && backendPosts.data.posts.length > 0) {
-       
-        backendPosts.data.posts.forEach((post, index) => {
-        
-        });
-        
-        // Normalize all posts to ensure consistent format
-        const normalizedPosts = backendPosts.data.posts.map(normalizePost);
-        
-        normalizedPosts.forEach((post, index) => {
-         
-        });
-        
-        setPosts(normalizedPosts);
-      } else if (backendPosts && backendPosts.data && backendPosts.data.length > 0) {
-       
-        backendPosts.data.forEach((post, index) => {
-        
-        });
-        
-        // Normalize all posts to ensure consistent format
-        const normalizedPosts = backendPosts.data.map(normalizePost);
-        
-        normalizedPosts.forEach((post, index) => {
-         
-        });
-        
-        setPosts(normalizedPosts);
+      let postsData = [];
+
+      // Check the new nested structure (same as loadAllPosts)
+      if (backendPosts.data && Array.isArray(backendPosts.data.posts)) {
+        postsData = backendPosts.data.posts;
+      } else if (Array.isArray(backendPosts.data)) {
+        // Fallback to old structure if present
+        postsData = backendPosts.data;
       } else {
-      
-        setPosts([]);
+        console.log('📝 No posts found for current user');
+        postsData = [];
       }
+        
+      // Normalize all posts to ensure consistent format
+      const normalizedPosts = postsData.map(normalizePost);
+      setPosts(normalizedPosts);
     } catch (error) {
       console.error('❌ Failed to reload user posts from backend:', error.message);
       setPosts([]);
@@ -412,13 +389,12 @@ const loadAllPosts = async () => {
     const backendPosts = await postsAPI.getPosts();
     let postsData = [];
 
-    // Defensive: Try different response structures
-    if (Array.isArray(backendPosts.data?.posts) && backendPosts.data.posts.length > 0) {
+    // Check the new nested structure
+    if (backendPosts.data && Array.isArray(backendPosts.data.posts)) {
       postsData = backendPosts.data.posts;
-    } else if (Array.isArray(backendPosts.data) && backendPosts.data.length > 0) {
+    } else if (Array.isArray(backendPosts.data)) {
+      // Fallback to old structure if present
       postsData = backendPosts.data;
-    } else if (Array.isArray(backendPosts.posts) && backendPosts.posts.length > 0) {
-      postsData = backendPosts.posts;
     } else {
       // Log the full response for debugging
       console.warn('🛑 No posts found in backend response:', backendPosts);
@@ -852,15 +828,45 @@ const loadAllPosts = async () => {
     // Always use 'like' as the reactionType for likes, never the emoji
     const safeReactionType = reactionType === '❤️' ? 'like' : reactionType;
     const userId = user?.user_id || user?.id;
+    // Define reactionEmoji properly based on the reaction type
+    const reactionEmoji = safeReactionType === 'like' ? undefined : (emoji || '👍');
 
-    // Find the comment to get the backend comment_id
-    const post = posts.find(p => p.comments?.some(c => c.id === commentId || c.comment_id === commentId));
-    const comment = post?.comments?.find(c => c.id === commentId || c.comment_id === commentId);
-    const backendCommentId = comment?.comment_id || commentId;
+    // Find the comment or reply to get the backend comment_id
+    let targetComment = null;
+    let parentPost = null;
+    let isReply = false;
+    
+    // First check if it's a direct comment
+    posts.forEach(post => {
+      const comment = post.comments?.find(c => c.id === commentId || c.comment_id === commentId);
+      if (comment) {
+        targetComment = comment;
+        parentPost = post;
+        return;
+      }
+      
+      // If not found as direct comment, check if it's a reply
+      post.comments?.forEach(comment => {
+        const reply = comment.replies?.find(r => r.id === commentId || r.comment_id === commentId);
+        if (reply) {
+          targetComment = reply;
+          parentPost = post;
+          isReply = true;
+          return;
+        }
+      });
+    });
 
-    // Find if user has any reaction on this comment (handle both formats)
-    const userPrevReaction = comment && Object.keys(comment.reactions || {}).find(rt => {
-      const r = comment.reactions[rt];
+    if (!targetComment) {
+      console.error('Comment/Reply not found:', commentId);
+      return;
+    }
+
+    const backendCommentId = targetComment.comment_id || commentId;
+
+    // Find if user has any reaction on this comment/reply (handle both formats)
+    const userPrevReaction = targetComment && Object.keys(targetComment.reactions || {}).find(rt => {
+      const r = targetComment.reactions[rt];
       if (!r) return false;
       
       // Handle array format from optimistic updates: [{user_id: 123}, {user_id: 456}]
@@ -884,7 +890,8 @@ const loadAllPosts = async () => {
       userId,
       userPrevReaction,
       safeReactionType,
-      commentReactions: comment?.reactions,
+      isReply,
+      targetCommentReactions: targetComment?.reactions,
       willToggleOff: userPrevReaction === safeReactionType
     });
 
@@ -898,61 +905,100 @@ const loadAllPosts = async () => {
         await postsAPI.deleteCommentReaction(backendCommentId, safeReactionType);
       } else {
         // Add the new reaction
-        await postsAPI.addCommentReaction(backendCommentId, safeReactionType, emoji);
+        await postsAPI.addCommentReaction(backendCommentId, safeReactionType, reactionEmoji);
       }
 
       // ✅ OPTIMISTIC UI UPDATE - Update local state immediately
       setPosts(prevPosts => 
         prevPosts.map(p => {
-          if (!p.comments?.some(c => c.id === commentId || c.comment_id === commentId)) {
-            return p;
-          }
+          if (p !== parentPost) return p;
           
           return {
             ...p,
             comments: p.comments.map(c => {
-              if (c.id !== commentId && c.comment_id !== commentId) {
-                return c;
-              }
-              
-              // Create updated reactions object
-              const updatedReactions = { ...c.reactions };
-              
-              // First, remove user from ALL reaction types (since user can only have one reaction)
-              Object.keys(updatedReactions).forEach(reactionType => {
-                if (Array.isArray(updatedReactions[reactionType])) {
-                  updatedReactions[reactionType] = updatedReactions[reactionType].filter(
-                    r => r.user_id !== userId
-                  );
-                  // Remove the reaction type if no users left
-                  if (updatedReactions[reactionType].length === 0) {
-                    delete updatedReactions[reactionType];
+              // If this is a direct comment reaction
+              if (!isReply && (c.id === commentId || c.comment_id === commentId)) {
+                // Create updated reactions object for comment
+                const updatedReactions = { ...c.reactions };
+                
+                // First, remove user from ALL reaction types (since user can only have one reaction)
+                Object.keys(updatedReactions).forEach(reactionType => {
+                  if (Array.isArray(updatedReactions[reactionType])) {
+                    updatedReactions[reactionType] = updatedReactions[reactionType].filter(
+                      r => r.user_id !== userId
+                    );
+                    // Remove the reaction type if no users left
+                    if (updatedReactions[reactionType].length === 0) {
+                      delete updatedReactions[reactionType];
+                    }
                   }
+                });
+                
+                // Add user to new reaction (unless toggling off the same reaction)
+                if (userPrevReaction !== safeReactionType) {
+                  if (!updatedReactions[safeReactionType]) {
+                    updatedReactions[safeReactionType] = [];
+                  }
+                  // Add the user to the new reaction type
+                  updatedReactions[safeReactionType].push({ user_id: userId });
                 }
-              });
-              
-              // Add user to new reaction (unless toggling off the same reaction)
-              if (userPrevReaction !== safeReactionType) {
-                if (!updatedReactions[safeReactionType]) {
-                  updatedReactions[safeReactionType] = [];
-                }
-                // Add the user to the new reaction type
-                updatedReactions[safeReactionType].push({ user_id: userId });
+                
+                return {
+                  ...c,
+                  reactions: updatedReactions
+                };
               }
               
-              console.log('🔍 Optimistic comment reaction update:', {
-                commentId,
-                oldReactions: c.reactions,
-                newReactions: updatedReactions,
-                safeReactionType,
-                userPrevReaction,
-                userId
-              });
+              // If this is a reply reaction, update the reply within the comment
+              if (isReply && c.replies) {
+                return {
+                  ...c,
+                  replies: c.replies.map(r => {
+                    if (r.id === commentId || r.comment_id === commentId) {
+                      // Create updated reactions object for reply
+                      const updatedReactions = { ...r.reactions };
+                      
+                      // First, remove user from ALL reaction types
+                      Object.keys(updatedReactions).forEach(reactionType => {
+                        if (Array.isArray(updatedReactions[reactionType])) {
+                          updatedReactions[reactionType] = updatedReactions[reactionType].filter(
+                            reaction => reaction.user_id !== userId
+                          );
+                          // Remove the reaction type if no users left
+                          if (updatedReactions[reactionType].length === 0) {
+                            delete updatedReactions[reactionType];
+                          }
+                        }
+                      });
+                      
+                      // Add user to new reaction (unless toggling off the same reaction)
+                      if (userPrevReaction !== safeReactionType) {
+                        if (!updatedReactions[safeReactionType]) {
+                          updatedReactions[safeReactionType] = [];
+                        }
+                        updatedReactions[safeReactionType].push({ user_id: userId });
+                      }
+                      
+                      console.log('🔍 Optimistic reply reaction update:', {
+                        replyId: commentId,
+                        oldReactions: r.reactions,
+                        newReactions: updatedReactions,
+                        safeReactionType,
+                        userPrevReaction,
+                        userId
+                      });
+                      
+                      return {
+                        ...r,
+                        reactions: updatedReactions
+                      };
+                    }
+                    return r;
+                  })
+                };
+              }
               
-              return {
-                ...c,
-                reactions: updatedReactions
-              };
+              return c;
             })
           };
         })
@@ -1110,14 +1156,13 @@ const loadAllPosts = async () => {
       
       if (userId === currentUserId) {
         // Use backend API for current user's posts
-  
         const backendPosts = await postsAPI.getMyPosts();
         
-        if (backendPosts?.data?.posts) {
-        
+        // Check the new nested structure
+        if (backendPosts.data && Array.isArray(backendPosts.data.posts)) {
           return backendPosts.data.posts;
-        } else if (backendPosts && backendPosts.data) {
-        
+        } else if (Array.isArray(backendPosts.data)) {
+          // Fallback to old structure
           return backendPosts.data;
         }
       }
@@ -1129,10 +1174,9 @@ const loadAllPosts = async () => {
         post.user_id === userId
       );
       
-     
       return userPosts;
     } catch (error) {
-    
+      console.error('❌ Failed to get user posts:', error);
       return [];
     }
   };
@@ -1171,26 +1215,16 @@ const loadAllPosts = async () => {
   };
 
   const getFilteredPosts = (filters = {}) => {
-    console.log('🔍 getFilteredPosts - Input filters:', filters);
-    console.log('🔍 getFilteredPosts - Total posts:', posts.length);
-    
     let filteredPosts = [...posts];
 
     // Filter by tag
     if (filters.tag && filters.tag !== 'all') {
-      console.log('🔍 getFilteredPosts - Filtering by tag:', filters.tag);
-      
-      filteredPosts = filteredPosts.filter(post => {
-        console.log('🔍 getFilteredPosts - Post tags:', post.tags, 'Post ID:', post.id || post.post_id);
-        
-        return post.tags && post.tags.some(postTag => {
+      filteredPosts = filteredPosts.filter(post => 
+        post.tags && post.tags.some(postTag => {
           const tagName = typeof postTag === 'string' ? postTag : postTag.tag_name || postTag.name;
-          console.log('🔍 getFilteredPosts - Comparing tag:', tagName, 'with filter:', filters.tag);
           return tagName === filters.tag;
-        });
-      });
-      
-      console.log('🔍 getFilteredPosts - Posts after tag filter:', filteredPosts.length);
+        })
+      );
     }
 
     // Filter by search query
@@ -1206,7 +1240,6 @@ const loadAllPosts = async () => {
       );
     }
 
-    console.log('🔍 getFilteredPosts - Final filtered posts:', filteredPosts.length);
     return filteredPosts;
   };
 
