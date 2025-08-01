@@ -29,7 +29,7 @@ const SinglePostView = () => {
         );
         
         if (localPost) {
-      
+          console.log('🔍 SinglePostView - Found post in local state:', localPost);
           
           // Ensure the local post has proper avatar structure
           const normalizedLocalPost = {
@@ -46,31 +46,61 @@ const SinglePostView = () => {
         }
         
         // If not found locally, fetch from API
-     
+        console.log('🔍 SinglePostView - Fetching post from API with ID:', postId);
+        console.log('🔍 SinglePostView - API URL will be:', `http://localhost:8000/api/wall/posts/${postId}/get_single_post`);
+        
         const response = await postsAPI.getPostById(postId);
         
-        if (response && response.data.posts) {
-      
+        console.log('🔍 SinglePostView - API Response:', response);
+        console.log('🔍 SinglePostView - Response Status:', response?.status);
+        console.log('🔍 SinglePostView - Response Data:', response?.data);
+        console.log('🔍 SinglePostView - Response Posts:', response?.data?.posts);
+        
+        if (response && response.data) {
+          console.log('🔍 SinglePostView - Post data found:', response.data);
           
           // Normalize the post data to ensure proper structure
           const normalizedPost = {
-            ...response.data.posts,
-            // Ensure authorName is properly set
-            authorName: response.data.posts.author?.username || response.data.posts.authorName || response.data.posts.author_name || 'Anonymous',
+            ...response.data,
+            // Map the API response fields to expected component fields
+            id: response.data.post_id,
+            post_id: response.data.post_id,
+            content: response.data.content,
+            // Ensure authorName is properly set from the post author or fallback
+            authorName: response.data.author?.username || 'Anonymous',
             // Ensure authorAvatar has a fallback
-            authorAvatar: response.data.posts.author?.avatar || response.data.posts.authorAvatar || response.data.posts.author_avatar || 
+            authorAvatar: response.data.author?.avatar || 
                          'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
             // Ensure authorPosition is set
-            authorPosition: response.data.posts.author?.position || response.data.posts.authorPosition || response.data.posts.author_position || 'Employee',
+            authorPosition: response.data.author?.position || 'Employee',
             // Ensure proper timestamp
-            timestamp: response.data.posts.timestamp || response.data.posts.created_at || response.data.posts.createdAt || new Date().toISOString()
+            timestamp: response.data.created_at || new Date().toISOString(),
+            // Map other fields
+            media: response.data.media || [],
+            mentions: response.data.mentions || [],
+            tags: response.data.tags || [],
+            comments: response.data.comments || [],
+            reactions: response.data.reaction_counts || {},
+            // Fix: likes should be an empty array since we don't have the actual user IDs who liked
+            // The reaction count will be handled by the reactions object
+            likes: [],
+            // Add required fields for PostCard
+            images: response.data.media?.filter(m => m.type === 'image') || [],
+            videos: response.data.media?.filter(m => m.type === 'video') || [],
+            documents: response.data.media?.filter(m => m.type === 'document') || [],
+            links: response.data.media?.filter(m => m.type === 'link') || []
           };
           
-      
+          console.log('🔍 SinglePostView - Normalized post:', normalizedPost);
           setPost(normalizedPost);
+        } else if (response && response.posts) {
+          console.log('🔍 SinglePostView - Post found directly in response.posts:', response.posts);
+          setPost(response.posts);
         } else if (response) {
+          console.log('🔍 SinglePostView - Using full response as post:', response);
           setPost(response);
         } else {
+          console.log('❌ SinglePostView - No post data found in response');
           throw new Error('Post not found');
         }
         
@@ -201,6 +231,8 @@ const SinglePostView = () => {
 
         {/* Post Card */}
         <PostCard post={post} isPublicView={!user} />
+        
+ 
 
         {/* Footer */}
         <div className="mt-8 text-center">

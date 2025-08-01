@@ -31,8 +31,14 @@ const CommentReply = ({
           }
           reactionsObj[reactionType].push({ user_id: reaction.user_id });
         });
+        console.log('🔍 CommentReply - Normalized reactions from array:', {
+          originalReactions: reply.reactions,
+          normalizedReactions: reactionsObj,
+          replyId: reply.comment_id || reply.id || reply.reply_id
+        });
         return reactionsObj;
       }
+      console.log('🔍 CommentReply - Using existing reactions object:', reply.reactions);
       return reply.reactions || {};
     })(),
     content: reply.content || '',
@@ -45,6 +51,12 @@ const CommentReply = ({
     if (isPublicView) return;
     // Use the reply's own ID for reactions, not the parent comment ID
     const replyId = reply.comment_id || reply.id || reply.reply_id;
+    console.log('🔍 CommentReply - handleReplyReaction called:', {
+      reactionType,
+      replyId,
+      originalReply: reply,
+      normalizedReply: normalizedReply
+    });
     handleReactToComment(replyId, reactionType);
   };
 
@@ -93,6 +105,11 @@ const CommentReply = ({
               <button
                 onClick={() => {
                   const userReaction = getCommentUserReaction(normalizedReply);
+                  console.log('🔍 CommentReply - User reaction check:', {
+                    userReaction,
+                    normalizedReply,
+                    replyId: normalizedReply.comment_id
+                  });
                   if (userReaction) {
                     // User has a reaction, remove it (toggle off)
                     handleReplyReaction(userReaction);
@@ -102,6 +119,7 @@ const CommentReply = ({
                   }
                 }}
                 disabled={isPublicView}
+                title={isPublicView ? "Login to react to replies" : "React to this reply"}
                 className={`flex items-center space-x-1 text-xs ${
                   isPublicView 
                     ? 'text-gray-400 cursor-not-allowed'
@@ -109,8 +127,28 @@ const CommentReply = ({
                 } transition-colors`}
               >
                 {(() => {
-                  const userReaction = getCommentUserReaction(normalizedReply);
+                  const userReaction = isPublicView ? null : getCommentUserReaction(normalizedReply);
+                  const reactions = normalizedReply.reactions || {};
                   
+                  // For public view, show the most common reaction or heart
+                  if (isPublicView) {
+                    const reactionTypes = Object.keys(reactions);
+                    if (reactionTypes.length > 0) {
+                      // Show the first available reaction type
+                      const firstReactionType = reactionTypes[0];
+                      const reactionInfo = emojiReactions.find(r => r.name === firstReactionType);
+                      if (reactionInfo) {
+                        return (
+                          <span className="text-sm">
+                            {reactionInfo.emoji}
+                          </span>
+                        );
+                      }
+                    }
+                    return <Heart className="h-3 w-3" />;
+                  }
+                  
+                  // For logged-in users, show their specific reaction
                   if (userReaction && userReaction !== 'like') {
                     // Show the emoji for the user's reaction
                     const reaction = emojiReactions.find(r => r.name === userReaction);
@@ -132,6 +170,9 @@ const CommentReply = ({
                 })()}
                 <span>
                   {(() => {
+                    if (isPublicView) {
+                      return 'Like';
+                    }
                     const userReaction = getCommentUserReaction(normalizedReply);
                     if (userReaction && userReaction !== 'like') {
                       // Show the reaction name
@@ -142,7 +183,7 @@ const CommentReply = ({
                   })()}
                 </span>
                 
-                {/* Reaction Count */}
+                {/* Reaction Count - Always show if there are reactions */}
                 {(() => {
                   const reactions = normalizedReply.reactions || {};
                   const totalCount = Object.values(reactions).reduce((total, users) => {
@@ -186,7 +227,7 @@ const CommentReply = ({
           </div>
         </div>
         
-        {/* Show Reaction Count Summary */}
+        {/* Show Reaction Count Summary - Always show if reactions exist */}
         {(() => {
           const reactions = normalizedReply.reactions || {};
           const totalCount = Object.values(reactions).reduce((total, users) => {
@@ -196,11 +237,36 @@ const CommentReply = ({
             return total;
           }, 0);
           
-          return totalCount > 1 ? (
-            <div className="mt-1 text-xs text-gray-500">
-              {totalCount} reactions
-            </div>
-          ) : null;
+          if (totalCount > 0) {
+            // Show reaction summary with emojis
+            const reactionSummary = Object.entries(reactions)
+              .filter(([_, users]) => Array.isArray(users) && users.length > 0)
+              // .map(([reactionType, users]) => {
+              //   const reactionInfo = emojiReactions.find(r => r.name === reactionType);
+              //   return {
+              //     // emoji: reactionInfo?.emoji || '👍',
+              //     // count: users.length
+              //   };
+              // });
+            
+            return (
+              <div className="mt-1 flex items-center space-x-2 text-xs text-gray-500">
+                <div className="flex items-center space-x-1">
+                  {reactionSummary.map((reaction, index) => (
+                    <span key={index} className="flex items-center">
+                      <span className="text-sm">{reaction.emoji}</span>
+                      <span className="ml-1">{reaction.count}</span>
+                    </span>
+                  ))}
+                </div>
+                {totalCount > 1 && (
+                  <span>• {totalCount} reactions</span>
+                )}
+              </div>
+            );
+          }
+          
+          return null;
         })()}
       </div>
     </div>

@@ -145,62 +145,54 @@ const MyPosts = () => {
 </div>
 
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <div className="flex items-center">
-            <div className="p-2 rounded-lg" style={{ backgroundColor: '#f3f0ff' }}>
-              <FileText className="h-5 w-5" style={{ color: '#9f7aea' }} />
-            </div>
-            <div className="ml-3">
-              <p className="text-2xl font-semibold text-gray-900">{myPosts.length}</p>
-              <p className="text-sm text-gray-600">Total Posts</p>
-            </div>
-          </div>
+   {/* Stats */}
+<div className="max-w-6xl mx-auto">
+  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+    {/* Total Posts */}
+    <div className="bg-white rounded-lg border border-gray-200 p-4">
+      <div className="flex items-center">
+        <div className="p-2 rounded-lg" style={{ backgroundColor: '#f3f0ff' }}>
+          <FileText className="h-5 w-5" style={{ color: '#9f7aea' }} />
         </div>
-
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <div className="flex items-center">
-            <div className="p-2 bg-red-100 rounded-lg">
-              <Heart className="h-5 w-5 text-red-600" />
-            </div>
-            <div className="ml-3">
-              <p className="text-2xl font-semibold text-gray-900">
-                {myPosts.reduce((sum, post) => sum + getPostStats(post).likes, 0)}
-              </p>
-              <p className="text-sm text-gray-600">Total Reactions</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <div className="flex items-center">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <MessageCircle className="h-5 w-5 text-blue-600" />
-            </div>
-            <div className="ml-3">
-              <p className="text-2xl font-semibold text-gray-900">
-                {myPosts.reduce((sum, post) => sum + getPostStats(post).comments, 0)}
-              </p>
-              <p className="text-sm text-gray-600">Total Comments</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <div className="flex items-center">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <Share2 className="h-5 w-5 text-green-600" />
-            </div>
-            <div className="ml-3">
-              <p className="text-2xl font-semibold text-gray-900">
-                {myPosts.reduce((sum, post) => sum + getPostStats(post).shares, 0)}
-              </p>
-              <p className="text-sm text-gray-600">Total Shares</p>
-            </div>
-          </div>
+        <div className="ml-3">
+          <p className="text-2xl font-semibold text-gray-900">{myPosts.length}</p>
+          <p className="text-sm text-gray-600">Total Posts</p>
         </div>
       </div>
+    </div>
+
+    {/* Total Reactions */}
+    <div className="bg-white rounded-lg border border-gray-200 p-4">
+      <div className="flex items-center">
+        <div className="p-2 bg-red-100 rounded-lg">
+          <Heart className="h-5 w-5 text-red-600" />
+        </div>
+        <div className="ml-3">
+          <p className="text-2xl font-semibold text-gray-900">
+            {myPosts.reduce((sum, post) => sum + getPostStats(post).likes, 0)}
+          </p>
+          <p className="text-sm text-gray-600">Total Reactions</p>
+        </div>
+      </div>
+    </div>
+
+    {/* Total Comments */}
+    <div className="bg-white rounded-lg border border-gray-200 p-4">
+      <div className="flex items-center">
+        <div className="p-2 bg-blue-100 rounded-lg">
+          <MessageCircle className="h-5 w-5 text-blue-600" />
+        </div>
+        <div className="ml-3">
+          <p className="text-2xl font-semibold text-gray-900">
+            {myPosts.reduce((sum, post) => sum + getPostStats(post).comments, 0)}
+          </p>
+          <p className="text-sm text-gray-600">Total Comments</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 
       {/* Error Message */}
       {error && (
