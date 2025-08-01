@@ -14,20 +14,60 @@ const RichTextEditor = ({
   const [mentionPosition, setMentionPosition] = useState({ top: 0, left: 0 });
   const [fontSize, setFontSize] = useState('14');
   const [fontFamily, setFontFamily] = useState('system-ui');
+  const [users, setUsers] = useState([]);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
 
-  // Sample users for mentions (in real app, this would come from props or API)
-  const users = [
-    { id: 1, name: 'Sarah Johnson', username: 'sarah.johnson', avatar: 'https://images.unsplash.com/photo-1494790108755-2616b612b47c?w=32&h=32&fit=crop&crop=face' },
-    { id: 2, name: 'Michael Chen', username: 'michael.chen', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=32&h=32&fit=crop&crop=face' },
-    { id: 3, name: 'Emily Rodriguez', username: 'emily.rodriguez', avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=32&h=32&fit=crop&crop=face' },
-    { id: 4, name: 'David Kumar', username: 'david.kumar', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=32&h=32&fit=crop&crop=face' },
-    { id: 5, name: 'Lisa Thompson', username: 'lisa.thompson', avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=32&h=32&fit=crop&crop=face' }
-  ];
+  // Debounce function for API calls
+  const debounce = (func, wait) => {
+    let timeout;
+    return function executedFunction(...args) {
+      const later = () => {
+        clearTimeout(timeout);
+        func(...args);
+      };
+      clearTimeout(timeout);
+      timeout = setTimeout(later, wait);
+    };
+  };
 
-  const filteredUsers = users.filter(user => 
-    user.name.toLowerCase().includes(mentionQuery.toLowerCase()) ||
-    user.username.toLowerCase().includes(mentionQuery.toLowerCase())
-  ).slice(0, 5);
+  // Fetch users from API
+  const fetchUsers = async (query) => {
+    if (!query || query.length < 1) {
+      setUsers([]);
+      return;
+    }
+
+    setIsLoadingUsers(true);
+    try {
+      const url = `http://127.0.0.1:8000/api/wall/get_user_for_mentions?query=${encodeURIComponent(query)}&limit=10`;
+      console.log('Fetching users from:', url);
+      
+      const response = await fetch(url);
+      console.log('Response status:', response.status);
+      
+      if (response.ok) {
+        const responseData = await response.json();
+        console.log('API Response data:', responseData);
+        
+        // Extract the users array from the data property
+        const users = responseData.data || [];
+        setUsers(users);
+      } else {
+        console.error('Failed to fetch users for mentions, status:', response.status);
+        const errorText = await response.text();
+        console.error('Error response:', errorText);
+        setUsers([]);
+      }
+    } catch (error) {
+      console.error('Error fetching users for mentions:', error);
+      setUsers([]);
+    } finally {
+      setIsLoadingUsers(false);
+    }
+  };
+
+  // Debounced version of fetchUsers
+  const debouncedFetchUsers = debounce(fetchUsers, 300);
 
   // Set initial content
   useEffect(() => {
@@ -51,6 +91,9 @@ const RichTextEditor = ({
         setMentionQuery(mentionMatch[1]);
         setShowMentions(true);
         
+        // Fetch users from API when mention query changes
+        debouncedFetchUsers(mentionMatch[1]);
+        
         // Get caret position for dropdown
         const selection = window.getSelection();
         if (selection.rangeCount > 0) {
@@ -66,6 +109,7 @@ const RichTextEditor = ({
       } else {
         setShowMentions(false);
         setMentionQuery('');
+        setUsers([]);
       }
     }
   };
@@ -98,9 +142,9 @@ const RichTextEditor = ({
       // Create mention element
       const mentionSpan = document.createElement('span');
       mentionSpan.className = 'mention bg-purple-100 text-purple-800 px-1 rounded';
-      mentionSpan.setAttribute('data-user-id', user.id);
+      mentionSpan.setAttribute('data-user-id', user.user_id || user.id);
       mentionSpan.setAttribute('contenteditable', 'false');
-      mentionSpan.textContent = `@${user.name}`;
+      mentionSpan.textContent = `@${user.username}`;
       
       // Replace text
       textNode.textContent = beforeMention;
@@ -139,9 +183,9 @@ const RichTextEditor = ({
         // Handle mention selection (simplified for now)
         return;
       }
-      if (e.key === 'Enter' && filteredUsers.length > 0) {
+      if (e.key === 'Enter' && users.length > 0) {
         e.preventDefault();
-        insertMention(filteredUsers[0]);
+        insertMention(users[0]);
         return;
       }
     }
@@ -333,32 +377,50 @@ const RichTextEditor = ({
       />
 
       {/* Mention Dropdown */}
-      {showMentions && filteredUsers.length > 0 && (
+      {showMentions && (
         <div
           className="absolute z-50 bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-y-auto"
           style={{
             top: mentionPosition.top,
             left: mentionPosition.left,
-            minWidth: '200px'
+            minWidth: '250px'
           }}
         >
-          {filteredUsers.map((user, index) => (
-            <button
-              key={user.id}
-              onClick={() => insertMention(user)}
-              className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center space-x-2 border-none bg-transparent"
-            >
-              <img
-                src={user.avatar}
-                alt={user.name}
-                className="w-6 h-6 rounded-full"
-              />
-              <div>
-                <div className="text-sm font-medium text-gray-900">{user.name}</div>
-                <div className="text-xs text-gray-500">@{user.username}</div>
-              </div>
-            </button>
-          ))}
+          {isLoadingUsers ? (
+            <div className="px-3 py-2 text-sm text-gray-500 flex items-center space-x-2">
+              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+              </svg>
+              <span>Loading users...</span>
+            </div>
+          ) : users.length > 0 ? (
+            users.map((user, index) => (
+              <button
+                key={user.user_id || user.id}
+                onClick={() => insertMention(user)}
+                className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center space-x-2 border-none bg-transparent"
+              >
+                <div className="w-6 h-6 bg-gradient-to-br from-purple-400 to-blue-500 rounded-full flex items-center justify-center">
+                  <span className="text-xs font-medium text-white">
+                    {(user.username || user.email || 'U')[0].toUpperCase()}
+                  </span>
+                </div>
+                <div>
+                  <div className="text-sm font-medium text-gray-900">@{user.username}</div>
+                  <div className="text-xs text-gray-500">{user.email}</div>
+                </div>
+              </button>
+            ))
+          ) : mentionQuery.length > 0 ? (
+            <div className="px-3 py-2 text-sm text-gray-500">
+              No users found for "{mentionQuery}"
+            </div>
+          ) : (
+            <div className="px-3 py-2 text-sm text-gray-500">
+              Start typing to search users...
+            </div>
+          )}
         </div>
       )}
 
