@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Bold, Italic, List, Underline, AlignLeft, AlignCenter, AlignRight } from 'lucide-react';
+import { Bold, Italic, List, Underline, AlignLeft, AlignCenter, AlignRight,PaintBucket  } from 'lucide-react';
 
 const RichTextEditor = ({ 
   value, 
@@ -182,16 +182,17 @@ const RichTextEditor = ({
   };
 
   return (
-    <div className={`border border-gray-300 rounded-lg overflow-hidden relative ${className}`}>
+<div className={`border border-gray-300 rounded-lg overflow-hidden relative  ${className}`}>
+
       {/* Toolbar */}
-      <div className="bg-gray-50 border-b border-gray-200 p-2 flex items-center space-x-1 flex-wrap">
+      <div className="bg-gray-50 border-b  border-gray-200 p-2 flex items-center space-x-1 flex-wrap">
         {/* Font Family */}
         <select
           value={fontFamily}
           onChange={(e) => handleFontFamilyChange(e.target.value)}
-          className="text-xs border border-gray-300 rounded px-2 py-1 bg-white"
+          className="text-xs cursor-pointer border border-gray-300 rounded px-2 py-1 bg-white"
         >
-          <option value="system-ui">System</option>
+          <option value="system-ui" >System</option>
           <option value="Arial">Arial</option>
           <option value="Georgia">Georgia</option>
           <option value="Times New Roman">Times</option>
@@ -200,18 +201,17 @@ const RichTextEditor = ({
         </select>
 
         {/* Font Size */}
-        <select
-          value={fontSize}
-          onChange={(e) => handleFontSizeChange(e.target.value)}
-          className="text-xs border border-gray-300 rounded px-2 py-1 bg-white w-16"
-        >
-          <option value="12">12px</option>
-          <option value="14">14px</option>
-          <option value="16">16px</option>
-          <option value="18">18px</option>
-          <option value="20">20px</option>
-          <option value="24">24px</option>
-        </select>
+      <select
+  value={fontSize}
+  onChange={(e) => handleFontSizeChange(e.target.value)}
+  className="text-xs border cursor-pointer border-gray-300 rounded px-2 py-1 bg-white w-32"
+>
+  <option value="16">Normal</option>
+  <option value="12">Sub Heading</option>
+  <option value="24">Heading 1</option>
+  <option value="20">Heading 2</option>
+</select>
+
 
         <div className="border-l border-gray-300 h-6 mx-1"></div>
 
@@ -219,7 +219,7 @@ const RichTextEditor = ({
         <button
           type="button"
           onClick={() => executeCommand('bold')}
-          className={`p-2 rounded hover:bg-gray-200 transition-colors ${
+          className={`p-2 rounded hover:bg-gray-200 cursor-pointer transition-colors ${
             isCommandActive('bold') ? 'bg-gray-200 text-purple-600' : 'text-gray-600'
           }`}
           title="Bold"
@@ -230,7 +230,7 @@ const RichTextEditor = ({
         <button
           type="button"
           onClick={() => executeCommand('italic')}
-          className={`p-2 rounded hover:bg-gray-200 transition-colors ${
+          className={`p-2 rounded hover:bg-gray-200 cursor-pointer transition-colors ${
             isCommandActive('italic') ? 'bg-gray-200 text-purple-600' : 'text-gray-600'
           }`}
           title="Italic"
@@ -241,7 +241,7 @@ const RichTextEditor = ({
         <button
           type="button"
           onClick={() => executeCommand('underline')}
-          className={`p-2 rounded hover:bg-gray-200 transition-colors ${
+          className={`p-2 rounded hover:bg-gray-200 cursor-pointer transition-colors ${
             isCommandActive('underline') ? 'bg-gray-200 text-purple-600' : 'text-gray-600'
           }`}
           title="Underline"
@@ -255,7 +255,7 @@ const RichTextEditor = ({
         <button
           type="button"
           onClick={() => executeCommand('justifyLeft')}
-          className="p-2 rounded hover:bg-gray-200 transition-colors text-gray-600"
+          className="p-2 rounded hover:bg-gray-200 cursor-pointer transition-colors text-gray-600"
           title="Align Left"
         >
           <AlignLeft className="h-4 w-4" />
@@ -264,7 +264,7 @@ const RichTextEditor = ({
         <button
           type="button"
           onClick={() => executeCommand('justifyCenter')}
-          className="p-2 rounded hover:bg-gray-200 transition-colors text-gray-600"
+          className="p-2 rounded hover:bg-gray-200 cursor-pointer transition-colors text-gray-600"
           title="Align Center"
         >
           <AlignCenter className="h-4 w-4" />
@@ -273,7 +273,7 @@ const RichTextEditor = ({
         <button
           type="button"
           onClick={() => executeCommand('justifyRight')}
-          className="p-2 rounded hover:bg-gray-200 transition-colors text-gray-600"
+          className="p-2 rounded hover:bg-gray-200 cursor-pointer transition-colors text-gray-600"
           title="Align Right"
         >
           <AlignRight className="h-4 w-4" />
@@ -285,7 +285,7 @@ const RichTextEditor = ({
         <button
           type="button"
           onClick={() => executeCommand('insertUnorderedList')}
-          className={`p-2 rounded hover:bg-gray-200 transition-colors ${
+          className={`p-2 rounded hover:bg-gray-200 cursor-pointer transition-colors ${
             isCommandActive('insertUnorderedList') ? 'bg-gray-200 text-purple-600' : 'text-gray-600'
           }`}
           title="Bullet List"
@@ -294,12 +294,19 @@ const RichTextEditor = ({
         </button>
 
         {/* Color Picker */}
-        <input
-          type="color"
-          onChange={(e) => executeCommand('foreColor', e.target.value)}
-          className="w-8 h-8 border border-gray-300 rounded cursor-pointer"
-          title="Text Color"
-        />
+       <label
+    htmlFor="text-color-picker"
+    className="relative group inline-flex items-center cursor-pointer justify-center w-8 h-8 border border-gray-300 rounded hover:border-gray-500 transition-colors bg-white shadow-sm"
+    title="Text Color"
+  >
+    <PaintBucket className="w-4 h-4 text-gray-600 group-hover:text-black " />
+    <input
+      type="color"
+      id="text-color-picker"
+      onChange={(e) => executeCommand('foreColor', e.target.value)}
+      className="absolute inset-0 opacity-0 cursor-pointer"
+    />
+  </label>
       </div>
 
       {/* Editor */}

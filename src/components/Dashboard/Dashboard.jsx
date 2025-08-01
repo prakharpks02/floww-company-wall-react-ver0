@@ -21,8 +21,22 @@ const Dashboard = () => {
   const PAGE_SIZE = 10;
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
+  // Sort comments and replies so that the latest are on top
   const filteredPosts = getFilteredPosts(filters);
-  const visiblePosts = filteredPosts.slice(0, visibleCount);
+  // For each post, sort its comments and replies by created_at descending
+  const sortedPosts = filteredPosts.map(post => ({
+    ...post,
+    comments: Array.isArray(post.comments)
+      ? [...post.comments].sort((a, b) => new Date(b.created_at || b.createdAt || b.timestamp) - new Date(a.created_at || a.createdAt || a.timestamp))
+        .map(comment => ({
+          ...comment,
+          replies: Array.isArray(comment.replies)
+            ? [...comment.replies].sort((a, b) => new Date(b.created_at || b.createdAt || b.timestamp) - new Date(a.created_at || a.createdAt || a.timestamp))
+            : comment.replies
+        }))
+      : post.comments
+  }));
+  const visiblePosts = sortedPosts.slice(0, visibleCount);
   const hasMore = visibleCount < filteredPosts.length;
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const feedContainerRef = useRef(null);

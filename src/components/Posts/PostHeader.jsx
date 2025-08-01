@@ -81,7 +81,7 @@ const PostHeader = ({
                     <Flag className="h-4 w-4" />
                     <span>Report Post</span>
                   </button>
-                  <button
+                  {/* <button
                     onClick={() => {
                       setShowBlockModal(true);
                       setShowMenu(false);
@@ -90,7 +90,7 @@ const PostHeader = ({
                   >
                     <UserX className="h-4 w-4" />
                     <span>Block User</span>
-                  </button>
+                  </button> */}
                 </>
               )}
             </div>

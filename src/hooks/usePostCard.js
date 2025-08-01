@@ -235,7 +235,9 @@ export const usePostCard = (post, activeView = 'home') => {
   };
 
   const handleDeleteReply = (commentId, replyId) => {
-    deleteReply(post.id, commentId, replyId);
+    // Use normalizedPost.post_id or normalizedPost.id for postId
+    const postId = normalizedPost.post_id || normalizedPost.id || post.post_id || post.id;
+    deleteReply(postId, commentId, replyId);
   };
 
   const handleShare = () => {

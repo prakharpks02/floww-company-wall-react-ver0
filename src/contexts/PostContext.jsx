@@ -664,7 +664,10 @@ const loadAllPosts = async () => {
                 if (comment.id === commentId) {
                   return {
                     ...comment,
-                    replies: comment.replies?.filter(reply => reply.id !== replyId) || []
+                    replies: (comment.replies || []).filter(reply => {
+                      const rId = reply.reply_id || reply.id || reply.comment_id;
+                      return rId !== replyId;
+                    })
                   };
                 }
                 return comment;

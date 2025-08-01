@@ -37,13 +37,13 @@ const CommentsSection = ({
       {/* Always show comment input box when comments are open */}
       {!isPublicView && (
         <div className="flex mb-2">
-          <div className="flex-1 flex space-x-2">
+          <div className="flex-1 flex mt-6 space-x-2">
             <input
               type="text"
               value={commentText}
               onChange={(e) => setCommentText(e.target.value)}
               placeholder="Add a comment..."
-              className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-purple-500 focus:border-purple-500"
+              className="flex-1  px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-purple-500 focus:border-purple-500"
               onKeyPress={(e) => e.key === 'Enter' && handleComment()}
             />
             <button

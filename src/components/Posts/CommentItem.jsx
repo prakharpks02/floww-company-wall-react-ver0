@@ -433,13 +433,14 @@ const CommentItem = ({
         <div className="mt-3 pl-4 border-l-2 border-purple-200 space-y-2">
           {comment.replies.map((reply) => (
             <CommentReply
-              key={reply.id || reply.reply_id}
+              key={reply.comment_id}
               reply={reply}
               user={user}
               isPublicView={isPublicView}
               commentId={comment.comment_id || comment.id}
               emojiReactions={emojiReactions}
-              handleDeleteReply={handleDeleteReply}
+              // For deleting a reply, use the same delete endpoint as comments, passing reply.comment_id
+              handleDeleteReply={() => handleDeleteComment(reply.comment_id)}
               handleReactToComment={handleReactToComment}
               getCommentUserReaction={getCommentUserReaction}
               showCommentReactions={showCommentReactions}

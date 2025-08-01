@@ -119,10 +119,10 @@ const PostModals = ({
       {showBlockModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-sm mx-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+            {/* <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
               <UserX className="h-5 w-5 text-red-500 mr-2" />
               Block User
-            </h3>
+            </h3> */}
             <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
               <div className="flex items-start">
                 <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5 mr-2" />
@@ -146,7 +146,7 @@ const PostModals = ({
               >
                 Cancel
               </button>
-              <button
+              {/* <button
                 onClick={() => {
                   // Handle block user
                 
@@ -157,7 +157,7 @@ const PostModals = ({
                 className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
               >
                 Block User
-              </button>
+              </button> */}
             </div>
           </div>
         </div>
