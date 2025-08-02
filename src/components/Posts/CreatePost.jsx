@@ -123,6 +123,25 @@ const CreatePost = ({ onClose, editingPost = null }) => {
     setShowMentions(false);
   };
 
+  // Extract mentions from editor HTML content
+  const extractMentionsFromContent = (html) => {
+    const mentionsArr = [];
+    if (!html) return mentionsArr;
+    // Create a DOM parser
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    // Find all span elements with class 'mention'
+    const mentionSpans = doc.querySelectorAll('span.mention');
+    mentionSpans.forEach(span => {
+      const userId = span.getAttribute('data-user-id');
+      const username = span.textContent.replace(/^@/, '');
+      if (userId && username) {
+        mentionsArr.push({ user_id: userId, username });
+      }
+    });
+    return mentionsArr;
+  };
+
   const removeItem = (type, id) => {
     switch (type) {
       case 'image':
@@ -151,6 +170,9 @@ const CreatePost = ({ onClose, editingPost = null }) => {
       return;
     }
 
+    // Extract mentions from content before submitting
+    const extractedMentions = extractMentionsFromContent(content);
+
     setIsSubmitting(true);
     try {
       const postData = {
@@ -160,16 +182,14 @@ const CreatePost = ({ onClose, editingPost = null }) => {
         videos,
         documents,
         links,
-        mentions
+        mentions: extractedMentions
       };
 
       if (editingPost) {
-     
         const updateData = {
           ...postData,
           post_id: editingPost.post_id || editingPost.id
         };
-        
         editPost(editingPost.id, updateData);
       } else {
         createPost(postData);

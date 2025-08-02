@@ -342,7 +342,7 @@ export const postsAPI = {
   },
 
   // Get all posts
-  getPosts: async (page = 1, limit = 20) => {
+  getPosts: async (page = 1, limit = 10) => {
     const endpoint = `${API_CONFIG.BASE_URL}/posts?page=${page}&limit=${limit}`;
     logApiCall('GET', endpoint);
     
