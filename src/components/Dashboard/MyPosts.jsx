@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePost } from '../../contexts/PostContext';
 import PostCard from '../Posts/PostCard';
+import PostFeed from '../Posts/PostFeed';
 import CreatePost from '../Posts/CreatePost';
 import { 
   Plus, 
@@ -220,26 +221,11 @@ const MyPosts = () => {
             </button>
           </div>
         ) : (
-          myPosts.map((post, index) => (
-            <div key={post.id || post.post_id || `post-${index}`} className="relative">
-              <PostCard 
-                post={post} 
-                showAuthorInfo={false}
-                activeView="myposts"
-              />
-              
-              {/* Action buttons overlay */}
-              <div className="absolute top-4 right-4 flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button
-                  onClick={() => handleDeletePost(post.id)}
-                  className="p-2 bg-red-100 hover:bg-red-200 text-red-600 rounded-lg transition-colors"
-                  title="Delete Post"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-          ))
+          <PostFeed 
+            posts={myPosts} 
+            activeView="myposts"
+            showPagination={false}
+          />
         )}
       </div>
 

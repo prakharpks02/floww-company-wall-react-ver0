@@ -341,9 +341,18 @@ export const postsAPI = {
     }
   },
 
-  // Get all posts
-  getPosts: async (page = 1, limit = 10) => {
-    const endpoint = `${API_CONFIG.BASE_URL}/posts?page=${page}&limit=${limit}`;
+  // Get all posts with pagination support
+  getPosts: async (page = 1, limit = 10, lastPostId = null) => {
+    let endpoint;
+    if (lastPostId) {
+      // Use cursor-based pagination
+      endpoint = `${API_CONFIG.BASE_URL}/posts?lastPostId=${lastPostId}&limit=${limit}`;
+    } else {
+      // Initial request or fallback to page-based pagination
+      endpoint = `${API_CONFIG.BASE_URL}/posts?limit=${limit}`;
+    }
+    
+    console.log('🔄 API getPosts - Endpoint:', endpoint);
     logApiCall('GET', endpoint);
     
     try {
@@ -352,11 +361,18 @@ export const postsAPI = {
       });
       
       const result = await handleResponse(response);
-      //  console.log('🔍 API getPosts - Full result:', result);
-      console.log(`✅ Retrieved ${result.posts?.length || result.data?.length || 0} posts from home feed`);
-      console.log('🔍 API getPosts - First post structure:', result.posts?.[0] || result.data?.[0]);
+      console.log(`✅ Retrieved ${result.posts?.length || result.data?.posts?.length || result.data?.length || 0} posts from home feed`);
+      console.log('🔍 API getPosts - Full response structure:', result);
+      console.log('🔍 API getPosts - Response keys:', Object.keys(result));
+      console.log('🔍 API getPosts - Data structure:', result.data ? Object.keys(result.data) : 'No data object');
+      console.log('🔍 API getPosts - Pagination info:', {
+        hasNextCursor: !!(result.data?.nextCursor || result.nextCursor),
+        nextCursor: result.data?.nextCursor || result.nextCursor,
+        hasLastPostId: !!(result.data?.lastPostId || result.lastPostId),
+        lastPostId: result.data?.lastPostId || result.lastPostId,
+        hasMore: result.data?.hasMore || result.hasMore
+      });
        
-      
       return result;
     } catch (error) {
       console.error('❌ Get posts error:', error.message);
@@ -470,10 +486,37 @@ export const postsAPI = {
       }),
       // If no tags are provided, explicitly send empty array to clear existing tags
       ...((!updateData.tags || updateData.tags.length === 0) && { tags: [] }),
-      ...(updateData.images && { images: updateData.images }),
-      ...(updateData.videos && { videos: updateData.videos }),
-      ...(updateData.documents && { documents: updateData.documents }),
-      ...(updateData.links && { links: updateData.links }),
+      // Combine all media into single media array with proper format
+      ...(() => {
+        const allMedia = [
+          // Images as media objects
+          ...(updateData.images || []).filter(img => img && (typeof img === 'string' || img.url)).map(img => ({ 
+            link: typeof img === 'string' ? img : img.url 
+          })),
+          // Videos as media objects  
+          ...(updateData.videos || []).filter(vid => vid && (typeof vid === 'string' || vid.url)).map(vid => ({ 
+            link: typeof vid === 'string' ? vid : vid.url 
+          })),
+          // Documents as media objects
+          ...(updateData.documents || []).filter(doc => doc && (typeof doc === 'string' || doc.url)).map(doc => ({ 
+            link: typeof doc === 'string' ? doc : doc.url 
+          })),
+          // Links as media objects
+          ...(updateData.links || []).filter(link => link && (typeof link === 'string' || link.url)).map(link => ({ 
+            link: typeof link === 'string' ? link : link.url 
+          }))
+        ];
+        
+        // Always send media array, even if empty (to clear existing media)
+        console.log('🔍 API updatePost - All media combined:', allMedia);
+        console.log('🔍 API updatePost - Update data breakdown:', {
+          images: updateData.images,
+          videos: updateData.videos,
+          documents: updateData.documents,
+          links: updateData.links
+        });
+        return { media: allMedia };
+      })(),
       ...(updateData.mentions && { mentions: updateData.mentions })
     };
     
@@ -696,7 +739,7 @@ export const postsAPI = {
   },
 
   // Get comments for post
-  getComments: async (postId, page = 1, limit = 10) => {
+  getComments: async (postId, page = 1, limit = 20) => {
     const endpoint = `${API_CONFIG.BASE_URL}/posts/${postId}/comments?page=${page}&limit=${limit}`;
     logApiCall('GET', endpoint);
     

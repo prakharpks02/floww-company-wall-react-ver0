@@ -1,7 +1,40 @@
-import React from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import PostCard from './PostCard';
+import { usePost } from '../../contexts/PostContext';
+import { Loader2 } from 'lucide-react';
 
-const PostFeed = ({ posts, activeView = 'home' }) => {
+const PostFeed = ({ posts, activeView = 'home', showPagination = true }) => {
+  const { loadMorePosts, hasMorePosts, isLoadingMore } = usePost();
+  const loadingRef = useRef(null);
+
+  // Intersection Observer callback for infinite scroll
+  const handleObserver = useCallback((entries) => {
+    const [target] = entries;
+    if (target.isIntersecting && hasMorePosts && !isLoadingMore) {
+      console.log('🔄 Infinite scroll triggered - loading more posts...');
+      loadMorePosts();
+    }
+  }, [hasMorePosts, isLoadingMore, loadMorePosts]);
+
+  // Set up Intersection Observer
+  useEffect(() => {
+    const element = loadingRef.current;
+    if (!element || !showPagination) return;
+
+    const option = {
+      root: null,
+      rootMargin: '100px', // Start loading 100px before the element comes into view
+      threshold: 0
+    };
+
+    const observer = new IntersectionObserver(handleObserver, option);
+    observer.observe(element);
+
+    return () => {
+      if (element) observer.unobserve(element);
+    };
+  }, [handleObserver, showPagination]);
+
   if (posts.length === 0) {
     return (
       <div className="text-center py-12">
@@ -21,8 +54,36 @@ const PostFeed = ({ posts, activeView = 'home' }) => {
   return (
     <div className="space-y-6">
       {posts.map((post, index) => (
-        <PostCard key={post.id || post.post_id || `post-${index}`} post={post} activeView={activeView} />
+        <PostCard 
+          key={post.id || post.post_id || `post-${index}`} 
+          post={post} 
+          activeView={activeView}
+          showOptimisticState={post.isOptimistic || post.isUpdating}
+        />
       ))}
+      
+      {/* Infinite Scroll Loader */}
+      {showPagination && posts.length > 0 && (
+        <div ref={loadingRef} className="flex flex-col items-center py-8">
+          {isLoadingMore ? (
+            <div className="flex items-center space-x-2 text-gray-500">
+              <Loader2 className="h-6 w-6 animate-spin" />
+              <span className="text-sm">Loading more posts...</span>
+            </div>
+          ) : hasMorePosts ? (
+            <div className="flex items-center space-x-2 text-gray-400">
+              <div className="h-1 w-1 bg-gray-300 rounded-full"></div>
+              <span className="text-xs">Scroll down for more posts</span>
+              <div className="h-1 w-1 bg-gray-300 rounded-full"></div>
+            </div>
+          ) : (
+            <div className="text-center">
+              <p className="text-gray-500 text-sm">No more posts to display.</p>
+              <p className="text-gray-400 text-xs mt-1">You've reached the end!</p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

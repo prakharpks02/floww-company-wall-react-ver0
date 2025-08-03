@@ -58,39 +58,55 @@ const SinglePostView = () => {
         
         if (response && response.data) {
           console.log('🔍 SinglePostView - Post data found:', response.data);
-          
+
+          // Split media array by file extension
+          const media = response.data.media || [];
+          const images = [];
+          const videos = [];
+          const documents = [];
+          const links = [];
+          media.forEach((mediaItem, idx) => {
+            if (!mediaItem || !mediaItem.link) return;
+            const url = mediaItem.link;
+            const mediaObj = {
+              id: `media-${idx}-${Date.now()}`,
+              url: url,
+              name: url.split('/').pop() || 'Media file'
+            };
+            if (url.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
+              images.push(mediaObj);
+            } else if (url.match(/\.(mp4|avi|mov|wmv|flv|webm)$/i)) {
+              videos.push(mediaObj);
+            } else if (url.match(/\.(pdf|doc|docx|txt|xls|xlsx|ppt|pptx)$/i)) {
+              documents.push(mediaObj);
+            } else {
+              links.push(mediaObj);
+            }
+          });
+
           // Normalize the post data to ensure proper structure
           const normalizedPost = {
             ...response.data,
-            // Map the API response fields to expected component fields
             id: response.data.post_id,
             post_id: response.data.post_id,
             content: response.data.content,
-            // Ensure authorName is properly set from the post author or fallback
             authorName: response.data.author?.username || 'Anonymous',
-            // Ensure authorAvatar has a fallback
-            authorAvatar: response.data.author?.avatar || 
-                         'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
-            // Ensure authorPosition is set
+            authorAvatar: response.data.author?.avatar ||
+              'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
             authorPosition: response.data.author?.position || 'Employee',
-            // Ensure proper timestamp
             timestamp: response.data.created_at || new Date().toISOString(),
-            // Map other fields
-            media: response.data.media || [],
+            media,
             mentions: response.data.mentions || [],
             tags: response.data.tags || [],
             comments: response.data.comments || [],
             reactions: response.data.reaction_counts || {},
-            // Fix: likes should be an empty array since we don't have the actual user IDs who liked
-            // The reaction count will be handled by the reactions object
             likes: [],
-            // Add required fields for PostCard
-            images: response.data.media?.filter(m => m.type === 'image') || [],
-            videos: response.data.media?.filter(m => m.type === 'video') || [],
-            documents: response.data.media?.filter(m => m.type === 'document') || [],
-            links: response.data.media?.filter(m => m.type === 'link') || []
+            images,
+            videos,
+            documents,
+            links
           };
-          
+
           console.log('🔍 SinglePostView - Normalized post:', normalizedPost);
           setPost(normalizedPost);
         } else if (response && response.posts) {

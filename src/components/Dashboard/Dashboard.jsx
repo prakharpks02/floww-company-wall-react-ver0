@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import Header from './Header';
 import Sidebar from './Sidebar';
 import PostFeed from '../Posts/PostFeed';
@@ -15,11 +15,7 @@ const Dashboard = () => {
   });
   const [showCreatePost, setShowCreatePost] = useState(false);
   const [activeView, setActiveView] = useState('home'); // 'home' or 'myposts'
-  const { getFilteredPosts, loadAllPosts, reloadPosts } = usePost();
-
-  // Pagination state
-  const PAGE_SIZE = 10;
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const { posts, getFilteredPosts, loadAllPosts, reloadPosts } = usePost();
 
   // Sort comments and replies so that the latest are on top
   const filteredPosts = getFilteredPosts(filters);
@@ -36,38 +32,11 @@ const Dashboard = () => {
         }))
       : post.comments
   }));
-  const visiblePosts = sortedPosts.slice(0, visibleCount);
-  const hasMore = visibleCount < filteredPosts.length;
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const feedContainerRef = useRef(null);
-
-  // Reset pagination when filters or view change
-  useEffect(() => {
-    setVisibleCount(PAGE_SIZE);
-  }, [filters, activeView]);
-
-  // Infinite scroll logic
-  useEffect(() => {
-    const handleScroll = () => {
-      if (!feedContainerRef.current || isLoadingMore || !hasMore) return;
-      const { bottom } = feedContainerRef.current.getBoundingClientRect();
-      const windowHeight = window.innerHeight || document.documentElement.clientHeight;
-      if (bottom - windowHeight < 200) { // 200px from bottom
-        setIsLoadingMore(true);
-        setTimeout(() => {
-          setVisibleCount(c => Math.min(c + PAGE_SIZE, filteredPosts.length));
-          setIsLoadingMore(false);
-        }, 600); // Simulate loading delay
-      }
-    };
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [isLoadingMore, hasMore, filteredPosts.length]);
 
   // Load appropriate posts based on active view
   useEffect(() => {
     if (activeView === 'home') {
-      loadAllPosts(); // Load all posts for home feed
+      loadAllPosts(true); // Reset pagination and load fresh posts for home feed
     } else if (activeView === 'myposts') {
       reloadPosts(); // Load user's posts only
     }
@@ -129,24 +98,13 @@ const Dashboard = () => {
         </div>
 
         {/* Posts Feed */}
-        <div ref={feedContainerRef}>
-          <PostFeed posts={visiblePosts} activeView={activeView} />
+        <div>
+          <PostFeed 
+            posts={sortedPosts} 
+            activeView={activeView} 
+            showPagination={true}
+          />
         </div>
-
-        {/* Loader for infinite scroll */}
-        {hasMore && (
-          <div className="flex justify-center my-6">
-            {isLoadingMore ? (
-              <div className="flex items-center space-x-2">
-                <svg className="animate-spin h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
-                </svg>
-                <span className="text-blue-600 font-medium">Loading more posts...</span>
-              </div>
-            ) : null}
-          </div>
-        )}
       </>
     );
   };

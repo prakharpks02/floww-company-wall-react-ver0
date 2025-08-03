@@ -3,6 +3,7 @@ import RichTextEditor from '../Editor/RichTextEditor';
 import PDFPreview from '../Media/PDFPreview';
 import { usePost } from '../../contexts/PostContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { mediaAPI } from '../../services/api';
 import {
   X,
   Image,
@@ -11,7 +12,8 @@ import {
   Link,
   Hash,
   AtSign,
-  Send
+  Send,
+  Loader2
 } from 'lucide-react';
 
 const CreatePost = ({ onClose, editingPost = null }) => {
@@ -43,66 +45,111 @@ const CreatePost = ({ onClose, editingPost = null }) => {
     );
   };
 
-  const handleImageUpload = (e) => {
+  const handleImageUpload = async (e) => {
     const files = Array.from(e.target.files);
-    files.forEach(file => {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setImages(prev => [...prev, {
-          id: Date.now() + Math.random(),
-          url: event.target.result,
+    
+    for (const file of files) {
+      try {
+        // Show loading state for this file
+        const tempId = Date.now() + Math.random();
+        const tempImage = {
+          id: tempId,
+          url: '',
           name: file.name,
-          size: file.size
-        }]);
-      };
-      reader.readAsDataURL(file);
-    });
-  };
-
-  const handleVideoUpload = (e) => {
-    const files = Array.from(e.target.files);
-    files.forEach(file => {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setVideos(prev => [...prev, {
-          id: Date.now() + Math.random(),
-          url: event.target.result,
-          name: file.name,
-          size: file.size
-        }]);
-      };
-      reader.readAsDataURL(file);
-    });
-  };
-
-  const handleDocumentUpload = (e) => {
-    const files = Array.from(e.target.files);
-    files.forEach(file => {
-      if (file.type === 'application/pdf') {
-        // Handle PDF files - create preview data
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          setDocuments(prev => [...prev, {
-            id: Date.now() + Math.random(),
-            name: file.name,
-            size: file.size,
-            type: file.type,
-            url: event.target.result,
-            isPDF: true
-          }]);
+          size: file.size,
+          isUploading: true
         };
-        reader.readAsDataURL(file);
-      } else {
-        // Handle other document types
-        setDocuments(prev => [...prev, {
-          id: Date.now() + Math.random(),
+        setImages(prev => [...prev, tempImage]);
+
+        // Upload to backend
+        const uploadResult = await mediaAPI.uploadFile(file, 'image');
+        
+        // Update with actual URL from backend
+        setImages(prev => prev.map(img => 
+          img.id === tempId 
+            ? { ...img, url: uploadResult.url, isUploading: false }
+            : img
+        ));
+        
+      } catch (error) {
+        console.error('Failed to upload image:', error);
+        // Remove failed upload
+        setImages(prev => prev.filter(img => img.id !== tempId));
+        alert(`Failed to upload ${file.name}. Please try again.`);
+      }
+    }
+  };
+
+  const handleVideoUpload = async (e) => {
+    const files = Array.from(e.target.files);
+    
+    for (const file of files) {
+      try {
+        // Show loading state for this file
+        const tempId = Date.now() + Math.random();
+        const tempVideo = {
+          id: tempId,
+          url: '',
+          name: file.name,
+          size: file.size,
+          isUploading: true
+        };
+        setVideos(prev => [...prev, tempVideo]);
+
+        // Upload to backend
+        const uploadResult = await mediaAPI.uploadFile(file, 'video');
+        
+        // Update with actual URL from backend
+        setVideos(prev => prev.map(vid => 
+          vid.id === tempId 
+            ? { ...vid, url: uploadResult.url, isUploading: false }
+            : vid
+        ));
+        
+      } catch (error) {
+        console.error('Failed to upload video:', error);
+        // Remove failed upload
+        setVideos(prev => prev.filter(vid => vid.id !== tempId));
+        alert(`Failed to upload ${file.name}. Please try again.`);
+      }
+    }
+  };
+
+  const handleDocumentUpload = async (e) => {
+    const files = Array.from(e.target.files);
+    
+    for (const file of files) {
+      try {
+        // Show loading state for this file
+        const tempId = Date.now() + Math.random();
+        const tempDoc = {
+          id: tempId,
           name: file.name,
           size: file.size,
           type: file.type,
-          isPDF: false
-        }]);
+          url: '',
+          isPDF: file.type === 'application/pdf',
+          isUploading: true
+        };
+        setDocuments(prev => [...prev, tempDoc]);
+
+        // Upload to backend
+        const uploadResult = await mediaAPI.uploadFile(file, 'document');
+        
+        // Update with actual URL from backend
+        setDocuments(prev => prev.map(doc => 
+          doc.id === tempId 
+            ? { ...doc, url: uploadResult.url, isUploading: false }
+            : doc
+        ));
+        
+      } catch (error) {
+        console.error('Failed to upload document:', error);
+        // Remove failed upload
+        setDocuments(prev => prev.filter(doc => doc.id !== tempId));
+        alert(`Failed to upload ${file.name}. Please try again.`);
       }
-    });
+    }
   };
 
   const handleAddLink = () => {
@@ -170,6 +217,16 @@ const CreatePost = ({ onClose, editingPost = null }) => {
       return;
     }
 
+    // Check if any uploads are still in progress
+    const hasUploadingFiles = images.some(img => img.isUploading) || 
+                             videos.some(vid => vid.isUploading) || 
+                             documents.some(doc => doc.isUploading);
+    
+    if (hasUploadingFiles) {
+      alert('Please wait for all files to finish uploading before posting.');
+      return;
+    }
+
     // Extract mentions from content before submitting
     const extractedMentions = extractMentionsFromContent(content);
 
@@ -178,9 +235,9 @@ const CreatePost = ({ onClose, editingPost = null }) => {
       const postData = {
         content,
         tags: selectedTags,
-        images,
-        videos,
-        documents,
+        images: images.filter(img => img.url), // Only include successfully uploaded images
+        videos: videos.filter(vid => vid.url), // Only include successfully uploaded videos
+        documents: documents.filter(doc => doc.url), // Only include successfully uploaded documents
         links,
         mentions: extractedMentions
       };
@@ -190,9 +247,9 @@ const CreatePost = ({ onClose, editingPost = null }) => {
           ...postData,
           post_id: editingPost.post_id || editingPost.id
         };
-        editPost(editingPost.id, updateData);
+        await editPost(editingPost.post_id || editingPost.id, updateData);
       } else {
-        createPost(postData);
+        await createPost(postData);
       }
 
       onClose();
@@ -403,17 +460,32 @@ const CreatePost = ({ onClose, editingPost = null }) => {
                   <div className="grid grid-cols-2 gap-4">
                     {images.map(image => (
                       <div key={image.id} className="relative group">
-                        <img
-                          src={image.url}
-                          alt={image.name}
-                          className="w-full h-32 object-cover rounded-lg"
-                        />
-                        <button
-                          onClick={() => removeItem('image', image.id)}
-                          className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
+                        {image.isUploading ? (
+                          <div className="w-full h-32 bg-gray-100 rounded-lg flex items-center justify-center">
+                            <div className="text-center">
+                              <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2 text-blue-600" />
+                              <p className="text-xs text-gray-500">Uploading...</p>
+                            </div>
+                          </div>
+                        ) : image.url ? (
+                          <img
+                            src={image.url}
+                            alt={image.name}
+                            className="w-full h-32 object-cover rounded-lg"
+                          />
+                        ) : (
+                          <div className="w-full h-32 bg-red-100 rounded-lg flex items-center justify-center">
+                            <p className="text-xs text-red-600">Upload failed</p>
+                          </div>
+                        )}
+                        {!image.isUploading && (
+                          <button
+                            onClick={() => removeItem('image', image.id)}
+                            className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -428,15 +500,26 @@ const CreatePost = ({ onClose, editingPost = null }) => {
                     {videos.map(video => (
                       <div key={video.id} className="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
                         <div className="flex items-center space-x-3">
-                          <Video className="h-5 w-5 text-purple-600" />
-                          <span className="text-sm font-medium">{video.name}</span>
+                          {video.isUploading ? (
+                            <Loader2 className="h-5 w-5 animate-spin text-purple-600" />
+                          ) : (
+                            <Video className="h-5 w-5 text-purple-600" />
+                          )}
+                          <div>
+                            <span className="text-sm font-medium">{video.name}</span>
+                            {video.isUploading && (
+                              <p className="text-xs text-gray-500">Uploading...</p>
+                            )}
+                          </div>
                         </div>
-                        <button
-                          onClick={() => removeItem('video', video.id)}
-                          className="text-red-500 hover:text-red-700"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
+                        {!video.isUploading && (
+                          <button
+                            onClick={() => removeItem('video', video.id)}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -450,7 +533,18 @@ const CreatePost = ({ onClose, editingPost = null }) => {
                   <div className="space-y-4">
                     {documents.map(doc => (
                       <div key={doc.id} className="relative">
-                        {doc.isPDF && doc.url ? (
+                        {doc.isUploading ? (
+                          // Upload in progress
+                          <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                            <div className="flex items-center space-x-3">
+                              <Loader2 className="h-5 w-5 animate-spin text-green-600" />
+                              <div>
+                                <span className="text-sm font-medium">{doc.name}</span>
+                                <p className="text-xs text-gray-500">Uploading...</p>
+                              </div>
+                            </div>
+                          </div>
+                        ) : doc.isPDF && doc.url ? (
                           // PDF Preview
                           <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
                             <div className="flex items-center justify-between p-3 bg-red-50 border-b border-gray-200">
@@ -475,13 +569,15 @@ const CreatePost = ({ onClose, editingPost = null }) => {
                             </div>
                           </div>
                         ) : (
-                          // Regular Document
+                          // Regular Document or upload failed
                           <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
                             <div className="flex items-center space-x-3">
                               <FileText className="h-5 w-5 text-green-600" />
                               <div>
                                 <span className="text-sm font-medium">{doc.name}</span>
-                                <p className="text-xs text-gray-500">{(doc.size / 1024 / 1024).toFixed(2)} MB</p>
+                                <p className="text-xs text-gray-500">
+                                  {doc.url ? `${(doc.size / 1024 / 1024).toFixed(2)} MB` : 'Upload failed'}
+                                </p>
                               </div>
                             </div>
                             <button

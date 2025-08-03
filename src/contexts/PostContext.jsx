@@ -16,6 +16,9 @@ export const usePost = () => {
 export const PostProvider = ({ children }) => {
   const { user, getCurrentUserId, getCurrentAuthorId } = useAuth();
   const [posts, setPosts] = useState([]);
+  const [nextCursor, setNextCursor] = useState(null);
+  const [hasMorePosts, setHasMorePosts] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [userReactions, setUserReactions] = useState(() => {
     // Load user reactions from localStorage on initialization
     try {
@@ -199,7 +202,40 @@ export const PostProvider = ({ children }) => {
       reactions: normalizedReactions || {},
       likes: rawPost.likes || [],
       // Normalize comments
-      comments: normalizedComments
+      comments: normalizedComments,
+      // Convert media array back to separate arrays for frontend compatibility
+      ...(rawPost.media && Array.isArray(rawPost.media) ? (() => {
+        const mediaArrays = { images: [], videos: [], documents: [], links: [] };
+        rawPost.media.forEach((mediaItem, index) => {
+          if (mediaItem && mediaItem.link) {
+            const url = mediaItem.link;
+            // Create a proper media object with id for removal functionality
+            const mediaObj = {
+              id: `media-${index}-${Date.now()}`,
+              url: url,
+              name: url.split('/').pop() || 'Media file'
+            };
+            
+            // Determine type based on URL or default to link
+            if (url.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
+              mediaArrays.images.push(mediaObj);
+            } else if (url.match(/\.(mp4|avi|mov|wmv|flv|webm)$/i)) {
+              mediaArrays.videos.push(mediaObj);
+            } else if (url.match(/\.(pdf|doc|docx|txt|xls|xlsx|ppt|pptx)$/i)) {
+              mediaArrays.documents.push(mediaObj);
+            } else {
+              mediaArrays.links.push(mediaObj);
+            }
+          }
+        });
+        return mediaArrays;
+      })() : {
+        // Keep existing arrays if no media array
+        images: rawPost.images || [],
+        videos: rawPost.videos || [],
+        documents: rawPost.documents || [],
+        links: rawPost.links || []
+      })
     };
   
     console.log('🔍 PostContext normalizePost - Normalized post:', normalized);
@@ -340,20 +376,27 @@ export const PostProvider = ({ children }) => {
         });
         
         setPosts(normalizedPosts);
+        // Reset pagination state
+        setNextCursor(null);
+        setHasMorePosts(true);
       } catch (error) {
         console.error('❌ PostContext - Failed to load user posts from backend:', error.message);
         console.log('📝 PostContext - Showing empty posts state due to backend error');
         setPosts([]);
+        setNextCursor(null);
+        setHasMorePosts(false);
       }
     };
 
     // Only load posts if user is authenticated
     if (user) {
       console.log('🔄 PostContext - User authenticated, loading posts...');
-      loadPosts();
+      loadAllPosts(true); // Reset pagination on initial load
     } else {
       console.log('⚠️ PostContext - No authenticated user, skipping post loading');
       setPosts([]);
+      setNextCursor(null);
+      setHasMorePosts(true);
     }
   }, [user]);
 
@@ -383,32 +426,101 @@ export const PostProvider = ({ children }) => {
     }
   };
 
-  // Function to load all posts for home feed
-const loadAllPosts = async () => {
+  // Function to load all posts for home feed with pagination support
+const loadAllPosts = async (resetPagination = false) => {
   try {
-    const backendPosts = await postsAPI.getPosts();
+    const cursor = resetPagination ? null : nextCursor;
+    console.log('🔄 Loading posts with cursor:', cursor, 'resetPagination:', resetPagination);
+    
+    const backendPosts = await postsAPI.getPosts(1, 10, cursor);
+    console.log('📡 Backend response:', backendPosts);
+    
     let postsData = [];
 
     // Check the new nested structure
     if (backendPosts.data && Array.isArray(backendPosts.data.posts)) {
       postsData = backendPosts.data.posts;
+      console.log('✅ Found posts in nested structure:', postsData.length);
     } else if (Array.isArray(backendPosts.data)) {
       // Fallback to old structure if present
       postsData = backendPosts.data;
+      console.log('✅ Found posts in flat structure:', postsData.length);
+    } else if (Array.isArray(backendPosts.posts)) {
+      // Another possible structure
+      postsData = backendPosts.posts;
+      console.log('✅ Found posts in posts array:', postsData.length);
     } else {
       // Log the full response for debugging
       console.warn('🛑 No posts found in backend response:', backendPosts);
       postsData = [];
     }
 
+    // Update pagination state - check multiple possible cursor field names in data object
+    const newNextCursor = backendPosts.data?.nextCursor || backendPosts.data?.lastPostId || 
+                         backendPosts.data?.next_cursor || backendPosts.data?.last_post_id ||
+                         backendPosts.nextCursor || backendPosts.lastPostId || null;
+    setNextCursor(newNextCursor);
+    
+    // Check if there are more posts - we have more if:
+    // 1. We have a valid next cursor/lastPostId AND
+    // 2. We got some posts back (even if less than requested limit)
+    const hasMore = newNextCursor !== null && newNextCursor !== undefined && postsData.length > 0;
+    setHasMorePosts(hasMore);
+
+    console.log('🔍 Pagination decision logic:', {
+      postsReceived: postsData.length,
+      newNextCursor,
+      hasValidCursor: newNextCursor !== null && newNextCursor !== undefined,
+      willHaveMore: hasMore,
+      resetPagination,
+      backendCursorFields: {
+        'data.nextCursor': backendPosts.data?.nextCursor,
+        'data.lastPostId': backendPosts.data?.lastPostId,
+        'data.next_cursor': backendPosts.data?.next_cursor,
+        'data.last_post_id': backendPosts.data?.last_post_id,
+        'nextCursor': backendPosts.nextCursor,
+        'lastPostId': backendPosts.lastPostId
+      }
+    });
+
     // Normalize and set posts
     const normalizedPosts = postsData.map(normalizePost);
-    setPosts(normalizedPosts);
+    
+    if (resetPagination) {
+      setPosts(normalizedPosts);
+    } else {
+      // Append new posts for pagination
+      setPosts(prevPosts => [...prevPosts, ...normalizedPosts]);
+    }
+    
+    console.log('📄 Pagination state updated:', {
+      newPostsCount: normalizedPosts.length,
+      totalPosts: resetPagination ? normalizedPosts.length : posts.length + normalizedPosts.length,
+      hasMore,
+      nextCursor: newNextCursor
+    });
+    
   } catch (error) {
     console.error('❌ Failed to load posts for home feed:', error.message);
-    setPosts([]);
+    if (resetPagination) {
+      setPosts([]);
+      setHasMorePosts(false);
+      setNextCursor(null);
+    }
   }
 };
+
+  // Function to load more posts (pagination)
+  const loadMorePosts = async () => {
+    if (!hasMorePosts || isLoadingMore) return;
+    
+    setIsLoadingMore(true);
+    try {
+      await loadAllPosts(false); // Don't reset pagination
+    } finally {
+      setIsLoadingMore(false);
+    }
+  };
 
   const createPost = async (postData) => {
 
@@ -440,20 +552,74 @@ const loadAllPosts = async () => {
     
 
     try {
- 
+      // Optimistically create the post object first for immediate UI update
+      const tempId = `temp-${Date.now()}`;
+      const optimisticPost = {
+        id: tempId,
+        post_id: tempId,
+        authorId: authorId,
+        author_id: authorId,
+        user_id: authorId,
+        authorName: authorName,
+        authorAvatar: authorAvatar,
+        authorPosition: authorPosition,
+        content: postData.content,
+        images: postData.images || [],
+        videos: postData.videos || [],
+        documents: postData.documents || [],
+        links: postData.links || [],
+        tags: postData.tags || [],
+        mentions: postData.mentions || [],
+        timestamp: new Date().toISOString(),
+        likes: [],
+        comments: [],
+        reactions: {},
+        is_pinned: false,
+        is_comments_allowed: true,
+        is_broadcast: false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        isOptimistic: true // Flag to identify optimistic updates
+      };
+
+      // Add optimistic post to UI immediately
+      setPosts(prevPosts => [optimisticPost, ...prevPosts]);
+
+      // Call backend API - combine all media into one array with proper format
+      const allMedia = [
+        // Images as media objects
+        ...(postData.images || []).filter(img => img && (img.url || typeof img === 'string')).map(img => ({ 
+          link: typeof img === 'string' ? img : img.url 
+        })),
+        // Videos as media objects  
+        ...(postData.videos || []).filter(vid => vid && (vid.url || typeof vid === 'string')).map(vid => ({ 
+          link: typeof vid === 'string' ? vid : vid.url 
+        })),
+        // Documents as media objects
+        ...(postData.documents || []).filter(doc => doc && (doc.url || typeof doc === 'string')).map(doc => ({ 
+          link: typeof doc === 'string' ? doc : doc.url 
+        })),
+        // Links as media objects - handle both string URLs and objects with url property
+        ...(postData.links || []).filter(link => link && (typeof link === 'string' || link.url)).map(link => ({ 
+          link: typeof link === 'string' ? link : link.url 
+        }))
+      ];
+
+      console.log('🔍 PostContext createPost - All media objects:', allMedia);
+
       const backendResult = await postsAPI.createPost({
         content: postData.content,
-        media: postData.images || postData.videos || [],
+        media: allMedia,
         mentions: postData.mentions || [],
         tags: postData.tags || []
       });
       
       console.log('✅ Backend post creation successful:', backendResult);
       
-      // Create frontend post object with backend data
-      const newPost = {
-        id: backendResult.post_id || backendResult.id || uuidv4(),
-        post_id: backendResult.post_id || `${authorId}POS${Date.now()}`,
+      // Create final post object with backend data
+      const finalPost = {
+        id: backendResult.post_id || backendResult.id || tempId,
+        post_id: backendResult.post_id || tempId,
         authorId: authorId,
         author_id: authorId,
         user_id: authorId,
@@ -478,17 +644,24 @@ const loadAllPosts = async () => {
         updated_at: backendResult.updated_at || new Date().toISOString()
       };
 
-      // Normalize the new post to ensure consistent format
-      const normalizedNewPost = normalizePost(newPost);
+      // Replace optimistic post with real post data
+      setPosts(prevPosts => 
+        prevPosts.map(post => 
+          post.id === tempId ? finalPost : post
+        )
+      );
 
-      // Update posts state (no local storage)
-      setPosts(prevPosts => [normalizedNewPost, ...prevPosts]);
-      console.log('✅ Post created successfully:', normalizedNewPost);
-      
-      return normalizedNewPost;
+      console.log('✅ Post created successfully with real-time update:', finalPost);
+      return finalPost;
 
     } catch (error) {
       console.error('❌ Post creation failed:', error.message);
+      
+      // Remove optimistic post if backend call failed
+      setPosts(prevPosts => 
+        prevPosts.filter(post => !post.isOptimistic || post.id !== tempId)
+      );
+      
       throw new Error('Failed to create post: ' + error.message);
     }
   };
@@ -496,19 +669,67 @@ const loadAllPosts = async () => {
   const editPost = async (postId, updatedData) => {
     if (!user) return;
 
-    try {
+    console.log('🔍 PostContext editPost - Input data:', {
+      postId,
+      updatedData,
+      images: updatedData.images,
+      videos: updatedData.videos,
+      documents: updatedData.documents,
+      links: updatedData.links
+    });
 
-      
-      // Call the API to update the post
-      const apiResponse = await postsAPI.updatePost(postId, updatedData);
+    try {
+      const postToUpdate = posts.find(p => (p.id === postId || p.post_id === postId));
+      if (!postToUpdate) {
+        throw new Error('Post not found');
+      }
+
+      // Optimistically update the UI immediately
+      const optimisticUpdate = {
+        ...postToUpdate,
+        ...updatedData,
+        updated_at: new Date().toISOString(),
+        isUpdating: true // Flag to show updating state
+      };
+
+      setPosts(prevPosts => 
+        prevPosts.map(post => 
+          (post.id === postId || post.post_id === postId) ? optimisticUpdate : post
+        )
+      );
+
+      // Call the API to update the post - use the correct post ID
+      const actualPostId = postToUpdate.post_id || postToUpdate.id;
+      const apiResponse = await postsAPI.updatePost(actualPostId, updatedData);
       console.log('🔍 PostContext editPost - API response:', apiResponse);
       
-      // Reload posts from backend to get the latest data
-      await reloadPosts();
+      // Update with final data from backend
+      const finalUpdate = {
+        ...optimisticUpdate,
+        ...apiResponse,
+        isUpdating: false
+      };
+
+      setPosts(prevPosts => 
+        prevPosts.map(post => 
+          (post.id === postId || post.post_id === postId) ? finalUpdate : post
+        )
+      );
       
-      console.log('✅ Post updated and reloaded:', postId);
+      console.log('✅ Post updated successfully with real-time update:', postId);
+      
     } catch (error) {
-     
+      console.error('❌ Edit post error:', error);
+      
+      // Revert optimistic update if API call failed
+      setPosts(prevPosts => 
+        prevPosts.map(post => 
+          (post.id === postId || post.post_id === postId) 
+            ? { ...post, isUpdating: false }
+            : post
+        )
+      );
+      
       throw error;
     }
   };
@@ -517,14 +738,24 @@ const loadAllPosts = async () => {
     if (!user) return;
 
     try {
+      // Optimistically remove from UI immediately
+      const postToDelete = posts.find(p => (p.id === postId || p.post_id === postId));
+      setPosts(prevPosts => prevPosts.filter(post => 
+        post.id !== postId && post.post_id !== postId
+      ));
+
       // Call the API to delete the post
       await postsAPI.deletePost(postId);
       
-      // Remove from local state
-      setPosts(prevPosts => prevPosts.filter(post => post.id !== postId));
-     
+      console.log('✅ Post deleted successfully with real-time update:', postId);
     } catch (error) {
-     
+      console.error('❌ Delete post failed:', error.message);
+      
+      // Restore the post if deletion failed
+      if (postToDelete) {
+        setPosts(prevPosts => [postToDelete, ...prevPosts]);
+      }
+      
       throw error;
     }
   };
@@ -1267,9 +1498,14 @@ const loadAllPosts = async () => {
     getFilteredPosts,
     reloadPosts,
     loadAllPosts,
+    loadMorePosts,
     addReaction,
     hasUserReacted,
-    userReactions
+    userReactions,
+    // Pagination state
+    nextCursor,
+    hasMorePosts,
+    isLoadingMore
   };
 
   return (
