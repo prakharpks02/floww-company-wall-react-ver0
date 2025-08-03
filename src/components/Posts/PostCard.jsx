@@ -101,7 +101,6 @@ const PostCard = ({ post, showAuthorInfo = true, isPublicView = false, activeVie
                   alt={image.name}
                   className="w-full h-48 object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
                   onClick={() => {
-                    // Open lightbox or modal for full view
                     window.open(image.url, '_blank');
                   }}
                 />
@@ -134,7 +133,6 @@ const PostCard = ({ post, showAuthorInfo = true, isPublicView = false, activeVie
             {normalizedPost.documents.map((doc, idx) => (
               <div key={doc.id || doc.url || idx}>
                 {doc.isPDF && doc.url ? (
-                  // PDF Preview (like video)
                   <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
                     <div className="flex items-center justify-between p-3 bg-red-50 border-b border-gray-200">
                       <div className="flex items-center space-x-3">
@@ -158,7 +156,6 @@ const PostCard = ({ post, showAuthorInfo = true, isPublicView = false, activeVie
                     </div>
                   </div>
                 ) : (
-                  // Regular document viewer
                   <DocumentViewer
                     file={{
                       name: doc.name,
@@ -177,28 +174,56 @@ const PostCard = ({ post, showAuthorInfo = true, isPublicView = false, activeVie
         {/* Links */}
         {normalizedPost.links?.length > 0 && (
           <div className="space-y-2">
-            {normalizedPost.links.map((link, idx) => (
-              <div key={link.id || link.url || idx} className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <ExternalLink className="h-6 w-6 text-blue-600" />
-                    <div>
-                      <p className="font-medium text-blue-900">{link.title || link.url}</p>
-                      <p className="text-sm text-blue-600">{link.url}</p>
-                      {link.description && (
-                        <p className="text-sm text-gray-600 mt-1">{link.description}</p>
-                      )}
+            {normalizedPost.links.map((link, idx) => {
+              // Handle cases where link.link is a stringified object: "{'link': 'gg.com'}"
+              let url = link.url || link.link;
+              let title = link.title;
+              let description = link.description;
+
+              // If url is a stringified object, parse it
+              if (typeof url === 'string' && url.trim().startsWith("{'link'")) {
+                try {
+                  // Convert single quotes to double quotes for JSON.parse
+                  const fixed = url.replace(/'/g, '"');
+                  const parsed = JSON.parse(fixed);
+                  url = parsed.link || url;
+                  if (!title) title = url;
+                } catch (e) {
+                  // fallback: show as-is
+                }
+              }
+              if (!title) title = url;
+
+              return (
+                <div key={link.id || url || idx} className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <ExternalLink className="h-6 w-6 text-blue-600" />
+                      <div>
+                        <a
+                          href={url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-medium text-blue-900 hover:underline"
+                        >
+                          {title}
+                        </a>
+                        <p className="text-sm text-blue-600 break-all">{url}</p>
+                        {description && (
+                          <p className="text-sm text-gray-600 mt-1">{description}</p>
+                        )}
+                      </div>
                     </div>
+                    <button
+                      onClick={() => window.open(url, '_blank')}
+                      className="text-blue-600 hover:text-blue-800 transition-colors"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                    </button>
                   </div>
-                  <button
-                    onClick={() => window.open(link.url, '_blank')}
-                    className="text-blue-600 hover:text-blue-800 transition-colors"
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                  </button>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
