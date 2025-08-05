@@ -1,9 +1,11 @@
 "use client"
 import { usePost } from "../../contexts/PostContext"
-import { Home, Plus, Hash, Filter, FileText } from "lucide-react"
+import { useAuth } from "../../contexts/AuthContext"
+import { Home, Plus, Hash, Filter, FileText, Shield, Users, Flag, Megaphone, Ban } from "lucide-react"
 
 const Sidebar = ({ filters, setFilters, onCreatePost, activeView, onViewChange }) => {
   const { tags, posts } = usePost()
+  const { user } = useAuth()
 
   const handleTagChange = (tag) => {
     setFilters((prev) => ({ ...prev, tag }))
@@ -183,6 +185,65 @@ const Sidebar = ({ filters, setFilters, onCreatePost, activeView, onViewChange }
               )
             })}
           </nav>
+
+          {/* Admin Navigation - Only show if user is admin */}
+          {user?.is_admin && (
+            <div className="mb-6">
+              <div className="flex items-center space-x-2 mb-3">
+                <Shield className="h-4 w-4 text-amber-400" />
+                <h3 className="text-sm font-medium text-slate-600">Admin Panel</h3>
+              </div>
+              <nav className="space-y-2">
+                {[
+                  { view: "admin-posts", label: "All Posts", icon: FileText },
+                  { view: "admin-users", label: "Blocked Users", icon: Ban },
+                  { view: "admin-reports", label: "Reported Content", icon: Flag },
+                  { view: "admin-broadcast", label: "Broadcast Message", icon: Megaphone },
+                ].map(({ view, label, icon: Icon }) => {
+                  const isActive = activeView === view
+                  return (
+                    <button
+                      key={view}
+                      onClick={() => onViewChange(view)}
+                      className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl font-medium transition-all duration-300 relative overflow-hidden group ${
+                        isActive ? "text-white" : "text-slate-500 hover:text-white"
+                      }`}
+                      style={{
+                        background: isActive
+                          ? "linear-gradient(135deg, rgba(245, 158, 11, 0.4), rgba(217, 119, 6, 0.35))"
+                          : "rgba(245, 158, 11, 0.08)",
+                        border: isActive ? "1px solid rgba(245, 158, 11, 0.7)" : "1px solid rgba(245, 158, 11, 0.2)",
+                        boxShadow: isActive
+                          ? "0 4px 16px rgba(245, 158, 11, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1)"
+                          : "none",
+                        backdropFilter: "blur(12px)",
+                        transform: isActive ? "translateY(-1px)" : "none",
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isActive) {
+                          e.target.style.background = "rgba(245, 158, 11, 0.15)"
+                          e.target.style.borderColor = "rgba(245, 158, 11, 0.4)"
+                          e.target.style.transform = "translateY(-1px)"
+                          e.target.style.boxShadow = "0 4px 12px rgba(245, 158, 11, 0.2)"
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isActive) {
+                          e.target.style.background = "rgba(245, 158, 11, 0.08)"
+                          e.target.style.borderColor = "rgba(245, 158, 11, 0.2)"
+                          e.target.style.transform = "none"
+                          e.target.style.boxShadow = "none"
+                        }
+                      }}
+                    >
+                      <Icon className="h-5 w-5 relative z-10" />
+                      <span className="relative z-10">{label}</span>
+                    </button>
+                  )
+                })}
+              </nav>
+            </div>
+          )}
 
           {/* Enhanced Tags */}
           <div className="mb-6">

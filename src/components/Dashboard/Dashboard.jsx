@@ -7,6 +7,13 @@ import MyPosts from './MyPosts';
 import ResponsiveLayout from '../Layout/ResponsiveLayout';
 import ScrollToTop from './ScrollToTop';
 import { usePost } from '../../contexts/PostContext';
+import { useAuth } from '../../contexts/AuthContext';
+
+// Admin Components
+import AdminAllPosts from '../Admin/AdminAllPosts';
+import AdminBlockedUsers from '../Admin/AdminBlockedUsers';
+import AdminReportedContent from '../Admin/AdminReportedContent';
+import AdminBroadcastMessage from '../Admin/AdminBroadcastMessage';
 
 const Dashboard = () => {
   const [filters, setFilters] = useState({
@@ -14,8 +21,9 @@ const Dashboard = () => {
     search: ''
   });
   const [showCreatePost, setShowCreatePost] = useState(false);
-  const [activeView, setActiveView] = useState('home'); // 'home' or 'myposts'
+  const [activeView, setActiveView] = useState('home'); // 'home', 'myposts', 'admin-posts', 'admin-users', 'admin-reports', 'admin-broadcast'
   const { posts, getFilteredPosts, loadAllPosts, reloadPosts } = usePost();
+  const { user } = useAuth();
 
   // Sort comments and replies so that the latest are on top
   const filteredPosts = getFilteredPosts(filters);
@@ -68,6 +76,21 @@ const Dashboard = () => {
   );
 
   const renderMainContent = () => {
+    // Handle admin views
+    if (user?.is_admin) {
+      switch (activeView) {
+        case 'admin-posts':
+          return <AdminAllPosts />;
+        case 'admin-users':
+          return <AdminBlockedUsers />;
+        case 'admin-reports':
+          return <AdminReportedContent />;
+        case 'admin-broadcast':
+          return <AdminBroadcastMessage />;
+      }
+    }
+
+    // Handle regular user views
     if (activeView === 'myposts') {
       return <MyPosts />;
     }
@@ -83,19 +106,45 @@ const Dashboard = () => {
           <p className="text-sm lg:text-base text-gray-600">
             Share updates, collaborate with colleagues, and stay connected with the HR team.
           </p>
+          {user?.is_admin && (
+            <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <p className="text-sm text-amber-800">
+                🛡️ <strong>Admin Access:</strong> You have administrative privileges. Use the admin panel in the sidebar to manage posts, users, and reports.
+              </p>
+            </div>
+          )}
         </div>
 
-        {/* Quick Create Post Button */}
-        <div className="bg-white rounded-lg shadow-sm p-4 mb-6 border border-gray-200">
-          <button
-            onClick={() => setShowCreatePost(true)}
-            className="w-full text-left p-3 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors"
-          >
-            <span className="text-gray-500 text-sm lg:text-base">
-              What's on your mind? Share with the HR team...
-            </span>
-          </button>
-        </div>
+        {/* Quick Create Post Button - Only show if user is not blocked */}
+        {!user?.is_blocked && (
+          <div className="bg-white rounded-lg shadow-sm p-4 mb-6 border border-gray-200">
+            <button
+              onClick={() => setShowCreatePost(true)}
+              className="w-full text-left p-3 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors"
+            >
+              <span className="text-gray-500 text-sm lg:text-base">
+                What's on your mind? Share with the HR team...
+              </span>
+            </button>
+          </div>
+        )}
+
+        {/* Blocked User Notice */}
+        {user?.is_blocked && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+            <div className="flex items-center space-x-2">
+              <div className="w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
+                <span className="text-white text-sm">!</span>
+              </div>
+              <div>
+                <h3 className="font-semibold text-red-900">Account Restricted</h3>
+                <p className="text-sm text-red-800 mt-1">
+                  Your account has been restricted. You can view and share posts but cannot create new posts or add comments.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Posts Feed */}
         <div>
@@ -114,8 +163,8 @@ const Dashboard = () => {
       header={headerComponent}
       sidebar={sidebarComponent}
     >
-      {/* Create Post Modal */}
-      {showCreatePost && (
+      {/* Create Post Modal - Only show if user is not blocked */}
+      {showCreatePost && !user?.is_blocked && (
         <CreatePost onClose={() => setShowCreatePost(false)} />
       )}
 

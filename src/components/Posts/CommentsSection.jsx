@@ -42,13 +42,14 @@ const CommentsSection = ({
               type="text"
               value={commentText}
               onChange={(e) => setCommentText(e.target.value)}
-              placeholder="Add a comment..."
+              placeholder={user?.is_blocked ? "Blocked users cannot comment" : "Add a comment..."}
               className="flex-1  px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-purple-500 focus:border-purple-500"
               onKeyPress={(e) => e.key === 'Enter' && handleComment()}
+              disabled={user?.is_blocked}
             />
             <button
               onClick={handleComment}
-              disabled={!commentText.trim()}
+              disabled={!commentText.trim() || user?.is_blocked}
               className="px-3 py-1 text-white rounded text-sm hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
               style={{ backgroundColor: '#9f7aea' }}
             >
