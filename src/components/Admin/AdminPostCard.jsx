@@ -291,7 +291,7 @@ function AdminPostCard({ post, onTogglePin, onToggleComments, onViewComments, on
                   Broadcast
                 </span>
               )}
-              {author.is_blocked && (
+              {(author.is_blocked === true || author.is_blocked === "true") && (
                 <span className="bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full">
                   Blocked User
                 </span>
@@ -327,7 +327,7 @@ function AdminPostCard({ post, onTogglePin, onToggleComments, onViewComments, on
             onClick={() => handleBlockUser(author.user_id)} 
             disabled={processingBlock}
             className="p-2 bg-orange-100 text-orange-700 rounded-lg hover:bg-orange-200 transition-colors disabled:opacity-50" 
-            title={author.is_blocked ? 'Unblock User' : 'Block User'}
+            title={(author.is_blocked === true || author.is_blocked === "true") ? 'Unblock User' : 'Block User'}
           >
             {processingBlock ? (
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-orange-700"></div>

@@ -1,9 +1,10 @@
 import React from 'react';
-import { Heart, MessageCircle, Share2 } from 'lucide-react';
+import { Heart, MessageCircle, Share2, Flag } from 'lucide-react';
 
 const PostActions = ({ 
   isLiked,
   isPublicView,
+  isBlocked = false,
   handleLike,
   totalLikes,
   getUserReaction,
@@ -15,8 +16,11 @@ const PostActions = ({
   shareCount,
   handleReactionsMouseEnter,
   handleReactionsMouseLeave,
-  handleReaction
+  handleReaction,
+  handleReport,
+  isOwnPost = false
 }) => {
+  const isDisabled = isPublicView || isBlocked;
   return (
     <div className="flex items-center space-x-6">
       {/* Like Button with Hover Reactions */}
@@ -27,12 +31,16 @@ const PostActions = ({
       >
         <button
           onClick={handleLike}
-          disabled={isPublicView}
-          title={isPublicView ? "Login to like posts" : "Like this post"}
+          disabled={isDisabled}
+          title={
+            isBlocked ? "Blocked users cannot like posts" :
+            isPublicView ? "Login to like posts" : 
+            "Like this post"
+          }
           className={`flex items-center space-x-2 text-sm ${
             isLiked
               ? 'text-red-600'
-              : isPublicView 
+              : isDisabled 
                 ? 'text-gray-400 cursor-not-allowed'
                 : 'text-gray-500 hover:text-red-600'
           } transition-colors`}
@@ -53,7 +61,7 @@ const PostActions = ({
         </button>
 
         {/* Hover Reactions Dropdown */}
-        {showReactions && !isPublicView && (
+        {showReactions && !isDisabled && (
           <div 
             className="absolute bottom-full left-0 mb-2 bg-white border border-gray-200 rounded-full shadow-lg px-2 py-2 flex items-center space-x-1 z-20"
             onMouseEnter={handleReactionsMouseEnter}
@@ -75,10 +83,14 @@ const PostActions = ({
 
       <button
         onClick={() => setShowComments(!showComments)}
-        title={isPublicView ? "View comments (login to interact)" : "View comments"}
+        title={
+          isBlocked ? "Blocked users cannot comment" :
+          isPublicView ? "View comments (login to interact)" : 
+          "View comments"
+        }
         className={`flex items-center space-x-2 text-sm transition-colors ${
-          isPublicView 
-            ? 'text-gray-500'
+          isDisabled 
+            ? 'text-gray-400'
             : 'text-gray-500 hover:text-blue-600'
         }`}
       >
@@ -98,6 +110,18 @@ const PostActions = ({
           </span>
         )}
       </button>
+
+      {/* Report Button - Only show if not own post, user is logged in, and not blocked */}
+      {!isOwnPost && !isPublicView && !isBlocked && handleReport && (
+        <button 
+          onClick={handleReport}
+          className="flex items-center space-x-2 text-sm text-gray-500 hover:text-red-600 transition-colors"
+          title="Report this post"
+        >
+          <Flag className="h-4 w-4" />
+          <span>Report</span>
+        </button>
+      )}
     </div>
   );
 };

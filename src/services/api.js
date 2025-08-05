@@ -941,6 +941,87 @@ export const postsAPI = {
       console.error('❌ Add comment reply error:', error.message);
       throw error;
     }
+  },
+
+  // Report post
+  reportPost: async (postId, reason) => {
+    const actualPostId = (typeof postId === 'object' && postId.post_id) ? postId.post_id : postId;
+    const endpoint = `${API_CONFIG.BASE_URL}/posts/${actualPostId}/report`;
+    
+    try {
+      // Get user_id from localStorage, fallback to author_id
+      let user_id = userAPI.getCurrentUserId();
+      if (!user_id) {
+        user_id = StorageManager.getItem('author_id');
+      }
+      
+      if (!user_id) {
+        throw new Error('User not logged in. Please login first.');
+      }
+
+      const requestBody = {
+        user_id: user_id,
+        reason: reason
+      };
+
+      console.log('🔍 API reportPost - Post ID:', actualPostId);
+      console.log('🔍 API reportPost - User ID:', user_id);
+      console.log('🔍 API reportPost - Reason:', reason);
+      console.log('🔍 API reportPost - Request body:', requestBody);
+      logApiCall('POST', endpoint, requestBody);
+
+      const response = await fetchWithTimeout(endpoint, {
+        method: 'POST',
+        body: JSON.stringify(requestBody)
+      });
+
+      const result = await handleResponse(response);
+      console.log('✅ Post reported successfully:', actualPostId);
+      return result;
+    } catch (error) {
+      console.error('❌ Report post error:', error.message);
+      throw error;
+    }
+  },
+
+  // Report comment
+  reportComment: async (commentId, reason) => {
+    const endpoint = `${API_CONFIG.BASE_URL}/comments/${commentId}/report`;
+    
+    try {
+      // Get user_id from localStorage, fallback to author_id
+      let user_id = userAPI.getCurrentUserId();
+      if (!user_id) {
+        user_id = StorageManager.getItem('author_id');
+      }
+      
+      if (!user_id) {
+        throw new Error('User not logged in. Please login first.');
+      }
+
+      const requestBody = {
+        user_id: user_id,
+        reason: reason
+      };
+
+      console.log('🔍 API reportComment - Comment ID:', commentId);
+      console.log('🔍 API reportComment - User ID:', user_id);
+      console.log('🔍 API reportComment - Reason:', reason);
+      console.log('🔍 API reportComment - Request body:', requestBody);
+      logApiCall('POST', endpoint, requestBody);
+
+      const response = await fetchWithTimeout(endpoint, {
+        method: 'POST',
+        body: JSON.stringify(requestBody)
+      });
+
+      const result = await handleResponse(response);
+      console.log('✅ Comment reported successfully:', commentId);
+      return result;
+    } catch (error) {
+      console.error('❌ Report comment error:', error.message);
+      throw error;
+    }
   }
 };
 
@@ -1141,8 +1222,49 @@ export const adminAPI = {
       console.error('❌ Admin delete post error:', error.message);
       throw error;
     }
+  },
+
+  // Get blocked users (admin only)
+  getBlockedUsers: async () => {
+    const endpoint = `${API_CONFIG.BASE_URL}/admin/get_blocked_users`;
+    
+    try {
+      // Get user_id from localStorage, fallback to author_id
+      let user_id = userAPI.getCurrentUserId();
+      if (!user_id) {
+        user_id = StorageManager.getItem('author_id');
+      }
+      
+      if (!user_id) {
+        throw new Error('User not logged in. Please login first.');
+      }
+
+      const requestBody = {
+        user_id: user_id
+      };
+
+      console.log('🔍 API getBlockedUsers - User ID:', user_id);
+      console.log('🔍 API getBlockedUsers - Request body:', requestBody);
+      logApiCall('POST', endpoint, requestBody);
+
+      const response = await fetchWithTimeout(endpoint, {
+        method: 'POST',
+        body: JSON.stringify(requestBody)
+      });
+
+      const result = await handleResponse(response);
+      console.log('✅ Blocked users retrieved successfully');
+      return result;
+    } catch (error) {
+      console.error('❌ Get blocked users error:', error.message);
+      throw error;
+    }
   }
 };
+
+
+
+
 
 // =============================================================================
 // UTILITY APIs

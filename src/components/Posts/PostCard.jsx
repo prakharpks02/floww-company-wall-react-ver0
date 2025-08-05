@@ -47,6 +47,7 @@ const PostCard = ({ post, showAuthorInfo = true, isPublicView = false, activeVie
     // Computed values
     isLiked,
     isAuthor,
+    isBlocked,
     emojiReactions,
     user,
 
@@ -283,6 +284,7 @@ const PostCard = ({ post, showAuthorInfo = true, isPublicView = false, activeVie
           <PostActions
             isLiked={isLiked}
             isPublicView={isPublicView}
+            isBlocked={isBlocked}
             handleLike={handleLike}
             totalLikes={getTotalLikes()}
             getUserReaction={getUserReaction}

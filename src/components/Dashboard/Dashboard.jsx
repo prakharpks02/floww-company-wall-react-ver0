@@ -116,7 +116,7 @@ const Dashboard = () => {
         </div>
 
         {/* Quick Create Post Button - Only show if user is not blocked */}
-        {!user?.is_blocked && (
+        {!(user?.is_blocked === true || user?.is_blocked === "true") && (
           <div className="bg-white rounded-lg shadow-sm p-4 mb-6 border border-gray-200">
             <button
               onClick={() => setShowCreatePost(true)}
@@ -130,7 +130,7 @@ const Dashboard = () => {
         )}
 
         {/* Blocked User Notice */}
-        {user?.is_blocked && (
+        {(user?.is_blocked === true || user?.is_blocked === "true") && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
             <div className="flex items-center space-x-2">
               <div className="w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
@@ -164,7 +164,7 @@ const Dashboard = () => {
       sidebar={sidebarComponent}
     >
       {/* Create Post Modal - Only show if user is not blocked */}
-      {showCreatePost && !user?.is_blocked && (
+      {showCreatePost && !(user?.is_blocked === true || user?.is_blocked === "true") && (
         <CreatePost onClose={() => setShowCreatePost(false)} />
       )}
 

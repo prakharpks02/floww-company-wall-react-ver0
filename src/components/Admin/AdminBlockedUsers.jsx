@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { adminAPI } from '../../services/adminAPI';
-import { userAPI } from '../../services/api';
+import { adminAPI as regularAdminAPI } from '../../services/api';
 import { Ban, Check, User, Mail, Calendar, AlertTriangle } from 'lucide-react';
 
 const AdminBlockedUsers = () => {
@@ -20,13 +20,14 @@ const AdminBlockedUsers = () => {
   const loadUsers = async () => {
     try {
       setLoading(true);
-      // Since there's no direct API for getting all users, we'll need to get this from local storage
-      // or implement a way to track users. For now, let's use a mock approach
-      const registeredUsers = JSON.parse(localStorage.getItem('registeredUsers') || '[]');
+      // Use the new admin API to get blocked users from backend
+      const response = await regularAdminAPI.getBlockedUsers();
       
-      // Filter to show only blocked users
-      const blockedUsers = registeredUsers.filter(u => u.is_blocked);
-      setUsers(blockedUsers);
+      if (response.status === 'success' && response.data) {
+        setUsers(response.data);
+      } else {
+        throw new Error(response.message || 'Failed to load blocked users');
+      }
       
     } catch (err) {
       setError(err.message || 'Failed to load users');
@@ -36,7 +37,7 @@ const AdminBlockedUsers = () => {
   };
 
   const handleToggleBlock = async (userId) => {
-    if (!window.confirm('Are you sure you want to change this user\'s block status?')) {
+    if (!window.confirm('Are you sure you want to unblock this user?')) {
       return;
     }
 
@@ -45,23 +46,13 @@ const AdminBlockedUsers = () => {
       const response = await adminAPI.toggleBlockUser(userId);
       
       if (response.status === 'success') {
-        // Update local storage
-        const registeredUsers = JSON.parse(localStorage.getItem('registeredUsers') || '[]');
-        const updatedUsers = registeredUsers.map(u => {
-          if (u.user_id === userId || u.id === userId) {
-            return { ...u, is_blocked: !u.is_blocked };
-          }
-          return u;
-        });
-        localStorage.setItem('registeredUsers', JSON.stringify(updatedUsers));
-        
-        // Reload users to update the display
+        // Reload users to update the display after successful unblock
         await loadUsers();
       } else {
-        alert(response.message || 'Failed to update user status');
+        alert(response.message || 'Failed to unblock user');
       }
     } catch (err) {
-      alert(err.message || 'Failed to update user status');
+      alert(err.message || 'Failed to unblock user');
     } finally {
       setProcessingUser(null);
     }

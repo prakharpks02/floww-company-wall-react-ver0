@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from './../contexts/AuthContext';
 import { usePost } from './../contexts/PostContext';
+import { postsAPI } from '../services/api';
 
 export const usePostCard = (post, activeView = 'home') => {
   const { user } = useAuth();
@@ -34,6 +35,8 @@ export const usePostCard = (post, activeView = 'home') => {
   const [replyText, setReplyText] = useState('');
   const [shareCount, setShareCount] = useState(0);
   const [commentReactionsTimeouts, setCommentReactionsTimeouts] = useState({});
+  const [reportType, setReportType] = useState('post');
+  const [reportTargetId, setReportTargetId] = useState(null);
 
   // Check if this post belongs to the current user
   const isCurrentUserPost = post.author?.user_id === user?.user_id || 
@@ -285,6 +288,33 @@ export const usePostCard = (post, activeView = 'home') => {
     });
   };
 
+  const handleReport = (type, id) => {
+    setShowReportModal(true);
+    setReportType(type);
+    setReportTargetId(id);
+  };
+
+  const submitReport = async (reason, description = '') => {
+    try {
+      const reportData = {
+        reason,
+        description: description || reason
+      };
+
+      if (reportType === 'post') {
+        await postsAPI.reportPost(reportTargetId, reportData);
+      } else if (reportType === 'comment') {
+        await postsAPI.reportComment(reportTargetId, reportData);
+      }
+
+      setShowReportModal(false);
+      alert('Report submitted successfully');
+    } catch (error) {
+      console.error('Error submitting report:', error);
+      alert('Failed to submit report. Please try again.');
+    }
+  };
+
   const handleReaction = (reactionType, event) => {
     if (event) {
       event.preventDefault();
@@ -503,6 +533,10 @@ export const usePostCard = (post, activeView = 'home') => {
     setReportReason,
     reportDescription,
     setReportDescription,
+    reportType,
+    setReportType,
+    reportTargetId,
+    setReportTargetId,
     showReactions,
     showCommentReactions,
     replyingTo,
@@ -514,6 +548,7 @@ export const usePostCard = (post, activeView = 'home') => {
     // Computed values
     isLiked,
     isAuthor,
+    isBlocked: user?.is_blocked === true || user?.is_blocked === "true",
     emojiReactions,
     user,
 
@@ -529,6 +564,8 @@ export const usePostCard = (post, activeView = 'home') => {
     handleDeleteComment,
     handleDeleteReply,
     handleShare,
+    handleReport,
+    submitReport,
     handleReaction,
     handleReactionsMouseEnter,
     handleReactionsMouseLeave,

@@ -36,7 +36,7 @@ export const AuthProvider = ({ children }) => {
       avatar: userData.avatar || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
       department: userData.department || 'General',
       is_admin: userData.is_admin || false,
-      is_blocked: userData.is_blocked || false
+      is_blocked: userData.is_blocked === true || userData.is_blocked === "true"
     };
     
     localStorage.setItem('hrUser', JSON.stringify(userSession));
@@ -91,7 +91,7 @@ export const AuthProvider = ({ children }) => {
       position: userData.position || 'Employee',
       department: userData.department || 'General',
       is_admin: userData.is_admin || false,
-      is_blocked: userData.is_blocked || false,
+      is_blocked: userData.is_blocked === true || userData.is_blocked === "true",
       created_at: new Date().toISOString()
     };
     
@@ -257,7 +257,7 @@ export const AuthProvider = ({ children }) => {
           avatar: result.data?.avatar || result.avatar || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
           department: result.data?.department || result.department || 'General',
           is_admin: result.data?.is_admin || result.is_admin || false,
-          is_blocked: result.data?.is_blocked || result.is_blocked || false
+          is_blocked: result.data?.is_blocked === true || result.data?.is_blocked === "true" || result.is_blocked === true || result.is_blocked === "true"
         };
         
         console.log('💾 Storing user session with consistent IDs:', userSession);

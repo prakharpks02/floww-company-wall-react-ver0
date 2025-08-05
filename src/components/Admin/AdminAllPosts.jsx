@@ -162,48 +162,74 @@ const AdminAllPosts = () => {
 
   const handleBlockUser = async (userId) => {
     try {
-      await adminAPI.toggleBlockUser(userId);
-      // Update the user's blocked status in all posts in real-time
+      console.log('🔍 Blocking/Unblocking user:', userId);
+      
+      const result = await adminAPI.toggleBlockUser(userId);
+      console.log('🔍 Toggle block result:', result);
+      
+      // Handle the response - the backend should return the new status
+      // Convert string "true"/"false" to boolean for consistency
+      let newBlockedStatus;
+      if (result.is_blocked !== undefined) {
+        newBlockedStatus = result.is_blocked === true || result.is_blocked === "true";
+      } else if (result.new_status !== undefined) {
+        newBlockedStatus = result.new_status === true || result.new_status === "true";
+      } else {
+        // If no status returned, refresh the posts to get updated data
+        console.log('⚠️ No status returned, refreshing posts...');
+        await loadPosts();
+        return;
+      }
+      
+      console.log('🔍 New blocked status (boolean):', newBlockedStatus);
+      
+      // Update the user's blocked status in all posts based on server response
       setPosts(prev => prev.map(post => ({
         ...post,
         author: post.author?.user_id === userId 
-          ? { ...post.author, is_blocked: !post.author.is_blocked }
+          ? { ...post.author, is_blocked: newBlockedStatus }
           : post.author,
         comments: post.comments ? post.comments.map(comment => ({
           ...comment,
           author: comment.author?.user_id === userId
-            ? { ...comment.author, is_blocked: !comment.author.is_blocked }
+            ? { ...comment.author, is_blocked: newBlockedStatus }
             : comment.author,
           replies: comment.replies ? comment.replies.map(reply => ({
             ...reply,
             author: reply.author?.user_id === userId
-              ? { ...reply.author, is_blocked: !reply.author.is_blocked }
+              ? { ...reply.author, is_blocked: newBlockedStatus }
               : reply.author
           })) : []
         })) : []
       })));
+      
       // Also update in pinned posts
       setPinnedPosts(prev => prev.map(post => ({
         ...post,
         author: post.author?.user_id === userId 
-          ? { ...post.author, is_blocked: !post.author.is_blocked }
+          ? { ...post.author, is_blocked: newBlockedStatus }
           : post.author,
         comments: post.comments ? post.comments.map(comment => ({
           ...comment,
           author: comment.author?.user_id === userId
-            ? { ...comment.author, is_blocked: !comment.author.is_blocked }
+            ? { ...comment.author, is_blocked: newBlockedStatus }
             : comment.author,
           replies: comment.replies ? comment.replies.map(reply => ({
             ...reply,
             author: reply.author?.user_id === userId
-              ? { ...reply.author, is_blocked: !reply.author.is_blocked }
+              ? { ...reply.author, is_blocked: newBlockedStatus }
               : reply.author
           })) : []
         })) : []
       })));
+      
+      // Show success message
+      const action = newBlockedStatus ? 'blocked' : 'unblocked';
+      console.log(`✅ User ${userId} has been ${action} successfully`);
+      
     } catch (error) {
       console.error('Error blocking user:', error);
-      setError(`Failed to block user: ${error.message}`);
+      setError(`Failed to toggle user block status: ${error.message}`);
     }
   };
 

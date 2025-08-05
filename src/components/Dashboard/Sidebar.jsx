@@ -24,7 +24,7 @@ const Sidebar = ({ filters, setFilters, onCreatePost, activeView, onViewChange }
 
   return (
     <>
-      <style jsx>{`
+      <style >{`
         .liquid-glass-bg {
           background: linear-gradient(
             135deg,

@@ -244,42 +244,48 @@ getAllPosts: async (lastPostId = null) => {
   // ========================================
   
   // Toggle block status of a user
-toggleBlockUser: async (userId) => {
-  let user_id = null;
+  toggleBlockUser: async (userId) => {
+    let user_id = null;
 
-  try {
-    const stored = localStorage.getItem('userId') || localStorage.getItem('user_id');
-    if (stored) {
-      user_id = JSON.parse(stored);
+    try {
+      const stored = localStorage.getItem('userId') || localStorage.getItem('user_id');
+      if (stored) {
+        user_id = JSON.parse(stored);
+      }
+    } catch (e) {
+      console.warn('⚠️ Failed to parse user_id from localStorage:', e);
     }
-  } catch (e) {
-    console.warn('⚠️ Failed to parse user_id from localStorage:', e);
-  }
 
-  if (!user_id) {
-    console.error('❌ No valid user_id found in localStorage.');
-    throw new Error('Invalid or missing user_id');
-  }
+    if (!user_id) {
+      console.error('❌ No valid user_id found in localStorage.');
+      throw new Error('Invalid or missing user_id');
+    }
 
-  const endpoint = `${API_CONFIG.BASE_URL}/admin/${userId}/toggle_block`;
+    // Use the toggle endpoint - let backend handle the current status logic
+    const endpoint = `${API_CONFIG.BASE_URL}/admin/${userId}/toggle_block`;
+    
+    console.log('🔍 Toggle block user - User ID:', userId);
+    console.log('🔍 Toggle block user - Admin ID:', user_id);
+    logApiCall('POST', endpoint, { user_id });
 
-  logApiCall('POST', endpoint, { user_id });
+    try {
+      const response = await fetchWithTimeout(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ user_id }),
+      });
 
-  try {
-    const response = await fetchWithTimeout(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ user_id }),
-    });
-
-    return await handleResponse(response);
-  } catch (error) {
-    console.error('❌ Toggle block user error:', error.message);
-    throw error;
-  }
-},
+      const result = await handleResponse(response);
+      console.log('✅ User block status toggled successfully:', result);
+      
+      return result;
+    } catch (error) {
+      console.error('❌ Toggle block user error:', error.message);
+      throw error;
+    }
+  },
 
 
 
