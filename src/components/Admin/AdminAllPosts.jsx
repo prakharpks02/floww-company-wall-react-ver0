@@ -121,19 +121,32 @@ const AdminAllPosts = () => {
 
   const handleToggleComments = async (postId) => {
     try {
-      await adminAPI.toggleCommentsOnPost(postId);
-      // Update the post in the current list in real-time
+      const post = posts.find(p => p.post_id === postId);
+      console.log('🔄 Toggling comments for post:', {
+        postId,
+        currentState: post?.is_comments_allowed,
+        currentStateType: typeof post?.is_comments_allowed
+      });
+      await adminAPI.togglePostComments(postId, post?.is_comments_allowed);
+      // Update the post in the current list in real-time - convert to boolean for consistency
       setPosts(prev => prev.map(post => 
         post.post_id === postId 
-          ? { ...post, is_comments_allowed: !post.is_comments_allowed }
+          ? { 
+              ...post, 
+              is_comments_allowed: post.is_comments_allowed === true || post.is_comments_allowed === "true" ? false : true
+            }
           : post
       ));
       // Also update in pinned posts if it exists there
       setPinnedPosts(prev => prev.map(post => 
         post.post_id === postId 
-          ? { ...post, is_comments_allowed: !post.is_comments_allowed }
+          ? { 
+              ...post, 
+              is_comments_allowed: post.is_comments_allowed === true || post.is_comments_allowed === "true" ? false : true
+            }
           : post
       ));
+      console.log('✅ Comments toggled successfully for post:', postId);
     } catch (error) {
       console.error('Error toggling comments:', error);
       setError(`Failed to toggle comments: ${error.message}`);

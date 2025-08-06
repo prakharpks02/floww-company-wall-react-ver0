@@ -1022,6 +1022,26 @@ export const postsAPI = {
       console.error('❌ Report comment error:', error.message);
       throw error;
     }
+  },
+
+  // Get broadcast posts
+  getBroadcastPosts: async () => {
+    const endpoint = `${API_CONFIG.BASE_URL}/posts/broadcast`;
+    
+    try {
+      logApiCall('GET', endpoint);
+
+      const response = await fetchWithTimeout(endpoint, {
+        method: 'GET'
+      });
+
+      const result = await handleResponse(response);
+      console.log('✅ Broadcast posts retrieved successfully');
+      return result;
+    } catch (error) {
+      console.error('❌ Get broadcast posts error:', error.message);
+      throw error;
+    }
   }
 };
 

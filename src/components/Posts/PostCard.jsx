@@ -235,6 +235,15 @@ const PostCard = ({ post, showAuthorInfo = true, isPublicView = false, activeVie
     <div className={`bg-white rounded-lg shadow-sm border border-gray-200 p-6 ${
       showOptimisticState ? 'opacity-75' : ''
     }`}>
+      {/* Pinned Post Indicator */}
+      {(normalizedPost.is_pinned === true || normalizedPost.is_pinned === "true") && (
+        <div className="mb-3 px-3 py-1 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <p className="text-xs text-yellow-800 font-medium">
+            📌 Pinned Post
+          </p>
+        </div>
+      )}
+
       {/* Optimistic State Indicator */}
       {showOptimisticState && (
         <div className="mb-3 px-3 py-1 bg-blue-50 border border-blue-200 rounded-lg">

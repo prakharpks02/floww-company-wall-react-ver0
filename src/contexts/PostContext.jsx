@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from './AuthContext';
 import { postsAPI } from '../services/api';
+import { adminAPI } from '../services/adminAPI';
 
 const PostContext = createContext();
 
@@ -203,6 +204,10 @@ export const PostProvider = ({ children }) => {
       likes: rawPost.likes || [],
       // Normalize comments
       comments: normalizedComments,
+      // Preserve important post fields
+      is_pinned: rawPost.is_pinned || false,
+      is_comments_allowed: rawPost.is_comments_allowed !== false && rawPost.is_comments_allowed !== "false",
+      is_broadcast: rawPost.is_broadcast || false,
       // Convert media array back to separate arrays for frontend compatibility
       ...(rawPost.media && Array.isArray(rawPost.media) ? (() => {
         const mediaArrays = { images: [], videos: [], documents: [], links: [] };
@@ -432,27 +437,61 @@ const loadAllPosts = async (resetPagination = false) => {
     const cursor = resetPagination ? null : nextCursor;
     console.log('🔄 Loading posts with cursor:', cursor, 'resetPagination:', resetPagination);
     
-    const backendPosts = await postsAPI.getPosts(1, 10, cursor);
+    // Fetch regular posts and pinned posts in parallel (only fetch pinned on initial load)
+    const [backendPosts, pinnedPostsResponse] = await Promise.all([
+      postsAPI.getPosts(1, 10, cursor),
+      resetPagination ? adminAPI.getPinnedPosts() : Promise.resolve({ posts: [] })
+    ]);
+    
     console.log('📡 Backend response:', backendPosts);
+    console.log('📌 Pinned posts response:', pinnedPostsResponse);
     
     let postsData = [];
+    let pinnedPosts = [];
 
-    // Check the new nested structure
+    // Process regular posts
     if (backendPosts.data && Array.isArray(backendPosts.data.posts)) {
       postsData = backendPosts.data.posts;
       console.log('✅ Found posts in nested structure:', postsData.length);
     } else if (Array.isArray(backendPosts.data)) {
-      // Fallback to old structure if present
       postsData = backendPosts.data;
       console.log('✅ Found posts in flat structure:', postsData.length);
     } else if (Array.isArray(backendPosts.posts)) {
-      // Another possible structure
       postsData = backendPosts.posts;
       console.log('✅ Found posts in posts array:', postsData.length);
     } else {
-      // Log the full response for debugging
       console.warn('🛑 No posts found in backend response:', backendPosts);
       postsData = [];
+    }
+
+    // Process pinned posts (only on initial load)
+    if (resetPagination && pinnedPostsResponse.posts && Array.isArray(pinnedPostsResponse.posts)) {
+      pinnedPosts = pinnedPostsResponse.posts;
+      console.log('✅ Found pinned posts:', pinnedPosts.length);
+      
+      // Mark pinned posts with is_pinned flag
+      pinnedPosts = pinnedPosts.map(post => ({
+        ...post,
+        is_pinned: true
+      }));
+    }
+
+    // Combine and deduplicate posts
+    let allPosts = [];
+    if (resetPagination) {
+      // For initial load, combine pinned and regular posts, removing duplicates
+      const pinnedPostIds = new Set(pinnedPosts.map(p => p.post_id));
+      const regularPostsFiltered = postsData.filter(p => !pinnedPostIds.has(p.post_id));
+      allPosts = [...pinnedPosts, ...regularPostsFiltered];
+      console.log('� Combined posts for home feed:', {
+        pinnedCount: pinnedPosts.length,
+        regularCount: regularPostsFiltered.length,
+        totalCombined: allPosts.length,
+        duplicatesRemoved: postsData.length - regularPostsFiltered.length
+      });
+    } else {
+      // For pagination, just add new regular posts
+      allPosts = postsData;
     }
 
     // Update pagination state - check multiple possible cursor field names in data object
@@ -464,27 +503,19 @@ const loadAllPosts = async (resetPagination = false) => {
     // Check if there are more posts - we have more if:
     // 1. We have a valid next cursor/lastPostId AND
     // 2. We got some posts back (even if less than requested limit)
-    const hasMore = newNextCursor !== null && newNextCursor !== undefined && postsData.length > 0;
+    const hasMore = newNextCursor !== null && newNextCursor !== undefined && allPosts.length > 0;
     setHasMorePosts(hasMore);
 
     console.log('🔍 Pagination decision logic:', {
-      postsReceived: postsData.length,
+      postsReceived: allPosts.length,
       newNextCursor,
       hasValidCursor: newNextCursor !== null && newNextCursor !== undefined,
       willHaveMore: hasMore,
-      resetPagination,
-      backendCursorFields: {
-        'data.nextCursor': backendPosts.data?.nextCursor,
-        'data.lastPostId': backendPosts.data?.lastPostId,
-        'data.next_cursor': backendPosts.data?.next_cursor,
-        'data.last_post_id': backendPosts.data?.last_post_id,
-        'nextCursor': backendPosts.nextCursor,
-        'lastPostId': backendPosts.lastPostId
-      }
+      resetPagination
     });
 
     // Normalize and set posts
-    const normalizedPosts = postsData.map(normalizePost);
+    const normalizedPosts = allPosts.map(normalizePost);
     
     if (resetPagination) {
       setPosts(normalizedPosts);

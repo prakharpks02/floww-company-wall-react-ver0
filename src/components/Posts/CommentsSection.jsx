@@ -32,30 +32,51 @@ const CommentsSection = ({
 }) => {
   if (!showComments) return null;
 
+  // Check if comments are allowed on this post
+  const commentsAllowed = normalizedPost.is_comments_allowed === true || normalizedPost.is_comments_allowed === "true";
+  const userBlocked = user?.is_blocked === true || user?.is_blocked === "true";
+
+  console.log('🔍 CommentsSection - Comment status check:', {
+    postId: normalizedPost.post_id || normalizedPost.id,
+    is_comments_allowed: normalizedPost.is_comments_allowed,
+    is_comments_allowed_type: typeof normalizedPost.is_comments_allowed,
+    commentsAllowed,
+    userBlocked
+  });
+
   return (
     <div className="space-y-3">
-      {/* Always show comment input box when comments are open */}
-      {!isPublicView && (
+      {/* Show comment input box when comments are open and allowed */}
+      {!isPublicView && commentsAllowed && (
         <div className="flex mb-2">
           <div className="flex-1 flex mt-6 space-x-2">
             <input
               type="text"
               value={commentText}
               onChange={(e) => setCommentText(e.target.value)}
-              placeholder={(user?.is_blocked === true || user?.is_blocked === "true") ? "Blocked users cannot comment" : "Add a comment..."}
+              placeholder={userBlocked ? "Blocked users cannot comment" : "Add a comment..."}
               className="flex-1  px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-purple-500 focus:border-purple-500"
               onKeyPress={(e) => e.key === 'Enter' && handleComment()}
-              disabled={user?.is_blocked === true || user?.is_blocked === "true"}
+              disabled={userBlocked}
             />
             <button
               onClick={handleComment}
-              disabled={!commentText.trim() || user?.is_blocked === true || user?.is_blocked === "true"}
+              disabled={!commentText.trim() || userBlocked}
               className="px-3 py-1 text-white rounded text-sm hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
               style={{ backgroundColor: '#9f7aea' }}
             >
               Post
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Show message when comments are disabled */}
+      {!commentsAllowed && (
+        <div className="mt-6 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+          <p className="text-sm text-gray-600 text-center">
+            💬 Comments have been disabled for this post
+          </p>
         </div>
       )}
       

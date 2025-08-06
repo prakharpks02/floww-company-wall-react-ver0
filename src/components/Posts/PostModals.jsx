@@ -1,5 +1,6 @@
 import React from 'react';
 import { Flag, UserX, AlertTriangle } from 'lucide-react';
+import ReportModal from './ReportModal';
 
 const PostModals = ({
   showConfirmDelete,
@@ -46,74 +47,16 @@ const PostModals = ({
       )}
 
       {/* Report Modal */}
-      {showReportModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-lg mx-4 w-full">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-              <Flag className="h-5 w-5 text-orange-500 mr-2" />
-              Report Post
-            </h3>
-            
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Reason for reporting:
-              </label>
-              <select
-                value={reportReason}
-                onChange={(e) => setReportReason(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-              >
-                <option value="">Select a reason</option>
-                <option value="spam">Spam</option>
-                <option value="harassment">Harassment or bullying</option>
-                <option value="inappropriate">Inappropriate content</option>
-                <option value="misinformation">False information</option>
-                <option value="violence">Violence or threats</option>
-                <option value="other">Other</option>
-              </select>
-            </div>
-
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Additional details (optional):
-              </label>
-              <textarea
-                value={reportDescription}
-                onChange={(e) => setReportDescription(e.target.value)}
-                placeholder="Please provide more details about why you're reporting this post..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 h-24 resize-none"
-              />
-            </div>
-
-            <div className="flex space-x-3">
-              <button
-                onClick={() => {
-                  setShowReportModal(false);
-                  setReportReason('');
-                  setReportDescription('');
-                }}
-                className="flex-1 px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  // Handle report submission
-                  setShowReportModal(false);
-                  setReportReason('');
-                  setReportDescription('');
-                  // Show success message
-                  alert('Report submitted successfully. Our team will review it shortly.');
-                }}
-                disabled={!reportReason}
-                className="flex-1 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                Submit Report
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ReportModal
+        isOpen={showReportModal}
+        onClose={() => {
+          setShowReportModal(false);
+          setReportReason('');
+          setReportDescription('');
+        }}
+        postId={post.post_id || post.id}
+        type="post"
+      />
 
       {/* Block User Modal */}
       {showBlockModal && (

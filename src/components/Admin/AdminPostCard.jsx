@@ -311,10 +311,20 @@ function AdminPostCard({ post, onTogglePin, onToggleComments, onViewComments, on
           </button>
           <button 
             onClick={() => onToggleComments(post.post_id)} 
-            className={`p-2 rounded-lg transition-colors ${post.is_comments_allowed ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-red-100 text-red-700 hover:bg-red-200'}`} 
-            title={post.is_comments_allowed ? 'Disable Comments' : 'Enable Comments'}
+            className={`p-2 rounded-lg transition-colors ${
+              post.is_comments_allowed === true || post.is_comments_allowed === "true"
+                ? 'bg-green-100 text-green-700 hover:bg-green-200' 
+                : 'bg-red-100 text-red-700 hover:bg-red-200'
+            }`} 
+            title={
+              post.is_comments_allowed === true || post.is_comments_allowed === "true"
+                ? 'Disable Comments' 
+                : 'Enable Comments'
+            }
           >
-            {post.is_comments_allowed ? <MessageSquare className="h-4 w-4" /> : <MessageSquareOff className="h-4 w-4" />}
+            {post.is_comments_allowed === true || post.is_comments_allowed === "true"
+              ? <MessageSquare className="h-4 w-4" /> 
+              : <MessageSquareOff className="h-4 w-4" />}
           </button>
           <button 
             onClick={() => setShowComments(!showComments)} 

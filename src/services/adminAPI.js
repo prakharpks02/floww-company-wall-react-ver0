@@ -129,6 +129,30 @@ getAllPosts: async (lastPostId = null) => {
   }
 },
 
+  // Get pinned posts
+  getPinnedPosts: async () => {
+    const endpoint = `${API_CONFIG.BASE_URL}/posts/pinned`;
+    logApiCall('GET', endpoint);
+    
+    try {
+      const response = await fetchWithTimeout(endpoint, {
+        method: 'GET'
+      });
+      
+      const result = await handleResponse(response);
+      
+      const posts = result?.data || [];
+      console.log(`✅ Retrieved ${posts.length} pinned posts`);
+      
+      return {
+        posts,
+        raw: result
+      };
+    } catch (error) {
+      console.error('❌ Get pinned posts error:', error.message);
+      throw error;
+    }
+  },
 
   // Toggle pin status of a post
   togglePinPost: async (postId) => {
@@ -376,24 +400,58 @@ getAllPosts: async (lastPostId = null) => {
   // ========================================
   
   // Toggle comments for a post
-  togglePostComments: async (postId, userId) => {
-    const endpoint = `${API_CONFIG.BASE_URL}/posts/${postId}/comments/status`;
-    logApiCall('POST', endpoint, { postId, userId });
-    
-    try {
-      const response = await fetchWithTimeout(endpoint, {
-        method: 'POST',
-        body: JSON.stringify({
-          user_id: userId
-        })
-      });
-      
-      return await handleResponse(response);
-    } catch (error) {
-      console.error('❌ Toggle post comments error:', error.message);
-      throw error;
+ togglePostComments: async (postId, isCommentsAllowed) => {
+  // Get user_id from localStorage
+  let userId;
+  try {
+    const stored = localStorage.getItem('userId') || localStorage.getItem('user_id');
+    if (stored) {
+      userId = JSON.parse(stored);
     }
-  },
+  } catch (e) {
+    console.warn('⚠️ Unable to retrieve user_id from localStorage:', e.message);
+  }
+
+  if (!userId) {
+    throw new Error('User not logged in. Please login first.');
+  }
+
+  const endpoint = `${API_CONFIG.BASE_URL}/posts/${postId}/comments/status`;
+
+  // Toggle the comment state (as strings for backend)
+  const newState = (isCommentsAllowed === true || isCommentsAllowed === "true") ? "false" : "true";
+
+  console.log('🔄 togglePostComments - Request details:', {
+    currentState: isCommentsAllowed,
+    currentStateType: typeof isCommentsAllowed,
+    newState,
+    endpoint
+  });
+
+  logApiCall('POST', endpoint, { is_comments_allowed: newState, user_id: userId });
+
+  try {
+    const response = await fetchWithTimeout(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        is_comments_allowed: newState,
+        user_id: userId
+      })
+    });
+
+    const result = await handleResponse(response);
+    console.log('✅ togglePostComments - Response:', result);
+    
+    return result;
+  } catch (error) {
+    console.error('❌ Toggle post comments error:', error.message);
+    throw error;
+  }
+},
+
 
   // Delete a comment
   deleteComment: async (commentId) => {
@@ -418,7 +476,17 @@ getAllPosts: async (lastPostId = null) => {
 
   // Toggle comments on a post
   toggleCommentsOnPost: async (postId) => {
-    const userId = localStorage.getItem('user_id');
+    // Get user_id from localStorage
+    let userId;
+    try {
+      const stored = localStorage.getItem('userId') || localStorage.getItem('user_id');
+      if (stored) {
+        userId = JSON.parse(stored);
+      }
+    } catch (e) {
+      console.warn('⚠️ Unable to retrieve user_id from localStorage:', e.message);
+    }
+
     const endpoint = `${API_CONFIG.BASE_URL}/admin/posts/${postId}/toggle_comments`;
     logApiCall('POST', endpoint, { postId, userId });
     

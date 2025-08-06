@@ -3,7 +3,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { adminAPI } from '../../services/adminAPI';
 import { Flag, Check, X, Eye, User, MessageSquare, FileText, Calendar } from 'lucide-react';
 
-const AdminReportedContent = () => {
+const AdminReportedContent = ({ activeView }) => {
   const { user } = useAuth();
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -12,32 +12,84 @@ const AdminReportedContent = () => {
   const [filter, setFilter] = useState('all'); // all, pending, resolved
 
   useEffect(() => {
-    if (user?.is_admin) {
+    if (user?.is_admin && activeView === 'admin-reports') {
       loadReports();
     }
-  }, [user]);
+  }, [user, activeView]);
 
   const loadReports = async () => {
-    try {
-      setLoading(true);
-      const response = await adminAPI.getReportedContent();
-      if (response.status === 'success') {
-        // Ensure response.data is always an array
-        const reportsArray = Array.isArray(response.data)
-          ? response.data
-          : response.data && typeof response.data === 'object'
-            ? Object.values(response.data)
-            : [];
-        setReports(reportsArray);
-      } else {
-        setError(response.message || 'Failed to load reports');
-      }
-    } catch (err) {
-      setError(err.message || 'Failed to load reports');
-    } finally {
-      setLoading(false);
+  try {
+    setLoading(true);
+
+    // Get user_id from localStorage
+    const storedUserId = localStorage.getItem('userId') || localStorage.getItem('user_id');
+    const user_id = storedUserId ? JSON.parse(storedUserId) : null;
+
+    if (!user_id) {
+      setError('User ID not found in localStorage');
+      return;
     }
-  };
+
+    // Make the POST request
+    const response = await fetch('http://localhost:8000/api/wall/admin/reports', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ user_id }),
+    });
+
+    const result = await response.json();
+
+    if (result.status === 'success') {
+      // Parse the new API response structure
+      const reportsArray = [];
+      
+      // Process posts reports
+      if (result.data.posts && Array.isArray(result.data.posts)) {
+        result.data.posts.forEach(post => {
+          if (post.reports && Array.isArray(post.reports)) {
+            post.reports.forEach(report => {
+              reportsArray.push({
+                ...report,
+                content_type: 'post',
+                post_id: post.post_id,
+                content_id: post.post_id,
+                status: report.status || 'pending' // Default to pending if no status
+              });
+            });
+          }
+        });
+      }
+      
+      // Process comments reports
+      if (result.data.comments && Array.isArray(result.data.comments)) {
+        result.data.comments.forEach(comment => {
+          if (comment.reports && Array.isArray(comment.reports)) {
+            comment.reports.forEach(report => {
+              reportsArray.push({
+                ...report,
+                content_type: 'comment',
+                comment_id: comment.comment_id,
+                content_id: comment.comment_id,
+                status: report.status || 'pending' // Default to pending if no status
+              });
+            });
+          }
+        });
+      }
+
+      setReports(reportsArray);
+    } else {
+      setError(result.message || 'Failed to load reports');
+    }
+  } catch (err) {
+    setError(err.message || 'Failed to load reports');
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const handleResolveReport = async (reportId, action) => {
     if (!window.confirm(`Are you sure you want to mark this report as resolved?`)) {
@@ -46,15 +98,26 @@ const AdminReportedContent = () => {
 
     try {
       setProcessingReport(reportId);
+      console.log('Resolving report:', reportId, 'with action:', action);
       const response = await adminAPI.resolveReport(reportId, user.user_id, action);
+      console.log('Resolve response:', response);
       
       if (response.status === 'success') {
-        // Refresh reports to get updated status
-        await loadReports();
+        console.log('Report resolved successfully, updating local state');
+        // Update the local state instead of reloading all reports
+        setReports(prevReports => 
+          prevReports.map(report => 
+            report.report_id === reportId 
+              ? { ...report, status: 'resolved' }
+              : report
+          )
+        );
       } else {
+        console.error('Failed to resolve report:', response);
         alert(response.message || `Failed to ${action} report`);
       }
     } catch (err) {
+      console.error('Error resolving report:', err);
       alert(err.message || `Failed to ${action} report`);
     } finally {
       setProcessingReport(null);
@@ -227,9 +290,9 @@ const AdminReportedContent = () => {
                     <span className="text-sm text-gray-600 capitalize">
                       {report.content_type || 'Unknown'}
                     </span>
-                    {report.post_id && (
+                    {report.content_id && (
                       <span className="text-xs text-gray-500">
-                        ID: {report.post_id || report.comment_id}
+                        ID: {report.content_id}
                       </span>
                     )}
                   </div>

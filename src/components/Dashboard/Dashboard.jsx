@@ -4,6 +4,7 @@ import Sidebar from './Sidebar';
 import PostFeed from '../Posts/PostFeed';
 import CreatePost from '../Posts/CreatePost';
 import MyPosts from './MyPosts';
+import BroadcastView from './BroadcastView';
 import ResponsiveLayout from '../Layout/ResponsiveLayout';
 import ScrollToTop from './ScrollToTop';
 import { usePost } from '../../contexts/PostContext';
@@ -21,13 +22,14 @@ const Dashboard = () => {
     search: ''
   });
   const [showCreatePost, setShowCreatePost] = useState(false);
-  const [activeView, setActiveView] = useState('home'); // 'home', 'myposts', 'admin-posts', 'admin-users', 'admin-reports', 'admin-broadcast'
+  const [activeView, setActiveView] = useState('home'); // 'home', 'broadcast', 'myposts', 'admin-posts', 'admin-users', 'admin-reports', 'admin-broadcast'
   const { posts, getFilteredPosts, loadAllPosts, reloadPosts } = usePost();
   const { user } = useAuth();
 
   // Sort comments and replies so that the latest are on top
   const filteredPosts = getFilteredPosts(filters);
-  // For each post, sort its comments and replies by created_at descending
+  
+  // Sort comments and replies for each post (posts themselves are already sorted with pinned first)
   const sortedPosts = filteredPosts.map(post => ({
     ...post,
     comments: Array.isArray(post.comments)
@@ -41,6 +43,16 @@ const Dashboard = () => {
       : post.comments
   }));
 
+  console.log('🔍 Dashboard - Final post arrangement:', {
+    totalPosts: sortedPosts.length,
+    pinnedPosts: sortedPosts.filter(p => p.is_pinned === true || p.is_pinned === "true").length,
+    firstFewPosts: sortedPosts.slice(0, 3).map(p => ({ 
+      id: p.id || p.post_id, 
+      is_pinned: p.is_pinned,
+      title: p.content?.substring(0, 50) + '...'
+    }))
+  });
+
   // Load appropriate posts based on active view
   useEffect(() => {
     if (activeView === 'home') {
@@ -48,6 +60,7 @@ const Dashboard = () => {
     } else if (activeView === 'myposts') {
       reloadPosts(); // Load user's posts only
     }
+    // For broadcast view, data is fetched by BroadcastView component
   }, [activeView]);
 
   const handleSearchChange = (searchValue) => {
@@ -84,7 +97,7 @@ const Dashboard = () => {
         case 'admin-users':
           return <AdminBlockedUsers />;
         case 'admin-reports':
-          return <AdminReportedContent />;
+          return <AdminReportedContent activeView={activeView} />;
         case 'admin-broadcast':
           return <AdminBroadcastMessage />;
       }
@@ -93,6 +106,10 @@ const Dashboard = () => {
     // Handle regular user views
     if (activeView === 'myposts') {
       return <MyPosts />;
+    }
+    
+    if (activeView === 'broadcast') {
+      return <BroadcastView />;
     }
 
     // Default home view

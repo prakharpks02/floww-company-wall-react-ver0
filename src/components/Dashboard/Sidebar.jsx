@@ -141,6 +141,7 @@ const Sidebar = ({ filters, setFilters, onCreatePost, activeView, onViewChange }
           <nav className="space-y-2 mb-6">
             {[
               { view: "home", label: "Home Feed", icon: Home },
+              { view: "broadcast", label: "Broadcast", icon: Megaphone },
               { view: "myposts", label: "My Posts", icon: FileText },
             ].map(({ view, label, icon: Icon }) => {
               const isActive = activeView === view
