@@ -358,16 +358,26 @@ getAllPosts: async (lastPostId = null) => {
       console.warn('⚠️ Unable to retrieve user_id from localStorage:', e.message);
     }
 
+    if (!userId) {
+      throw new Error('User not logged in. Please login first.');
+    }
+
     const endpoint = `${API_CONFIG.BASE_URL}/admin/reports`;
-    logApiCall('POST', endpoint, { userId });
+    logApiCall('POST', endpoint, { user_id: userId });
 
     try {
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({ user_id: userId })
       });
 
-      return await handleResponse(response);
+      const result = await handleResponse(response);
+      console.log('✅ getReportedContent - Response:', result);
+      
+      return result;
     } catch (error) {
       console.error('❌ Get reported content error:', error.message);
       throw error;
@@ -474,8 +484,8 @@ getAllPosts: async (lastPostId = null) => {
     }
   },
 
-  // Toggle comments on a post
-  toggleCommentsOnPost: async (postId) => {
+  // Toggle comments on a post (dynamic enable/disable)
+  toggleCommentsOnPost: async (postId, currentState = null) => {
     // Get user_id from localStorage
     let userId;
     try {
@@ -487,20 +497,85 @@ getAllPosts: async (lastPostId = null) => {
       console.warn('⚠️ Unable to retrieve user_id from localStorage:', e.message);
     }
 
-    const endpoint = `${API_CONFIG.BASE_URL}/admin/posts/${postId}/toggle_comments`;
-    logApiCall('POST', endpoint, { postId, userId });
+    if (!userId) {
+      throw new Error('User not logged in. Please login first.');
+    }
+
+    const endpoint = `${API_CONFIG.BASE_URL}/posts/${postId}/comments/status`;
+    
+    // If currentState is provided, toggle it. Otherwise, default to disable
+    let newState = "false"; // Default to disable
+    if (currentState !== null) {
+      newState = (currentState === true || currentState === "true") ? "false" : "true";
+    }
+    
+    console.log('🔄 toggleCommentsOnPost - Request details:', {
+      postId,
+      currentState,
+      newState,
+      endpoint
+    });
+    
+    logApiCall('POST', endpoint, { postId, userId, is_comments_allowed: newState });
     
     try {
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
-          user_id: userId
+          user_id: userId,
+          is_comments_allowed: newState
         })
       });
       
-      return await handleResponse(response);
+      const result = await handleResponse(response);
+      console.log('✅ toggleCommentsOnPost - Response:', result);
+      
+      return result;
     } catch (error) {
       console.error('❌ Toggle comments error:', error.message);
+      throw error;
+    }
+  },
+
+  // Admin toggle comments on a post (uses admin endpoint)
+  adminTogglePostComments: async (postId, isCommentsAllowed) => {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const endpoint = `${API_CONFIG.BASE_URL}/admin/posts/${postId}/comments/toggle`;
+    
+    // Toggle the comment state (as strings for backend)
+    const newState = (isCommentsAllowed === true || isCommentsAllowed === "true") ? "false" : "true";
+
+    console.log('🔄 adminTogglePostComments - Request details:', {
+      postId,
+      currentState: isCommentsAllowed,
+      currentStateType: typeof isCommentsAllowed,
+      newState,
+      endpoint
+    });
+
+    logApiCall('POST', endpoint, { is_comments_allowed: newState, admin_user_id: user.id });
+
+    try {
+      const response = await fetchWithTimeout(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          is_comments_allowed: newState,
+          admin_user_id: user.id
+        })
+      });
+
+      const result = await handleResponse(response);
+      console.log('✅ adminTogglePostComments - Response:', result);
+      
+      return result;
+    } catch (error) {
+      console.error('❌ Admin toggle post comments error:', error.message);
       throw error;
     }
   },

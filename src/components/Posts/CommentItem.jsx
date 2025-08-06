@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Trash2, Heart, MessageCircle, Edit, MoreHorizontal } from 'lucide-react';
+import { Trash2, Heart, MessageCircle, Edit, MoreHorizontal, Flag } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import CommentReply from './CommentReply';
+import ReportModal from './ReportModal';
 
 const CommentItem = ({ 
   comment, 
@@ -26,6 +27,7 @@ const CommentItem = ({
   const [editContent, setEditContent] = useState(comment.content || '');
   const [replyContent, setReplyContent] = useState('');
   const [showMenu, setShowMenu] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
   const menuRef = useRef(null);
 
   // Close menu when clicking outside
@@ -156,39 +158,53 @@ const CommentItem = ({
           </div>
         </div>
         
-        {/* Action Menu (only show for comment author) */}
-        {!isPublicView && isCommentAuthor && (
-          <div className="relative" ref={menuRef}>
+        {/* Action Menu */}
+        <div className="flex items-center space-x-2">
+          {/* Report button for non-authors */}
+          {!isPublicView && !isCommentAuthor && (
             <button
-              onClick={() => setShowMenu(!showMenu)}
-              className="text-gray-400 hover:text-gray-600 transition-colors p-1"
+              onClick={() => setShowReportModal(true)}
+              className="text-gray-400 hover:text-red-600 transition-colors p-1"
+              title="Report comment"
             >
-              <MoreHorizontal className="h-4 w-4" />
+              <Flag className="h-4 w-4" />
             </button>
-            
-            {showMenu && (
-              <div className="absolute right-0 top-8 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-10 min-w-[120px]">
-                <button
-                  onClick={handleEdit}
-                  className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
-                >
-                  <Edit className="h-3 w-3" />
-                  Edit
-                </button>
-                <button
-                  onClick={() => {
-                    handleDelete();
-                    setShowMenu(false);
-                  }}
-                  className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-                >
-                  <Trash2 className="h-3 w-3" />
-                  Delete
-                </button>
-              </div>
-            )}
-          </div>
-        )}
+          )}
+          
+          {/* Author menu for comment owner */}
+          {!isPublicView && isCommentAuthor && (
+            <div className="relative" ref={menuRef}>
+              <button
+                onClick={() => setShowMenu(!showMenu)}
+                className="text-gray-400 hover:text-gray-600 transition-colors p-1"
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </button>
+              
+              {showMenu && (
+                <div className="absolute right-0 top-8 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-10 min-w-[120px]">
+                  <button
+                    onClick={handleEdit}
+                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                  >
+                    <Edit className="h-3 w-3" />
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => {
+                      handleDelete();
+                      setShowMenu(false);
+                    }}
+                    className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                    Delete
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Comment Content */}
@@ -450,6 +466,14 @@ const CommentItem = ({
           ))}
         </div>
       )}
+      
+      {/* Report Modal */}
+      <ReportModal
+        isOpen={showReportModal}
+        onClose={() => setShowReportModal(false)}
+        commentId={comment.comment_id || comment.id}
+        type="comment"
+      />
     </div>
   );
 };

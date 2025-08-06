@@ -100,110 +100,89 @@ const AdminBlockedUsers = () => {
   }
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Blocked Users Management</h1>
-        <div className="text-sm text-gray-600">
-          Total Blocked Users: {users.length}
-        </div>
-      </div>
-
-      {users.length === 0 ? (
-        <div className="text-center py-12">
-          <div className="text-gray-500 text-lg">No blocked users found</div>
-          <div className="text-gray-400 mt-2">All users are currently active</div>
-        </div>
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {users.map((blockedUser) => (
-            <div key={blockedUser.user_id || blockedUser.id} className="bg-white rounded-lg shadow-md border border-gray-200 p-6">
-              {/* User Header */}
-              <div className="flex items-center space-x-3 mb-4">
-                <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center">
-                  <User className="h-6 w-6 text-gray-500" />
-                </div>
-                <div className="flex-1">
-                  <div className="font-semibold text-gray-900">
-                    {blockedUser.username || blockedUser.name}
-                  </div>
-                  <div className="text-sm text-gray-500 flex items-center">
-                    <Mail className="h-4 w-4 mr-1" />
-                    {blockedUser.email}
-                  </div>
-                </div>
-              </div>
-
-              {/* User Details */}
-              <div className="space-y-2 mb-4">
-                <div className="flex items-center text-sm text-gray-600">
-                  <User className="h-4 w-4 mr-2" />
-                  <span>ID: {blockedUser.user_id || blockedUser.id}</span>
-                </div>
-                
-                {blockedUser.position && (
-                  <div className="flex items-center text-sm text-gray-600">
-                    <span className="mr-2">💼</span>
-                    <span>{blockedUser.position}</span>
-                  </div>
-                )}
-                
-                {blockedUser.department && (
-                  <div className="flex items-center text-sm text-gray-600">
-                    <span className="mr-2">🏢</span>
-                    <span>{blockedUser.department}</span>
-                  </div>
-                )}
-                
-                {blockedUser.created_at && (
-                  <div className="flex items-center text-sm text-gray-600">
-                    <Calendar className="h-4 w-4 mr-2" />
-                    <span>Joined: {formatDate(blockedUser.created_at)}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Block Status */}
-              <div className="mb-4">
-                <div className="flex items-center justify-center space-x-2 py-2 px-3 bg-red-50 border border-red-200 rounded-lg">
-                  <AlertTriangle className="h-4 w-4 text-red-600" />
-                  <span className="text-sm font-medium text-red-800">
-                    User is Blocked
-                  </span>
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="space-y-2">
-                <button
-                  onClick={() => handleToggleBlock(blockedUser.user_id || blockedUser.id)}
-                  disabled={processingUser === (blockedUser.user_id || blockedUser.id)}
-                  className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {processingUser === (blockedUser.user_id || blockedUser.id) ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                      <span>Processing...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Check className="h-4 w-4" />
-                      <span>Unblock User</span>
-                    </>
-                  )}
-                </button>
-              </div>
+    <div className="p-18 bg-gradient-to-br from-white via-blue-50 to-indigo-50 min-h-screen">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex justify-between items-center mb-8 border-l-4 border-blue-400 pl-4">
+          <div className="flex items-center space-x-4">
+            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center shadow">
+              <Ban className="h-6 w-6 text-blue-600" />
             </div>
-          ))}
+            <h1 className="text-3xl font-bold text-blue-900">Blocked Users Management</h1>
+          </div>
+          <div className="text-sm font-semibold text-blue-700">
+            Total Blocked Users: {users.length}
+          </div>
         </div>
-      )}
 
-      {/* User Management Instructions */}
-      <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <h3 className="font-semibold text-blue-900 mb-2">User Management Information</h3>
-        <div className="text-sm text-blue-800 space-y-1">
-          <p>• Blocked users can only view and share posts but cannot create new posts or add comments</p>
-          <p>• Use the "Unblock User" button to restore full access to a user account</p>
-          <p>• Changes take effect immediately across the platform</p>
+        {users.length === 0 ? (
+          <div className="text-center py-16">
+            <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <User className="h-10 w-10 text-blue-400" />
+            </div>
+            <div className="text-2xl font-semibold text-blue-900 mb-2">No blocked users found</div>
+            <div className="text-blue-500">All users are currently active</div>
+          </div>
+        ) : (
+          <div className="divide-y divide-blue-100">
+            {users.map((blockedUser) => (
+              <div key={blockedUser.user_id || blockedUser.id} className="flex items-center py-4 px-2 border-l-4 border-blue-400 bg-white hover:bg-blue-50 transition-all">
+                <div className="flex items-center space-x-4 flex-1">
+                  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                    <User className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <div className="font-semibold text-blue-900 text-base">
+                      {blockedUser.username || blockedUser.name}
+                    </div>
+                    <div className="text-xs text-blue-700 flex items-center">
+                      <Mail className="h-4 w-4 mr-1" />
+                      {blockedUser.email}
+                    </div>
+                    <div className="flex items-center text-xs text-blue-800 mt-1">
+                      <User className="h-3 w-3 mr-1" />
+                      <span>ID: {blockedUser.user_id || blockedUser.id}</span>
+                      {blockedUser.position && <span className="ml-2">💼 {blockedUser.position}</span>}
+                      {blockedUser.department && <span className="ml-2">🏢 {blockedUser.department}</span>}
+                      {blockedUser.created_at && <span className="ml-2"><Calendar className="h-3 w-3 inline mr-1" />Joined: {formatDate(blockedUser.created_at)}</span>}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-1 px-2 py-1 bg-red-50 border border-red-200 rounded text-xs font-bold text-red-800">
+                    <AlertTriangle className="h-3 w-3 text-red-600" />
+                    <span>Blocked</span>
+                  </div>
+                  <button
+                    onClick={() => handleToggleBlock(blockedUser.user_id || blockedUser.id)}
+                    disabled={processingUser === (blockedUser.user_id || blockedUser.id)}
+                    className="ml-4 flex items-center space-x-1 px-3 py-1 bg-gradient-to-r from-green-500 to-green-600 text-white rounded hover:from-green-600 hover:to-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs font-semibold"
+                  >
+                    {processingUser === (blockedUser.user_id || blockedUser.id) ? (
+                      <>
+                        <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                        <span>...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Check className="h-3 w-3" />
+                        <span>Unblock</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* User Management Instructions */}
+        <div className="mt-12 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl p-8">
+          <h3 className="font-bold text-blue-900 text-lg mb-3">User Management Information</h3>
+          <div className="text-sm text-blue-800 space-y-2">
+            <p>• Blocked users can only view and share posts but cannot create new posts or add comments</p>
+            <p>• Use the <span className="font-semibold text-green-700">Unblock User</span> button to restore full access to a user account</p>
+            <p>• Changes take effect immediately across the platform</p>
+          </div>
         </div>
       </div>
     </div>

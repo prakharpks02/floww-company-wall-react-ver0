@@ -1,382 +1,441 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { adminAPI } from '../../services/adminAPI';
-import { Flag, Check, X, Eye, User, MessageSquare, FileText, Calendar } from 'lucide-react';
+import { Flag, FileText, MessageSquare, AlertTriangle, RefreshCw } from 'lucide-react';
+import AdminReportedPostCard from './AdminReportedPostCard';
+import AdminReportedCommentCard from './AdminReportedCommentCard';
 
 const AdminReportedContent = ({ activeView }) => {
   const { user } = useAuth();
-  const [reports, setReports] = useState([]);
+  const [reportedPosts, setReportedPosts] = useState([]);
+  const [reportedComments, setReportedComments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [processingReport, setProcessingReport] = useState(null);
-  const [filter, setFilter] = useState('all'); // all, pending, resolved
+  const [filter, setFilter] = useState('all'); // all, posts, comments
+  const [statusFilter, setStatusFilter] = useState('all'); // all, pending, resolved
 
   useEffect(() => {
     if (user?.is_admin && activeView === 'admin-reports') {
-      loadReports();
+      loadReportedContent();
     }
   }, [user, activeView]);
 
-  const loadReports = async () => {
-  try {
-    setLoading(true);
+  const loadReportedContent = async () => {
+    try {
+      setLoading(true);
+      setError(null);
 
-    // Get user_id from localStorage
-    const storedUserId = localStorage.getItem('userId') || localStorage.getItem('user_id');
-    const user_id = storedUserId ? JSON.parse(storedUserId) : null;
-
-    if (!user_id) {
-      setError('User ID not found in localStorage');
-      return;
-    }
-
-    // Make the POST request
-    const response = await fetch('http://localhost:8000/api/wall/admin/reports', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ user_id }),
-    });
-
-    const result = await response.json();
-
-    if (result.status === 'success') {
-      // Parse the new API response structure
-      const reportsArray = [];
+      const response = await adminAPI.getReportedContent();
       
-      // Process posts reports
-      if (result.data.posts && Array.isArray(result.data.posts)) {
-        result.data.posts.forEach(post => {
-          if (post.reports && Array.isArray(post.reports)) {
-            post.reports.forEach(report => {
-              reportsArray.push({
-                ...report,
-                content_type: 'post',
-                post_id: post.post_id,
-                content_id: post.post_id,
-                status: report.status || 'pending' // Default to pending if no status
-              });
-            });
-          }
+      if (response.status === 'success' && response.data) {
+        const { posts = [], comments = [] } = response.data;
+        
+        console.log('📊 Loaded reported content:', {
+          posts: posts.length,
+          comments: comments.length
         });
+        
+        setReportedPosts(posts);
+        setReportedComments(comments);
+      } else {
+        setError(response.message || 'Failed to load reported content');
       }
-      
-      // Process comments reports
-      if (result.data.comments && Array.isArray(result.data.comments)) {
-        result.data.comments.forEach(comment => {
-          if (comment.reports && Array.isArray(comment.reports)) {
-            comment.reports.forEach(report => {
-              reportsArray.push({
-                ...report,
-                content_type: 'comment',
-                comment_id: comment.comment_id,
-                content_id: comment.comment_id,
-                status: report.status || 'pending' // Default to pending if no status
-              });
-            });
-          }
-        });
-      }
-
-      setReports(reportsArray);
-    } else {
-      setError(result.message || 'Failed to load reports');
+    } catch (err) {
+      console.error('Error loading reported content:', err);
+      setError(err.message || 'Failed to load reported content');
+    } finally {
+      setLoading(false);
     }
-  } catch (err) {
-    setError(err.message || 'Failed to load reports');
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
+  const handlePostUpdate = (postId, action) => {
+    console.log('Post updated:', postId, action);
+    // Optionally refresh the data or update local state
+    loadReportedContent();
+  };
 
-  const handleResolveReport = async (reportId, action) => {
-    if (!window.confirm(`Are you sure you want to mark this report as resolved?`)) {
+  const handlePostDelete = (postId) => {
+    console.log('Post deleted:', postId);
+    // Remove the post from local state
+    setReportedPosts(prev => prev.filter(post => post.post_id !== postId));
+  };
+
+  const handleCommentUpdate = (commentId, action) => {
+    console.log('Comment updated:', commentId, action);
+    // Optionally refresh the data or update local state
+    loadReportedContent();
+  };
+
+  const handleCommentDelete = (commentId) => {
+    console.log('Comment deleted:', commentId);
+    // Remove the comment from local state
+    setReportedComments(prev => prev.filter(comment => comment.comment_id !== commentId));
+  };
+
+  const handleBulkResolve = async () => {
+    if (!window.confirm('Are you sure you want to resolve all pending reports? This action cannot be undone.')) {
       return;
     }
 
     try {
-      setProcessingReport(reportId);
-      console.log('Resolving report:', reportId, 'with action:', action);
-      const response = await adminAPI.resolveReport(reportId, user.user_id, action);
-      console.log('Resolve response:', response);
+      setLoading(true);
       
-      if (response.status === 'success') {
-        console.log('Report resolved successfully, updating local state');
-        // Update the local state instead of reloading all reports
-        setReports(prevReports => 
-          prevReports.map(report => 
-            report.report_id === reportId 
-              ? { ...report, status: 'resolved' }
-              : report
-          )
-        );
-      } else {
-        console.error('Failed to resolve report:', response);
-        alert(response.message || `Failed to ${action} report`);
-      }
-    } catch (err) {
-      console.error('Error resolving report:', err);
-      alert(err.message || `Failed to ${action} report`);
+      // Get all pending report IDs
+      const pendingReportIds = [
+        ...reportedPosts.flatMap(post => 
+          post.reports?.filter(r => !r.status || r.status === 'pending').map(r => r.report_id) || []
+        ),
+        ...reportedComments.flatMap(comment => 
+          comment.reports?.filter(r => !r.status || r.status === 'pending').map(r => r.report_id) || []
+        )
+      ];
+
+      console.log('Resolving reports:', pendingReportIds);
+
+      // Resolve all pending reports
+      const resolvePromises = pendingReportIds.map(reportId => 
+        adminAPI.resolveReport(reportId, user.id, 'resolved')
+      );
+
+      await Promise.all(resolvePromises);
+      
+      alert(`Successfully resolved ${pendingReportIds.length} pending reports.`);
+      
+      // Reload the data to reflect changes
+      await loadReportedContent();
+      
+    } catch (error) {
+      console.error('Error resolving reports:', error);
+      alert('Failed to resolve some reports. Please try again.');
     } finally {
-      setProcessingReport(null);
+      setLoading(false);
     }
   };
 
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  const getStatusColor = (status) => {
-    switch (status?.toLowerCase()) {
-      case 'resolved':
-        return 'bg-green-100 text-green-800 border-green-200';
-      case 'rejected':
-        return 'bg-red-100 text-red-800 border-red-200';
-      default:
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+  // Filter functions
+  const getFilteredPosts = () => {
+    let filtered = reportedPosts;
+    
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(post => {
+        const hasMatchingReports = post.reports?.some(report => {
+          if (statusFilter === 'pending') {
+            return !report.status || report.status === 'pending';
+          }
+          return report.status === statusFilter;
+        });
+        return hasMatchingReports;
+      });
     }
+    
+    return filtered;
   };
 
-  const getReasonColor = (reason) => {
-    switch (reason?.toLowerCase()) {
-      case 'spam':
-        return 'bg-orange-100 text-orange-800';
-      case 'harassment':
-        return 'bg-red-100 text-red-800';
-      case 'inappropriate':
-        return 'bg-purple-100 text-purple-800';
-      case 'misinformation':
-        return 'bg-blue-100 text-blue-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
+  const getFilteredComments = () => {
+    let filtered = reportedComments;
+    
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(comment => {
+        const hasMatchingReports = comment.reports?.some(report => {
+          if (statusFilter === 'pending') {
+            return !report.status || report.status === 'pending';
+          }
+          return report.status === statusFilter;
+        });
+        return hasMatchingReports;
+      });
     }
+    
+    return filtered;
   };
 
-  const filteredReports = reports.filter(report => {
-    if (filter === 'all') return true;
-    if (filter === 'pending') return !report.status || report.status === 'pending';
-    if (filter === 'resolved') return report.status === 'resolved';
-    return report.status?.toLowerCase() === filter;
-  });
+  const filteredPosts = getFilteredPosts();
+  const filteredComments = getFilteredComments();
 
-  if (!user?.is_admin) {
-    return (
-      <div className="text-center py-8">
-        <div className="text-red-500 text-lg font-semibold">Access Denied</div>
-        <div className="text-gray-600 mt-2">You don't have permission to access this page.</div>
-      </div>
-    );
-  }
+  // Calculate totals
+  const totalPendingReports = [
+    ...reportedPosts.flatMap(post => post.reports?.filter(r => !r.status || r.status === 'pending') || []),
+    ...reportedComments.flatMap(comment => comment.reports?.filter(r => !r.status || r.status === 'pending') || [])
+  ].length;
+
+  const totalResolvedReports = [
+    ...reportedPosts.flatMap(post => post.reports?.filter(r => r.status === 'resolved') || []),
+    ...reportedComments.flatMap(comment => comment.reports?.filter(r => r.status === 'resolved') || [])
+  ].length;
+
+  const totalReports = totalPendingReports + totalResolvedReports;
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center py-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-        <span className="ml-2 text-gray-600">Loading reports...</span>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center justify-center py-24">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-4 border-purple-200 border-t-purple-600 mx-auto mb-4"></div>
+              <span className="text-lg font-semibold text-gray-700">Loading reported content...</span>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="text-center py-8">
-        <div className="text-red-500 text-lg font-semibold">Error</div>
-        <div className="text-gray-600 mt-2">{error}</div>
-        <button
-          onClick={loadReports}
-          className="mt-4 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
-        >
-          Retry
-        </button>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center py-24">
+            <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl p-12 max-w-md mx-auto border border-red-100">
+              <AlertTriangle className="h-16 w-16 text-red-400 mx-auto mb-6" />
+              <div className="text-red-600 text-xl font-bold mb-3">Error Loading Reports</div>
+              <div className="text-gray-600 mb-6">{error}</div>
+              <button
+                onClick={loadReportedContent}
+                className="flex items-center space-x-2 mx-auto px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-xl hover:from-purple-700 hover:to-purple-800 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+              >
+                <RefreshCw className="h-4 w-4" />
+                <span>Retry</span>
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="p-6">
-      {/* Header */}
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Reported Content Management</h1>
-        <div className="text-sm text-gray-600">
-          Total Reports: {reports.length}
-        </div>
-      </div>
-
-      {/* Filter Tabs */}
-      <div className="flex space-x-1 mb-6 bg-gray-100 p-1 rounded-lg">
-        {[
-          { key: 'all', label: 'All Reports', count: reports.length },
-          { key: 'pending', label: 'Pending', count: reports.filter(r => !r.status || r.status === 'pending').length },
-          { key: 'resolved', label: 'Resolved', count: reports.filter(r => r.status?.toLowerCase() === 'resolved').length }
-        ].map(({ key, label, count }) => (
-          <button
-            key={key}
-            onClick={() => setFilter(key)}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              filter === key
-                ? 'bg-white text-purple-700 shadow-sm'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <span>{label}</span>
-            <span className={`text-xs px-2 py-1 rounded-full ${
-              filter === key ? 'bg-purple-100 text-purple-700' : 'bg-gray-200 text-gray-600'
-            }`}>
-              {count}
-            </span>
-          </button>
-        ))}
-      </div>
-
-      {/* Reports List */}
-      {filteredReports.length === 0 ? (
-        <div className="text-center py-12">
-          <Flag className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <div className="text-gray-500 text-lg">No reports found</div>
-          <div className="text-gray-400 mt-2">
-            {filter === 'all' 
-              ? 'No content has been reported yet' 
-              : `No ${filter} reports found`
-            }
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-8">
+      <div className="max-w-7xl mx-auto space-y-8">
+        {/* Header */}
+        <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl border border-white/50 p-8">
+          <div className="flex justify-between items-center">
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-900 to-slate-600 bg-clip-text text-transparent">Reported Content Management</h1>
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={loadReportedContent}
+                className="flex items-center space-x-2 px-4 py-2.5 text-slate-600 hover:text-slate-900 hover:bg-white/50 rounded-xl transition-all duration-200"
+              >
+                <RefreshCw className="h-4 w-4" />
+                <span className="font-medium">Refresh</span>
+              </button>
+              <div className="bg-gradient-to-r from-purple-100 to-blue-100 px-4 py-2.5 rounded-xl">
+                <div className="text-xs font-medium text-slate-600 uppercase tracking-wide">Total Reports</div>
+                <div className="text-lg font-bold text-slate-900">{totalReports}</div>
+              </div>
+            </div>
           </div>
         </div>
-      ) : (
-        <div className="space-y-4">
-          {filteredReports.map((report) => (
-            <div key={report.report_id} className="bg-white rounded-lg shadow-md border border-gray-200 p-6">
-              {/* Report Header */}
-              <div className="flex justify-between items-start mb-4">
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-                    <Flag className="h-5 w-5 text-red-600" />
-                  </div>
-                  <div>
-                    <div className="font-semibold text-gray-900">
-                      Report #{report.report_id}
-                    </div>
-                    <div className="text-sm text-gray-500">
-                      Reported by: {report.reporter_username || `User ${report.reporter_id}`}
-                    </div>
-                    <div className="text-xs text-gray-400">
-                      {formatDate(report.created_at)}
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Status Badge */}
-                <div className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(report.status)}`}>
-                  {report.status || 'Pending'}
-                </div>
+
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          {/* Reported Posts */}
+          <div className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl shadow-lg border border-white/50 hover:shadow-xl transition-all duration-300 hover:scale-105">
+            <div className="flex items-center space-x-4">
+              <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center">
+                <FileText className="h-6 w-6 text-blue-600" />
               </div>
-
-              {/* Report Details */}
-              <div className="grid md:grid-cols-2 gap-4 mb-4">
-                <div>
-                  <div className="text-sm font-medium text-gray-700 mb-1">Content Type</div>
-                  <div className="flex items-center space-x-2">
-                    {report.content_type === 'post' ? (
-                      <FileText className="h-4 w-4 text-blue-600" />
-                    ) : (
-                      <MessageSquare className="h-4 w-4 text-green-600" />
-                    )}
-                    <span className="text-sm text-gray-600 capitalize">
-                      {report.content_type || 'Unknown'}
-                    </span>
-                    {report.content_id && (
-                      <span className="text-xs text-gray-500">
-                        ID: {report.content_id}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                
-                <div>
-                  <div className="text-sm font-medium text-gray-700 mb-1">Reason</div>
-                  <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${getReasonColor(report.reason)}`}>
-                    {report.reason || 'Not specified'}
-                  </span>
-                </div>
+              <div>
+                <div className="text-3xl font-bold text-gray-900">{reportedPosts.length}</div>
+                <div className="text-sm font-medium text-gray-500 uppercase tracking-wide">Reported Posts</div>
               </div>
-
-              {/* Reported Content */}
-              {report.content && (
-                <div className="mb-4">
-                  <div className="text-sm font-medium text-gray-700 mb-2">Reported Content</div>
-                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
-                    <p className="text-sm text-gray-800 whitespace-pre-wrap">
-                      {report.content.length > 200 
-                        ? `${report.content.substring(0, 200)}...` 
-                        : report.content
-                      }
-                    </p>
-                    {report.author_username && (
-                      <div className="mt-2 text-xs text-gray-500">
-                        Author: {report.author_username}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Additional Details */}
-              {report.additional_info && (
-                <div className="mb-4">
-                  <div className="text-sm font-medium text-gray-700 mb-1">Additional Information</div>
-                  <p className="text-sm text-gray-600">{report.additional_info}</p>
-                </div>
-              )}
-
-              {/* Actions */}
-              {(!report.status || report.status === 'pending') && (
-                <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
-                  <button
-                    onClick={() => handleResolveReport(report.report_id, 'resolved')}
-                    disabled={processingReport === report.report_id}
-                    className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    {processingReport === report.report_id ? (
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    ) : (
-                      <Check className="h-4 w-4" />
-                    )}
-                    <span>Resolve</span>
-                  </button>
-                </div>
-              )}
-
-              {/* Resolution Info */}
-              {report.status && report.status !== 'pending' && (
-                <div className="pt-4 border-t border-gray-200">
-                  <div className="text-sm text-gray-600">
-                    Resolved by: {report.reviewed_by_username || report.reviewed_by_id || 'N/A'} 
-                    <br/>
-                    Reviewed on: {report.reviewed_on && report.reviewed_on !== 'N/A' 
-                      ? formatDate(report.reviewed_on) 
-                      : 'N/A'}
-                  </div>
-                </div>
-              )}
             </div>
-          ))}
-        </div>
-      )}
+          </div>
 
-      {/* Report Management Instructions */}
-      <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <h3 className="font-semibold text-blue-900 mb-2">Report Management Guidelines</h3>
-        <div className="text-sm text-blue-800 space-y-1">
-          <p>• <strong>Resolve:</strong> Mark the report as handled after taking appropriate action</p>
-          <p>• Reports can have status of "pending" or "resolved"</p>
-          <p>• Resolved reports may require additional actions like content removal or user warnings</p>
-          <p>• All report resolutions are logged for audit purposes with reviewer information</p>
+          {/* Reported Comments */}
+          <div className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl shadow-lg border border-white/50 hover:shadow-xl transition-all duration-300 hover:scale-105">
+            <div className="flex items-center space-x-4">
+              <div className="w-12 h-12 bg-green-100 rounded-2xl flex items-center justify-center">
+                <MessageSquare className="h-6 w-6 text-green-600" />
+              </div>
+              <div>
+                <div className="text-3xl font-bold text-gray-900">{reportedComments.length}</div>
+                <div className="text-sm font-medium text-gray-500 uppercase tracking-wide">Reported Comments</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Pending Reports */}
+          <div className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl shadow-lg border border-white/50 hover:shadow-xl transition-all duration-300 hover:scale-105">
+            <div className="flex items-center space-x-4">
+              <div className="w-12 h-12 bg-yellow-100 rounded-2xl flex items-center justify-center">
+                <Flag className="h-6 w-6 text-yellow-600" />
+              </div>
+              <div>
+                <div className="text-3xl font-bold text-gray-900">{totalPendingReports}</div>
+                <div className="text-sm font-medium text-gray-500 uppercase tracking-wide">Pending Reports</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Resolved Reports */}
+          <div className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl shadow-lg border border-white/50 hover:shadow-xl transition-all duration-300 hover:scale-105">
+            <div className="flex items-center space-x-4">
+              <div className="w-12 h-12 bg-gray-100 rounded-2xl flex items-center justify-center">
+                <Flag className="h-6 w-6 text-gray-600" />
+              </div>
+              <div>
+                <div className="text-3xl font-bold text-gray-900">{totalResolvedReports}</div>
+                <div className="text-sm font-medium text-gray-500 uppercase tracking-wide">Resolved Reports</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Improved Filter Section */}
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/50 p-8">
+          <div className="grid lg:grid-cols-3 gap-8">
+            {/* Content Type Filter (Dropdown) */}
+            <div className="space-y-4">
+              <div className="flex items-center space-x-2">
+                <div className="w-2 h-8 bg-gradient-to-b from-purple-500 to-purple-600 rounded-full"></div>
+                <label className="font-semibold text-slate-700 text-sm uppercase tracking-wider">Content Type</label>
+              </div>
+              <select
+                value={filter}
+                onChange={e => setFilter(e.target.value)}
+                className="w-full p-4 rounded-xl text-sm font-semibold bg-gray-50 text-gray-700 border border-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-500"
+              >
+                <option value="all">All Content ({reportedPosts.length + reportedComments.length})</option>
+                <option value="posts">Posts ({reportedPosts.length})</option>
+                <option value="comments">Comments ({reportedComments.length})</option>
+              </select>
+            </div>
+
+            {/* Status Filter (Dropdown) */}
+            <div className="space-y-4">
+              <div className="flex items-center space-x-2">
+                <div className="w-2 h-8 bg-gradient-to-b from-blue-500 to-blue-600 rounded-full"></div>
+                <label className="font-semibold text-slate-700 text-sm uppercase tracking-wider">Report Status</label>
+              </div>
+              <select
+                value={statusFilter}
+                onChange={e => setStatusFilter(e.target.value)}
+                className="w-full p-4 rounded-xl text-sm font-semibold bg-gray-50 text-gray-700 border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all">All Status ({totalReports})</option>
+                <option value="pending">Pending ({totalPendingReports})</option>
+                <option value="resolved">Resolved ({totalResolvedReports})</option>
+              </select>
+            </div>
+
+            {/* Bulk Actions */}
+            {statusFilter === 'pending' && totalPendingReports > 0 && (
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2">
+                  <div className="w-2 h-8 bg-gradient-to-b from-green-500 to-green-600 rounded-full"></div>
+                  <label className="font-semibold text-slate-700 text-sm uppercase tracking-wider">Bulk Actions</label>
+                </div>
+                <button
+                  onClick={handleBulkResolve}
+                  className="w-full flex items-center justify-center space-x-3 p-4 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl hover:from-green-700 hover:to-green-800 transition-all duration-300 text-sm font-semibold shadow-lg hover:shadow-xl transform hover:scale-105"
+                >
+                  <span className="text-lg">✅</span>
+                  <span>Resolve All Pending</span>
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Content Display */}
+        {totalReports === 0 ? (
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/50 p-16">
+            <div className="text-center">
+              <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Flag className="h-12 w-12 text-gray-400" />
+              </div>
+              <div className="text-2xl font-semibold text-gray-900 mb-2">No reported content found</div>
+              <div className="text-gray-500">
+                No content has been reported yet
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-8">
+            {/* Reported Posts */}
+            {(filter === 'all' || filter === 'posts') && filteredPosts.length > 0 && (
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/50 p-6">
+                <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center space-x-3">
+                  <FileText className="h-6 w-6 text-blue-600" />
+                  <span>Reported Posts ({filteredPosts.length})</span>
+                </h2>
+                <div className="space-y-4">
+                  {filteredPosts.map((post) => (
+                    <AdminReportedPostCard
+                      key={post.post_id}
+                      postData={post}
+                      onPostUpdate={handlePostUpdate}
+                      onPostDelete={handlePostDelete}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Reported Comments */}
+            {(filter === 'all' || filter === 'comments') && filteredComments.length > 0 && (
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/50 p-6">
+                <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center space-x-3">
+                  <MessageSquare className="h-6 w-6 text-green-600" />
+                  <span>Reported Comments ({filteredComments.length})</span>
+                </h2>
+                <div className="space-y-4">
+                  {filteredComments.map((comment) => (
+                    <AdminReportedCommentCard
+                      key={comment.comment_id}
+                      commentData={comment}
+                      onCommentUpdate={handleCommentUpdate}
+                      onCommentDelete={handleCommentDelete}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* No results for current filter */}
+            {((filter === 'posts' && filteredPosts.length === 0) || 
+              (filter === 'comments' && filteredComments.length === 0) ||
+              (filter === 'all' && filteredPosts.length === 0 && filteredComments.length === 0)) && (
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/50 p-16">
+                <div className="text-center">
+                  <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <Flag className="h-12 w-12 text-gray-400" />
+                  </div>
+                  <div className="text-2xl font-semibold text-gray-900 mb-2">No {filter === 'all' ? 'content' : filter} found</div>
+                  <div className="text-gray-500">
+                    No {filter === 'all' ? 'reported content' : `reported ${filter}`} matches your current filters
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Report Management Instructions */}
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl p-8">
+          <h3 className="font-bold text-blue-900 text-lg mb-3">Report Management Guidelines</h3>
+          <div className="grid md:grid-cols-2 gap-4 text-sm text-blue-800">
+            <div className="space-y-2">
+              <div className="flex items-center space-x-2">
+                <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
+                <p><strong>Posts:</strong> You can delete reported posts</p>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
+                <p><strong>Comments:</strong> You can delete reported comments</p>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center space-x-2">
+                <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
+                <p><strong>Reports:</strong> You can resolve individual reports or bulk resolve pending reports</p>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
+                <p><strong>Actions:</strong> All actions are logged and can be tracked</p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

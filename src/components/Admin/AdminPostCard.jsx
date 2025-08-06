@@ -225,7 +225,7 @@ function AdminPostCard({ post, onTogglePin, onToggleComments, onViewComments, on
                         rel="noopener noreferrer"
                         className="font-medium text-blue-900 hover:underline"
                       >
-                        {link.title || link.url}
+                        {link.url}
                       </a>
                       <p className="text-sm text-blue-600 break-all">{link.url}</p>
                     </div>

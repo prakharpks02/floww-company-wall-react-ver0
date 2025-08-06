@@ -1,6 +1,7 @@
-import React from 'react';
-import { Trash2, Heart, MessageCircle } from 'lucide-react';
+import React, { useState } from 'react';
+import { Trash2, Heart, MessageCircle, Flag } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import ReportModal from './ReportModal';
 
 const CommentReply = ({ 
   reply, 
@@ -17,6 +18,15 @@ const CommentReply = ({
   getCommentTopReactions,
   getCommentTotalReactions
 }) => {
+  const [showReportModal, setShowReportModal] = useState(false);
+  
+  // Check if current user is the reply author
+  const isReplyAuthor = user && (
+    reply.author?.user_id === user?.user_id || 
+    reply.authorId === user?.id ||
+    reply.author?.username === user?.username
+  );
+  
   // Normalize reply reactions array to object (same as comments)
   const normalizedReply = {
     ...reply,
@@ -81,16 +91,30 @@ const CommentReply = ({
                 }
               </span>
             </div>
-            {/* Delete button for reply author */}
-            {!isPublicView && (reply.author?.user_id === user?.user_id || reply.authorId === user?.id) && (
-              <button
-                onClick={() => handleDeleteReply(commentId, reply.id)}
-                className="text-gray-400 hover:text-red-600 transition-colors p-1 rounded"
-                title="Delete reply"
-              >
-                <Trash2 className="h-2 w-2" />
-              </button>
-            )}
+            {/* Action buttons for reply */}
+            <div className="flex items-center space-x-1">
+              {/* Report button for non-authors */}
+              {!isPublicView && !isReplyAuthor && (
+                <button
+                  onClick={() => setShowReportModal(true)}
+                  className="text-gray-400 hover:text-red-600 transition-colors p-1 rounded"
+                  title="Report reply"
+                >
+                  <Flag className="h-2 w-2" />
+                </button>
+              )}
+              
+              {/* Delete button for reply author */}
+              {!isPublicView && isReplyAuthor && (
+                <button
+                  onClick={() => handleDeleteReply(commentId, reply.id)}
+                  className="text-gray-400 hover:text-red-600 transition-colors p-1 rounded"
+                  title="Delete reply"
+                >
+                  <Trash2 className="h-2 w-2" />
+                </button>
+              )}
+            </div>
           </div>
           <p className="text-xs text-gray-700">{reply.content}</p>
           
@@ -269,6 +293,14 @@ const CommentReply = ({
           return null;
         })()}
       </div>
+      
+      {/* Report Modal */}
+      <ReportModal
+        isOpen={showReportModal}
+        onClose={() => setShowReportModal(false)}
+        commentId={reply.comment_id || reply.id || reply.reply_id}
+        type="comment"
+      />
     </div>
   );
 };
