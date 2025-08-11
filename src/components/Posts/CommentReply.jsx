@@ -7,6 +7,7 @@ const CommentReply = ({
   reply, 
   user,
   isPublicView,
+  isAdmin = false, // Add admin prop
   commentId,
   emojiReactions,
   handleDeleteReply,
@@ -51,11 +52,18 @@ const CommentReply = ({
       console.log('🔍 CommentReply - Using existing reactions object:', reply.reactions);
       return reply.reactions || {};
     })(),
-    content: reply.content || '',
+    content: reply.content || reply.comment || reply.text || reply.reply_content || '',
     author: reply.author?.username || reply.authorName || 'Anonymous',
     comment_id: reply.comment_id || reply.id || reply.reply_id, // Use proper reply ID
     created_at: reply.created_at || reply.timestamp
   };
+
+  // Debug logging for content
+  console.log('🔍 CommentReply - Reply data:', {
+    originalReply: reply,
+    normalizedContent: normalizedReply.content,
+    availableFields: Object.keys(reply)
+  });
 
   const handleReplyReaction = (reactionType) => {
     if (isPublicView) return;
@@ -104,8 +112,8 @@ const CommentReply = ({
                 </button>
               )}
               
-              {/* Delete button for reply author */}
-              {!isPublicView && isReplyAuthor && (
+              {/* Delete button for reply author or admin */}
+              {!isPublicView && (isReplyAuthor || isAdmin) && (
                 <button
                   onClick={() => handleDeleteReply(commentId, reply.id)}
                   className="text-gray-400 hover:text-red-600 transition-colors p-1 rounded"
@@ -116,7 +124,7 @@ const CommentReply = ({
               )}
             </div>
           </div>
-          <p className="text-xs text-gray-700">{reply.content}</p>
+          <p className="text-xs text-gray-700">{normalizedReply.content}</p>
           
           {/* Reply Actions - Same as comments */}
           <div className="flex items-center space-x-3 mt-2">

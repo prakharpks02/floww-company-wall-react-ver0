@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { adminAPI } from '../../services/adminAPI';
+import { postsAPI } from '../../services/api';
 import AdminPostCard from './AdminPostCard';
 import { Loader } from 'lucide-react';
 
@@ -153,9 +154,189 @@ const AdminAllPosts = () => {
     }
   };
 
+  const handleLike = async (postId) => {
+    try {
+      await postsAPI.toggleLike(postId);
+      // Update the post reactions in real-time
+      setPosts(prev => prev.map(post => {
+        if (post.post_id === postId) {
+          const updatedReactions = { ...post.reactions };
+          const userReacted = post.user_reaction === 'like';
+          
+          if (userReacted) {
+            // Remove like
+            updatedReactions.like = Math.max(0, (updatedReactions.like || 0) - 1);
+            return { ...post, reactions: updatedReactions, user_reaction: null };
+          } else {
+            // Add like, remove old reaction if exists
+            if (post.user_reaction) {
+              updatedReactions[post.user_reaction] = Math.max(0, (updatedReactions[post.user_reaction] || 0) - 1);
+            }
+            updatedReactions.like = (updatedReactions.like || 0) + 1;
+            return { ...post, reactions: updatedReactions, user_reaction: 'like' };
+          }
+        }
+        return post;
+      }));
+      
+      // Also update in pinned posts
+      setPinnedPosts(prev => prev.map(post => {
+        if (post.post_id === postId) {
+          const updatedReactions = { ...post.reactions };
+          const userReacted = post.user_reaction === 'like';
+          
+          if (userReacted) {
+            updatedReactions.like = Math.max(0, (updatedReactions.like || 0) - 1);
+            return { ...post, reactions: updatedReactions, user_reaction: null };
+          } else {
+            if (post.user_reaction) {
+              updatedReactions[post.user_reaction] = Math.max(0, (updatedReactions[post.user_reaction] || 0) - 1);
+            }
+            updatedReactions.like = (updatedReactions.like || 0) + 1;
+            return { ...post, reactions: updatedReactions, user_reaction: 'like' };
+          }
+        }
+        return post;
+      }));
+    } catch (error) {
+      console.error('Error liking post:', error);
+      setError(`Failed to like post: ${error.message}`);
+    }
+  };
+
+  const handleReaction = async (postId, reactionType) => {
+    try {
+      // Get the corresponding emoji for the reaction type
+      const emojiMap = {
+        'like': '👍',
+        'love': '❤️',
+        'haha': '😆',
+        'wow': '😮',
+        'sad': '😢',
+        'angry': '😠'
+      };
+      
+      await postsAPI.addReaction(postId, reactionType, emojiMap[reactionType] || '👍');
+      
+      // Update the post reactions in real-time
+      setPosts(prev => prev.map(post => {
+        if (post.post_id === postId) {
+          const updatedReactions = { ...post.reactions };
+          const userReacted = post.user_reaction === reactionType;
+          
+          if (userReacted) {
+            // Remove reaction
+            updatedReactions[reactionType] = Math.max(0, (updatedReactions[reactionType] || 0) - 1);
+            return { ...post, reactions: updatedReactions, user_reaction: null };
+          } else {
+            // Add new reaction, remove old one if exists
+            if (post.user_reaction) {
+              updatedReactions[post.user_reaction] = Math.max(0, (updatedReactions[post.user_reaction] || 0) - 1);
+            }
+            updatedReactions[reactionType] = (updatedReactions[reactionType] || 0) + 1;
+            return { ...post, reactions: updatedReactions, user_reaction: reactionType };
+          }
+        }
+        return post;
+      }));
+      
+      // Also update in pinned posts
+      setPinnedPosts(prev => prev.map(post => {
+        if (post.post_id === postId) {
+          const updatedReactions = { ...post.reactions };
+          const userReacted = post.user_reaction === reactionType;
+          
+          if (userReacted) {
+            updatedReactions[reactionType] = Math.max(0, (updatedReactions[reactionType] || 0) - 1);
+            return { ...post, reactions: updatedReactions, user_reaction: null };
+          } else {
+            if (post.user_reaction) {
+              updatedReactions[post.user_reaction] = Math.max(0, (updatedReactions[post.user_reaction] || 0) - 1);
+            }
+            updatedReactions[reactionType] = (updatedReactions[reactionType] || 0) + 1;
+            return { ...post, reactions: updatedReactions, user_reaction: reactionType };
+          }
+        }
+        return post;
+      }));
+    } catch (error) {
+      console.error('Error reacting to post:', error);
+      setError(`Failed to react to post: ${error.message}`);
+    }
+  };
+
+  const handleAddComment = async (postId, commentText, parentCommentId = null) => {
+    try {
+      let newComment;
+      if (parentCommentId) {
+        // Use the reply API for replies
+        const userId = localStorage.getItem('userId') || localStorage.getItem('user_id');
+        const userIdValue = userId ? JSON.parse(userId) : undefined;
+        newComment = await postsAPI.addCommentReply(postId, parentCommentId, userIdValue, commentText);
+      } else {
+        // Use the regular comment API for top-level comments
+        newComment = await postsAPI.addComment(postId, { content: commentText });
+      }
+      
+      // Update the post with the new comment
+      setPosts(prev => prev.map(post => {
+        if (post.post_id === postId) {
+          const updatedComments = [...(post.comments || [])];
+          if (parentCommentId) {
+            // Add as reply
+            const parentIndex = updatedComments.findIndex(c => c.comment_id === parentCommentId);
+            if (parentIndex >= 0) {
+              updatedComments[parentIndex].replies = [...(updatedComments[parentIndex].replies || []), newComment];
+            }
+          } else {
+            // Add as top-level comment
+            updatedComments.push(newComment);
+          }
+          return { ...post, comments: updatedComments };
+        }
+        return post;
+      }));
+      
+      // Also update in pinned posts
+      setPinnedPosts(prev => prev.map(post => {
+        if (post.post_id === postId) {
+          const updatedComments = [...(post.comments || [])];
+          if (parentCommentId) {
+            const parentIndex = updatedComments.findIndex(c => c.comment_id === parentCommentId);
+            if (parentIndex >= 0) {
+              updatedComments[parentIndex].replies = [...(updatedComments[parentIndex].replies || []), newComment];
+            }
+          } else {
+            updatedComments.push(newComment);
+          }
+          return { ...post, comments: updatedComments };
+        }
+        return post;
+      }));
+    } catch (error) {
+      console.error('Error adding comment:', error);
+      setError(`Failed to add comment: ${error.message}`);
+    }
+  };
+
+  const handleSharePost = async (postId) => {
+    try {
+      // Copy post URL to clipboard
+      const postUrl = `${window.location.origin}/post/${postId}`;
+      await navigator.clipboard.writeText(postUrl);
+      console.log('Post URL copied to clipboard');
+      // You could show a toast notification here
+    } catch (error) {
+      console.error('Error sharing post:', error);
+      setError(`Failed to share post: ${error.message}`);
+    }
+  };
+
   const handleDeleteComment = async (commentId) => {
     try {
-      await adminAPI.deleteComment(commentId);
+      // Use admin API to delete comment (admin can delete any comment)
+      await adminAPI.adminDeleteComment(commentId);
+      
       // Remove the comment from the posts state
       setPosts(prev => prev.map(post => ({
         ...post,
@@ -167,9 +348,77 @@ const AdminAllPosts = () => {
           return true;
         }) : []
       })));
+      
+      // Also update in pinned posts
+      setPinnedPosts(prev => prev.map(post => ({
+        ...post,
+        comments: post.comments ? post.comments.filter(comment => {
+          if (comment.comment_id === commentId) return false;
+          if (comment.replies) {
+            comment.replies = comment.replies.filter(reply => reply.comment_id !== commentId);
+          }
+          return true;
+        }) : []
+      })));
+      
+      console.log('✅ Admin comment deleted successfully:', commentId);
     } catch (error) {
-      console.error('Error deleting comment:', error);
+      console.error('❌ Admin delete comment error:', error);
       setError(`Failed to delete comment: ${error.message}`);
+    }
+  };
+
+  const handleDeleteReply = async (postId, commentId, replyId) => {
+    try {
+      // Use admin API to delete reply (admin can delete any reply)
+      await adminAPI.adminDeleteReply(postId, commentId, replyId);
+      
+      // Remove the reply from the posts state
+      setPosts(prev => prev.map(post => {
+        if (post.post_id === postId) {
+          return {
+            ...post,
+            comments: post.comments ? post.comments.map(comment => {
+              if (comment.comment_id === commentId || comment.id === commentId) {
+                return {
+                  ...comment,
+                  replies: (comment.replies || []).filter(reply => 
+                    reply.id !== replyId && reply.reply_id !== replyId
+                  )
+                };
+              }
+              return comment;
+            }) : []
+          };
+        }
+        return post;
+      }));
+      
+      // Also update in pinned posts
+      setPinnedPosts(prev => prev.map(post => {
+        if (post.post_id === postId) {
+          return {
+            ...post,
+            comments: post.comments ? post.comments.map(comment => {
+              if (comment.comment_id === commentId || comment.id === commentId) {
+                return {
+                  ...comment,
+                  replies: (comment.replies || []).filter(reply => 
+                    reply.id !== replyId && reply.reply_id !== replyId
+                  )
+                };
+              }
+              return comment;
+            }) : []
+          };
+        }
+        return post;
+      }));
+      
+      console.log('✅ Admin reply deleted successfully:', replyId);
+    } catch (error) {
+      console.error('❌ Admin delete reply error:', error);
+      setError(`Failed to delete reply: ${error.message}`);
     }
   };
 
@@ -312,8 +561,12 @@ const AdminAllPosts = () => {
             onTogglePin={handleTogglePin}
             onToggleComments={handleToggleComments}
             onDeleteComment={handleDeleteComment}
+            onDeleteReply={handleDeleteReply}
             onBlockUser={handleBlockUser}
             onDeletePost={handleDeletePost}
+            onReaction={handleReaction}
+            onAddComment={handleAddComment}
+            onSharePost={handleSharePost}
             isPinned={true}
           />
         ))}
@@ -329,8 +582,12 @@ const AdminAllPosts = () => {
               onTogglePin={handleTogglePin}
               onToggleComments={handleToggleComments}
               onDeleteComment={handleDeleteComment}
+              onDeleteReply={handleDeleteReply}
               onBlockUser={handleBlockUser}
               onDeletePost={handleDeletePost}
+              onReaction={handleReaction}
+              onAddComment={handleAddComment}
+              onSharePost={handleSharePost}
               isPinned={false}
             />
           );

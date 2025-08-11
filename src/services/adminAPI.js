@@ -385,10 +385,22 @@ getAllPosts: async (lastPostId = null) => {
   },
 
   // Resolve a report
-  resolveReport: async (reportId, userId, action = 'resolved') => {
+resolveReport: async (reportId, _userId, action = 'resolved') => {
+    // Always use user_id from localStorage
+    let userId;
+    try {
+      const stored = localStorage.getItem('userId') || localStorage.getItem('user_id');
+      if (stored) {
+        userId = JSON.parse(stored);
+      }
+    } catch (e) {
+      console.warn('⚠️ Unable to retrieve user_id from localStorage:', e.message);
+    }
+    if (!userId) {
+      throw new Error('User not logged in. Please login first.');
+    }
     const endpoint = `${API_CONFIG.BASE_URL}/admin/reports/${reportId}/resolve`;
     logApiCall('POST', endpoint, { reportId, userId, action });
-    
     try {
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
@@ -397,7 +409,6 @@ getAllPosts: async (lastPostId = null) => {
           action // 'approved' or 'rejected'
         })
       });
-      
       return await handleResponse(response);
     } catch (error) {
       console.error('❌ Resolve report error:', error.message);

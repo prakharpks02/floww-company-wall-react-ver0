@@ -5,6 +5,7 @@ import CommentReply from './CommentReply';
 const CommentsSection = ({ 
   showComments,
   isPublicView,
+  isAdmin = false, // Add admin prop
   commentText,
   setCommentText,
   handleComment,
@@ -96,6 +97,7 @@ const CommentsSection = ({
                 comment={comment}
                 user={user}
               isPublicView={isPublicView}
+              isAdmin={isAdmin}
               emojiReactions={emojiReactions}
               handleDeleteComment={handleDeleteComment}
               handleEditComment={handleEditComment}

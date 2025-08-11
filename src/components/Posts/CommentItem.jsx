@@ -8,6 +8,7 @@ const CommentItem = ({
   comment, 
   user,
   isPublicView,
+  isAdmin = false, // Add admin prop
   emojiReactions,
   handleDeleteComment,
   handleEditComment,
@@ -43,6 +44,14 @@ const CommentItem = ({
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
+
+  // Debug logging for comments and replies
+  console.log('🔍 CommentItem - Comment data:', {
+    comment,
+    hasReplies: comment.replies && comment.replies.length > 0,
+    repliesCount: comment.replies?.length || 0,
+    repliesData: comment.replies
+  });
 
   // Check if current user is the comment author
   const isCommentAuthor = user && (
@@ -171,8 +180,8 @@ const CommentItem = ({
             </button>
           )}
           
-          {/* Author menu for comment owner */}
-          {!isPublicView && isCommentAuthor && (
+          {/* Author menu for comment owner or admin */}
+          {!isPublicView && (isCommentAuthor || isAdmin) && (
             <div className="relative" ref={menuRef}>
               <button
                 onClick={() => setShowMenu(!showMenu)}
@@ -183,13 +192,17 @@ const CommentItem = ({
               
               {showMenu && (
                 <div className="absolute right-0 top-8 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-10 min-w-[120px]">
-                  <button
-                    onClick={handleEdit}
-                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
-                  >
-                    <Edit className="h-3 w-3" />
-                    Edit
-                  </button>
+                  {/* Edit option only for comment author */}
+                  {isCommentAuthor && (
+                    <button
+                      onClick={handleEdit}
+                      className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                    >
+                      <Edit className="h-3 w-3" />
+                      Edit
+                    </button>
+                  )}
+                  {/* Delete option for comment author or admin */}
                   <button
                     onClick={() => {
                       handleDelete();
@@ -447,12 +460,14 @@ const CommentItem = ({
       {/* Display Replies */}
       {comment.replies && comment.replies.length > 0 && (
         <div className="mt-3 pl-4 border-l-2 border-purple-200 space-y-2">
-          {comment.replies.map((reply) => (
+          {console.log('🔍 CommentItem - Rendering replies:', comment.replies)}
+          {comment.replies.map((reply, idx) => (
             <CommentReply
-              key={reply.comment_id}
+              key={reply.comment_id || reply.id || reply.reply_id || `reply-${idx}`}
               reply={reply}
               user={user}
               isPublicView={isPublicView}
+              isAdmin={isAdmin}
               commentId={comment.comment_id || comment.id}
               emojiReactions={emojiReactions}
               // For deleting a reply, use the same delete endpoint as comments, passing reply.comment_id

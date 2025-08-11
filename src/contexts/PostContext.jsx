@@ -1183,8 +1183,8 @@ const loadAllPosts = async (resetPagination = false) => {
             comments: p.comments.map(c => {
               // If this is a direct comment reaction
               if (!isReply && (c.id === commentId || c.comment_id === commentId)) {
-                // Create updated reactions object for comment
-                const updatedReactions = { ...c.reactions };
+                // Create updated reactions object for comment - ensure it's properly initialized
+                const updatedReactions = { ...(c.reactions || {}) };
                 
                 // First, remove user from ALL reaction types (since user can only have one reaction)
                 Object.keys(updatedReactions).forEach(reactionType => {
@@ -1196,12 +1196,15 @@ const loadAllPosts = async (resetPagination = false) => {
                     if (updatedReactions[reactionType].length === 0) {
                       delete updatedReactions[reactionType];
                     }
+                  } else if (updatedReactions[reactionType]) {
+                    // Handle non-array reaction structures by converting to array
+                    updatedReactions[reactionType] = [];
                   }
                 });
                 
                 // Add user to new reaction (unless toggling off the same reaction)
                 if (userPrevReaction !== safeReactionType) {
-                  if (!updatedReactions[safeReactionType]) {
+                  if (!updatedReactions[safeReactionType] || !Array.isArray(updatedReactions[safeReactionType])) {
                     updatedReactions[safeReactionType] = [];
                   }
                   // Add the user to the new reaction type
@@ -1220,8 +1223,8 @@ const loadAllPosts = async (resetPagination = false) => {
                   ...c,
                   replies: c.replies.map(r => {
                     if (r.id === commentId || r.comment_id === commentId) {
-                      // Create updated reactions object for reply
-                      const updatedReactions = { ...r.reactions };
+                      // Create updated reactions object for reply - ensure it's properly initialized
+                      const updatedReactions = { ...(r.reactions || {}) };
                       
                       // First, remove user from ALL reaction types
                       Object.keys(updatedReactions).forEach(reactionType => {
@@ -1233,12 +1236,15 @@ const loadAllPosts = async (resetPagination = false) => {
                           if (updatedReactions[reactionType].length === 0) {
                             delete updatedReactions[reactionType];
                           }
+                        } else if (updatedReactions[reactionType]) {
+                          // Handle non-array reaction structures by converting to array
+                          updatedReactions[reactionType] = [];
                         }
                       });
                       
                       // Add user to new reaction (unless toggling off the same reaction)
                       if (userPrevReaction !== safeReactionType) {
-                        if (!updatedReactions[safeReactionType]) {
+                        if (!updatedReactions[safeReactionType] || !Array.isArray(updatedReactions[safeReactionType])) {
                           updatedReactions[safeReactionType] = [];
                         }
                         updatedReactions[safeReactionType].push({ user_id: userId });

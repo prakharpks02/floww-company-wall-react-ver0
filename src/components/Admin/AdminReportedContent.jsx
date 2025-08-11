@@ -113,9 +113,22 @@ const AdminReportedContent = ({ activeView }) => {
   };
 
   // Filter functions
+
+  // Helper to get the latest report timestamp for a post or comment
+  const getLatestReportTimestamp = (item) => {
+    if (!item.reports || item.reports.length === 0) return 0;
+    // Try to find the latest created_at or timestamp field in reports
+    return Math.max(
+      ...item.reports.map(r => {
+        if (r.created_at) return new Date(r.created_at).getTime();
+        if (r.timestamp) return new Date(r.timestamp).getTime();
+        return 0;
+      })
+    );
+  };
+
   const getFilteredPosts = () => {
     let filtered = reportedPosts;
-    
     if (statusFilter !== 'all') {
       filtered = filtered.filter(post => {
         const hasMatchingReports = post.reports?.some(report => {
@@ -127,13 +140,12 @@ const AdminReportedContent = ({ activeView }) => {
         return hasMatchingReports;
       });
     }
-    
-    return filtered;
+    // Sort by latest report timestamp (descending)
+    return filtered.slice().sort((a, b) => getLatestReportTimestamp(b) - getLatestReportTimestamp(a));
   };
 
   const getFilteredComments = () => {
     let filtered = reportedComments;
-    
     if (statusFilter !== 'all') {
       filtered = filtered.filter(comment => {
         const hasMatchingReports = comment.reports?.some(report => {
@@ -145,8 +157,8 @@ const AdminReportedContent = ({ activeView }) => {
         return hasMatchingReports;
       });
     }
-    
-    return filtered;
+    // Sort by latest report timestamp (descending)
+    return filtered.slice().sort((a, b) => getLatestReportTimestamp(b) - getLatestReportTimestamp(a));
   };
 
   const filteredPosts = getFilteredPosts();

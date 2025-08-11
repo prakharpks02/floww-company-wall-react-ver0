@@ -107,10 +107,35 @@ export const usePostCard = (post, activeView = 'home') => {
       // Ensure other fields have fallbacks
       content: rawPost.content || rawPost.post_content || '',
       tags: rawPost.tags || [],
-      images: rawPost.images || rawPost.media || [],
-      videos: rawPost.videos || [],
-      documents: rawPost.documents || [],
-      links: rawPost.links || [],
+      // Handle media array - split into different types
+      images: (() => {
+        const images = rawPost.images || [];
+        const mediaImages = (rawPost.media || []).filter(item => 
+          item.link && (item.link.match(/\.(jpeg|jpg|gif|png)$/i) || item.type === 'image')
+        ).map(item => ({ url: item.link, name: item.name || 'Image' }));
+        return [...images, ...mediaImages];
+      })(),
+      videos: (() => {
+        const videos = rawPost.videos || [];
+        const mediaVideos = (rawPost.media || []).filter(item => 
+          item.link && (item.link.match(/\.(mp4|avi|mov|wmv)$/i) || item.type === 'video')
+        ).map(item => ({ url: item.link, name: item.name || 'Video' }));
+        return [...videos, ...mediaVideos];
+      })(),
+      documents: (() => {
+        const documents = rawPost.documents || [];
+        const mediaDocuments = (rawPost.media || []).filter(item => 
+          item.link && (item.link.match(/\.(pdf|doc|docx|xls|xlsx|ppt|pptx)$/i) || item.type === 'document')
+        ).map(item => ({ url: item.link, name: item.name || 'Document' }));
+        return [...documents, ...mediaDocuments];
+      })(),
+      links: (() => {
+        const links = rawPost.links || [];
+        const mediaLinks = (rawPost.media || []).filter(item => 
+          item.link && !item.link.match(/\.(jpeg|jpg|gif|png|mp4|avi|mov|wmv|pdf|doc|docx|xls|xlsx|ppt|pptx)$/i)
+        ).map(item => ({ url: item.link, name: item.name || 'Link' }));
+        return [...links, ...mediaLinks];
+      })(),
       mentions: rawPost.mentions || [],
       // Use comments as-is since PostContext already normalizes them
       comments: rawPost.comments || [],

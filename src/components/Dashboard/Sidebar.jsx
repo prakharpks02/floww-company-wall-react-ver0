@@ -22,6 +22,7 @@ const Sidebar = ({ filters, setFilters, onCreatePost, activeView, onViewChange }
     }).length
   }
 
+  const isAdmin = user?.is_admin;
   return (
     <>
       <style >{`
@@ -140,8 +141,9 @@ const Sidebar = ({ filters, setFilters, onCreatePost, activeView, onViewChange }
           {/* Enhanced Navigation */}
           <nav className="space-y-2 mb-6">
             {[
-              { view: "home", label: "Home Feed", icon: Home },
-              { view: "broadcast", label: "Broadcast", icon: Megaphone },
+              // Only show Home Feed if not admin
+              ...(!isAdmin ? [{ view: "home", label: "Home Feed", icon: Home }] : []),
+              { view: "broadcast", label: "Community Broadcast", icon: Megaphone },
               { view: "myposts", label: "My Posts", icon: FileText },
             ].map(({ view, label, icon: Icon }) => {
               const isActive = activeView === view
@@ -199,7 +201,7 @@ const Sidebar = ({ filters, setFilters, onCreatePost, activeView, onViewChange }
                   { view: "admin-posts", label: "All Posts", icon: FileText },
                   { view: "admin-users", label: "Blocked Users", icon: Ban },
                   { view: "admin-reports", label: "Reported Content", icon: Flag },
-                  { view: "admin-broadcast", label: "Broadcast Message", icon: Megaphone },
+                  { view: "admin-broadcast", label: "Create Broadcast", icon: Megaphone },
                 ].map(({ view, label, icon: Icon }) => {
                   const isActive = activeView === view
                   return (

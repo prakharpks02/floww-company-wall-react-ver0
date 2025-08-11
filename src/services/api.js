@@ -1279,12 +1279,84 @@ export const adminAPI = {
       console.error('❌ Get blocked users error:', error.message);
       throw error;
     }
+  },
+
+  // Admin delete comment (admin can delete any comment)
+  adminDeleteComment: async (commentId) => {
+    const endpoint = `${API_CONFIG.BASE_URL}/admin/comments/${commentId}/delete`;
+    
+    try {
+      const userId = userAPI.getCurrentUserId();
+      if (!userId) {
+        throw new Error('User not logged in');
+      }
+
+      const requestBody = {
+        admin_id: userId  // Use admin_id for admin operations
+      };
+
+      console.log('🔍 API adminDeleteComment:', {
+        commentId,
+        userId,
+        requestBody,
+        endpoint
+      });
+      
+      logApiCall('POST', endpoint, requestBody);
+      
+      const response = await fetchWithTimeout(endpoint, {
+        method: 'POST',
+        body: JSON.stringify(requestBody)
+      });
+      
+      const result = await handleResponse(response);
+      console.log('✅ Admin comment deleted successfully:', commentId);
+      return result;
+    } catch (error) {
+      console.error('❌ Admin delete comment error:', error.message);
+      throw error;
+    }
+  },
+
+  // Admin delete reply (admin can delete any reply)
+  adminDeleteReply: async (postId, commentId, replyId) => {
+    const endpoint = `${API_CONFIG.BASE_URL}/admin/posts/${postId}/comments/${commentId}/replies/${replyId}/delete`;
+    
+    try {
+      const userId = userAPI.getCurrentUserId();
+      if (!userId) {
+        throw new Error('User not logged in');
+      }
+
+      const requestBody = {
+        admin_id: userId  // Use admin_id for admin operations
+      };
+
+      console.log('🔍 API adminDeleteReply:', {
+        postId,
+        commentId,
+        replyId,
+        userId,
+        requestBody,
+        endpoint
+      });
+      
+      logApiCall('POST', endpoint, requestBody);
+      
+      const response = await fetchWithTimeout(endpoint, {
+        method: 'POST',
+        body: JSON.stringify(requestBody)
+      });
+      
+      const result = await handleResponse(response);
+      console.log('✅ Admin reply deleted successfully:', replyId);
+      return result;
+    } catch (error) {
+      console.error('❌ Admin delete reply error:', error.message);
+      throw error;
+    }
   }
 };
-
-
-
-
 
 // =============================================================================
 // UTILITY APIs
