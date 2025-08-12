@@ -11,7 +11,11 @@ const PostHeader = ({
   setShowEditModal, 
   setShowConfirmDelete, 
   setShowReportModal, 
-  setShowBlockModal 
+  setShowBlockModal,
+  // Admin props for broadcasts
+  isAdminView = false,
+  onAdminEdit,
+  onAdminDelete
 }) => {
   return (
     <div className="flex items-start justify-between mb-4">
@@ -67,6 +71,29 @@ const PostHeader = ({
                   >
                     <Trash2 className="h-4 w-4" />
                     <span>Delete</span>
+                  </button>
+                </>
+              ) : isAdminView && post.isBroadcast && onAdminEdit && onAdminDelete ? (
+                <>
+                  <button
+                    onClick={() => {
+                      onAdminEdit();
+                      setShowMenu(false);
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 flex items-center space-x-2"
+                  >
+                    <Edit3 className="h-4 w-4" />
+                    <span>Edit Broadcast</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      onAdminDelete();
+                      setShowMenu(false);
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    <span>Delete Broadcast</span>
                   </button>
                 </>
               ) : (

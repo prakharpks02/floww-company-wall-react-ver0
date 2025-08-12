@@ -14,7 +14,17 @@ import PostActions from './PostActions';
 import CommentsSection from './CommentsSection';
 import PostModals from './PostModals';
 
-const PostCard = ({ post, showAuthorInfo = true, isPublicView = false, activeView = 'home', showOptimisticState = false }) => {
+const PostCard = ({ 
+  post, 
+  showAuthorInfo = true, 
+  isPublicView = false, 
+  activeView = 'home', 
+  showOptimisticState = false,
+  // Admin props for broadcasts
+  isAdminView = false,
+  onAdminEdit,
+  onAdminDelete
+}) => {
   const {
     // State
     normalizedPost,
@@ -264,6 +274,10 @@ const PostCard = ({ post, showAuthorInfo = true, isPublicView = false, activeVie
         setShowConfirmDelete={setShowConfirmDelete}
         setShowReportModal={setShowReportModal}
         setShowBlockModal={setShowBlockModal}
+        // Admin props for broadcasts
+        isAdminView={isAdminView}
+        onAdminEdit={onAdminEdit}
+        onAdminDelete={onAdminDelete}
       />
 
       {/* Tags */}
