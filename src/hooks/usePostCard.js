@@ -91,6 +91,15 @@ export const usePostCard = (post, activeView = 'home') => {
     
     const normalized = {
       ...rawPost,
+      // Preserve the complete author object while ensuring fallbacks for display fields
+      author: rawPost.author ? {
+        ...rawPost.author,
+        // Ensure display fields have fallbacks but keep all original data
+        username: rawPost.author.username || rawPost.author.name,
+        name: rawPost.author.name || rawPost.author.username,
+        // Keep is_blocked status as-is from the backend
+        is_blocked: rawPost.author.is_blocked
+      } : null,
       // Use backend author data if available, otherwise fall back to current user data
       authorName: rawPost.author?.username || rawPost.authorName || rawPost.author_name || rawPost.username || 
                   (isCurrentUserPost ? (user?.name || user?.username) : 'Unknown User'),

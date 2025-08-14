@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { adminAPI } from '../../services/adminAPI';
 import { adminAPI as regularAdminAPI } from '../../services/api';
-import { Ban, Check, User, Mail, Calendar, AlertTriangle } from 'lucide-react';
+import { Ban, Check, User, Mail, Calendar, AlertTriangle, UserCheck } from 'lucide-react';
+import Alert, { useAlert } from '../UI/Alert';
 
 const AdminBlockedUsers = () => {
   const { user } = useAuth();
@@ -10,6 +11,7 @@ const AdminBlockedUsers = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [processingUser, setProcessingUser] = useState(null);
+  const { showSuccess, showError, showWarning, AlertContainer } = useAlert();
 
   useEffect(() => {
     if (user?.is_admin) {
@@ -37,10 +39,6 @@ const AdminBlockedUsers = () => {
   };
 
   const handleToggleBlock = async (userId) => {
-    if (!window.confirm('Are you sure you want to unblock this user?')) {
-      return;
-    }
-
     try {
       setProcessingUser(userId);
       const response = await adminAPI.toggleBlockUser(userId);
@@ -48,11 +46,12 @@ const AdminBlockedUsers = () => {
       if (response.status === 'success') {
         // Reload users to update the display after successful unblock
         await loadUsers();
+        showSuccess('User Unblocked', 'User has been successfully unblocked and can now fully access the platform.');
       } else {
-        alert(response.message || 'Failed to unblock user');
+        showError('Unblock Failed', response.message || 'Failed to unblock user. Please try again.');
       }
     } catch (err) {
-      alert(err.message || 'Failed to unblock user');
+      showError('Unblock Error', err.message || 'An error occurred while trying to unblock the user.');
     } finally {
       setProcessingUser(null);
     }
@@ -68,9 +67,13 @@ const AdminBlockedUsers = () => {
 
   if (!user?.is_admin) {
     return (
-      <div className="text-center py-8">
-        <div className="text-red-500 text-lg font-semibold">Access Denied</div>
-        <div className="text-gray-600 mt-2">You don't have permission to access this page.</div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Alert
+          type="error"
+          title="Access Denied"
+          message="You don't have permission to access this page."
+          className="max-w-md"
+        />
       </div>
     );
   }
@@ -86,15 +89,22 @@ const AdminBlockedUsers = () => {
 
   if (error) {
     return (
-      <div className="text-center py-8">
-        <div className="text-red-500 text-lg font-semibold">Error</div>
-        <div className="text-gray-600 mt-2">{error}</div>
-        <button
-          onClick={loadUsers}
-          className="mt-4 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
-        >
-          Retry
-        </button>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="max-w-md w-full space-y-4">
+          <Alert
+            type="error"
+            title="Error Loading Users"
+            message={error}
+          />
+          <div className="flex justify-center">
+            <button
+              onClick={loadUsers}
+              className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
+            >
+              Retry Loading
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -155,17 +165,19 @@ const AdminBlockedUsers = () => {
                   <button
                     onClick={() => handleToggleBlock(blockedUser.user_id || blockedUser.id)}
                     disabled={processingUser === (blockedUser.user_id || blockedUser.id)}
-                    className="ml-4 flex items-center space-x-1 px-3 py-1 bg-gradient-to-r from-green-500 to-green-600 text-white rounded hover:from-green-600 hover:to-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs font-semibold"
+                    className="ml-4 flex items-center space-x-1 px-3 py-1 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs font-semibold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+                    title="Unblock this user"
+                    aria-label={`Unblock user ${blockedUser.name}`}
                   >
                     {processingUser === (blockedUser.user_id || blockedUser.id) ? (
                       <>
                         <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
-                        <span>...</span>
+                        <span>Unblocking...</span>
                       </>
                     ) : (
                       <>
-                        <Check className="h-3 w-3" />
-                        <span>Unblock</span>
+                        <UserCheck className="h-3 w-3" />
+                        <span>Unblock User</span>
                       </>
                     )}
                   </button>
@@ -185,6 +197,9 @@ const AdminBlockedUsers = () => {
           </div>
         </div>
       </div>
+      
+      {/* Alert Container for Notifications */}
+      <AlertContainer />
     </div>
   );
 };

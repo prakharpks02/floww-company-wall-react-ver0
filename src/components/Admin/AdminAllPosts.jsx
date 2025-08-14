@@ -426,72 +426,96 @@ const AdminAllPosts = () => {
     try {
       console.log('🔍 Blocking/Unblocking user:', userId);
       
+      // Find current user status before toggling
+      const currentUser = posts.find(post => post.author?.user_id === userId)?.author;
+      console.log('🔍 Current user before toggle:', currentUser);
+      
+      // Optimistic update - toggle the status immediately for better UX
+      const currentBlockedStatus = currentUser?.is_blocked === true || currentUser?.is_blocked === "true";
+      const optimisticNewStatus = !currentBlockedStatus;
+      
+      console.log('🔍 Optimistic update - Current status:', currentBlockedStatus, '-> New status:', optimisticNewStatus);
+      
+      // Update UI immediately (optimistic update)
+      const updateUserStatus = (posts, newStatus) => posts.map(post => ({
+        ...post,
+        author: post.author?.user_id === userId 
+          ? { ...post.author, is_blocked: newStatus }
+          : post.author,
+        comments: post.comments ? post.comments.map(comment => ({
+          ...comment,
+          author: comment.author?.user_id === userId
+            ? { ...comment.author, is_blocked: newStatus }
+            : comment.author,
+          replies: comment.replies ? comment.replies.map(reply => ({
+            ...reply,
+            author: reply.author?.user_id === userId
+              ? { ...reply.author, is_blocked: newStatus }
+              : reply.author
+          })) : []
+        })) : []
+      }));
+      
+      // Apply optimistic update
+      setPosts(prev => updateUserStatus(prev, optimisticNewStatus));
+      setPinnedPosts(prev => updateUserStatus(prev, optimisticNewStatus));
+      
       const result = await adminAPI.toggleBlockUser(userId);
       console.log('🔍 Toggle block result:', result);
       
       // Handle the response - the backend should return the new status
-      // Convert string "true"/"false" to boolean for consistency
-      let newBlockedStatus;
+      let serverBlockedStatus;
       if (result.is_blocked !== undefined) {
-        newBlockedStatus = result.is_blocked === true || result.is_blocked === "true";
+        serverBlockedStatus = result.is_blocked === true || result.is_blocked === "true";
       } else if (result.new_status !== undefined) {
-        newBlockedStatus = result.new_status === true || result.new_status === "true";
+        serverBlockedStatus = result.new_status === true || result.new_status === "true";
       } else {
-        // If no status returned, refresh the posts to get updated data
-        console.log('⚠️ No status returned, refreshing posts...');
-        await loadPosts();
+        console.log('⚠️ No status returned, keeping optimistic update');
+        const action = optimisticNewStatus ? 'blocked' : 'unblocked';
+        console.log(`✅ User ${userId} has been ${action} successfully (optimistic)`);
         return;
       }
       
-      console.log('🔍 New blocked status (boolean):', newBlockedStatus);
+      console.log('🔍 Server blocked status:', serverBlockedStatus);
       
-      // Update the user's blocked status in all posts based on server response
-      setPosts(prev => prev.map(post => ({
-        ...post,
-        author: post.author?.user_id === userId 
-          ? { ...post.author, is_blocked: newBlockedStatus }
-          : post.author,
-        comments: post.comments ? post.comments.map(comment => ({
-          ...comment,
-          author: comment.author?.user_id === userId
-            ? { ...comment.author, is_blocked: newBlockedStatus }
-            : comment.author,
-          replies: comment.replies ? comment.replies.map(reply => ({
-            ...reply,
-            author: reply.author?.user_id === userId
-              ? { ...reply.author, is_blocked: newBlockedStatus }
-              : reply.author
-          })) : []
-        })) : []
-      })));
-      
-      // Also update in pinned posts
-      setPinnedPosts(prev => prev.map(post => ({
-        ...post,
-        author: post.author?.user_id === userId 
-          ? { ...post.author, is_blocked: newBlockedStatus }
-          : post.author,
-        comments: post.comments ? post.comments.map(comment => ({
-          ...comment,
-          author: comment.author?.user_id === userId
-            ? { ...comment.author, is_blocked: newBlockedStatus }
-            : comment.author,
-          replies: comment.replies ? comment.replies.map(reply => ({
-            ...reply,
-            author: reply.author?.user_id === userId
-              ? { ...reply.author, is_blocked: newBlockedStatus }
-              : reply.author
-          })) : []
-        })) : []
-      })));
+      // If server response differs from optimistic update, correct it
+      if (serverBlockedStatus !== optimisticNewStatus) {
+        console.log('🔄 Correcting optimistic update with server response');
+        setPosts(prev => updateUserStatus(prev, serverBlockedStatus));
+        setPinnedPosts(prev => updateUserStatus(prev, serverBlockedStatus));
+      }
       
       // Show success message
-      const action = newBlockedStatus ? 'blocked' : 'unblocked';
+      const action = serverBlockedStatus ? 'blocked' : 'unblocked';
       console.log(`✅ User ${userId} has been ${action} successfully`);
       
     } catch (error) {
       console.error('Error blocking user:', error);
       setError(`Failed to toggle user block status: ${error.message}`);
+      
+      // Revert optimistic update on error
+      const revertStatus = currentUser?.is_blocked === true || currentUser?.is_blocked === "true";
+      const updateUserStatus = (posts, newStatus) => posts.map(post => ({
+        ...post,
+        author: post.author?.user_id === userId 
+          ? { ...post.author, is_blocked: newStatus }
+          : post.author,
+        comments: post.comments ? post.comments.map(comment => ({
+          ...comment,
+          author: comment.author?.user_id === userId
+            ? { ...comment.author, is_blocked: newStatus }
+            : comment.author,
+          replies: comment.replies ? comment.replies.map(reply => ({
+            ...reply,
+            author: reply.author?.user_id === userId
+              ? { ...reply.author, is_blocked: newStatus }
+              : reply.author
+          })) : []
+        })) : []
+      }));
+      
+      setPosts(prev => updateUserStatus(prev, revertStatus));
+      setPinnedPosts(prev => updateUserStatus(prev, revertStatus));
     }
   };
 
@@ -556,7 +580,7 @@ const AdminAllPosts = () => {
         {/* Pinned posts always on top, unique keys */}
         {pinnedPosts.map((post) => (
           <AdminPostCard
-            key={`pinned-${post.post_id}`}
+            key={`pinned-${post.post_id}-${post.author?.is_blocked || 'unblocked'}`}
             post={post}
             onTogglePin={handleTogglePin}
             onToggleComments={handleToggleComments}
@@ -574,10 +598,10 @@ const AdminAllPosts = () => {
         {posts.filter(
           (post) => !pinnedPosts.some((p) => p.post_id === post.post_id)
         ).map((post) => {
-          console.log('Rendering post:', post.post_id, post);
+          console.log('Rendering post:', post.post_id, 'Author blocked:', post.author?.is_blocked);
           return (
             <AdminPostCard
-              key={`post-${post.post_id}`}
+              key={`post-${post.post_id}-${post.author?.is_blocked || 'unblocked'}`}
               post={post}
               onTogglePin={handleTogglePin}
               onToggleComments={handleToggleComments}

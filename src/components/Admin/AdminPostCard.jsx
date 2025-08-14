@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { ExternalLink, Image, Pin, MessageSquareOff, UserX, Trash2, MoreHorizontal } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { ExternalLink, Image, Pin, MessageSquareOff, UserX, UserCheck, Trash2, MoreHorizontal } from 'lucide-react';
 import { usePostCard } from '../../hooks/usePostCard';
 import CreatePost from '../Posts/CreatePost';
 import VideoPlayer from '../Media/VideoPlayer';
@@ -92,6 +92,17 @@ const AdminPostCard = ({
     getTotalComments,
     hasUserReacted
   } = usePostCard(post, 'admin');
+
+  // Memoize block status to ensure re-renders when it changes
+  const isUserBlocked = useMemo(() => {
+    const blocked = normalizedPost.author?.is_blocked === true || normalizedPost.author?.is_blocked === "true";
+    console.log('🔍 AdminPostCard - Block status check:', {
+      authorId: normalizedPost.author?.user_id,
+      isBlocked: normalizedPost.author?.is_blocked,
+      computed: blocked
+    });
+    return blocked;
+  }, [normalizedPost.author?.is_blocked, normalizedPost.author?.user_id]);
 
   // Override handlers with admin-specific ones
   const adminHandleLike = () => {
@@ -300,6 +311,13 @@ const AdminPostCard = ({
 
   // Custom admin header with admin actions
   const renderAdminHeader = () => {
+    // Debug log to check author object structure
+    console.log('🔍 AdminPostCard - Author object:', {
+      rawAuthor: post.author,
+      normalizedAuthor: normalizedPost.author,
+      isBlocked: normalizedPost.author?.is_blocked
+    });
+
     return (
       <div className="flex items-center justify-between mb-4">
         {/* Custom header without PostHeader's menu */}
@@ -357,15 +375,28 @@ const AdminPostCard = ({
                 </button>
                 {normalizedPost.author && (
                   <button
-                    onClick={() => { onBlockUser(normalizedPost.author.user_id); setShowMenu(false); }}
-                    className={`w-full px-4 py-2 text-sm flex flex-row-reverse items-center gap-2 font-medium justify-end ${
-                      normalizedPost.author.is_blocked
-                        ? 'text-orange-600 hover:bg-orange-50'
-                        : 'text-orange-600 hover:bg-orange-50'
+                    onClick={() => { 
+                      console.log('🔍 Block button clicked for user:', {
+                        userId: normalizedPost.author.user_id,
+                        author: normalizedPost.author,
+                        isBlocked: normalizedPost.author.is_blocked,
+                        computed: isUserBlocked
+                      });
+                      onBlockUser(normalizedPost.author.user_id); 
+                      setShowMenu(false); 
+                    }}
+                    className={`w-full px-4 py-2 text-sm flex flex-row-reverse items-center gap-2 font-medium justify-end transition-colors ${
+                      isUserBlocked
+                        ? 'text-green-600 hover:bg-green-50'
+                        : 'text-red-600 hover:bg-red-50'
                     }`}
                   >
-                    <UserX className="h-4 w-4" />
-                    {normalizedPost.author.is_blocked ? 'Unblock user' : 'Block user'}
+                    {isUserBlocked ? (
+                      <UserCheck className="h-4 w-4" />
+                    ) : (
+                      <UserX className="h-4 w-4" />
+                    )}
+                    {isUserBlocked ? 'Unblock user' : 'Block user'}
                   </button>
                 )}
                 <button

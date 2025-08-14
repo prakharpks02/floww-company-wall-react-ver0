@@ -5,6 +5,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { usePost } from '../../contexts/PostContext';
 import { adminAPI } from '../../services/adminAPI';
 import { mediaAPI } from '../../services/api';
+import Alert, { useAlert } from '../UI/Alert';
 import {
   Megaphone,
   Send,
@@ -35,7 +36,7 @@ const AdminBroadcastMessage = () => {
   const [showLinkInput, setShowLinkInput] = useState(false);
   const [showMentions, setShowMentions] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
+  const { showSuccess, showError, showWarning, AlertContainer } = useAlert();
 
   const fileInputRef = useRef(null);
   const videoInputRef = useRef(null);
@@ -94,7 +95,7 @@ const AdminBroadcastMessage = () => {
         console.error('Failed to upload image:', error);
         // Remove failed upload
         setImages(prev => prev.filter(img => img.id !== tempId));
-        alert(`Failed to upload ${file.name}. Please try again.`);
+        showError('Upload Failed', `Failed to upload ${file.name}. Please try again.`);
       }
     }
   };
@@ -129,7 +130,7 @@ const AdminBroadcastMessage = () => {
         console.error('Failed to upload video:', error);
         // Remove failed upload
         setVideos(prev => prev.filter(vid => vid.id !== tempId));
-        alert(`Failed to upload ${file.name}. Please try again.`);
+        showError('Upload Failed', `Failed to upload ${file.name}. Please try again.`);
       }
     }
   };
@@ -166,7 +167,7 @@ const AdminBroadcastMessage = () => {
         console.error('Failed to upload document:', error);
         // Remove failed upload
         setDocuments(prev => prev.filter(doc => doc.id !== tempId));
-        alert(`Failed to upload ${file.name}. Please try again.`);
+        showError('Upload Failed', `Failed to upload ${file.name}. Please try again.`);
       }
     }
   };
@@ -228,7 +229,7 @@ const AdminBroadcastMessage = () => {
     // Check if content has meaningful text (strip HTML tags for validation)
     const textContent = content.replace(/<[^>]*>/g, '').trim();
     if (!textContent) {
-      alert('Please enter some content for your broadcast message.');
+      showWarning('Content Required', 'Please enter some content for your broadcast message.');
       return;
     }
 
@@ -238,7 +239,7 @@ const AdminBroadcastMessage = () => {
                              documents.some(doc => doc.isUploading);
     
     if (hasUploadingFiles) {
-      alert('Please wait for all files to finish uploading before sending the broadcast.');
+      showWarning('Upload in Progress', 'Please wait for all files to finish uploading before sending the broadcast.');
       return;
     }
 
@@ -275,13 +276,12 @@ const AdminBroadcastMessage = () => {
         setDocuments([]);
         setLinks([]);
         
-        // Hide success message after 3 seconds
-        setTimeout(() => setSuccess(false), 3000);
+        showSuccess('Broadcast Sent', 'Your broadcast message has been sent successfully to all users!');
       } else {
-        alert(response.message || 'Failed to send broadcast message');
+        showError('Broadcast Failed', response.message || 'Failed to send broadcast message. Please try again.');
       }
     } catch (err) {
-      alert(err.message || 'Failed to send broadcast message');
+      showError('Broadcast Error', err.message || 'An error occurred while sending the broadcast message.');
     } finally {
       setLoading(false);
     }
@@ -289,9 +289,13 @@ const AdminBroadcastMessage = () => {
 
   if (!user?.is_admin) {
     return (
-      <div className="text-center py-8">
-        <div className="text-red-500 text-lg font-semibold">Access Denied</div>
-        <div className="text-gray-600 mt-2">You don't have permission to access this page.</div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Alert
+          type="error"
+          title="Access Denied"
+          message="You don't have permission to access this page."
+          className="max-w-md"
+        />
       </div>
     );
   }
@@ -308,18 +312,6 @@ const AdminBroadcastMessage = () => {
           <p className="text-gray-600">Send announcements to all users</p>
         </div>
       </div>
-
-      {/* Success Message */}
-      {success && (
-        <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
-          <div className="flex items-center space-x-2">
-            <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
-              <div className="w-2 h-2 bg-white rounded-full"></div>
-            </div>
-            <span className="text-green-800 font-medium">Broadcast message sent successfully!</span>
-          </div>
-        </div>
-      )}
 
       {/* Broadcast Form */}
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -776,6 +768,9 @@ const AdminBroadcastMessage = () => {
           <p>• All broadcast messages are logged for audit purposes</p>
         </div>
       </div>
+      
+      {/* Alert Container for Notifications */}
+      <AlertContainer />
     </div>
   );
 };
