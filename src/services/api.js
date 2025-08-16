@@ -305,7 +305,14 @@ export const postsAPI = {
         author_id: userId,
         content: postData.content,
         ...(postData.media && postData.media.length > 0 && { media: postData.media }),
-        ...(postData.mentions && postData.mentions.length > 0 && { mentions: postData.mentions }),
+        ...(postData.mentions && postData.mentions.length > 0 && { 
+          // Ensure backend receives only usernames (strings) for mentions
+          mentions: postData.mentions.map(m => {
+            if (typeof m === 'string') return m;
+            if (m && typeof m === 'object') return m.username || m.user_id || '';
+            return String(m);
+          }).filter(Boolean)
+        }),
         // Process tags to extract just the tag names, not the nested objects
         ...(postData.tags && postData.tags.length > 0 && { 
           tags: postData.tags.map(tag => {
@@ -323,6 +330,7 @@ export const postsAPI = {
 
       console.log('🔍 API createPost - Original tags:', postData.tags);
       console.log('🔍 API createPost - Processed tags:', requestBody.tags);
+      console.log('🔍 API createPost - Processed mentions (usernames only):', requestBody.mentions);
 
       logApiCall('POST', endpoint, requestBody);
 
@@ -517,7 +525,14 @@ export const postsAPI = {
         });
         return { media: allMedia };
       })(),
-      ...(updateData.mentions && { mentions: updateData.mentions })
+      ...(updateData.mentions && { 
+        // Ensure backend receives only usernames (strings) for mentions
+        mentions: (Array.isArray(updateData.mentions) ? updateData.mentions : [updateData.mentions]).map(m => {
+          if (typeof m === 'string') return m;
+          if (m && typeof m === 'object') return m.username || m.user_id || '';
+          return String(m);
+        }).filter(Boolean)
+      })
     };
     
     // console.log('🔍 API updatePost - Original data:', updateData);
