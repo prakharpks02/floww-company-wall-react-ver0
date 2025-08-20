@@ -2,17 +2,64 @@
 // API CONFIGURATION
 // =============================================================================
 
-const API_CONFIG = {
-  BASE_URL: 'http://localhost:8000/api/wall',
-  TIMEOUT: 10000, // 10 seconds
-  HEADERS: {
-    'Content-Type': 'application/json',
+import Cookies from "js-cookie";
+
+// Get authentication token based on environment
+const getAuthToken = () => {
+  if (typeof window !== 'undefined') {
+    if (window.location.hostname === "localhost") {
+      // Use hardcoded token for localhost development
+      return "99f5c17fe3b5c866c94a132e9b781185651201eb80569326a893e5ecf3e7f448";
+    } else {
+      // Use token from cookies for production/staging
+      return Cookies.get("floww-employee-token");
+    }
   }
+  // Fallback for SSR or Node.js environment
+  return "99f5c17fe3b5c866c94a132e9b781185651201eb80569326a893e5ecf3e7f448";
+};
+
+// Store token in cookies (useful for production environments)
+const storeTokenInCookies = (token) => {
+  if (typeof window !== 'undefined') {
+    Cookies.set("floww-employee-token", token, {
+      expires: 30, // 30 days
+      secure: window.location.protocol === 'https:',
+      sameSite: 'strict'
+    });
+    console.log('✅ Token stored in cookies successfully');
+  }
+};
+
+const FLOWW_EMPLOYEE_TOKEN = getAuthToken();
+
+const API_CONFIG = {
+  BASE_URL: 'https://dev.gofloww.co/api/wall',
+  TIMEOUT: 10000, // 10 seconds
 };
 
 // =============================================================================
 // UTILITY FUNCTIONS
 // =============================================================================
+
+// Helper function to check authentication and redirect if needed
+const checkAuthToken = () => {
+  const currentToken = getAuthToken();
+  if (!currentToken) {
+    console.warn('⚠️ No authentication token found');
+    if (typeof window !== 'undefined') {
+      if (window.location.hostname === "localhost") {
+        console.error('❌ Missing token for localhost development');
+        throw new Error('Missing authentication token for localhost development');
+      } else {
+        console.warn('⚠️ Redirecting to Floww authentication');
+        window.location.href = 'https://dev.gofloww.co';
+        throw new Error('Missing authentication token. Redirecting...');
+      }
+    }
+  }
+  return currentToken;
+};
 
 // Helper function to handle API responses
 const handleResponse = async (response) => {
@@ -32,19 +79,34 @@ const handleResponse = async (response) => {
   return data;
 };
 
-// Helper function to create fetch requests with timeout
+// Helper function to create fetch requests with timeout and authentication
 const fetchWithTimeout = async (url, options = {}) => {
+  // Get fresh token for each request and check authentication
+  const currentToken = checkAuthToken();
+  
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT);
+  
+  // Handle headers properly for different request types
+  let headers = {
+    'Authorization': currentToken,
+  };
+  
+  // Only set Content-Type for non-FormData requests
+  if (!(options.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json';
+  }
+  
+  // Merge with any additional headers provided
+  if (options.headers) {
+    headers = { ...headers, ...options.headers };
+  }
   
   try {
     const response = await fetch(url, {
       ...options,
       signal: controller.signal,
-      headers: {
-        ...API_CONFIG.HEADERS,
-        ...options.headers
-      }
+      headers
     });
     
     clearTimeout(timeoutId);
@@ -130,135 +192,38 @@ const StorageManager = {
 };
 
 // =============================================================================
-// USER MANAGEMENT APIs
+// USER MANAGEMENT APIs - Simplified for Token Authentication
 // =============================================================================
 export const userAPI = {
-  // Create new user
-  createUser: async (userData) => {
-    const endpoint = `${API_CONFIG.BASE_URL}/create_user`;
-    logApiCall('POST', endpoint, userData);
-    
-    try {
-      const response = await fetchWithTimeout(endpoint, {
-        method: 'POST',
-        body: JSON.stringify({
-          username: userData.username,
-          email: userData.email
-        })
-      });
-      
-      const result = await handleResponse(response);
-      
-      // Store user_id and session data
-      if (result.user_id) {
-        StorageManager.setItem(StorageManager.KEYS.USER_ID, result.user_id);
-        StorageManager.setItem(StorageManager.KEYS.USER_SESSION, {
-          user_id: result.user_id,
-          username: userData.username,
-          email: userData.email,
-          created_at: new Date().toISOString()
-        });
-        
-        console.log('✅ User created and stored:', result.user_id);
-      }
-      
-      return result;
-    } catch (error) {
-      console.error('❌ Create user error:', error.message);
-      throw error;
-    }
+  // Check if user is authenticated (token-based)
+  isAuthenticated: () => {
+    return !!getAuthToken();
   },
 
-  // Login user
-  login: async (loginData) => {
-    const endpoint = `${API_CONFIG.BASE_URL}/login`;
-    logApiCall('POST', endpoint, loginData);
-    
-    try {
-      const response = await fetchWithTimeout(endpoint, {
-        method: 'POST',
-        body: JSON.stringify(loginData)
-      });
-      
-      const result = await handleResponse(response);
-      
-      // Store user session data
-      if (result.user_id || result.id) {
-        const userId = result.user_id || result.id;
-        StorageManager.setItem(StorageManager.KEYS.USER_ID, userId);
-        StorageManager.setItem(StorageManager.KEYS.USER_SESSION, {
-          user_id: userId,
-          username: result.username || loginData.username,
-          email: result.email || loginData.email,
-          logged_in_at: new Date().toISOString()
-        });
-        
-        console.log('✅ User logged in and stored:', userId);
-      }
-      
-      return result;
-    } catch (error) {
-      console.error('❌ Login error:', error.message);
-      throw error;
-    }
-  },
-
-  // Logout user
-  logout: async () => {
-    try {
-      // Could call backend logout endpoint here if needed
-      // const endpoint = `${API_CONFIG.BASE_URL}/logout`;
-      // await fetchWithTimeout(endpoint, { method: 'POST' });
-      
-      StorageManager.clearUserData();
-      console.log('✅ User logged out successfully');
-      return { success: true };
-    } catch (error) {
-      console.error('❌ Logout error:', error.message);
-      // Still clear local data even if backend call fails
-      StorageManager.clearUserData();
-      throw error;
-    }
-  },
-
-  // Get current user ID from storage
+  // Get current user status (always returns true with token auth)
   getCurrentUserId: () => {
-    return StorageManager.getItem(StorageManager.KEYS.USER_ID);
+    return 'authenticated_user'; // Backend handles actual user identification
   },
 
-  // Get full user session from storage
+  // Get user session (simplified for token auth)
   getUserSession: () => {
-    return StorageManager.getItem(StorageManager.KEYS.USER_SESSION);
+    const token = getAuthToken();
+    return {
+      authenticated: !!token,
+      token: token,
+      environment: typeof window !== 'undefined' ? 
+        (window.location.hostname === "localhost" ? 'development' : 'production') : 'server'
+    };
   },
 
-  // Update user profile
-  updateProfile: async (userId, profileData) => {
-    const endpoint = `${API_CONFIG.BASE_URL}/users/${userId}`;
-    logApiCall('PUT', endpoint, profileData);
-    
-    try {
-      const response = await fetchWithTimeout(endpoint, {
-        method: 'PUT',
-        body: JSON.stringify(profileData)
-      });
-      
-      const result = await handleResponse(response);
-      
-      // Update stored session data
-      const currentSession = userAPI.getUserSession();
-      if (currentSession) {
-        StorageManager.setItem(StorageManager.KEYS.USER_SESSION, {
-          ...currentSession,
-          ...profileData,
-          updated_at: new Date().toISOString()
-        });
-      }
-      
-      return result;
-    } catch (error) {
-      console.error('❌ Update profile error:', error.message);
-      throw error;
-    }
+  // Store token in cookies (for production use)
+  storeToken: (token) => {
+    storeTokenInCookies(token);
+  },
+
+  // Get current token
+  getCurrentToken: () => {
+    return getAuthToken();
   },
 
   // Get user by ID
@@ -278,10 +243,13 @@ export const userAPI = {
     }
   },
 
-  // Clear user session
+  // Clear session (remove token from cookies)
   clearSession: () => {
-    StorageManager.clearUserData();
-    console.log('✅ User session cleared');
+    if (typeof window !== 'undefined') {
+      Cookies.remove("floww-employee-token");
+      console.log('✅ Token removed from cookies');
+    }
+    console.log('✅ Session cleared (token-based auth)');
   }
 };
 
@@ -295,14 +263,7 @@ export const postsAPI = {
     const endpoint = `${API_CONFIG.BASE_URL}/posts/create_post`;
     
     try {
-      // Get author_id from stored user session
-      const userId = userAPI.getCurrentUserId();
-      if (!userId) {
-        throw new Error('User not logged in. Please login first.');
-      }
-
       const requestBody = {
-        author_id: userId,
         content: postData.content,
         ...(postData.media && postData.media.length > 0 && { media: postData.media }),
         ...(postData.mentions && postData.mentions.length > 0 && { 
@@ -393,30 +354,17 @@ export const postsAPI = {
     const endpoint = `${API_CONFIG.BASE_URL}/posts/me`;
     
     try {
-      // Get author_id from stored user session
-      const userId = userAPI.getCurrentUserId();
-      console.log('🔍 API getMyPosts - Current user ID:', userId);
-      
-      if (!userId) {
-        throw new Error('User not logged in. Please login first.');
-      }
-
-      const requestBody = {
-        author_id: userId
-      };
-
-      console.log('🔍 API getMyPosts - Request body:', requestBody);
       console.log('🔍 API getMyPosts - Endpoint:', endpoint);
-      logApiCall('POST', endpoint, requestBody);
+      logApiCall('POST', endpoint);
 
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify({})
       });
       
       const result = await handleResponse(response);
       console.log('🔍 API getMyPosts - Full response:', result);
-      console.log(`✅ Retrieved ${result.data?.length || 0} posts for current user:`, userId);
+      console.log(`✅ Retrieved ${result.data?.length || 0} posts for current user`);
       console.log('🔍 API getMyPosts - First post structure:', result.data?.[0]);
       
       return result;
@@ -470,15 +418,8 @@ export const postsAPI = {
     const actualPostId = updateData.post_id || postId;
     const endpoint = `${API_CONFIG.BASE_URL}/posts/edit/${actualPostId}`;
     
-    // Get author_id from stored user session
-    const userId = userAPI.getCurrentUserId();
-    if (!userId) {
-      throw new Error('User not logged in. Please login first.');
-    }
-    
     // Transform the data to match backend expectations
     const backendData = {
-      author_id: userId, // Add author_id as required by backend
       content: updateData.content,
       post_content: updateData.content, // Fallback field name
       // Process tags to extract just the tag names, not the nested objects
@@ -535,13 +476,8 @@ export const postsAPI = {
       })
     };
     
-    // console.log('🔍 API updatePost - Original data:', updateData);
-    // console.log('🔍 API updatePost - Original tags:', updateData.tags);
-    // console.log('🔍 API updatePost - Processed tags:', backendData.tags);
-    // console.log('🔍 API updatePost - Transformed data:', backendData);
-    // console.log('🔍 API updatePost - Post ID:', actualPostId);
-    // console.log('🔍 API updatePost - Author ID:', userId);
-    // console.log('🔍 API updatePost - Endpoint:', endpoint);
+    console.log('🔍 API updatePost - Post ID:', actualPostId);
+    console.log('🔍 API updatePost - Endpoint:', endpoint);
     logApiCall('POST', endpoint, backendData);
     
     try {
@@ -567,27 +503,14 @@ export const postsAPI = {
     const actualPostId = (typeof postId === 'object' && postId.post_id) ? postId.post_id : postId;
     const endpoint = `${API_CONFIG.BASE_URL}/posts/delete/${actualPostId}`;
     
-    // Get author_id from stored user session
-    const userId = userAPI.getCurrentUserId();
-    if (!userId) {
-      throw new Error('User not logged in. Please login first.');
-    }
-    
-    // Prepare request body with author_id as required by backend
-    const requestBody = {
-      author_id: userId
-    };
-    
     console.log('🔍 API deletePost - Post ID:', actualPostId);
-    console.log('🔍 API deletePost - Author ID:', userId);
     console.log('🔍 API deletePost - Endpoint:', endpoint);
-    console.log('🔍 API deletePost - Request body:', requestBody);
-    logApiCall('POST', endpoint, requestBody);
+    logApiCall('POST', endpoint);
     
     try {
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify({})
       });
       
       const result = await handleResponse(response);
@@ -607,23 +530,12 @@ export const postsAPI = {
     const actualPostId = (typeof postId === 'object' && postId.post_id) ? postId.post_id : postId;
     const endpoint = `${API_CONFIG.BASE_URL}/posts/${actualPostId}/reactions`;
     
-    // console.log('🔍 API toggleLike - Original postId:', postId);
-    // console.log('🔍 API toggleLike - Actual postId:', actualPostId);
-    // console.log('🔍 API toggleLike - Endpoint:', endpoint);
     logApiCall('POST', endpoint);
     
     try {
-      const userId = userAPI.getCurrentUserId();
-      if (!userId) {
-        throw new Error('User not logged in');
-      }
-
-      const requestBody = { user_id: String(userId) };
-      console.log('🔍 API toggleLike - Request body:', requestBody);
-
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify({})
       });
       
       const result = await handleResponse(response);
@@ -645,22 +557,13 @@ export const postsAPI = {
     const endpoint = `${API_CONFIG.BASE_URL}/posts/${actualPostId}/reactions`;
     
     try {
-      const userId = userAPI.getCurrentUserId();
-      if (!userId) {
-        throw new Error('User not logged in. Please login first.');
-      }
-
-      // Ensure userId is sent as string, not number
       const requestBody = {
-        user_id: String(userId),
         reaction_type: reactionType,
         emoji: emoji
       };
 
       console.log('🔍 API addReaction - Original postId:', postId);
       console.log('🔍 API addReaction - Actual postId:', actualPostId);
-      console.log('🔍 API addReaction - User ID (raw):', userId);
-      console.log('🔍 API addReaction - User ID (string):', String(userId));
       console.log('🔍 API addReaction - Reaction Type:', reactionType);
       console.log('🔍 API addReaction - Emoji:', emoji);
       console.log('🔍 API addReaction - Request body:', requestBody);
@@ -691,21 +594,12 @@ export const postsAPI = {
     const endpoint = `${API_CONFIG.BASE_URL}/posts/${actualPostId}/reactions/delete`;
     
     try {
-      const userId = userAPI.getCurrentUserId();
-      if (!userId) {
-        throw new Error('User not logged in. Please login first.');
-      }
-
-      // Ensure userId is sent as string, not number
       const requestBody = {
-        user_id: String(userId),
         reaction_type: reactionType
       };
 
       console.log('🔍 API removeReaction - Original postId:', postId);
       console.log('🔍 API removeReaction - Actual postId:', actualPostId);
-      console.log('🔍 API removeReaction - User ID (raw):', userId);
-      console.log('🔍 API removeReaction - User ID (string):', String(userId));
       console.log('🔍 API removeReaction - Reaction Type:', reactionType);
       console.log('🔍 API removeReaction - Request body:', requestBody);
       console.log('🔍 API removeReaction - Endpoint:', endpoint);
@@ -733,13 +627,8 @@ export const postsAPI = {
     const endpoint = `${API_CONFIG.BASE_URL}/posts/${postId}/comments`;
     logApiCall('POST', endpoint, commentData);
     try {
-      const userId = userAPI.getCurrentUserId();
-      if (!userId) {
-        throw new Error('User not logged in');
-      }
-      // The backend expects { user_id, content }
+      // The backend expects { content }
       const requestBody = {
-        user_id: userId,
         content: commentData.content || commentData.comment // always send as 'content'
       };
       const response = await fetchWithTimeout(endpoint, {
@@ -776,14 +665,8 @@ export const postsAPI = {
     logApiCall('POST', endpoint, replyData);
     
     try {
-      const userId = userAPI.getCurrentUserId();
-      if (!userId) {
-        throw new Error('User not logged in');
-      }
-
       const requestBody = {
-        content: replyData.content,
-        user_id: userId
+        content: replyData.content
       };
 
       const response = await fetchWithTimeout(endpoint, {
@@ -838,13 +721,7 @@ export const postsAPI = {
     logApiCall('POST', endpoint, { reactionType, emoji });
     
     try {
-      const userId = userAPI.getCurrentUserId();
-      if (!userId) {
-        throw new Error('User not logged in');
-      }
-
       const requestBody = {
-        user_id: userId,
         reaction_type: reactionType
       };
 
@@ -866,14 +743,8 @@ export const postsAPI = {
     logApiCall('POST', endpoint, { reactionType });
     
     try {
-      const userId = userAPI.getCurrentUserId();
-      if (!userId) {
-        throw new Error('User not logged in');
-      }
-
       const requestBody = {
-        reaction_type: reactionType,
-        user_id: userId
+        reaction_type: reactionType
       };
 
       const response = await fetchWithTimeout(endpoint, {
@@ -887,14 +758,14 @@ export const postsAPI = {
       throw error;
     }
   },
-  // Delete comment by comment_id and user_id (POST)
-  deleteComment: async (commentId, userId) => {
+  // Delete comment by comment_id (POST)
+  deleteComment: async (commentId) => {
     const endpoint = `${API_CONFIG.BASE_URL}/comments/${commentId}/delete`;
-    logApiCall('POST', endpoint, { user_id: userId });
+    logApiCall('POST', endpoint);
     try {
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
-        body: JSON.stringify({ user_id: userId })
+        body: JSON.stringify({})
     });
       return await handleResponse(response);
     } catch (error) {
@@ -903,13 +774,12 @@ export const postsAPI = {
     }
   },
 
-  // Edit comment by comment_id and user_id (POST)
-  editComment: async (commentId, userId, content) => {
+  // Edit comment by comment_id (POST)
+  editComment: async (commentId, content) => {
     const endpoint = `${API_CONFIG.BASE_URL}/comments/${commentId}/edit`;
     
     // Try multiple field names to match backend expectations
     const requestBody = {
-      user_id: userId,
       content: content,        // Primary field name
       comment: content,        // Fallback field name
       new_content: content     // Alternative field name
@@ -917,7 +787,6 @@ export const postsAPI = {
     
     console.log('🔍 API editComment:', {
       commentId,
-      userId,
       content,
       requestBody,
       endpoint
@@ -940,14 +809,13 @@ export const postsAPI = {
   },
 
   // Add reply to comment
-  addCommentReply: async (postId, commentId, userId, content) => {
+  addCommentReply: async (postId, commentId, content) => {
     const endpoint = `${API_CONFIG.BASE_URL}/posts/${postId}/comments/${commentId}/replies`;
-    logApiCall('POST', endpoint, { user_id: userId, content });
+    logApiCall('POST', endpoint, { content });
     try {
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
         body: JSON.stringify({ 
-          user_id: userId,
           content: content 
         })
       });
@@ -964,23 +832,11 @@ export const postsAPI = {
     const endpoint = `${API_CONFIG.BASE_URL}/posts/${actualPostId}/report`;
     
     try {
-      // Get user_id from localStorage, fallback to author_id
-      let user_id = userAPI.getCurrentUserId();
-      if (!user_id) {
-        user_id = StorageManager.getItem('author_id');
-      }
-      
-      if (!user_id) {
-        throw new Error('User not logged in. Please login first.');
-      }
-
       const requestBody = {
-        user_id: user_id,
         reason: reason
       };
 
       console.log('🔍 API reportPost - Post ID:', actualPostId);
-      console.log('🔍 API reportPost - User ID:', user_id);
       console.log('🔍 API reportPost - Reason:', reason);
       console.log('🔍 API reportPost - Request body:', requestBody);
       logApiCall('POST', endpoint, requestBody);
@@ -1004,23 +860,11 @@ export const postsAPI = {
     const endpoint = `${API_CONFIG.BASE_URL}/comments/${commentId}/report`;
     
     try {
-      // Get user_id from localStorage, fallback to author_id
-      let user_id = userAPI.getCurrentUserId();
-      if (!user_id) {
-        user_id = StorageManager.getItem('author_id');
-      }
-      
-      if (!user_id) {
-        throw new Error('User not logged in. Please login first.');
-      }
-
       const requestBody = {
-        user_id: user_id,
         reason: reason
       };
 
       console.log('🔍 API reportComment - Comment ID:', commentId);
-      console.log('🔍 API reportComment - User ID:', user_id);
       console.log('🔍 API reportComment - Reason:', reason);
       console.log('🔍 API reportComment - Request body:', requestBody);
       logApiCall('POST', endpoint, requestBody);
@@ -1067,7 +911,7 @@ export const postsAPI = {
 export const mediaAPI = {
   // Upload single file
   uploadFile: async (file, type = 'image') => {
-    const endpoint = `${API_CONFIG.BASE_URL}/media/upload`;
+    const endpoint = `${API_CONFIG.BASE_URL}/upload_file`;
     
     try {
       const formData = new FormData();
@@ -1078,15 +922,23 @@ export const mediaAPI = {
 
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
-        body: formData,
-        // Don't set Content-Type header for FormData - browser will set it with boundary
-        headers: {}
+        body: formData
+        // fetchWithTimeout will automatically handle headers for FormData
       });
       
       const result = await handleResponse(response);
-      console.log('✅ File uploaded successfully:', result.url);
+      console.log('✅ File uploaded successfully:', result);
       
-      return result;
+      // Extract file URL from the nested response structure
+      // Expected format: { status: "success", message: "...", data: { file_url: "..." } }
+      const fileUrl = result.data?.file_url || result.url || result.link || result.file_url;
+      
+      // Normalize response to ensure 'url' field is available for compatibility
+      return {
+        ...result,
+        url: fileUrl,
+        file_url: fileUrl
+      };
     } catch (error) {
       console.error('❌ Upload file error:', error.message);
       throw error;
@@ -1095,27 +947,14 @@ export const mediaAPI = {
 
   // Upload multiple files
   uploadFiles: async (files, type = 'image') => {
-    const endpoint = `${API_CONFIG.BASE_URL}/media/upload/multiple`;
-    
     try {
-      const formData = new FormData();
-      files.forEach((file, index) => {
-        formData.append(`files`, file);
-      });
-      formData.append('type', type);
+      // Upload files individually since the endpoint expects single file uploads
+      const uploadPromises = files.map(file => mediaAPI.uploadFile(file, type));
+      const results = await Promise.all(uploadPromises);
       
-      logApiCall('POST', endpoint, { fileCount: files.length });
-
-      const response = await fetchWithTimeout(endpoint, {
-        method: 'POST',
-        body: formData,
-        headers: {}
-      });
-      
-      const result = await handleResponse(response);
       console.log(`✅ ${files.length} files uploaded successfully`);
       
-      return result;
+      return results;
     } catch (error) {
       console.error('❌ Upload files error:', error.message);
       throw error;
@@ -1264,27 +1103,12 @@ export const adminAPI = {
     const endpoint = `${API_CONFIG.BASE_URL}/admin/get_blocked_users`;
     
     try {
-      // Get user_id from localStorage, fallback to author_id
-      let user_id = userAPI.getCurrentUserId();
-      if (!user_id) {
-        user_id = StorageManager.getItem('author_id');
-      }
-      
-      if (!user_id) {
-        throw new Error('User not logged in. Please login first.');
-      }
-
-      const requestBody = {
-        user_id: user_id
-      };
-
-      console.log('🔍 API getBlockedUsers - User ID:', user_id);
-      console.log('🔍 API getBlockedUsers - Request body:', requestBody);
-      logApiCall('POST', endpoint, requestBody);
+      console.log('🔍 API getBlockedUsers - Endpoint:', endpoint);
+      logApiCall('POST', endpoint);
 
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify({})
       });
 
       const result = await handleResponse(response);
@@ -1301,27 +1125,16 @@ export const adminAPI = {
     const endpoint = `${API_CONFIG.BASE_URL}/admin/comments/${commentId}/delete`;
     
     try {
-      const userId = userAPI.getCurrentUserId();
-      if (!userId) {
-        throw new Error('User not logged in');
-      }
-
-      const requestBody = {
-        admin_id: userId  // Use admin_id for admin operations
-      };
-
       console.log('🔍 API adminDeleteComment:', {
         commentId,
-        userId,
-        requestBody,
         endpoint
       });
       
-      logApiCall('POST', endpoint, requestBody);
+      logApiCall('POST', endpoint);
       
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify({})
       });
       
       const result = await handleResponse(response);
@@ -1338,29 +1151,18 @@ export const adminAPI = {
     const endpoint = `${API_CONFIG.BASE_URL}/admin/posts/${postId}/comments/${commentId}/replies/${replyId}/delete`;
     
     try {
-      const userId = userAPI.getCurrentUserId();
-      if (!userId) {
-        throw new Error('User not logged in');
-      }
-
-      const requestBody = {
-        admin_id: userId  // Use admin_id for admin operations
-      };
-
       console.log('🔍 API adminDeleteReply:', {
         postId,
         commentId,
         replyId,
-        userId,
-        requestBody,
         endpoint
       });
       
-      logApiCall('POST', endpoint, requestBody);
+      logApiCall('POST', endpoint);
       
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify({})
       });
       
       const result = await handleResponse(response);
@@ -1411,23 +1213,33 @@ const api = {
   admin: adminAPI,
   utility: utilityAPI,
   
-  // Storage management
-  storage: StorageManager,
-  
   // Utility functions
   utils: {
     handleResponse,
     fetchWithTimeout,
-    logApiCall
+    logApiCall,
+    checkAuthToken
   },
   
   // Convenience methods for common operations
   auth: {
-    isLoggedIn: () => !!userAPI.getCurrentUserId(),
+    isLoggedIn: () => userAPI.isAuthenticated(),
     getCurrentUser: () => userAPI.getUserSession(),
-    signUp: (userData) => userAPI.createUser(userData),
-    signIn: (loginData) => userAPI.login(loginData),
-    signOut: () => userAPI.logout()
+    getCurrentToken: () => userAPI.getCurrentToken(),
+    storeToken: (token) => userAPI.storeToken(token),
+    clearToken: () => userAPI.clearSession(),
+    // Token-based authentication with environment detection
+    checkAuth: () => {
+      const currentToken = getAuthToken();
+      if (!currentToken) {
+        if (typeof window !== 'undefined' && window.location.hostname !== "localhost") {
+          window.location.href = 'https://dev.gofloww.co';
+          return false;
+        }
+        return false;
+      }
+      return true;
+    }
   },
   
   // Quick access methods
@@ -1443,9 +1255,6 @@ const api = {
     
     // Quick posts fetch
     getFeed: (page = 1) => postsAPI.getPosts(page),
-    
-  
- 
   },
   
   // Error constants
@@ -1456,9 +1265,7 @@ const api = {
     NOT_FOUND: 'NOT_FOUND',
     SERVER_ERROR: 'SERVER_ERROR'
   }
-};
-
-// =============================================================================
+};// =============================================================================
 // EXPORTS
 // =============================================================================
 
@@ -1470,9 +1277,6 @@ const api = {
 // - export const adminAPI = { ... }
 // - export const utilityAPI = { ... }
 
-// Export StorageManager for direct access
-export { StorageManager };
-
 // Export main API object as default
 export default api;
 
@@ -1482,6 +1286,27 @@ export default api;
 
 // Initialize API on load
 if (typeof window !== 'undefined') {
-  // Browser environment - check connection on load
-
+  // Browser environment - check authentication token
+  const currentToken = getAuthToken();
+  
+  if (!currentToken) {
+    if (window.location.hostname === "localhost") {
+      console.error('❌ No authentication token found for localhost development');
+    } else {
+      console.warn('⚠️ No authentication token found, redirecting to Floww');
+      window.location.href = 'https://dev.gofloww.co';
+    }
+  } else {
+    const environment = window.location.hostname === "localhost" ? 'development' : 'production';
+    const tokenSource = window.location.hostname === "localhost" ? 'hardcoded' : 'cookie';
+    
+    console.log(`✅ Authentication token loaded successfully`);
+    console.log(`🔍 Environment: ${environment}`);
+    console.log(`🔍 Token source: ${tokenSource}`);
+    
+    // Store token in cookies if not already stored (for production)
+    if (environment === 'production' && !Cookies.get("floww-employee-token")) {
+      storeTokenInCookies(currentToken);
+    }
+  }
 }

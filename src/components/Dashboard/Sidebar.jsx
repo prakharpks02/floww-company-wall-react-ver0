@@ -1,6 +1,6 @@
 "use client"
 import { usePost } from "../../contexts/PostContext"
-import { useAuth } from "../../contexts/AuthContext"
+import { useAuth } from "../../contexts/AuthContext_token"
 import { Home, Plus, Hash, Filter, FileText, Shield, Users, Flag, Megaphone, Ban } from "lucide-react"
 
 const Sidebar = ({ filters, setFilters, onCreatePost, activeView, onViewChange }) => {

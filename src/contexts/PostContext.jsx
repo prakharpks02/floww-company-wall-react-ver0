@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { useAuth } from './AuthContext';
+import { useAuth } from './AuthContext_token';
 import { postsAPI } from '../services/api';
 import { adminAPI } from '../services/adminAPI';
 
@@ -15,8 +15,9 @@ export const usePost = () => {
 };
 
 export const PostProvider = ({ children }) => {
-  const { user, getCurrentUserId, getCurrentAuthorId } = useAuth();
+  const { user } = useAuth();
   const [posts, setPosts] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [nextCursor, setNextCursor] = useState(null);
   const [hasMorePosts, setHasMorePosts] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -85,7 +86,7 @@ export const PostProvider = ({ children }) => {
   };
 
   // Helper function to normalize reaction_counts format to frontend object format
-  const normalizeReactionCounts = (reactionCounts, currentUserId) => {
+  const normalizeReactionCounts = (reactionCounts) => {
  
     
     if (!reactionCounts || typeof reactionCounts !== 'object') {
@@ -119,7 +120,7 @@ export const PostProvider = ({ children }) => {
     // Handle new reaction_counts format first (takes priority)
     if (rawPost.reaction_counts) {
       console.log('🔍 PostContext normalizePost - Using reaction_counts format');
-      normalizedReactions = normalizeReactionCounts(rawPost.reaction_counts, user?.user_id || user?.id);
+      normalizedReactions = normalizeReactionCounts(rawPost.reaction_counts);
     } 
     // Fallback to old reactions array format
     else if (rawPost.reactions) {
@@ -128,12 +129,10 @@ export const PostProvider = ({ children }) => {
     }
     
     // Extract author information from backend format
-    const authorId = rawPost.author?.user_id || rawPost.author?.id || rawPost.authorId || rawPost.author_id || rawPost.user_id;
-    const authorName = rawPost.author?.username || rawPost.author?.name || rawPost.authorName || rawPost.author_name;
+    const authorName = rawPost.author?.username || rawPost.author?.name || rawPost.authorName || rawPost.author_name || 'Employee User';
     const authorAvatar = rawPost.author?.avatar || rawPost.authorAvatar || rawPost.author_avatar;
     
     console.log('🔍 PostContext normalizePost - Author info:', {
-      authorId,
       authorName,
       authorAvatar,
       originalAuthor: rawPost.author
@@ -141,19 +140,14 @@ export const PostProvider = ({ children }) => {
     
     // Normalize comments to handle backend format
     const normalizedComments = rawPost.comments?.map(comment => {
-      const commentAuthorId = comment.author?.user_id || comment.author?.id || comment.authorId || comment.author_id;
-      const commentAuthorName = comment.author?.username || comment.author?.name || comment.authorName || 
-                               (comment.author_id && user && comment.author_id === user.user_id ? user.name || user.username : null) ||
-                               'Unknown User';
+      const commentAuthorName = comment.author?.username || comment.author?.name || comment.authorName || 'Employee User';
       const commentAuthorAvatar = comment.author?.avatar || comment.authorAvatar || 
-                                 (comment.author_id && user && comment.author_id === user.user_id ? user.avatar : null) ||
                                  'https://ui-avatars.com/api/?name=' + encodeURIComponent(commentAuthorName) + '&background=random';
       
       return {
         ...comment,
         id: comment.comment_id || comment.id, // Use comment_id as the primary id
         comment_id: comment.comment_id || comment.id, // Keep the backend comment_id
-        authorId: commentAuthorId,
         authorName: commentAuthorName,
         authorAvatar: commentAuthorAvatar,
         timestamp: comment.created_at || comment.timestamp,
@@ -187,10 +181,9 @@ export const PostProvider = ({ children }) => {
 
     const normalized = {
       ...rawPost,
-      // Ensure consistent author ID fields
-      authorId: authorId,
-      author_id: authorId,
-      user_id: authorId,
+      // Ensure consistent post ID fields
+      id: rawPost.post_id || rawPost.id,
+      post_id: rawPost.post_id || rawPost.id,
       // Ensure consistent author name fields
       authorName: authorName,
       author_name: authorName,
@@ -210,29 +203,70 @@ export const PostProvider = ({ children }) => {
       is_broadcast: rawPost.is_broadcast || false,
       // Convert media array back to separate arrays for frontend compatibility
       ...(rawPost.media && Array.isArray(rawPost.media) ? (() => {
+        console.log('🔍 Processing media array:', rawPost.media);
         const mediaArrays = { images: [], videos: [], documents: [], links: [] };
         rawPost.media.forEach((mediaItem, index) => {
           if (mediaItem && mediaItem.link) {
-            const url = mediaItem.link;
+            let url = mediaItem.link;
+            
+            // Handle case where URL might be stringified object
+            if (typeof url === 'string' && url.trim().startsWith("{'link'")) {
+              try {
+                const fixed = url.replace(/'/g, '"');
+                const parsed = JSON.parse(fixed);
+                url = parsed.link || url;
+              } catch (e) {
+                console.warn('🔍 Could not parse stringified URL object:', url);
+              }
+            }
+            
             // Create a proper media object with id for removal functionality
+            // Extract filename from URL and clean up CDN prefixes
+            let fileName = url.split('/').pop() || 'Media file';
+            
+            // Clean up CDN prefixes like "wal-GKde7DuB0ojK-" from filename
+            if (fileName.includes('-') && fileName.match(/^wal-[A-Za-z0-9]+-/)) {
+              // Remove the CDN prefix pattern: wal-[random_string]-
+              fileName = fileName.replace(/^wal-[A-Za-z0-9]+-/, '');
+            }
+            
             const mediaObj = {
               id: `media-${index}-${Date.now()}`,
               url: url,
-              name: url.split('/').pop() || 'Media file'
+              name: fileName,
+              type: mediaItem.type || 'unknown'
             };
             
-            // Determine type based on URL or default to link
-            if (url.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
+            console.log('🔍 Processing media URL:', url);
+            
+            // Simplified image detection - just check for common image extensions
+            const isImage = /\.(jpg|jpeg|png|gif|webp|svg|bmp|ico)(\?.*)?$/i.test(url) ||
+                           url.includes('cdn.gofloww.co') && /\.(jpg|jpeg|png|gif|webp|svg|bmp|ico)/i.test(url);
+                           
+            const isVideo = /\.(mp4|avi|mov|wmv|flv|webm|mkv|m4v)(\?.*)?$/i.test(url);
+                           
+            const isDocument = /\.(pdf|doc|docx|xls|xlsx|ppt|pptx|txt|rtf)(\?.*)?$/i.test(url);
+            
+            if (isImage) {
               mediaArrays.images.push(mediaObj);
-            } else if (url.match(/\.(mp4|avi|mov|wmv|flv|webm)$/i)) {
+              console.log('✅ Added as image:', mediaObj);
+            } else if (isVideo) {
               mediaArrays.videos.push(mediaObj);
-            } else if (url.match(/\.(pdf|doc|docx|txt|xls|xlsx|ppt|pptx)$/i)) {
+              console.log('✅ Added as video:', mediaObj);
+            } else if (isDocument) {
+              mediaObj.isPDF = /\.pdf(\?.*)?$/i.test(url);
               mediaArrays.documents.push(mediaObj);
+              console.log('✅ Added as document:', mediaObj);
             } else {
+              // Only add to links if it's not categorized as image, video, or document
+              // This prevents duplicates
               mediaArrays.links.push(mediaObj);
+              console.log('✅ Added as link:', mediaObj);
             }
           }
         });
+        
+        console.log('🔍 Final media arrays:', mediaArrays);
         return mediaArrays;
       })() : {
         // Keep existing arrays if no media array
@@ -249,7 +283,6 @@ export const PostProvider = ({ children }) => {
 
   // Helper function to check if current user has reacted to a post
   const hasUserReacted = (postId, reactionType) => {
-    const currentUserId = user?.user_id || user?.id;
     const postReactions = userReactions[postId];
     if (postReactions && postReactions[reactionType]) {
       return true;
@@ -259,7 +292,6 @@ export const PostProvider = ({ children }) => {
 
   // Helper function to add user reaction to local state
   const addUserReaction = (postId, reactionType) => {
-    const currentUserId = user?.user_id || user?.id;
     setUserReactions(prev => {
       const updated = {
         ...prev,
@@ -278,12 +310,10 @@ export const PostProvider = ({ children }) => {
       
       return updated;
     });
-    
   };
 
   // Helper function to remove user reaction from local state
   const removeUserReaction = (postId, reactionType) => {
-    const currentUserId = user?.user_id || user?.id;
     setUserReactions(prev => {
       const updated = { ...prev };
       if (updated[postId]) {
@@ -303,57 +333,36 @@ export const PostProvider = ({ children }) => {
       
       return updated;
     });
-   
   };
 
   // Sync user reactions from posts data when available
   useEffect(() => {
-    if (!user?.user_id && !user?.id) return;
-    
-    const currentUserId = user?.user_id || user?.id;
-    const updatedReactions = { ...userReactions };
-    let hasUpdates = false;
+    if (!user) return;
     
     posts.forEach(post => {
       const postId = post.post_id || post.id;
       if (!postId) return;
       
-      // Check if post has detailed reaction data with user lists
-      if (post.reactions && typeof post.reactions === 'object') {
-        Object.entries(post.reactions).forEach(([reactionType, reactionData]) => {
-          if (reactionData.users && Array.isArray(reactionData.users)) {
-            const userHasReacted = reactionData.users.includes(currentUserId);
-            
-            // Update local tracking if we find the user in the reaction list
-            if (userHasReacted && !hasUserReacted(postId, reactionType)) {
-              if (!updatedReactions[postId]) {
-                updatedReactions[postId] = {};
-              }
-              updatedReactions[postId][reactionType] = true;
-              hasUpdates = true;
-              console.log(`🔍 PostContext - Synced user reaction: ${postId} -> ${reactionType}`);
-            }
-          }
-        });
-      }
+      // Since we're using token-based auth, we can't easily track user reactions
+      // without userId. This functionality can be added later if needed.
     });
-    
-    // Update state and localStorage if we found new reactions
-    if (hasUpdates) {
-      setUserReactions(updatedReactions);
-      try {
-        localStorage.setItem('userReactions', JSON.stringify(updatedReactions));
-      } catch (error) {
-
-      }
-    }
   }, [posts, user]);
 
   // Load posts from backend API on mount
   useEffect(() => {
     const loadPosts = async () => {
+      if (!user) {
+        console.log('⚠️ PostContext - No authenticated user, skipping post loading');
+        setPosts([]);
+        setNextCursor(null);
+        setHasMorePosts(true);
+        setLoading(false);
+        return;
+      }
+      
       try {
-        console.log('🔄 PostContext - Loading posts for user:', user?.user_id || user?.id);
+        setLoading(true);
+        console.log('🔄 PostContext - Loading posts for user');
         
         const backendPosts = await postsAPI.getMyPosts();
         console.log('🔄 PostContext - Backend response:', backendPosts);
@@ -390,19 +399,13 @@ export const PostProvider = ({ children }) => {
         setPosts([]);
         setNextCursor(null);
         setHasMorePosts(false);
+      } finally {
+        setLoading(false);
       }
     };
 
-    // Only load posts if user is authenticated
-    if (user) {
-      console.log('🔄 PostContext - User authenticated, loading posts...');
-      loadAllPosts(true); // Reset pagination on initial load
-    } else {
-      console.log('⚠️ PostContext - No authenticated user, skipping post loading');
-      setPosts([]);
-      setNextCursor(null);
-      setHasMorePosts(true);
-    }
+    // Call the loadPosts function
+    loadPosts();
   }, [user]);
 
   // Standalone function to reload posts (can be called after edit/delete)
@@ -432,10 +435,10 @@ export const PostProvider = ({ children }) => {
   };
 
   // Function to load all posts for home feed with pagination support
-const loadAllPosts = async (resetPagination = false) => {
-  try {
-    const cursor = resetPagination ? null : nextCursor;
-    console.log('🔄 Loading posts with cursor:', cursor, 'resetPagination:', resetPagination);
+  const loadAllPosts = async (resetPagination = false) => {
+    try {
+      const cursor = resetPagination ? null : nextCursor;
+      console.log('🔄 Loading posts with cursor:', cursor, 'resetPagination:', resetPagination);
     
     // Fetch regular posts and pinned posts in parallel (only fetch pinned on initial load)
     const [backendPosts, pinnedPostsResponse] = await Promise.all([
@@ -517,16 +520,35 @@ const loadAllPosts = async (resetPagination = false) => {
     // Normalize and set posts
     const normalizedPosts = allPosts.map(normalizePost);
     
+    // Additional deduplication check based on post_id to prevent React key conflicts
+    const seenPostIds = new Set();
+    const uniqueNormalizedPosts = normalizedPosts.filter(post => {
+      const postId = post.post_id || post.id;
+      if (seenPostIds.has(postId)) {
+        console.log('⚠️ Duplicate post detected and removed:', postId);
+        return false;
+      }
+      seenPostIds.add(postId);
+      return true;
+    });
+    
     if (resetPagination) {
-      setPosts(normalizedPosts);
+      setPosts(uniqueNormalizedPosts);
     } else {
       // Append new posts for pagination
-      setPosts(prevPosts => [...prevPosts, ...normalizedPosts]);
+      setPosts(prevPosts => {
+        const existingIds = new Set(prevPosts.map(p => p.post_id || p.id));
+        const newUniquePosts = uniqueNormalizedPosts.filter(p => !existingIds.has(p.post_id || p.id));
+        return [...prevPosts, ...newUniquePosts];
+      });
     }
     
     console.log('📄 Pagination state updated:', {
-      newPostsCount: normalizedPosts.length,
-      totalPosts: resetPagination ? normalizedPosts.length : posts.length + normalizedPosts.length,
+      rawPostsCount: allPosts.length,
+      normalizedPostsCount: normalizedPosts.length,
+      uniquePostsCount: uniqueNormalizedPosts.length,
+      duplicatesFiltered: normalizedPosts.length - uniqueNormalizedPosts.length,
+      totalPosts: resetPagination ? uniqueNormalizedPosts.length : posts.length + uniqueNormalizedPosts.length,
       hasMore,
       nextCursor: newNextCursor
     });
@@ -554,33 +576,14 @@ const loadAllPosts = async (resetPagination = false) => {
   };
 
   const createPost = async (postData) => {
-
-    
-    // Get the stored user_id and author_id locally
-    const userId = getCurrentUserId();
-    const authorId = getCurrentAuthorId();
-    
-   
-    
-    // Verify that user_id equals author_id
-    if (userId !== authorId) {
-      console.error('❌ CRITICAL: user_id and author_id do NOT match!', { userId, authorId });
-    } else {
-      console.log('✅ VERIFIED: user_id and author_id match correctly');
-    }
-    
-    // IMPORTANT: Only use the logged-in user's existing ID
-    if (!user || !userId || !authorId) {
-      console.error('No authenticated user found or missing user_id/author_id. Cannot create post without valid user.');
+    if (!user) {
+      console.error('No authenticated user found. Cannot create post.');
       throw new Error('You must be logged in to create a post');
     }
 
-    // Use the locally stored user data
-    const authorName = user.name || 'User';
-    const authorAvatar = user.avatar || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80';
-    const authorPosition = user.position || 'Employee';
-
-    
+    // Use token-based authentication - backend will handle user identification
+    const authorName = "Employee User"; // Default name since we don't have user details
+    const authorAvatar = 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80';
 
     try {
       // Optimistically create the post object first for immediate UI update
@@ -588,12 +591,8 @@ const loadAllPosts = async (resetPagination = false) => {
       const optimisticPost = {
         id: tempId,
         post_id: tempId,
-        authorId: authorId,
-        author_id: authorId,
-        user_id: authorId,
         authorName: authorName,
         authorAvatar: authorAvatar,
-        authorPosition: authorPosition,
         content: postData.content,
         images: postData.images || [],
         videos: postData.videos || [],
@@ -651,12 +650,9 @@ const loadAllPosts = async (resetPagination = false) => {
       const finalPost = {
         id: backendResult.post_id || backendResult.id || tempId,
         post_id: backendResult.post_id || tempId,
-        authorId: authorId,
-        author_id: authorId,
-        user_id: authorId,
-        authorName: authorName,
+        author: backendResult.author || authorName,
+        authorName: backendResult.author || authorName,
         authorAvatar: authorAvatar,
-        authorPosition: authorPosition,
         content: postData.content,
         images: postData.images || [],
         videos: postData.videos || [],
@@ -802,14 +798,12 @@ const loadAllPosts = async (resetPagination = false) => {
       const result = await postsAPI.addComment(postId, commentData);
       
       // Optimistically update the UI
-      const userId = user?.user_id || user?.id;
       const newComment = {
         id: result.comment_id || result.id || uuidv4(),
         comment_id: result.comment_id || result.id, // Store the backend comment_id
         author: {
-          user_id: userId,
-          username: user.username || user.name,
-          email: user.email
+          username: result.author?.username || result.author || "Employee User",
+          email: result.author?.email || "employee@floww.com"
         },
         content: commentData.content,
         created_at: result.timestamp || new Date().toISOString(),
@@ -839,13 +833,11 @@ const loadAllPosts = async (resetPagination = false) => {
       const result = await postsAPI.addReply(postId, commentId, replyData);
       
       // Optimistically update the UI
-      const userId = user?.user_id || user?.id;
       const newReply = {
         id: result.reply_id || result.id || uuidv4(),
         reply_id: result.reply_id || result.id, // Store the backend reply_id
-        authorId: userId,
-        authorName: user.name,
-        authorAvatar: user.avatar,
+        author: result.author?.username || result.author || "Employee User",
+        author_name: result.author?.username || result.author || "Employee User",
         content: replyData.content,
         timestamp: result.timestamp || new Date().toISOString(),
         likes: [],
@@ -886,9 +878,8 @@ const loadAllPosts = async (resetPagination = false) => {
       const post = posts.find(p => p.id === postId || p.post_id === postId);
       const comment = post?.comments?.find(c => c.id === commentId || c.comment_id === commentId);
       const backendCommentId = comment?.comment_id || commentId;
-      const userId = user?.user_id || user?.id;
 
-      await postsAPI.deleteComment(backendCommentId, userId);
+      await postsAPI.deleteComment(backendCommentId);
 
       // Optimistically update the UI
       setPosts(prevPosts =>
@@ -951,13 +942,11 @@ const loadAllPosts = async (resetPagination = false) => {
 
     console.log('🔍 PostContext editComment called:', {
       commentId,
-      newContent,
-      userId: user?.user_id || user?.id
+      newContent
     });
 
     try {
-      const userId = user?.user_id || user?.id;
-      const apiResponse = await postsAPI.editComment(commentId, userId, newContent);
+      const apiResponse = await postsAPI.editComment(commentId, newContent);
       
       console.log('🔍 PostContext editComment API response:', apiResponse);
 
@@ -1037,13 +1026,12 @@ const loadAllPosts = async (resetPagination = false) => {
     if (!user) return;
 
     try {
-      const userId = user?.user_id || user?.id;
       const post = posts.find(p => p.id === postId || p.post_id === postId);
       const comment = post?.comments?.find(c => c.id === commentId || c.comment_id === commentId);
       const backendCommentId = comment?.comment_id || commentId;
       const backendPostId = post?.post_id || postId;
 
-      const response = await postsAPI.addCommentReply(backendPostId, backendCommentId, userId, replyContent);
+      const response = await postsAPI.addCommentReply(backendPostId, backendCommentId, replyContent);
 
       // Create optimistic reply object
       const newReply = {
@@ -1051,8 +1039,7 @@ const loadAllPosts = async (resetPagination = false) => {
         reply_id: response?.reply_id,
         content: replyContent,
         author: {
-          user_id: userId,
-          username: user?.username || user?.name || 'You'
+          username: user?.username || user?.name || 'Employee User'
         },
         created_at: new Date().toISOString(),
         reactions: {}
@@ -1088,11 +1075,10 @@ const loadAllPosts = async (resetPagination = false) => {
 
   // Add reaction to comment - handles both emoji reactions and likes
   const addCommentReaction = async (commentId, reactionType, emoji = null) => {
-    if (!user?.user_id && !user?.id) return;
+    if (!user) return;
 
     // Always use 'like' as the reactionType for likes, never the emoji
     const safeReactionType = reactionType === '❤️' ? 'like' : reactionType;
-    const userId = user?.user_id || user?.id;
     // Define reactionEmoji properly based on the reaction type
     const reactionEmoji = safeReactionType === 'like' ? undefined : (emoji || '👍');
 
@@ -1129,151 +1115,12 @@ const loadAllPosts = async (resetPagination = false) => {
 
     const backendCommentId = targetComment.comment_id || commentId;
 
-    // Find if user has any reaction on this comment/reply (handle both formats)
-    const userPrevReaction = targetComment && Object.keys(targetComment.reactions || {}).find(rt => {
-      const r = targetComment.reactions[rt];
-      if (!r) return false;
-      
-      // Handle array format from optimistic updates: [{user_id: 123}, {user_id: 456}]
-      if (Array.isArray(r)) {
-        return r.some(reaction => 
-          reaction.user_id === userId || 
-          reaction.id === userId
-        );
-      }
-      
-      // Handle object format from API: {users: [123, 456], count: 2}
-      if (r.users && Array.isArray(r.users)) {
-        return r.users.includes(userId);
-      }
-      
-      return false;
-    });
-
-    console.log('🔍 PostContext userPrevReaction detection:', {
-      commentId,
-      userId,
-      userPrevReaction,
-      safeReactionType,
-      isReply,
-      targetCommentReactions: targetComment?.reactions,
-      willToggleOff: userPrevReaction === safeReactionType
-    });
-
     try {
-      // Remove previous reaction if exists and is different
-      if (userPrevReaction && userPrevReaction !== safeReactionType) {
-        await postsAPI.deleteCommentReaction(backendCommentId, userPrevReaction);
-      }
-      // If user is toggling off the same reaction, just remove it
-      if (userPrevReaction === safeReactionType) {
-        await postsAPI.deleteCommentReaction(backendCommentId, safeReactionType);
-      } else {
-        // Add the new reaction
-        await postsAPI.addCommentReaction(backendCommentId, safeReactionType, reactionEmoji);
-      }
-
-      // ✅ OPTIMISTIC UI UPDATE - Update local state immediately
-      setPosts(prevPosts => 
-        prevPosts.map(p => {
-          if (p !== parentPost) return p;
-          
-          return {
-            ...p,
-            comments: p.comments.map(c => {
-              // If this is a direct comment reaction
-              if (!isReply && (c.id === commentId || c.comment_id === commentId)) {
-                // Create updated reactions object for comment - ensure it's properly initialized
-                const updatedReactions = { ...(c.reactions || {}) };
-                
-                // First, remove user from ALL reaction types (since user can only have one reaction)
-                Object.keys(updatedReactions).forEach(reactionType => {
-                  if (Array.isArray(updatedReactions[reactionType])) {
-                    updatedReactions[reactionType] = updatedReactions[reactionType].filter(
-                      r => r.user_id !== userId
-                    );
-                    // Remove the reaction type if no users left
-                    if (updatedReactions[reactionType].length === 0) {
-                      delete updatedReactions[reactionType];
-                    }
-                  } else if (updatedReactions[reactionType]) {
-                    // Handle non-array reaction structures by converting to array
-                    updatedReactions[reactionType] = [];
-                  }
-                });
-                
-                // Add user to new reaction (unless toggling off the same reaction)
-                if (userPrevReaction !== safeReactionType) {
-                  if (!updatedReactions[safeReactionType] || !Array.isArray(updatedReactions[safeReactionType])) {
-                    updatedReactions[safeReactionType] = [];
-                  }
-                  // Add the user to the new reaction type
-                  updatedReactions[safeReactionType].push({ user_id: userId });
-                }
-                
-                return {
-                  ...c,
-                  reactions: updatedReactions
-                };
-              }
-              
-              // If this is a reply reaction, update the reply within the comment
-              if (isReply && c.replies) {
-                return {
-                  ...c,
-                  replies: c.replies.map(r => {
-                    if (r.id === commentId || r.comment_id === commentId) {
-                      // Create updated reactions object for reply - ensure it's properly initialized
-                      const updatedReactions = { ...(r.reactions || {}) };
-                      
-                      // First, remove user from ALL reaction types
-                      Object.keys(updatedReactions).forEach(reactionType => {
-                        if (Array.isArray(updatedReactions[reactionType])) {
-                          updatedReactions[reactionType] = updatedReactions[reactionType].filter(
-                            reaction => reaction.user_id !== userId
-                          );
-                          // Remove the reaction type if no users left
-                          if (updatedReactions[reactionType].length === 0) {
-                            delete updatedReactions[reactionType];
-                          }
-                        } else if (updatedReactions[reactionType]) {
-                          // Handle non-array reaction structures by converting to array
-                          updatedReactions[reactionType] = [];
-                        }
-                      });
-                      
-                      // Add user to new reaction (unless toggling off the same reaction)
-                      if (userPrevReaction !== safeReactionType) {
-                        if (!updatedReactions[safeReactionType] || !Array.isArray(updatedReactions[safeReactionType])) {
-                          updatedReactions[safeReactionType] = [];
-                        }
-                        updatedReactions[safeReactionType].push({ user_id: userId });
-                      }
-                      
-                      console.log('🔍 Optimistic reply reaction update:', {
-                        replyId: commentId,
-                        oldReactions: r.reactions,
-                        newReactions: updatedReactions,
-                        safeReactionType,
-                        userPrevReaction,
-                        userId
-                      });
-                      
-                      return {
-                        ...r,
-                        reactions: updatedReactions
-                      };
-                    }
-                    return r;
-                  })
-                };
-              }
-              
-              return c;
-            })
-          };
-        })
-      );
+      // Add or toggle the reaction
+      await postsAPI.addCommentReaction(backendCommentId, safeReactionType, reactionEmoji);
+      
+      // Refresh posts to get updated reactions from backend
+      await reloadPosts();
 
     } catch (error) {
       console.error('❌ Comment reaction error:', error);
@@ -1281,171 +1128,49 @@ const loadAllPosts = async (resetPagination = false) => {
     }
   };
 
-
-
   // Add reaction function - handles both emoji reactions and likes
   const addReaction = async (postId, reactionType, emoji = null, activeView = 'home') => {
-    if (!user?.user_id && !user?.id) return;
+    if (!user) return;
 
     // Always use 'like' as the reactionType for likes, never the emoji
     const safeReactionType = reactionType === '❤️' ? 'like' : reactionType;
-    const userAlreadyReacted = hasUserReacted(postId, safeReactionType);
-    const shouldRemoveReaction = userAlreadyReacted;
-    const shouldAddReaction = !userAlreadyReacted;
+    // For likes, do NOT send the emoji to the backend if it doesn't expect it
+    const reactionEmoji = safeReactionType === 'like' ? undefined : (emoji || '👍');
 
     try {
-      const userId = user?.user_id || user?.id;
-      // For likes, do NOT send the emoji to the backend if it doesn't expect it
-      const reactionEmoji = safeReactionType === 'like' ? undefined : (emoji || '👍');
-
-     
-
-      // Find the current post to see its current state
-      const currentPost = posts.find(p => p.id === postId || p.post_id === postId);
-    
-      // First, optimistically update local user reaction state
-      if (userAlreadyReacted) {
-        removeUserReaction(postId, safeReactionType);
+      // Add or toggle the reaction
+      await postsAPI.addReaction(postId, safeReactionType, reactionEmoji);
+      
+      // Reload the appropriate feed based on the active view
+      if (activeView === 'myposts') {
+        await reloadPosts();
+        console.log('✅ Reloaded user posts after reaction');
       } else {
-        addUserReaction(postId, safeReactionType);
+        // Default to home feed
+        await loadAllPosts();
+        console.log('✅ Reloaded home feed after reaction');
       }
-
-      // Then, optimistically update the UI for immediate feedback
-      setPosts(prevPosts =>
-        prevPosts.map(post => {
-          if (post.id === postId || post.post_id === postId) {
-            const currentReactions = post.reactions || {};
-            let updatedReactions = { ...currentReactions };
-
-         
-
-            if (userAlreadyReacted) {
-              // Remove reaction (toggle off)
-              if (updatedReactions[safeReactionType]) {
-                updatedReactions[safeReactionType] = {
-                  ...updatedReactions[safeReactionType],
-                  count: Math.max(0, (updatedReactions[safeReactionType]?.count || 1) - 1)
-                };
-
-                // Remove empty reactions
-                if (updatedReactions[safeReactionType].count === 0) {
-                  delete updatedReactions[safeReactionType];
-                }
-              }
-            } else {
-              // Add reaction (toggle on)
-              updatedReactions[safeReactionType] = {
-                users: [], // We don't track users in reaction_counts format
-                count: (updatedReactions[safeReactionType]?.count || 0) + 1
-              };
-            }
-
-          
-
-            return {
-              ...post,
-              reactions: updatedReactions
-            };
-          }
-          return post;
-        })
-      );
-
-      // Then call backend API based on the ORIGINAL state (before optimistic updates)
-      let result;
-      if (shouldRemoveReaction) {
-        // User already had this reaction, so remove it
-        
-        result = await postsAPI.removeReaction(postId, safeReactionType);
-
-      } else if (shouldAddReaction) {
-        // User didn't have this reaction, so add it
-        console.log('🔄 PostContext addReaction - Adding new reaction to backend...');
-        if (safeReactionType === 'like') {
-          result = await postsAPI.addReaction(postId, safeReactionType);
-        } else {
-          result = await postsAPI.addReaction(postId, safeReactionType, reactionEmoji);
-        }
-        console.log('✅ Reaction added successfully:', result);
-      }
-
-     
-
-      // Finally, reload posts from backend to ensure consistency (with a small delay to let user see the immediate feedback)
-      // Use the appropriate reload function based on the active view
-      setTimeout(() => {
-        if (activeView === 'myposts') {
-          reloadPosts().then(() => {
-            console.log('✅ Reloaded user posts after reaction');
-          }).catch(error => {
-            console.error('❌ Failed to reload user posts after reaction:', error);
-          });
-        } else {
-          // Default to home feed
-          loadAllPosts().then(() => {
-            console.log('✅ Reloaded home feed after reaction');
-          }).catch(error => {
-            console.error('❌ Failed to reload home feed after reaction:', error);
-          });
-        }
-      }, 500); // 500ms delay to let the user see the immediate feedback
 
     } catch (error) {
       console.error('❌ Failed to add/remove reaction:', error.message);
-
-      // If API call fails, revert the optimistic update by reloading posts
-      // and reverting local user reaction state based on ORIGINAL state
-      console.log('🔄 API failed, reverting optimistic update...');
-      if (shouldRemoveReaction) {
-        // We tried to remove but failed, so add it back
-        addUserReaction(postId, safeReactionType);
-      } else if (shouldAddReaction) {
-        // We tried to add but failed, so remove it
-        removeUserReaction(postId, safeReactionType);
-      }
-
-      // Reload the appropriate feed based on active view
-      if (activeView === 'myposts') {
-        reloadPosts().catch(reloadError => {
-          console.error('❌ Failed to reload user posts after reaction error:', reloadError);
-        });
-      } else {
-        loadAllPosts().catch(reloadError => {
-          console.error('❌ Failed to reload home feed after reaction error:', reloadError);
-        });
-      }
-
-      // Don't throw the error to prevent potential page refreshes
-     
+      throw error;
     }
   };
 
-  const getUserPosts = async (userId) => {
+  const getUserPosts = async () => {
     try {
-      // Check if requesting posts for current user
-      const currentUserId = getCurrentUserId();
+      // Use backend API for current user's posts (token-based)
+      const backendPosts = await postsAPI.getMyPosts();
       
-      if (userId === currentUserId) {
-        // Use backend API for current user's posts
-        const backendPosts = await postsAPI.getMyPosts();
-        
-        // Check the new nested structure
-        if (backendPosts.data && Array.isArray(backendPosts.data.posts)) {
-          return backendPosts.data.posts;
-        } else if (Array.isArray(backendPosts.data)) {
-          // Fallback to old structure
-          return backendPosts.data;
-        }
+      // Check the new nested structure
+      if (backendPosts.data && Array.isArray(backendPosts.data.posts)) {
+        return backendPosts.data.posts;
+      } else if (Array.isArray(backendPosts.data)) {
+        // Fallback to old structure
+        return backendPosts.data;
       }
       
-      // Fallback: Filter posts from current state for other users
-      const userPosts = posts.filter(post => 
-        post.authorId === userId || 
-        post.author_id === userId || 
-        post.user_id === userId
-      );
-      
-      return userPosts;
+      return [];
     } catch (error) {
       console.error('❌ Failed to get user posts:', error);
       return [];
@@ -1516,6 +1241,7 @@ const loadAllPosts = async (resetPagination = false) => {
 
   const value = {
     posts,
+    loading,
     tags,
     createPost,
     editPost,

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Navigate, Link } from 'react-router-dom';
 import { usePost } from '../../contexts/PostContext';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../contexts/AuthContext_token';
 import { postsAPI } from '../../services/api';
 import PostCard from './PostCard';
 import { ArrowLeft, Home, Loader } from 'lucide-react';

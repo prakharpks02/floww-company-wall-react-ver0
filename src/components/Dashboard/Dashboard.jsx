@@ -8,7 +8,7 @@ import BroadcastView from './BroadcastView';
 import ResponsiveLayout from '../Layout/ResponsiveLayout';
 import ScrollToTop from './ScrollToTop';
 import { usePost } from '../../contexts/PostContext';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../contexts/AuthContext_token';
 
 // Admin Components
 import AdminAllPosts from '../Admin/AdminAllPosts';

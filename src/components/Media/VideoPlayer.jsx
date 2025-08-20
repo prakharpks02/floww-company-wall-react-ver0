@@ -10,14 +10,25 @@ const VideoPlayer = ({ src, poster, className = "" }) => {
   const [isMuted, setIsMuted] = useState(false);
   const [showControls, setShowControls] = useState(true);
 
-  const togglePlay = () => {
+  const togglePlay = async () => {
     if (videoRef.current) {
-      if (isPlaying) {
-        videoRef.current.pause();
-      } else {
-        videoRef.current.play();
+      try {
+        if (isPlaying) {
+          videoRef.current.pause();
+        } else {
+          await videoRef.current.play();
+        }
+        setIsPlaying(!isPlaying);
+      } catch (error) {
+        // Handle AbortError and other play/pause errors
+        if (error.name === 'AbortError') {
+          console.log('Video play was interrupted, ignoring error');
+        } else {
+          console.error('Video play/pause error:', error);
+        }
+        // Update state based on actual video state
+        setIsPlaying(!videoRef.current.paused);
       }
-      setIsPlaying(!isPlaying);
     }
   };
 

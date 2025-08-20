@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from './../contexts/AuthContext';
+import { useAuth } from './../contexts/AuthContext_token';
 import { usePost } from './../contexts/PostContext';
 import { postsAPI } from '../services/api';
 

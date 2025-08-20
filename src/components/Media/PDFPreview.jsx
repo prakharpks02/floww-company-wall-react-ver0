@@ -1,102 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { ZoomIn, ZoomOut, Maximize2, Minimize2, Download, RotateCw, Home } from 'lucide-react';
+import React, { useState } from 'react';
+import { Download, ExternalLink } from 'lucide-react';
 
 const PDFPreview = ({ url, className = '' }) => {
-  const [zoom, setZoom] = useState(1);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [rotation, setRotation] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const containerRef = useRef(null);
-  const iframeRef = useRef(null);
-
-  // Handle keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (!isFullscreen) return;
-
-      if (e.ctrlKey || e.metaKey) {
-        switch (e.key) {
-          case '=':
-          case '+':
-            e.preventDefault();
-            handleZoomIn();
-            break;
-          case '-':
-            e.preventDefault();
-            handleZoomOut();
-            break;
-          case '0':
-            e.preventDefault();
-            setZoom(1);
-            break;
-        }
-      }
-
-      if (e.key === 'f' || e.key === 'F') {
-        e.preventDefault();
-        toggleFullscreen();
-      }
-
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        exitFullscreen();
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isFullscreen]);
-
-  // Handle fullscreen change events
-  useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
-  }, []);
-
-  const handleZoomIn = () => {
-    setZoom(prev => Math.min(prev + 0.25, 3));
-  };
-
-  const handleZoomOut = () => {
-    setZoom(prev => Math.max(prev - 0.25, 0.25));
-  };
-
-  const resetZoom = () => {
-    setZoom(1);
-  };
-
-  const handleRotate = () => {
-    setRotation(prev => (prev + 90) % 360);
-  };
-
-  const toggleFullscreen = async () => {
-    if (!containerRef.current) return;
-
-    try {
-      if (!document.fullscreenElement) {
-        await containerRef.current.requestFullscreen();
-      } else {
-        await document.exitFullscreen();
-      }
-    } catch (err) {
-      console.error('Error toggling fullscreen:', err);
-    }
-  };
-
-  const exitFullscreen = async () => {
-    if (document.fullscreenElement) {
-      try {
-        await document.exitFullscreen();
-      } catch (err) {
-        console.error('Error exiting fullscreen:', err);
-      }
-    }
-  };
 
   const handleDownload = () => {
     const link = document.createElement('a');
@@ -106,6 +13,10 @@ const PDFPreview = ({ url, className = '' }) => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const handleOpenInNewTab = () => {
+    window.open(url, '_blank');
   };
 
   const handleLoad = () => {
@@ -118,105 +29,40 @@ const PDFPreview = ({ url, className = '' }) => {
     setError('Failed to load PDF');
   };
 
-  const zoomPercentage = Math.round(zoom * 100);
-
   return (
-    <div
-      ref={containerRef}
-      className={`relative bg-gray-100 ${isFullscreen ? 'fixed inset-0 z-50 bg-black' : ''} ${className}`}
-      tabIndex={0}
-    >
-      {/* Controls */}
-      <div className={`absolute top-0 left-0 right-0 bg-white border-b border-gray-200 p-2 flex items-center justify-between z-10 ${
-        isFullscreen ? 'bg-gray-800 border-gray-600' : ''
-      }`}>
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={handleZoomOut}
-            disabled={zoom <= 0.25}
-            className={`p-1 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed ${
-              isFullscreen ? 'text-white hover:bg-gray-700' : 'text-gray-700'
-            }`}
-            title="Zoom Out (Ctrl+-)"
-          >
-            <ZoomOut className="h-4 w-4" />
-          </button>
-          
-          <span className={`text-sm font-medium min-w-[50px] text-center ${
-            isFullscreen ? 'text-white' : 'text-gray-700'
-          }`}>
-            {zoomPercentage}%
-          </span>
-          
-          <button
-            onClick={handleZoomIn}
-            disabled={zoom >= 3}
-            className={`p-1 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed ${
-              isFullscreen ? 'text-white hover:bg-gray-700' : 'text-gray-700'
-            }`}
-            title="Zoom In (Ctrl++)"
-          >
-            <ZoomIn className="h-4 w-4" />
-          </button>
-
-          <button
-            onClick={resetZoom}
-            className={`p-1 rounded hover:bg-gray-100 ${
-              isFullscreen ? 'text-white hover:bg-gray-700' : 'text-gray-700'
-            }`}
-            title="Reset Zoom (Ctrl+0)"
-          >
-            <Home className="h-4 w-4" />
-          </button>
-
-          <button
-            onClick={handleRotate}
-            className={`p-1 rounded hover:bg-gray-100 ${
-              isFullscreen ? 'text-white hover:bg-gray-700' : 'text-gray-700'
-            }`}
-            title="Rotate"
-          >
-            <RotateCw className="h-4 w-4" />
-          </button>
-        </div>
-
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={handleDownload}
-            className={`p-1 rounded hover:bg-gray-100 ${
-              isFullscreen ? 'text-white hover:bg-gray-700' : 'text-gray-700'
-            }`}
-            title="Download PDF"
-          >
-            <Download className="h-4 w-4" />
-          </button>
-
-          <button
-            onClick={toggleFullscreen}
-            className={`p-1 rounded hover:bg-gray-100 ${
-              isFullscreen ? 'text-white hover:bg-gray-700' : 'text-gray-700'
-            }`}
-            title={isFullscreen ? 'Exit Fullscreen (Esc)' : 'Fullscreen (F)'}
-          >
-            {isFullscreen ? (
-              <Minimize2 className="h-4 w-4" />
-            ) : (
-              <Maximize2 className="h-4 w-4" />
-            )}
-          </button>
-        </div>
+    <div className={`relative bg-gray-50 border border-gray-200 rounded-lg overflow-hidden ${className}`}>
+      {/* Simple Controls */}
+      <div className="bg-white border-b border-gray-200 px-4 py-2 flex items-center justify-end space-x-2">
+        <button
+          onClick={handleOpenInNewTab}
+          className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded transition-colors"
+          title="Open in new tab"
+        >
+          <ExternalLink className="h-4 w-4" />
+        </button>
+        
+        <button
+          onClick={handleDownload}
+          className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded transition-colors"
+          title="Download PDF"
+        >
+          <Download className="h-4 w-4" />
+        </button>
       </div>
 
       {/* PDF Content */}
-      <div className={`${isFullscreen ? 'pt-12 h-full' : 'pt-10 h-full'} overflow-auto`}>
+      <div className="relative h-96">
         {isLoading && (
-          <div className="flex items-center justify-center h-full">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+          <div className="absolute inset-0 flex items-center justify-center bg-white">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+              <p className="text-sm text-gray-500">Loading PDF...</p>
+            </div>
           </div>
         )}
 
         {error && (
-          <div className="flex items-center justify-center h-full">
+          <div className="absolute inset-0 flex items-center justify-center bg-white">
             <div className="text-center">
               <div className="text-red-500 mb-2">
                 <svg className="h-12 w-12 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -229,7 +75,7 @@ const PDFPreview = ({ url, className = '' }) => {
                   setError(null);
                   setIsLoading(true);
                 }}
-                className="text-purple-600 hover:text-purple-800 underline"
+                className="text-blue-600 hover:text-blue-800 underline"
               >
                 Try Again
               </button>
@@ -237,37 +83,14 @@ const PDFPreview = ({ url, className = '' }) => {
           </div>
         )}
 
-        {!error && (
-          <div 
-            className="flex items-center justify-center h-full p-4"
-            style={{
-              transform: `scale(${zoom}) rotate(${rotation}deg)`,
-              transformOrigin: 'center center',
-              transition: 'transform 0.2s ease-in-out'
-            }}
-          >
-            <iframe
-              ref={iframeRef}
-              src={url}
-              className="w-full h-full border-0 bg-white shadow-lg"
-              title="PDF Preview"
-              onLoad={handleLoad}
-              onError={handleError}
-              style={{
-                minHeight: isFullscreen ? 'calc(100vh - 96px)' : '400px',
-                maxWidth: '100%'
-              }}
-            />
-          </div>
-        )}
+        <iframe
+          src={url}
+          className="w-full h-full border-0"
+          title="PDF Preview"
+          onLoad={handleLoad}
+          onError={handleError}
+        />
       </div>
-
-      {/* Keyboard shortcuts help */}
-      {isFullscreen && (
-        <div className="absolute bottom-4 left-4 bg-black bg-opacity-75 text-white text-xs rounded px-2 py-1 opacity-75">
-          <div>Ctrl +/- : Zoom • F: Fullscreen • Esc: Exit</div>
-        </div>
-      )}
     </div>
   );
 };

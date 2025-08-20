@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import api from '../../services/api';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../contexts/AuthContext_token';
 import { usePost } from '../../contexts/PostContext';
 import apiTester from '../../utils/apiTester';
 

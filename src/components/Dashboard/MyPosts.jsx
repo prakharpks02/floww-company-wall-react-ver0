@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../contexts/AuthContext_token';
 import { usePost } from '../../contexts/PostContext';
 import PostCard from '../Posts/PostCard';
 import PostFeed from '../Posts/PostFeed';
@@ -18,46 +18,13 @@ import {
 
 const MyPosts = () => {
   const { user } = useAuth();
-  const { deletePost, posts: allPosts, reloadPosts } = usePost();
-  const [myPosts, setMyPosts] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { deletePost, posts, loading, reloadPosts } = usePost();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [error, setError] = useState(null);
 
-  // Filter posts for current user
-  const filterMyPosts = () => {
-    if (!user) return;
-    
-    try {
-      setLoading(true);
-      setError(null);
-
-      
-      // Filter posts by author_id or user_id
-      const userPosts = allPosts.filter(post => {
-        const postAuthorId = post.authorId || post.author_id || post.user_id;
-        const postAuthorUserId = post.author?.user_id || post.author?.id;
-        const currentUserId = user.id || user.user_id;
-        
-      
-        
-        return postAuthorId === currentUserId || postAuthorUserId === currentUserId;
-      });
-      
-     
-      
-      setMyPosts(userPosts);
-    } catch (error) {
-      console.error('Error filtering posts:', error);
-      setError('Failed to load posts');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    filterMyPosts();
-  }, [user?.id, allPosts]); // Add user.id and allPosts as dependencies
+  // Since /api/wall/posts/me already returns filtered posts for current user,
+  // we can use them directly without additional filtering
+  const myPosts = posts || [];
 
   const handleCreatePost = async () => {
     // The CreatePost component will handle the post creation

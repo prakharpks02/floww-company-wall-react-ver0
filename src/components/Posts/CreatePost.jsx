@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import RichTextEditor from '../Editor/RichTextEditor';
 import PDFPreview from '../Media/PDFPreview';
 import { usePost } from '../../contexts/PostContext';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../contexts/AuthContext_token';
 import { mediaAPI } from '../../services/api';
 import {
   X,

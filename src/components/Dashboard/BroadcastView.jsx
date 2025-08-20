@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Megaphone, Calendar, Users, ExternalLink, RefreshCw, Hash, User } from 'lucide-react';
 import { postsAPI } from '../../services/api';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../contexts/AuthContext_token';
 import PostCard from '../Posts/PostCard';
 import CreatePost from '../Posts/CreatePost';
 

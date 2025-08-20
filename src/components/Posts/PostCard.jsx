@@ -1,5 +1,5 @@
 import React from 'react';
-import { ExternalLink, Image } from 'lucide-react';
+import { Image } from 'lucide-react';
 import { usePostCard } from '../../hooks/usePostCard';
 import CreatePost from './CreatePost';
 import VideoPlayer from '../Media/VideoPlayer';
@@ -159,7 +159,9 @@ const PostCard = ({
                         onClick={() => window.open(doc.url, '_blank')}
                         className="text-red-600 hover:text-red-800 transition-colors"
                       >
-                        <ExternalLink className="h-4 w-4" />
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
                       </button>
                     </div>
                     <div className="h-80">
@@ -179,62 +181,6 @@ const PostCard = ({
                 )}
               </div>
             ))}
-          </div>
-        )}
-
-        {/* Links */}
-        {normalizedPost.links?.length > 0 && (
-          <div className="space-y-2">
-            {normalizedPost.links.map((link, idx) => {
-              // Handle cases where link.link is a stringified object: "{'link': 'gg.com'}"
-              let url = link.url || link.link;
-              let title = link.title;
-              let description = link.description;
-
-              // If url is a stringified object, parse it
-              if (typeof url === 'string' && url.trim().startsWith("{'link'")) {
-                try {
-                  // Convert single quotes to double quotes for JSON.parse
-                  const fixed = url.replace(/'/g, '"');
-                  const parsed = JSON.parse(fixed);
-                  url = parsed.link || url;
-                  if (!title) title = url;
-                } catch (e) {
-                  // fallback: show as-is
-                }
-              }
-              if (!title) title = url;
-
-              return (
-                <div key={link.id || url || idx} className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <ExternalLink className="h-6 w-6 text-blue-600" />
-                      <div>
-                        <a
-                          href={url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="font-medium text-blue-900 hover:underline"
-                        >
-                          {title}
-                        </a>
-                        <p className="text-sm text-blue-600 break-all">{url}</p>
-                        {description && (
-                          <p className="text-sm text-gray-600 mt-1">{description}</p>
-                        )}
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => window.open(url, '_blank')}
-                      className="text-blue-600 hover:text-blue-800 transition-colors"
-                    >
-                      <ExternalLink className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
           </div>
         )}
       </div>
