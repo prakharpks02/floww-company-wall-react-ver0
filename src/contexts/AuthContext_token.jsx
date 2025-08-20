@@ -16,27 +16,62 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+const FLOWW_EMPLOYEE_TOKEN =
+  "99f5c17fe3b5c866c94a132e9b781185651201eb80569326a893e5ecf3e7f448";
 
-  // Hardcoded token for authentication
-  const FLOWW_EMPLOYEE_TOKEN = '99f5c17fe3b5c866c94a132e9b781185651201eb80569326a893e5ecf3e7f448';
+useEffect(() => {
+  const fetchUser = async () => {
+    try {
+      if (!FLOWW_EMPLOYEE_TOKEN) {
+        // Redirect if no token
+        window.location.href = "https://dev.gofloww.co";
+        return;
+      }
 
-  useEffect(() => {
-    // Check if token is available and set authenticated user
-    if (FLOWW_EMPLOYEE_TOKEN) {
-      const authenticatedUser = {
-        id: 'authenticated_user',
-        name: 'Employee User',
-        email: 'employee@floww.co',
-        authenticated: true,
-        token: FLOWW_EMPLOYEE_TOKEN
-      };
-      setUser(authenticatedUser);
-    } else {
-      // Redirect to Floww if no token
-      window.location.href = 'https://dev.gofloww.co';
+      const response = await fetch("https://dev.gofloww.co/api/wall/get_user", {
+        method: "POST",
+        headers: {
+          Authorization: FLOWW_EMPLOYEE_TOKEN, // Pass token in headers
+          "Content-Type": "application/json",
+        },
+      });
+
+      const result = await response.json();
+
+      if (result.status === "success") {
+        const { username, company_email, personal_email, employee_id, is_blocked } = result.data;
+
+        const authenticatedUser = {
+          id: employee_id,
+          employee_id: employee_id,
+          name: username,
+          username: username,
+          email: company_email,
+          company_email: company_email,
+          personal_email: personal_email,
+          is_blocked: is_blocked,
+          authenticated: true,
+          token: FLOWW_EMPLOYEE_TOKEN,
+          // Generate avatar URL based on name
+          avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=9f7aea&color=white&size=128`,
+          position: 'Employee' // Default position, could be enhanced later
+        };
+
+        setUser(authenticatedUser);
+      } else {
+        // If failed, redirect
+        window.location.href = "https://dev.gofloww.co";
+      }
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      window.location.href = "https://dev.gofloww.co";
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-  }, []);
+  };
+
+  fetchUser();
+}, []);
 
   // Check authentication status
   const isAuthenticated = () => {

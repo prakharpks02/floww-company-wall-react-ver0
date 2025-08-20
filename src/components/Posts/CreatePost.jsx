@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import RichTextEditor from '../Editor/RichTextEditor';
 import PDFPreview from '../Media/PDFPreview';
+import ImageCropModal from '../Media/ImageCropModal';
 import { usePost } from '../../contexts/PostContext';
 import { useAuth } from '../../contexts/AuthContext_token';
 import { mediaAPI } from '../../services/api';
@@ -30,6 +31,10 @@ const CreatePost = ({ onClose, editingPost = null }) => {
   const [showMentions, setShowMentions] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');
   const [showLinkInput, setShowLinkInput] = useState(false);
+  
+  // Image cropping states
+  const [showCropModal, setShowCropModal] = useState(false);
+  const [imageToProcess, setImageToProcess] = useState(null);
 
   const fileInputRef = useRef(null);
   const videoInputRef = useRef(null);
@@ -48,36 +53,61 @@ const CreatePost = ({ onClose, editingPost = null }) => {
   const handleImageUpload = async (e) => {
     const files = Array.from(e.target.files);
     
-    for (const file of files) {
-      try {
-        // Show loading state for this file
-        const tempId = Date.now() + Math.random();
-        const tempImage = {
-          id: tempId,
-          url: '',
-          name: file.name,
-          size: file.size,
-          isUploading: true
-        };
-        setImages(prev => [...prev, tempImage]);
-
-        // Upload to backend
-        const uploadResult = await mediaAPI.uploadFile(file, 'image');
-        
-        // Update with actual URL from backend
-        setImages(prev => prev.map(img => 
-          img.id === tempId 
-            ? { ...img, url: uploadResult.url, isUploading: false }
-            : img
-        ));
-        
-      } catch (error) {
-        console.error('Failed to upload image:', error);
-        // Remove failed upload
-        setImages(prev => prev.filter(img => img.id !== tempId));
-        alert(`Failed to upload ${file.name}. Please try again.`);
+    if (files.length > 0) {
+      // Process first file with crop modal
+      setImageToProcess(files[0]);
+      setShowCropModal(true);
+      
+      // Process remaining files without cropping (if multiple selected)
+      for (let i = 1; i < files.length; i++) {
+        await processImageFile(files[i]);
       }
     }
+    
+    // Reset file input
+    e.target.value = '';
+  };
+
+  const processImageFile = async (file) => {
+    try {
+      // Show loading state for this file
+      const tempId = Date.now() + Math.random();
+      const tempImage = {
+        id: tempId,
+        url: '',
+        name: file.name,
+        size: file.size,
+        isUploading: true
+      };
+      setImages(prev => [...prev, tempImage]);
+
+      // Upload to backend
+      const uploadResult = await mediaAPI.uploadFile(file, 'image');
+      
+      // Update with actual URL from backend
+      setImages(prev => prev.map(img => 
+        img.id === tempId 
+          ? { ...img, url: uploadResult.url, isUploading: false }
+          : img
+      ));
+      
+    } catch (error) {
+      console.error('Failed to upload image:', error);
+      // Remove failed upload
+      setImages(prev => prev.filter(img => img.id !== tempId));
+      alert(`Failed to upload ${file.name}. Please try again.`);
+    }
+  };
+
+  const handleCropSave = async (croppedFile) => {
+    await processImageFile(croppedFile);
+    setShowCropModal(false);
+    setImageToProcess(null);
+  };
+
+  const handleCropCancel = () => {
+    setShowCropModal(false);
+    setImageToProcess(null);
   };
 
   const handleVideoUpload = async (e) => {
@@ -688,6 +718,14 @@ const CreatePost = ({ onClose, editingPost = null }) => {
           </div>
         </div>
       </div>
+      
+      {/* Image Crop Modal */}
+      <ImageCropModal
+        imageFile={imageToProcess}
+        isOpen={showCropModal}
+        onSave={handleCropSave}
+        onCancel={handleCropCancel}
+      />
     </div>
   );
 };

@@ -129,7 +129,7 @@ export const PostProvider = ({ children }) => {
     }
     
     // Extract author information from backend format
-    const authorName = rawPost.author?.username || rawPost.author?.name || rawPost.authorName || rawPost.author_name || 'Employee User';
+    const authorName = rawPost.author?.username || rawPost.author?.name || rawPost.authorName || rawPost.author_name || user?.name || 'Unknown User';
     const authorAvatar = rawPost.author?.avatar || rawPost.authorAvatar || rawPost.author_avatar;
     
     console.log('🔍 PostContext normalizePost - Author info:', {
@@ -140,7 +140,7 @@ export const PostProvider = ({ children }) => {
     
     // Normalize comments to handle backend format
     const normalizedComments = rawPost.comments?.map(comment => {
-      const commentAuthorName = comment.author?.username || comment.author?.name || comment.authorName || 'Employee User';
+      const commentAuthorName = comment.author?.username || comment.author?.name || comment.authorName || user?.name || 'Unknown User';
       const commentAuthorAvatar = comment.author?.avatar || comment.authorAvatar || 
                                  'https://ui-avatars.com/api/?name=' + encodeURIComponent(commentAuthorName) + '&background=random';
       
@@ -582,8 +582,8 @@ export const PostProvider = ({ children }) => {
     }
 
     // Use token-based authentication - backend will handle user identification
-    const authorName = "Employee User"; // Default name since we don't have user details
-    const authorAvatar = 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80';
+    const authorName = user?.name || user?.username || 'Unknown User';
+    const authorAvatar = user?.avatar || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80';
 
     try {
       // Optimistically create the post object first for immediate UI update
@@ -802,7 +802,7 @@ export const PostProvider = ({ children }) => {
         id: result.comment_id || result.id || uuidv4(),
         comment_id: result.comment_id || result.id, // Store the backend comment_id
         author: {
-          username: result.author?.username || result.author || "Employee User",
+          username: result.author?.username || result.author || username,
           email: result.author?.email || "employee@floww.com"
         },
         content: commentData.content,
@@ -836,8 +836,8 @@ export const PostProvider = ({ children }) => {
       const newReply = {
         id: result.reply_id || result.id || uuidv4(),
         reply_id: result.reply_id || result.id, // Store the backend reply_id
-        author: result.author?.username || result.author || "Employee User",
-        author_name: result.author?.username || result.author || "Employee User",
+        author: result.author?.username || result.author || username,
+        author_name: result.author?.username || result.author || username,
         content: replyData.content,
         timestamp: result.timestamp || new Date().toISOString(),
         likes: [],
@@ -1039,7 +1039,7 @@ export const PostProvider = ({ children }) => {
         reply_id: response?.reply_id,
         content: replyContent,
         author: {
-          username: user?.username || user?.name || 'Employee User'
+          username: user?.name || user?.username || 'Unknown User'
         },
         created_at: new Date().toISOString(),
         reactions: {}
