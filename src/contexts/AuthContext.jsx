@@ -71,6 +71,53 @@ export const AuthProvider = ({ children }) => {
     return `USR${Date.now()}${Math.floor(Math.random() * 1000)}`;
   };
 
+  // Initialize default users (including admin for testing)
+  const initializeDefaultUsers = () => {
+    const users = getAllRegisteredUsers();
+    
+    // Check if admin user already exists
+    const adminExists = users.find(user => user.username === 'admin' && user.is_admin);
+    
+    if (!adminExists) {
+      const adminUser = {
+        id: 'ADMIN_001',
+        user_id: 'ADMIN_001',
+        username: 'admin',
+        email: 'admin@gmail.com',
+        position: 'Administrator',
+        department: 'IT',
+        is_admin: true,
+        is_blocked: false,
+        created_at: new Date().toISOString()
+      };
+      
+      users.push(adminUser);
+      localStorage.setItem('registeredUsers', JSON.stringify(users));
+      console.log('✅ Default admin user created for testing:', adminUser);
+    }
+    
+    // Check if regular user exists
+    const userExists = users.find(user => user.username === 'user123');
+    
+    if (!userExists) {
+      const regularUser = {
+        id: 'USER_001',
+        user_id: 'USER_001',
+        username: 'user123',
+        email: 'user@gmail.com',
+        position: 'Employee',
+        department: 'General',
+        is_admin: false,
+        is_blocked: false,
+        created_at: new Date().toISOString()
+      };
+      
+      users.push(regularUser);
+      localStorage.setItem('registeredUsers', JSON.stringify(users));
+      console.log('✅ Default regular user created for testing:', regularUser);
+    }
+  };
+
   // Get all registered users from localStorage
   const getAllRegisteredUsers = () => {
     const users = localStorage.getItem('registeredUsers');
@@ -110,6 +157,9 @@ export const AuthProvider = ({ children }) => {
   };
 
   useEffect(() => {
+    // Initialize default users for testing
+    initializeDefaultUsers();
+    
     // Check for stored user session
     const storedUser = localStorage.getItem('hrUser');
     if (storedUser) {
@@ -263,11 +313,30 @@ export const AuthProvider = ({ children }) => {
         console.log('💾 Storing user session with consistent IDs:', userSession);
         console.log('🔍 Verifying: user_id =', userId, ', author_id =', userId);
         console.log('🔍 User name being stored:', userSession.name);
+        console.log('🔍 User type being stored:', userSession.is_admin ? 'Admin' : 'Employee');
+        
         localStorage.setItem('hrUser', JSON.stringify(userSession));
         // Also store user_id for API service compatibility
         localStorage.setItem('userId', JSON.stringify(userId));
         localStorage.setItem('userSession', JSON.stringify(userSession));
         setUser(userSession);
+        
+        // Handle admin routing
+        if (userSession.is_admin) {
+          console.log('🔄 Admin user detected, checking admin dashboard URL...');
+          const adminDashboardUrl = import.meta.env.VITE_ADMIN_DASHBOARD_URL || 'http://localhost:8000/dashboard/admin';
+          console.log('🔄 Admin dashboard URL:', adminDashboardUrl);
+          
+          // Always redirect admin users to the admin dashboard
+          console.log('🔄 Redirecting admin to:', adminDashboardUrl);
+          
+          // Use a timeout to ensure the user data is properly stored before redirect
+          setTimeout(() => {
+            window.location.href = adminDashboardUrl;
+          }, 100);
+          
+          return { success: true, user: userSession, redirect: adminDashboardUrl };
+        }
         
         return { success: true, user: userSession };
       } catch (backendError) {
@@ -278,6 +347,23 @@ export const AuthProvider = ({ children }) => {
         if (existingUser) {
           const userSession = storeUserLocally(existingUser);
           console.log('✅ Frontend login successful with registered user:', userSession);
+          
+          // Handle admin routing for frontend fallback as well
+          if (userSession.is_admin) {
+            console.log('🔄 Admin user detected in frontend fallback');
+            const adminDashboardUrl = import.meta.env.VITE_ADMIN_DASHBOARD_URL || 'http://localhost:8000/dashboard/admin';
+            
+            // Always redirect admin users to the admin dashboard
+            console.log('🔄 Redirecting admin to:', adminDashboardUrl);
+            
+            // Use a timeout to ensure the user data is properly stored before redirect
+            setTimeout(() => {
+              window.location.href = adminDashboardUrl;
+            }, 100);
+            
+            return { success: true, user: userSession, redirect: adminDashboardUrl };
+          }
+          
           return { success: true, user: userSession };
         }
 

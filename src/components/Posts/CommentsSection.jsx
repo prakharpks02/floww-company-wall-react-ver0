@@ -36,19 +36,21 @@ const CommentsSection = ({
   // Check if comments are allowed on this post
   const commentsAllowed = normalizedPost.is_comments_allowed === true || normalizedPost.is_comments_allowed === "true";
   const userBlocked = user?.is_blocked === true || user?.is_blocked === "true";
+  const userIsAdmin = user?.is_admin === true || user?.is_admin === "true" || isAdmin;
 
   console.log('🔍 CommentsSection - Comment status check:', {
     postId: normalizedPost.post_id || normalizedPost.id,
     is_comments_allowed: normalizedPost.is_comments_allowed,
     is_comments_allowed_type: typeof normalizedPost.is_comments_allowed,
     commentsAllowed,
-    userBlocked
+    userBlocked,
+    userIsAdmin
   });
 
   return (
     <div className="space-y-3">
       {/* Show comment input box when comments are open and allowed */}
-      {!isPublicView && commentsAllowed && (
+      {!isPublicView && commentsAllowed && !userIsAdmin && (
         <div className="flex mb-2">
           <div className="flex-1 flex mt-6 space-x-2">
             <input
@@ -69,6 +71,15 @@ const CommentsSection = ({
               Post
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Show message when user is admin */}
+      {userIsAdmin && (
+        <div className="mt-6 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+          <p className="text-sm text-amber-800 text-center">
+            🛡️ Admin users cannot comment on posts
+          </p>
         </div>
       )}
 

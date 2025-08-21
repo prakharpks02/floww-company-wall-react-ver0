@@ -7,19 +7,12 @@ import { Loader } from 'lucide-react';
 // Helper to fetch pinned posts
 const fetchPinnedPosts = async () => {
   try {
-    const userId = localStorage.getItem('userId') || localStorage.getItem('user_id');
-    const userIdValue = userId ? JSON.parse(userId) : undefined;
-    let endpoint = 'http://localhost:8000/api/wall/posts/pinned';
-    if (userIdValue) {
-      endpoint += `?user_id=${encodeURIComponent(userIdValue)}`;
-    }
-    const response = await fetch(endpoint, {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' }
-    });
-    const result = await response.json();
-    if (result.status === 'success' && Array.isArray(result.data)) {
-      return result.data;
+    console.log('Fetching pinned posts using admin API...');
+    const response = await adminAPI.getBroadcastPosts();
+    console.log('Pinned posts response:', response);
+    
+    if (response?.posts && Array.isArray(response.posts)) {
+      return response.posts;
     }
     return [];
   } catch (e) {
@@ -269,10 +262,8 @@ const AdminAllPosts = () => {
     try {
       let newComment;
       if (parentCommentId) {
-        // Use the reply API for replies
-        const userId = localStorage.getItem('userId') || localStorage.getItem('user_id');
-        const userIdValue = userId ? JSON.parse(userId) : undefined;
-        newComment = await postsAPI.addCommentReply(postId, parentCommentId, userIdValue, commentText);
+        // Use the reply API for replies - no user ID needed with token auth
+        newComment = await postsAPI.addCommentReply(postId, parentCommentId, commentText);
       } else {
         // Use the regular comment API for top-level comments
         newComment = await postsAPI.addComment(postId, { content: commentText });
@@ -426,8 +417,11 @@ const AdminAllPosts = () => {
     try {
       console.log('🔍 Blocking/Unblocking user:', userId);
       
-      // Find current user status before toggling
-      const currentUser = posts.find(post => post.author?.user_id === userId)?.author;
+      // Find current user status before toggling - use employee_id instead of user_id
+      const currentUser = posts.find(post => 
+        post.author?.user_id === userId || 
+        post.author?.employee_id === userId
+      )?.author;
       console.log('🔍 Current user before toggle:', currentUser);
       
       // Optimistic update - toggle the status immediately for better UX
@@ -436,20 +430,20 @@ const AdminAllPosts = () => {
       
       console.log('🔍 Optimistic update - Current status:', currentBlockedStatus, '-> New status:', optimisticNewStatus);
       
-      // Update UI immediately (optimistic update)
+      // Update UI immediately (optimistic update) - check both user_id and employee_id
       const updateUserStatus = (posts, newStatus) => posts.map(post => ({
         ...post,
-        author: post.author?.user_id === userId 
+        author: (post.author?.user_id === userId || post.author?.employee_id === userId)
           ? { ...post.author, is_blocked: newStatus }
           : post.author,
         comments: post.comments ? post.comments.map(comment => ({
           ...comment,
-          author: comment.author?.user_id === userId
+          author: (comment.author?.user_id === userId || comment.author?.employee_id === userId)
             ? { ...comment.author, is_blocked: newStatus }
             : comment.author,
           replies: comment.replies ? comment.replies.map(reply => ({
             ...reply,
-            author: reply.author?.user_id === userId
+            author: (reply.author?.user_id === userId || reply.author?.employee_id === userId)
               ? { ...reply.author, is_blocked: newStatus }
               : reply.author
           })) : []
@@ -460,6 +454,7 @@ const AdminAllPosts = () => {
       setPosts(prev => updateUserStatus(prev, optimisticNewStatus));
       setPinnedPosts(prev => updateUserStatus(prev, optimisticNewStatus));
       
+      // Call the API with the correct ID format
       const result = await adminAPI.toggleBlockUser(userId);
       console.log('🔍 Toggle block result:', result);
       
@@ -493,21 +488,21 @@ const AdminAllPosts = () => {
       console.error('Error blocking user:', error);
       setError(`Failed to toggle user block status: ${error.message}`);
       
-      // Revert optimistic update on error
+      // Revert optimistic update on error - check both user_id and employee_id
       const revertStatus = currentUser?.is_blocked === true || currentUser?.is_blocked === "true";
       const updateUserStatus = (posts, newStatus) => posts.map(post => ({
         ...post,
-        author: post.author?.user_id === userId 
+        author: (post.author?.user_id === userId || post.author?.employee_id === userId)
           ? { ...post.author, is_blocked: newStatus }
           : post.author,
         comments: post.comments ? post.comments.map(comment => ({
           ...comment,
-          author: comment.author?.user_id === userId
+          author: (comment.author?.user_id === userId || comment.author?.employee_id === userId)
             ? { ...comment.author, is_blocked: newStatus }
             : comment.author,
           replies: comment.replies ? comment.replies.map(reply => ({
             ...reply,
-            author: reply.author?.user_id === userId
+            author: (reply.author?.user_id === userId || reply.author?.employee_id === userId)
               ? { ...reply.author, is_blocked: newStatus }
               : reply.author
           })) : []

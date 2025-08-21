@@ -298,9 +298,14 @@ const CommentItem = ({
                   handleCommentReaction('like');
                 }
               }}
-              disabled={isPublicView}
+              disabled={isPublicView || isAdmin}
+              title={
+                isAdmin ? "Admin users cannot react to comments" :
+                isPublicView ? "Login to react to comments" : 
+                "React to this comment"
+              }
               className={`flex items-center space-x-2 text-sm ${
-                isPublicView 
+                (isPublicView || isAdmin)
                   ? 'text-gray-400 cursor-not-allowed'
                   : 'text-gray-500 hover:text-red-600'
               } transition-colors`}
@@ -360,7 +365,7 @@ const CommentItem = ({
             </button>
 
             {/* Hover Reactions Dropdown */}
-            {showCommentReactions?.[comment.comment_id || comment.id] && !isPublicView && (
+            {showCommentReactions?.[comment.comment_id || comment.id] && !isPublicView && !isAdmin && (
               <div 
                 className="absolute bottom-full left-0 mb-2 bg-white border border-gray-200 rounded-full shadow-lg px-2 py-2 flex items-center space-x-1 z-20"
                 onMouseEnter={() => handleCommentReactionsMouseEnter?.(comment.comment_id || comment.id)}
@@ -386,9 +391,14 @@ const CommentItem = ({
           {/* Reply Button */}
           <button
             onClick={handleReply}
-            disabled={isPublicView}
+            disabled={isPublicView || isAdmin}
+            title={
+              isAdmin ? "Admin users cannot reply to comments" :
+              isPublicView ? "Login to reply to comments" : 
+              "Reply to this comment"
+            }
             className={`flex items-center space-x-2 text-sm ${
-              isPublicView 
+              (isPublicView || isAdmin)
                 ? 'text-gray-400 cursor-not-allowed'
                 : 'text-gray-500 hover:text-blue-600'
             } transition-colors`}
@@ -417,8 +427,8 @@ const CommentItem = ({
         ) : null;
       })()}
 
-      {/* Reply Input (if replying to this comment) */}
-      {replyingTo === (comment.comment_id || comment.id) && (
+      {/* Reply Input (if replying to this comment and user is not admin) */}
+      {replyingTo === (comment.comment_id || comment.id) && !isAdmin && (
         <div className="mt-3 p-3 bg-gray-100 rounded-lg">
           <div className="flex items-center gap-2 mb-2">
             <div className="w-6 h-6 bg-gradient-to-br from-purple-400 to-blue-500 rounded-full flex items-center justify-center">

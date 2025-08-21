@@ -154,15 +154,6 @@ const AdminPostCard = ({
   };
 
   const renderAttachments = () => {
-    console.log('🔍 AdminPostCard - Media debug:', {
-      normalizedPost,
-      images: normalizedPost.images,
-      videos: normalizedPost.videos,
-      documents: normalizedPost.documents,
-      links: normalizedPost.links,
-      rawMedia: post.media
-    });
-
     const hasAttachments = 
       normalizedPost.images?.length > 0 || 
       normalizedPost.videos?.length > 0 || 
@@ -230,7 +221,9 @@ const AdminPostCard = ({
                         onClick={() => window.open(doc.url, '_blank')}
                         className="text-red-600 hover:text-red-800 transition-colors"
                       >
-                        <ExternalLink className="h-4 w-4" />
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
                       </button>
                     </div>
                     <div className="h-80">
@@ -253,7 +246,7 @@ const AdminPostCard = ({
           </div>
         )}
 
-        {/* Links */}
+        {/* Links - Additional feature for Admin view */}
         {normalizedPost.links?.length > 0 && (
           <div className="space-y-2">
             {normalizedPost.links.map((link, idx) => {
@@ -378,11 +371,25 @@ const AdminPostCard = ({
                     onClick={() => { 
                       console.log('🔍 Block button clicked for user:', {
                         userId: normalizedPost.author.user_id,
+                        employeeId: normalizedPost.author.employee_id,
                         author: normalizedPost.author,
                         isBlocked: normalizedPost.author.is_blocked,
                         computed: isUserBlocked
                       });
-                      onBlockUser(normalizedPost.author.user_id); 
+                      // Debug: Log all possible IDs from the author object
+                      console.log('🔍 All author data:', normalizedPost.author);
+                      
+                      // Try different ID formats - use employee_id first, fallback to user_id
+                      const userIdToBlock = normalizedPost.author.employee_id || normalizedPost.author.user_id;
+                      console.log('🔍 Using ID for blocking:', userIdToBlock);
+                      
+                      if (!userIdToBlock) {
+                        console.error('❌ No valid user ID found for blocking');
+                        alert('Error: Cannot identify user to block');
+                        return;
+                      }
+                      
+                      onBlockUser(userIdToBlock); 
                       setShowMenu(false); 
                     }}
                     className={`w-full px-4 py-2 text-sm flex flex-row-reverse items-center gap-2 font-medium justify-end transition-colors ${

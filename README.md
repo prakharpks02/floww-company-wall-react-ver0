@@ -94,10 +94,9 @@ Use any of these dummy accounts to explore the platform:
 ## 📁 Project Structure
 
 ```
+```
 src/
 ├── components/
-│   ├── Auth/
-│   │   └── LoginPage.jsx          # Authentication interface
 │   ├── Dashboard/
 │   │   ├── Dashboard.jsx          # Main dashboard layout
 │   │   ├── Header.jsx             # Top navigation bar
@@ -107,7 +106,8 @@ src/
 │       ├── PostCard.jsx           # Individual post display
 │       └── PostFeed.jsx           # Posts timeline
 ├── contexts/
-│   ├── AuthContext.jsx            # Authentication state management
+│   ├── AuthContext_token.jsx      # Token-based authentication
+```
 │   └── PostContext.jsx            # Posts state management
 ├── utils/
 │   └── helpers.js                 # Utility functions

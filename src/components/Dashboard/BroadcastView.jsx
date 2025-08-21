@@ -20,7 +20,18 @@ const BroadcastView = () => {
       setError(null);
       const response = await postsAPI.getBroadcastPosts();
       
-      const transformedBroadcasts = (response.data || []).map(broadcast => ({
+      console.log('🔍 BroadcastView - Full response:', response);
+      
+      const broadcastData = response.posts || response.data || [];
+      console.log('🔍 BroadcastView - Broadcast data:', broadcastData);
+      
+      if (!Array.isArray(broadcastData)) {
+        console.error('❌ BroadcastView - Expected array but got:', typeof broadcastData, broadcastData);
+        setBroadcasts([]);
+        return;
+      }
+      
+      const transformedBroadcasts = broadcastData.map(broadcast => ({
         id: broadcast.post_id,
         post_id: broadcast.post_id,
         content: broadcast.content,

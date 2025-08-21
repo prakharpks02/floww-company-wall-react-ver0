@@ -47,7 +47,7 @@ const SinglePostView = () => {
         
         // If not found locally, fetch from API
         console.log('🔍 SinglePostView - Fetching post from API with ID:', postId);
-        console.log('🔍 SinglePostView - API URL will be:', `http://localhost:8000/api/wall/posts/${postId}/get_single_post`);
+        console.log('🔍 SinglePostView - API URL will be:', `https://dev.gofloww.co/api/wall/posts/${postId}/get_single_post`);
         
         const response = await postsAPI.getPostById(postId);
         
@@ -166,16 +166,16 @@ const SinglePostView = () => {
                   <span>Back to Feed</span>
                 </Link>
               ) : (
-                <Link
-                  to="/login"
+                <button
+                  onClick={() => window.location.href = 'https://dev.gofloww.co'}
                   className="flex items-center space-x-2 text-gray-600 hover:text-purple-600 transition-colors"
                 >
                   <ArrowLeft className="h-5 w-5" />
-                  <span>Login</span>
-                </Link>
+                  <span>Go to Floww</span>
+                </button>
               )}
               <Link
-                to={user ? "/dashboard" : "/login"}
+                to={user ? "/dashboard" : "https://dev.gofloww.co"}
                 className="flex items-center space-x-2 text-gray-600 hover:text-purple-600 transition-colors"
               >
                 <Home className="h-5 w-5" />
@@ -196,12 +196,12 @@ const SinglePostView = () => {
               {error || "The post you're looking for doesn't exist or may have been deleted."}
             </p>
             <Link
-              to={user ? "/dashboard" : "/login"}
+              to={user ? "/dashboard" : "https://dev.gofloww.co"}
               className="inline-flex items-center px-4 py-2 text-white rounded-lg hover:opacity-90 transition-opacity"
               style={{ backgroundColor: '#9f7aea' }}
             >
               <Home className="h-4 w-4 mr-2" />
-              {user ? 'Go to Dashboard' : 'Login to Join'}
+              {user ? 'Go to Dashboard' : 'Go to Floww'}
             </Link>
           </div>
         </div>
@@ -224,19 +224,19 @@ const SinglePostView = () => {
                 <span>Back to Feed</span>
               </Link>
             ) : (
-              <Link
-                to="/login"
+              <button
+                onClick={() => window.location.href = 'https://dev.gofloww.co'}
                 className="flex items-center space-x-2 text-gray-600 hover:text-purple-600 transition-colors"
               >
                 <ArrowLeft className="h-5 w-5" />
-                <span>Login</span>
-              </Link>
+                <span>Go to Floww</span>
+              </button>
             )}
             <div className="text-sm text-gray-500">
               {user ? 'Shared Post' : 'Public Post'}
             </div>
             <Link
-              to={user ? "/dashboard" : "/login"}
+              to={user ? "/dashboard" : "https://dev.gofloww.co"}
               className="flex items-center space-x-2 text-gray-600 hover:text-purple-600 transition-colors"
             >
               <Home className="h-5 w-5" />
@@ -256,12 +256,12 @@ const SinglePostView = () => {
             {user ? 'Want to see more posts like this?' : 'Join our community to interact with posts!'}
           </p>
           <Link
-            to={user ? "/dashboard" : "/login"}
+            to={user ? "/dashboard" : "https://dev.gofloww.co"}
             className="inline-flex items-center px-6 py-2 text-white rounded-lg hover:opacity-90 transition-opacity"
             style={{ backgroundColor: '#9f7aea' }}
           >
             <Home className="h-4 w-4 mr-2" />
-            {user ? 'View More Posts' : 'Login to Join'}
+            {user ? 'View More Posts' : 'Join Floww'}
           </Link>
         </div>
       </div>

@@ -129,14 +129,16 @@ const Sidebar = ({ filters, setFilters, onCreatePost, activeView, onViewChange }
         </div>
 
         <div className="relative z-10 p-4 lg:p-6">
-          {/* Enhanced Create Post Button */}
-          <button
-            onClick={onCreatePost}
-            className="liquid-create-btn w-full flex items-center justify-center space-x-2 px-4 py-3 rounded-2xl font-semibold transition-all duration-300 mb-6 group text-white"
-          >
-            <Plus className="h-5 w-5 relative z-10" />
-            <span className="relative z-10">Create Post</span>
-          </button>
+          {/* Enhanced Create Post Button - Only show for non-admin users */}
+          {!user?.is_admin && (
+            <button
+              onClick={onCreatePost}
+              className="liquid-create-btn w-full flex items-center justify-center space-x-2 px-4 py-3 rounded-2xl font-semibold transition-all duration-300 mb-6 group text-white"
+            >
+              <Plus className="h-5 w-5 relative z-10" />
+              <span className="relative z-10">Create Post</span>
+            </button>
+          )}
 
           {/* Enhanced Navigation */}
           <nav className="space-y-2 mb-6">
@@ -144,7 +146,8 @@ const Sidebar = ({ filters, setFilters, onCreatePost, activeView, onViewChange }
               // Only show Home Feed if not admin
               ...(!isAdmin ? [{ view: "home", label: "Home Feed", icon: Home }] : []),
               { view: "broadcast", label: "Community Broadcast", icon: Megaphone },
-              { view: "myposts", label: "My Posts", icon: FileText },
+              // Only show My Posts if not admin
+              ...(!isAdmin ? [{ view: "myposts", label: "My Posts", icon: FileText }] : []),
             ].map(({ view, label, icon: Icon }) => {
               const isActive = activeView === view
               return (

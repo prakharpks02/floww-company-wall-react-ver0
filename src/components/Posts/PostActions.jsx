@@ -5,6 +5,7 @@ const PostActions = ({
   isLiked,
   isPublicView,
   isBlocked = false,
+  isAdmin = false, // Add admin prop
   handleLike,
   totalLikes,
   getUserReaction,
@@ -20,7 +21,7 @@ const PostActions = ({
   handleReport,
   isOwnPost = false
 }) => {
-  const isDisabled = isPublicView || isBlocked;
+  const isDisabled = isPublicView || isBlocked || isAdmin;
   return (
     <div className="flex items-center space-x-6">
       {/* Like Button with Hover Reactions */}
@@ -33,6 +34,7 @@ const PostActions = ({
           onClick={handleLike}
           disabled={isDisabled}
           title={
+            isAdmin ? "Admin users cannot react to posts" :
             isBlocked ? "Blocked users cannot like posts" :
             isPublicView ? "Login to like posts" : 
             "Like this post"
@@ -84,6 +86,7 @@ const PostActions = ({
       <button
         onClick={() => setShowComments(!showComments)}
         title={
+          isAdmin ? "Admin users cannot comment on posts" :
           isBlocked ? "Blocked users cannot comment" :
           isPublicView ? "View comments (login to interact)" : 
           "View comments"

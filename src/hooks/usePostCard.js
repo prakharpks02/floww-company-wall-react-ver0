@@ -59,6 +59,31 @@ export const usePostCard = (post, activeView = 'home') => {
 
   // Normalize post data to handle different field names from backend
   const normalizePost = (rawPost) => {
+    // Debug logging for media processing
+    if (rawPost.media && rawPost.media.length > 0) {
+      console.log('🖼️ Media processing for post:', {
+        postId: rawPost.post_id || rawPost.id,
+        media: rawPost.media,
+        mediaCount: rawPost.media.length
+      });
+      
+      rawPost.media.forEach((item, idx) => {
+        if (item.link) {
+          const decodedUrl = decodeURIComponent(item.link);
+          console.log(`🔍 Media item ${idx}:`, {
+            originalUrl: item.link,
+            decodedUrl: decodedUrl,
+            name: item.name,
+            type: item.type,
+            mimeType: item.mime_type,
+            isImageByExtension: decodedUrl.match(/\.(jpeg|jpg|gif|png|webp|bmp|svg)$/i),
+            isImageByType: item.type === 'image',
+            isImageByMimeType: item.mime_type && item.mime_type.startsWith('image/')
+          });
+        }
+      });
+    }
+    
     // CRITICAL: Handle reactions normalization properly
     let normalizedReactions = {};
     
@@ -119,31 +144,220 @@ export const usePostCard = (post, activeView = 'home') => {
       // Handle media array - split into different types
       images: (() => {
         const images = rawPost.images || [];
-        const mediaImages = (rawPost.media || []).filter(item => 
-          item.link && (item.link.match(/\.(jpeg|jpg|gif|png)$/i) || item.type === 'image')
-        ).map(item => ({ url: item.link, name: item.name || 'Image' }));
-        return [...images, ...mediaImages];
+        const mediaImages = (rawPost.media || []).filter(item => {
+          if (!item.link) return false;
+          
+          // Parse JSON-encoded links from backend
+          let actualUrl = item.link;
+          if (typeof item.link === 'string' && item.link.startsWith("{'link'")) {
+            try {
+              // Fix the malformed JSON by replacing single quotes with double quotes
+              const fixedJson = item.link.replace(/'/g, '"');
+              const parsed = JSON.parse(fixedJson);
+              actualUrl = parsed.link;
+            } catch (e) {
+              console.warn('Failed to parse media link:', item.link);
+              return false;
+            }
+          }
+          
+          // Decode URL to handle encoded characters like %20
+          const decodedUrl = decodeURIComponent(actualUrl);
+          const isImageByExtension = decodedUrl.match(/\.(jpeg|jpg|gif|png|webp|bmp|svg)$/i);
+          const isImageByType = item.type === 'image';
+          const isImageByMimeType = item.mime_type && item.mime_type.startsWith('image/');
+          return isImageByExtension || isImageByType || isImageByMimeType;
+        }).map(item => {
+          let actualUrl = item.link;
+          if (typeof item.link === 'string' && item.link.startsWith("{'link'")) {
+            try {
+              const fixedJson = item.link.replace(/'/g, '"');
+              const parsed = JSON.parse(fixedJson);
+              actualUrl = parsed.link;
+            } catch (e) {
+              actualUrl = item.link;
+            }
+          }
+          
+          return { 
+            url: actualUrl, 
+            name: item.name || 'Image',
+            id: item.id,
+            type: item.type || 'image'
+          };
+        });
+        
+        // Combine images and media images, removing duplicates by URL
+        const allImages = [...images, ...mediaImages];
+        const uniqueImages = allImages.filter((image, index, self) => 
+          index === self.findIndex(img => img.url === image.url)
+        );
+        
+        return uniqueImages;
       })(),
       videos: (() => {
         const videos = rawPost.videos || [];
-        const mediaVideos = (rawPost.media || []).filter(item => 
-          item.link && (item.link.match(/\.(mp4|avi|mov|wmv)$/i) || item.type === 'video')
-        ).map(item => ({ url: item.link, name: item.name || 'Video' }));
-        return [...videos, ...mediaVideos];
+        const mediaVideos = (rawPost.media || []).filter(item => {
+          if (!item.link) return false;
+          
+          // Parse JSON-encoded links from backend
+          let actualUrl = item.link;
+          if (typeof item.link === 'string' && item.link.startsWith("{'link'")) {
+            try {
+              const fixedJson = item.link.replace(/'/g, '"');
+              const parsed = JSON.parse(fixedJson);
+              actualUrl = parsed.link;
+            } catch (e) {
+              console.warn('Failed to parse media link:', item.link);
+              return false;
+            }
+          }
+          
+          const decodedUrl = decodeURIComponent(actualUrl);
+          const isVideoByExtension = decodedUrl.match(/\.(mp4|avi|mov|wmv|flv|mkv|webm)$/i);
+          const isVideoByType = item.type === 'video';
+          const isVideoByMimeType = item.mime_type && item.mime_type.startsWith('video/');
+          return isVideoByExtension || isVideoByType || isVideoByMimeType;
+        }).map(item => {
+          let actualUrl = item.link;
+          if (typeof item.link === 'string' && item.link.startsWith("{'link'")) {
+            try {
+              const fixedJson = item.link.replace(/'/g, '"');
+              const parsed = JSON.parse(fixedJson);
+              actualUrl = parsed.link;
+            } catch (e) {
+              actualUrl = item.link;
+            }
+          }
+          
+          return { 
+            url: actualUrl, 
+            name: item.name || 'Video',
+            id: item.id,
+            type: item.type || 'video',
+            thumbnail: item.thumbnail
+          };
+        });
+        
+        // Combine videos and media videos, removing duplicates by URL
+        const allVideos = [...videos, ...mediaVideos];
+        const uniqueVideos = allVideos.filter((video, index, self) => 
+          index === self.findIndex(vid => vid.url === video.url)
+        );
+        
+        return uniqueVideos;
       })(),
       documents: (() => {
         const documents = rawPost.documents || [];
-        const mediaDocuments = (rawPost.media || []).filter(item => 
-          item.link && (item.link.match(/\.(pdf|doc|docx|xls|xlsx|ppt|pptx)$/i) || item.type === 'document')
-        ).map(item => ({ url: item.link, name: item.name || 'Document' }));
-        return [...documents, ...mediaDocuments];
+        const mediaDocuments = (rawPost.media || []).filter(item => {
+          if (!item.link) return false;
+          
+          // Parse JSON-encoded links from backend
+          let actualUrl = item.link;
+          if (typeof item.link === 'string' && item.link.startsWith("{'link'")) {
+            try {
+              const fixedJson = item.link.replace(/'/g, '"');
+              const parsed = JSON.parse(fixedJson);
+              actualUrl = parsed.link;
+            } catch (e) {
+              console.warn('Failed to parse media link:', item.link);
+              return false;
+            }
+          }
+          
+          const decodedUrl = decodeURIComponent(actualUrl);
+          const isDocumentByExtension = decodedUrl.match(/\.(pdf|doc|docx|xls|xlsx|ppt|pptx|txt|rtf)$/i);
+          const isDocumentByType = item.type === 'document';
+          const isDocumentByMimeType = item.mime_type && (
+            item.mime_type.includes('pdf') || 
+            item.mime_type.includes('document') || 
+            item.mime_type.includes('spreadsheet') ||
+            item.mime_type.includes('presentation')
+          );
+          return isDocumentByExtension || isDocumentByType || isDocumentByMimeType;
+        }).map(item => {
+          let actualUrl = item.link;
+          if (typeof item.link === 'string' && item.link.startsWith("{'link'")) {
+            try {
+              const fixedJson = item.link.replace(/'/g, '"');
+              const parsed = JSON.parse(fixedJson);
+              actualUrl = parsed.link;
+            } catch (e) {
+              actualUrl = item.link;
+            }
+          }
+          
+          return { 
+            url: actualUrl, 
+            name: item.name || 'Document',
+            id: item.id,
+            type: item.type || 'document',
+            isPDF: actualUrl.toLowerCase().includes('.pdf'),
+            size: item.size
+          };
+        });
+        
+        // Combine documents and media documents, removing duplicates by URL
+        const allDocuments = [...documents, ...mediaDocuments];
+        const uniqueDocuments = allDocuments.filter((doc, index, self) => 
+          index === self.findIndex(d => d.url === doc.url)
+        );
+        
+        return uniqueDocuments;
       })(),
       links: (() => {
         const links = rawPost.links || [];
-        const mediaLinks = (rawPost.media || []).filter(item => 
-          item.link && !item.link.match(/\.(jpeg|jpg|gif|png|mp4|avi|mov|wmv|pdf|doc|docx|xls|xlsx|ppt|pptx)$/i)
-        ).map(item => ({ url: item.link, name: item.name || 'Link' }));
-        return [...links, ...mediaLinks];
+        const mediaLinks = (rawPost.media || []).filter(item => {
+          if (!item.link) return false;
+          
+          // Parse JSON-encoded links from backend
+          let actualUrl = item.link;
+          if (typeof item.link === 'string' && item.link.startsWith("{'link'")) {
+            try {
+              const fixedJson = item.link.replace(/'/g, '"');
+              const parsed = JSON.parse(fixedJson);
+              actualUrl = parsed.link;
+            } catch (e) {
+              console.warn('Failed to parse media link:', item.link);
+              return false;
+            }
+          }
+          
+          const decodedUrl = decodeURIComponent(actualUrl);
+          // Only include as links if they're NOT images, videos, or documents
+          const isImage = decodedUrl.match(/\.(jpeg|jpg|gif|png|webp|bmp|svg)$/i) || item.type === 'image' || (item.mime_type && item.mime_type.startsWith('image/'));
+          const isVideo = decodedUrl.match(/\.(mp4|avi|mov|wmv|flv|mkv|webm)$/i) || item.type === 'video' || (item.mime_type && item.mime_type.startsWith('video/'));
+          const isDocument = decodedUrl.match(/\.(pdf|doc|docx|xls|xlsx|ppt|pptx|txt|rtf)$/i) || item.type === 'document' || (item.mime_type && (item.mime_type.includes('pdf') || item.mime_type.includes('document')));
+          return !isImage && !isVideo && !isDocument;
+        }).map(item => {
+          let actualUrl = item.link;
+          if (typeof item.link === 'string' && item.link.startsWith("{'link'")) {
+            try {
+              const fixedJson = item.link.replace(/'/g, '"');
+              const parsed = JSON.parse(fixedJson);
+              actualUrl = parsed.link;
+            } catch (e) {
+              actualUrl = item.link;
+            }
+          }
+          
+          return { 
+            url: actualUrl, 
+            name: item.name || 'Link',
+            id: item.id,
+            type: item.type || 'link',
+            title: item.title,
+            description: item.description
+          };
+        });
+        
+        // Combine links and media links, removing duplicates by URL
+        const allLinks = [...links, ...mediaLinks];
+        const uniqueLinks = allLinks.filter((link, index, self) => 
+          index === self.findIndex(l => l.url === link.url)
+        );
+        
+        return uniqueLinks;
       })(),
       mentions: rawPost.mentions || [],
       // Use comments as-is since PostContext already normalizes them
@@ -282,7 +496,8 @@ export const usePostCard = (post, activeView = 'home') => {
     
     // Use the actual post ID from the API (post_id format)
     const actualPostId = normalizedPost.post_id || normalizedPost.id;
-    const shareUrl = `${window.location.origin}/post/${actualPostId}`;
+    // Use API endpoint that returns post data without authentication
+    const shareUrl = `https://dev.gofloww.co/api/wall/posts/${actualPostId}/get_single_post`;
     const shareText = `Check out this post by ${normalizedPost.authorName}: ${normalizedPost.content.replace(/<[^>]*>/g, '').substring(0, 100)}...`;
     
     console.log('🔍 Share - Post ID:', actualPostId);

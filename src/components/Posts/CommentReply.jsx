@@ -150,10 +150,14 @@ const CommentReply = ({
                     handleReplyReaction('like');
                   }
                 }}
-                disabled={isPublicView}
-                title={isPublicView ? "Login to react to replies" : "React to this reply"}
+                disabled={isPublicView || isAdmin}
+                title={
+                  isAdmin ? "Admin users cannot react to replies" :
+                  isPublicView ? "Login to react to replies" : 
+                  "React to this reply"
+                }
                 className={`flex items-center space-x-1 text-xs ${
-                  isPublicView 
+                  (isPublicView || isAdmin)
                     ? 'text-gray-400 cursor-not-allowed'
                     : 'text-gray-500 hover:text-red-600'
                 } transition-colors`}
@@ -234,7 +238,7 @@ const CommentReply = ({
               </button>
 
               {/* Hover Reactions Dropdown */}
-              {showCommentReactions?.[reply.comment_id || reply.id || reply.reply_id] && !isPublicView && (
+              {showCommentReactions?.[reply.comment_id || reply.id || reply.reply_id] && !isPublicView && !isAdmin && (
                 <div 
                   className="absolute bottom-full left-0 mb-2 bg-white border border-gray-200 rounded-full shadow-lg px-2 py-2 flex items-center space-x-1 z-20"
                   onMouseEnter={() => handleCommentReactionsMouseEnter?.(reply.comment_id || reply.id || reply.reply_id)}

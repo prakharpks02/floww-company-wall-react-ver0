@@ -4,34 +4,50 @@
 
 import Cookies from "js-cookie";
 
-// Get authentication token based on environment
-const getAuthToken = () => {
+// Get authentication token based on environment and user type
+const getAuthToken = (userType = 'employee') => {
   if (typeof window !== 'undefined') {
     if (window.location.hostname === "localhost") {
-      // Use hardcoded token for localhost development
-      return "99f5c17fe3b5c866c94a132e9b781185651201eb80569326a893e5ecf3e7f448";
+      // Use the correct token based on user type for localhost development
+      if (userType === 'admin') {
+        return import.meta.env.VITE_FLOWW_ADMIN_TOKEN;
+      }
+      return import.meta.env.VITE_FLOWW_EMPLOYEE_TOKEN;
     } else {
       // Use token from cookies for production/staging
+      if (userType === 'admin') {
+        return Cookies.get("floww-admin-token");
+      }
       return Cookies.get("floww-employee-token");
     }
   }
   // Fallback for SSR or Node.js environment
-  return "99f5c17fe3b5c866c94a132e9b781185651201eb80569326a893e5ecf3e7f448";
+  if (userType === 'admin') {
+    return import.meta.env.VITE_FLOWW_ADMIN_TOKEN;
+  }
+  return import.meta.env.VITE_FLOWW_EMPLOYEE_TOKEN;
 };
 
 // Store token in cookies (useful for production environments)
-const storeTokenInCookies = (token) => {
+const storeTokenInCookies = (token, userType = 'employee') => {
   if (typeof window !== 'undefined') {
-    Cookies.set("floww-employee-token", token, {
+    const cookieName = userType === 'admin' ? "floww-admin-token" : "floww-employee-token";
+    Cookies.set(cookieName, token, {
       expires: 30, // 30 days
       secure: window.location.protocol === 'https:',
       sameSite: 'strict'
     });
-    console.log('✅ Token stored in cookies successfully');
+    console.log(`✅ ${userType} token stored in cookies successfully`);
   }
 };
 
-const FLOWW_EMPLOYEE_TOKEN = getAuthToken();
+// Get current user type from current URL path
+const getCurrentUserType = () => {
+  const currentPath = window.location.pathname;
+  return currentPath.includes('/admin') ? 'admin' : 'employee';
+};
+
+const FLOWW_TOKEN = getAuthToken();
 
 const API_CONFIG = {
   BASE_URL: 'https://dev.gofloww.co/api/wall',
@@ -43,17 +59,23 @@ const API_CONFIG = {
 // =============================================================================
 
 // Helper function to check authentication and redirect if needed
-const checkAuthToken = () => {
-  const currentToken = getAuthToken();
+const checkAuthToken = (userType = null) => {
+  const currentUserType = userType || getCurrentUserType();
+  const currentToken = getAuthToken(currentUserType);
+  
   if (!currentToken) {
-    console.warn('⚠️ No authentication token found');
+    console.warn(`⚠️ No ${currentUserType} authentication token found`);
     if (typeof window !== 'undefined') {
       if (window.location.hostname === "localhost") {
-        console.error('❌ Missing token for localhost development');
-        throw new Error('Missing authentication token for localhost development');
+        console.error(`❌ Missing ${currentUserType} token for localhost development`);
+        throw new Error(`Missing ${currentUserType} authentication token for localhost development`);
       } else {
         console.warn('⚠️ Redirecting to Floww authentication');
-        window.location.href = 'https://dev.gofloww.co';
+        if (currentUserType === 'admin') {
+          window.location.href = import.meta.env.VITE_ADMIN_DASHBOARD_URL || 'http://localhost:8000/dashboard/admin';
+        } else {
+          window.location.href = 'https://dev.gofloww.co';
+        }
         throw new Error('Missing authentication token. Redirecting...');
       }
     }
@@ -82,7 +104,8 @@ const handleResponse = async (response) => {
 // Helper function to create fetch requests with timeout and authentication
 const fetchWithTimeout = async (url, options = {}) => {
   // Get fresh token for each request and check authentication
-  const currentToken = checkAuthToken();
+  const userType = options.userType || getCurrentUserType();
+  const currentToken = checkAuthToken(userType);
   
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT);
@@ -102,9 +125,12 @@ const fetchWithTimeout = async (url, options = {}) => {
     headers = { ...headers, ...options.headers };
   }
   
+  // Remove userType from options before passing to fetch
+  const { userType: _, ...fetchOptions } = options;
+  
   try {
     const response = await fetch(url, {
-      ...options,
+      ...fetchOptions,
       signal: controller.signal,
       headers
     });
@@ -243,6 +269,25 @@ export const userAPI = {
     }
   },
 
+  // Get current user details
+  getCurrentUser: async () => {
+    const endpoint = `${API_CONFIG.BASE_URL}/get_user`;
+    logApiCall('GET', endpoint);
+    
+    try {
+      const response = await fetchWithTimeout(endpoint, {
+        method: 'GET'
+      });
+      
+      const result = await handleResponse(response);
+      console.log('✅ Current user retrieved successfully');
+      return result;
+    } catch (error) {
+      console.error('❌ Get current user error:', error.message);
+      throw error;
+    }
+  },
+
   // Clear session (remove token from cookies)
   clearSession: () => {
     if (typeof window !== 'undefined') {
@@ -349,25 +394,38 @@ export const postsAPI = {
     }
   },
 
-  // Get current user's posts (requires authentication)
+  // Get current user's posts
   getMyPosts: async () => {
-    const endpoint = `${API_CONFIG.BASE_URL}/posts/me`;
+    // For admin users, use admin endpoint, for employees use regular posts endpoint
+    const currentUserType = getCurrentUserType();
+    const endpoint = currentUserType === 'admin' 
+      ? `${API_CONFIG.BASE_URL}/admin/posts`
+      : `${API_CONFIG.BASE_URL}/posts`;
     
     try {
+      console.log('🔍 API getMyPosts - User type:', currentUserType);
       console.log('🔍 API getMyPosts - Endpoint:', endpoint);
-      logApiCall('POST', endpoint);
+      logApiCall('GET', endpoint);
 
       const response = await fetchWithTimeout(endpoint, {
-        method: 'POST',
-        body: JSON.stringify({})
+        method: 'GET',
+        userType: currentUserType // Pass user type to ensure correct token is used
       });
       
       const result = await handleResponse(response);
       console.log('🔍 API getMyPosts - Full response:', result);
-      console.log(`✅ Retrieved ${result.data?.length || 0} posts for current user`);
-      console.log('🔍 API getMyPosts - First post structure:', result.data?.[0]);
       
-      return result;
+      // Extract posts from the response
+      const posts = result?.data?.posts || result?.posts || result?.data || [];
+      console.log(`✅ Retrieved ${posts.length} posts from ${currentUserType} endpoint`);
+      if (posts.length > 0) {
+        console.log('🔍 API getMyPosts - First post structure:', posts[0]);
+      }
+      
+      return {
+        ...result,
+        data: posts
+      };
     } catch (error) {
       console.error('❌ Get my posts error:', error.message);
       console.error('❌ Full error details:', error);

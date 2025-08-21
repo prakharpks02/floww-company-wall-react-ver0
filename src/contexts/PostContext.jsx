@@ -21,6 +21,8 @@ export const PostProvider = ({ children }) => {
   const [nextCursor, setNextCursor] = useState(null);
   const [hasMorePosts, setHasMorePosts] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
+  const [lastRefreshTime, setLastRefreshTime] = useState(Date.now());
   const [userReactions, setUserReactions] = useState(() => {
     // Load user reactions from localStorage on initialization
     try {
@@ -408,6 +410,17 @@ export const PostProvider = ({ children }) => {
     loadPosts();
   }, [user]);
 
+  // Auto-refresh reactions every 30 seconds
+  useEffect(() => {
+    if (!autoRefreshEnabled || !user) return;
+
+    const intervalId = setInterval(() => {
+      refreshReactions();
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(intervalId);
+  }, [autoRefreshEnabled, user, posts.length]);
+
   // Standalone function to reload posts (can be called after edit/delete)
   const reloadPosts = async () => {
     try {
@@ -534,12 +547,26 @@ export const PostProvider = ({ children }) => {
     
     if (resetPagination) {
       setPosts(uniqueNormalizedPosts);
+      console.log('🔍 PostContext - Posts set after reset:', {
+        count: uniqueNormalizedPosts.length,
+        firstFew: uniqueNormalizedPosts.slice(0, 2).map(p => ({
+          id: p.post_id || p.id,
+          content: p.content?.substring(0, 50),
+          author: p.author?.username || p.authorName
+        }))
+      });
     } else {
       // Append new posts for pagination
       setPosts(prevPosts => {
         const existingIds = new Set(prevPosts.map(p => p.post_id || p.id));
         const newUniquePosts = uniqueNormalizedPosts.filter(p => !existingIds.has(p.post_id || p.id));
-        return [...prevPosts, ...newUniquePosts];
+        const updatedPosts = [...prevPosts, ...newUniquePosts];
+        console.log('🔍 PostContext - Posts updated after append:', {
+          prevCount: prevPosts.length,
+          newCount: newUniquePosts.length,
+          totalCount: updatedPosts.length
+        });
+        return updatedPosts;
       });
     }
     
@@ -572,6 +599,53 @@ export const PostProvider = ({ children }) => {
       await loadAllPosts(false); // Don't reset pagination
     } finally {
       setIsLoadingMore(false);
+    }
+  };
+
+  // Function to refresh reactions for all posts in real-time
+  const refreshReactions = async () => {
+    if (!autoRefreshEnabled || posts.length === 0) return;
+
+    try {
+      console.log('🔄 Refreshing reactions for', posts.length, 'posts');
+      
+      // Get updated posts data
+      const backendPosts = await postsAPI.getPosts(1, 10);
+      let postsData = [];
+
+      if (backendPosts.data && Array.isArray(backendPosts.data.posts)) {
+        postsData = backendPosts.data.posts;
+      } else if (Array.isArray(backendPosts.data)) {
+        postsData = backendPosts.data;
+      }
+
+      if (postsData.length === 0) return;
+
+      // Update only reactions and comments for existing posts
+      setPosts(prevPosts => {
+        return prevPosts.map(prevPost => {
+          const updatedPost = postsData.find(p => 
+            (p.post_id === prevPost.post_id) || (p.id === prevPost.id)
+          );
+          
+          if (updatedPost) {
+            // Only update reaction-related fields to avoid overwriting user interactions
+            return {
+              ...prevPost,
+              reactions: updatedPost.reaction_counts || updatedPost.reactions || prevPost.reactions,
+              reaction_counts: updatedPost.reaction_counts || prevPost.reaction_counts,
+              comments: updatedPost.comments || prevPost.comments
+            };
+          }
+          
+          return prevPost;
+        });
+      });
+
+      setLastRefreshTime(Date.now());
+      console.log('✅ Reactions refreshed successfully');
+    } catch (error) {
+      console.error('❌ Failed to refresh reactions:', error.message);
     }
   };
 
@@ -1141,6 +1215,10 @@ export const PostProvider = ({ children }) => {
       // Add or toggle the reaction
       await postsAPI.addReaction(postId, safeReactionType, reactionEmoji);
       
+      // Immediately refresh reactions for real-time updates
+      await refreshReactions();
+      console.log('✅ Refreshed reactions in real-time after user action');
+      
       // Reload the appropriate feed based on the active view
       if (activeView === 'myposts') {
         await reloadPosts();
@@ -1212,19 +1290,34 @@ export const PostProvider = ({ children }) => {
 
   const getFilteredPosts = (filters = {}) => {
     let filteredPosts = [...posts];
+    console.log('🔍 getFilteredPosts called with:', { 
+      filters, 
+      totalPosts: posts.length,
+      postsPreview: posts.slice(0, 2).map(p => ({ 
+        id: p.post_id || p.id, 
+        content: p.content?.substring(0, 30) 
+      }))
+    });
 
     // Filter by tag
     if (filters.tag && filters.tag !== 'all') {
+      const beforeTagFilter = filteredPosts.length;
       filteredPosts = filteredPosts.filter(post => 
         post.tags && post.tags.some(postTag => {
           const tagName = typeof postTag === 'string' ? postTag : postTag.tag_name || postTag.name;
           return tagName === filters.tag;
         })
       );
+      console.log('🏷️ Tag filter applied:', { 
+        tag: filters.tag, 
+        before: beforeTagFilter, 
+        after: filteredPosts.length 
+      });
     }
 
     // Filter by search query
     if (filters.search && filters.search.trim()) {
+      const beforeSearchFilter = filteredPosts.length;
       const searchQuery = filters.search.toLowerCase().trim();
       filteredPosts = filteredPosts.filter(post =>
         post.content.toLowerCase().includes(searchQuery) ||
@@ -1234,8 +1327,17 @@ export const PostProvider = ({ children }) => {
           return tagName.toLowerCase().includes(searchQuery);
         }))
       );
+      console.log('🔍 Search filter applied:', { 
+        query: searchQuery, 
+        before: beforeSearchFilter, 
+        after: filteredPosts.length 
+      });
     }
 
+    console.log('🔍 getFilteredPosts result:', { 
+      finalCount: filteredPosts.length,
+      originalCount: posts.length 
+    });
     return filteredPosts;
   };
 

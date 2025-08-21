@@ -28,6 +28,10 @@ function AppRoutes() {
         element={<Dashboard />} 
       />
       <Route 
+        path="/dashboard/admin" 
+        element={<Dashboard />} 
+      />
+      <Route 
         path="/post/:postId" 
         element={<SinglePostView />} 
       />

@@ -63,6 +63,13 @@ const LoginPage = () => {
     });
   };
 
+  const fillAdminCredentials = () => {
+    setFormData({
+      username: 'admin',
+      email: 'admin@gmail.com'
+    });
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
@@ -166,15 +173,25 @@ const LoginPage = () => {
 
             {isLoginMode && (
               <div className="text-center">
-                <button
-                  type="button"
-                  onClick={fillDemoCredentials}
-                  className="text-sm text-purple-600 hover:text-purple-500 underline"
-                >
-                  Use demo credentials
-                </button>
+                <div className="flex flex-col space-y-2">
+                  <button
+                    type="button"
+                    onClick={fillDemoCredentials}
+                    className="text-sm text-purple-600 hover:text-purple-500 underline"
+                  >
+                    Use demo credentials (Employee)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={fillAdminCredentials}
+                    className="text-sm text-amber-600 hover:text-amber-500 underline"
+                  >
+                    Use admin credentials (Admin)
+                  </button>
+                </div>
                 <div className="mt-2 text-xs text-gray-500">
-                  Demo: user123 / user@gmail.com
+                  Employee: user123 / user@gmail.com<br/>
+                  Admin: admin / admin@gmail.com
                 </div>
               </div>
             )}

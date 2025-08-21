@@ -254,6 +254,7 @@ const PostCard = ({
             isLiked={isLiked}
             isPublicView={isPublicView}
             isBlocked={isBlocked}
+            isAdmin={user?.is_admin}
             handleLike={handleLike}
             totalLikes={getTotalLikes()}
             getUserReaction={getUserReaction}
@@ -274,6 +275,7 @@ const PostCard = ({
       <CommentsSection
         showComments={showComments}
         isPublicView={isPublicView}
+        isAdmin={user?.is_admin}
         commentText={commentText}
         setCommentText={setCommentText}
         handleComment={handleComment}

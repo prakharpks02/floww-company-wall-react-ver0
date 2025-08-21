@@ -2,13 +2,28 @@
 // ADMIN API SERVICE
 // =============================================================================
 
+// Get the appropriate admin token based on current URL
+const getAdminToken = () => {
+  const currentPath = window.location.pathname;
+  if (currentPath.includes('/admin')) {
+    return import.meta.env.VITE_FLOWW_ADMIN_TOKEN;
+  }
+  return import.meta.env.VITE_FLOWW_EMPLOYEE_TOKEN;
+};
+
 const API_CONFIG = {
-  BASE_URL: 'http://localhost:8000/api/wall',
+  BASE_URL: 'https://dev.gofloww.co/api/wall',
   TIMEOUT: 30000, // Increased timeout to 30 seconds
   HEADERS: {
+    'Authorization': getAdminToken(),
     'Content-Type': 'application/json',
   }
 };
+
+// Debug: Log the token being used
+console.log('🔑 Admin API Token:', API_CONFIG.HEADERS.Authorization ? 'Token loaded' : 'No token found');
+console.log('🔑 Current path:', window.location.pathname);
+console.log('🔑 Using token type:', window.location.pathname.includes('/admin') ? 'Admin' : 'Employee');
 
 // Helper function to handle API responses
 const handleResponse = async (response) => {
@@ -32,12 +47,16 @@ const fetchWithTimeout = async (url, options = {}) => {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT);
   
+  // Get fresh token for each request
+  const currentToken = getAdminToken();
+  
   try {
     const response = await fetch(url, {
       ...options,
       signal: controller.signal,
       headers: {
-        ...API_CONFIG.HEADERS,
+        'Authorization': currentToken,
+        'Content-Type': 'application/json',
         ...options.headers
       }
     });
@@ -68,70 +87,119 @@ export const adminAPI = {
   // ========================================
   
   // Get all posts (admin only)
-getAllPosts: async (lastPostId = null) => {
-  // Get user_id from localStorage, fallback to author_id
-  let user_id = null;
-  try {
-    const stored = localStorage.getItem('userId') || localStorage.getItem('user_id') || localStorage.getItem('author_id');
-    if (stored) user_id = JSON.parse(stored);
-  } catch (e) {
-    console.warn('⚠️ Failed to parse user ID from localStorage:', e);
-  }
+  getAllPosts: async (lastPostId = null) => {
+    // Build endpoint with pagination parameter if provided
+    let endpoint = `${API_CONFIG.BASE_URL}/admin/posts`;
+    if (lastPostId) {
+      endpoint += `?lastPostId=${encodeURIComponent(lastPostId)}`;
+    }
 
-  if (!user_id) {
-    throw new Error('Invalid or missing user_id');
-  }
+    console.log('🔄 API getAllPosts - Endpoint:', endpoint);
+    logApiCall('GET', endpoint);
 
-  // Build endpoint with only lastPostId in URL (no limit)
-  let endpoint = `${API_CONFIG.BASE_URL}/admin/posts`;
-  if (lastPostId) {
-    endpoint += `?lastPostId=${encodeURIComponent(lastPostId)}`;
-  }
+    try {
+      const response = await fetchWithTimeout(endpoint, {
+        method: 'GET'
+      });
 
-  // Prepare request body with user_id
-  const requestBody = { user_id };
+      const result = await handleResponse(response);
 
-  console.log('🔄 API getAllPosts - Endpoint:', endpoint);
-  console.log('📦 Request Body:', requestBody);
-  logApiCall('POST', endpoint, requestBody);
+      const posts = result?.data?.posts || result?.posts || result?.data || [];
+      const next = result?.data?.nextCursor || result?.nextCursor || null;
+      const hasMore = result?.data?.hasMore || result?.hasMore || (next !== null);
 
-  try {
-    const response = await fetchWithTimeout(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(requestBody)
-    });
+      console.log(`✅ Retrieved ${posts.length} admin posts`);
+      console.log('🔍 Pagination info:', {
+        nextCursor: next,
+        hasMore
+      });
 
-    const result = await handleResponse(response);
+      return {
+        posts,
+        lastPostId: next,
+        nextCursor: next,
+        hasMore,
+        raw: result
+      };
+    } catch (error) {
+      console.error('❌ Get all posts error:', error.message);
+      throw error;
+    }
+  },
 
-    const posts = result?.data?.posts || result?.posts || result?.data || [];
-    const next = result?.data?.nextCursor || result?.nextCursor || null;
-    const hasMore = result?.data?.hasMore || result?.hasMore || (next !== null);
+  // Get broadcast posts
+  getBroadcastPosts: async () => {
+    const endpoint = `${API_CONFIG.BASE_URL}/admin/posts/broadcast`;
+    logApiCall('GET', endpoint);
+    
+    try {
+      const response = await fetchWithTimeout(endpoint, {
+        method: 'GET'
+      });
+      
+      const result = await handleResponse(response);
+      // Handle the nested data structure from API response
+      const posts = result?.data?.posts || result?.posts || result?.data || [];
+      
+      console.log(`✅ Retrieved ${posts.length} broadcast posts`);
+      console.log('🔍 Admin API getBroadcastPosts - Raw result:', result);
+      console.log('🔍 Admin API getBroadcastPosts - Extracted posts:', posts);
+      
+      return {
+        posts,
+        raw: result
+      };
+    } catch (error) {
+      console.error('❌ Get broadcast posts error:', error.message);
+      throw error;
+    }
+  },
 
-    console.log(`✅ Retrieved ${posts.length} admin posts`);
-    console.log('🔍 Pagination info:', {
-      nextCursor: next,
-      hasMore
-    });
+  // Create new post
+  createPost: async (postData) => {
+    const endpoint = `${API_CONFIG.BASE_URL}/admin/posts`;
+    logApiCall('POST', endpoint, postData);
+    
+    try {
+      const response = await fetchWithTimeout(endpoint, {
+        method: 'POST',
+        body: JSON.stringify(postData)
+      });
+      
+      const result = await handleResponse(response);
+      console.log('✅ Post created successfully');
+      
+      return result;
+    } catch (error) {
+      console.error('❌ Create post error:', error.message);
+      throw error;
+    }
+  },
 
-    return {
-      posts,
-      lastPostId: next, // Use nextCursor as lastPostId for consistency with frontend
-      nextCursor: next, // Also provide nextCursor for clarity
-      hasMore,
-      raw: result
-    };
-  } catch (error) {
-    console.error('❌ Get all posts error:', error.message);
-    throw error;
-  }
-},
+  // Broadcast post
+  broadcastPost: async (postData) => {
+    const endpoint = `${API_CONFIG.BASE_URL}/admin/posts/broadcast`;
+    logApiCall('POST', endpoint, postData);
+    
+    try {
+      const response = await fetchWithTimeout(endpoint, {
+        method: 'POST',
+        body: JSON.stringify(postData)
+      });
+      
+      const result = await handleResponse(response);
+      console.log('✅ Post broadcasted successfully');
+      
+      return result;
+    } catch (error) {
+      console.error('❌ Broadcast post error:', error.message);
+      throw error;
+    }
+  },
 
-  // Get pinned posts
+  // Get pinned posts (using admin posts endpoint and filtering)
   getPinnedPosts: async () => {
-    const endpoint = `${API_CONFIG.BASE_URL}/posts/pinned`;
+    const endpoint = `${API_CONFIG.BASE_URL}/admin/posts`;
     logApiCall('GET', endpoint);
     
     try {
@@ -141,11 +209,14 @@ getAllPosts: async (lastPostId = null) => {
       
       const result = await handleResponse(response);
       
-      const posts = result?.data || [];
-      console.log(`✅ Retrieved ${posts.length} pinned posts`);
+      // Filter for pinned posts
+      const allPosts = result?.data?.posts || result?.posts || result?.data || [];
+      const pinnedPosts = allPosts.filter(post => post.is_pinned === true || post.pinned === true);
+      
+      console.log(`✅ Retrieved ${pinnedPosts.length} pinned posts from ${allPosts.length} total posts`);
       
       return {
-        posts,
+        posts: pinnedPosts,
         raw: result
       };
     } catch (error) {
@@ -156,34 +227,47 @@ getAllPosts: async (lastPostId = null) => {
 
   // Toggle pin status of a post
   togglePinPost: async (postId) => {
-    // Get user_id from localStorage
-    let userId;
-    try {
-      const stored = localStorage.getItem('userId') || localStorage.getItem('user_id');
-      if (stored) {
-        userId = JSON.parse(stored);
-      }
-    } catch (e) {
-      console.warn('⚠️ Unable to retrieve user_id from localStorage:', e.message);
-    }
-
     const endpoint = `${API_CONFIG.BASE_URL}/admin/posts/${postId}/toggle_pin`;
-    logApiCall('GET', endpoint, { postId, userId });
+    logApiCall('POST', endpoint, { postId });
 
     try {
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
-        body: JSON.stringify({ user_id: userId })
+        body: JSON.stringify({}) // Send empty body as shown in Postman
       });
 
-      return await handleResponse(response);
+      const result = await handleResponse(response);
+      console.log('✅ Post pin status toggled successfully');
+      
+      return result;
     } catch (error) {
       console.error('❌ Toggle pin post error:', error.message);
       throw error;
     }
   },
 
-  // Get comments for a specific post
+  // Add comment to post
+  addPostComment: async (postId, commentData) => {
+    const endpoint = `${API_CONFIG.BASE_URL}/admin/posts/${postId}/comments`;
+    logApiCall('POST', endpoint, { postId, commentData });
+    
+    try {
+      const response = await fetchWithTimeout(endpoint, {
+        method: 'POST',
+        body: JSON.stringify(commentData)
+      });
+      
+      const result = await handleResponse(response);
+      console.log('✅ Comment added successfully');
+      
+      return result;
+    } catch (error) {
+      console.error('❌ Add comment error:', error.message);
+      throw error;
+    }
+  },
+
+  // Get post comments for admin view
   getPostComments: async (postId) => {
     const endpoint = `${API_CONFIG.BASE_URL}/admin/posts/${postId}/comments`;
     logApiCall('POST', endpoint, { postId });
@@ -194,7 +278,10 @@ getAllPosts: async (lastPostId = null) => {
         body: JSON.stringify({})
       });
       
-      return await handleResponse(response);
+      const result = await handleResponse(response);
+      console.log('✅ Retrieved post comments');
+      
+      return result;
     } catch (error) {
       console.error('❌ Get post comments error:', error.message);
       throw error;
@@ -205,38 +292,16 @@ getAllPosts: async (lastPostId = null) => {
   deletePost: async (postId) => {
     // Handle both direct postId and post data with post_id
     const actualPostId = (typeof postId === 'object' && postId.post_id) ? postId.post_id : postId;
-    const endpoint = `${API_CONFIG.BASE_URL}/posts/delete/${actualPostId}`;
-
-    let user_id = null;
-    try {
-      const stored = localStorage.getItem('userId') || localStorage.getItem('user_id');
-      if (stored) user_id = JSON.parse(stored);
-    } catch (e) {
-      console.warn('⚠️ Failed to parse user ID from localStorage:', e);
-    }
-    
-    if (!user_id) {
-      throw new Error('User not logged in. Please login first.');
-    }
-    
-    // Prepare request body with author_id as required by backend
-    const requestBody = {
-      author_id: user_id
-    };
+    const endpoint = `${API_CONFIG.BASE_URL}/admin/posts/${actualPostId}/delete`;
     
     console.log('🔍 API deletePost - Post ID:', actualPostId);
-    console.log('🔍 API deletePost - Author ID:', user_id);
     console.log('🔍 API deletePost - Endpoint:', endpoint);
-    console.log('🔍 API deletePost - Request body:', requestBody);
-    logApiCall('POST', endpoint, requestBody);
+    logApiCall('POST', endpoint, { postId: actualPostId });
     
     try {
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify({})
       });
       
       // Handle empty or non-JSON responses
@@ -268,45 +333,62 @@ getAllPosts: async (lastPostId = null) => {
   // ========================================
   
   // Toggle block status of a user
-  toggleBlockUser: async (userId) => {
-    let user_id = null;
-
-    try {
-      const stored = localStorage.getItem('userId') || localStorage.getItem('user_id');
-      if (stored) {
-        user_id = JSON.parse(stored);
-      }
-    } catch (e) {
-      console.warn('⚠️ Failed to parse user_id from localStorage:', e);
-    }
-
-    if (!user_id) {
-      console.error('❌ No valid user_id found in localStorage.');
-      throw new Error('Invalid or missing user_id');
-    }
-
-    // Use the toggle endpoint - let backend handle the current status logic
-    const endpoint = `${API_CONFIG.BASE_URL}/admin/${userId}/toggle_block`;
+  toggleBlockUser: async (employeeId) => {
+    const endpoint = `${API_CONFIG.BASE_URL}/admin/${employeeId}/toggle_block`;
     
-    console.log('🔍 Toggle block user - User ID:', userId);
-    console.log('🔍 Toggle block user - Admin ID:', user_id);
-    logApiCall('POST', endpoint, { user_id });
+    console.log('🔍 Toggle block user - Employee ID:', employeeId);
+    console.log('🔍 Toggle block user - Employee ID type:', typeof employeeId);
+    console.log('🔍 Toggle block user - Employee ID length:', employeeId?.length);
+    console.log('🔍 Toggle block user - Endpoint:', endpoint);
+    logApiCall('POST', endpoint, { employeeId });
 
     try {
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ user_id }),
+        body: JSON.stringify({}) // Send empty body as shown in Postman
       });
 
       const result = await handleResponse(response);
-      console.log('✅ User block status toggled successfully:', result);
+      console.log('✅ Employee block status toggled successfully:', result);
+      
+      // Parse the message to extract the new status
+      let newBlockStatus = false;
+      if (result.message && result.message.includes('Blocked: True')) {
+        newBlockStatus = true;
+      } else if (result.message && result.message.includes('Blocked: False')) {
+        newBlockStatus = false;
+      }
+      
+      console.log('🔍 Parsed new block status:', newBlockStatus);
+      
+      return {
+        ...result,
+        is_blocked: newBlockStatus,
+        new_status: newBlockStatus
+      };
+    } catch (error) {
+      console.error('❌ Toggle block user error:', error.message);
+      throw error;
+    }
+  },
+
+  // Get blocked users
+  getBlockedUsers: async () => {
+    const endpoint = `${API_CONFIG.BASE_URL}/admin/get_blocked_users`;
+    logApiCall('POST', endpoint);
+
+    try {
+      const response = await fetchWithTimeout(endpoint, {
+        method: 'POST',
+        body: JSON.stringify({}) // Send empty body as required by API
+      });
+
+      const result = await handleResponse(response);
+      console.log('✅ Retrieved blocked users');
       
       return result;
     } catch (error) {
-      console.error('❌ Toggle block user error:', error.message);
+      console.error('❌ Get blocked users error:', error.message);
       throw error;
     }
   },
@@ -318,15 +400,14 @@ getAllPosts: async (lastPostId = null) => {
   // ========================================
   
   // Send broadcast message
-  broadcastMessage: async (userId, content, media = [], mentions = [], tags = []) => {
+  broadcastMessage: async (content, media = [], mentions = [], tags = []) => {
     const endpoint = `${API_CONFIG.BASE_URL}/admin/broadcast`;
-    logApiCall('POST', endpoint, { userId, content, media, mentions, tags });
+    logApiCall('POST', endpoint, { content, media, mentions, tags });
     
     try {
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
         body: JSON.stringify({
-          user_id: userId,
           content,
           media,
           mentions,
@@ -334,7 +415,10 @@ getAllPosts: async (lastPostId = null) => {
         })
       });
       
-      return await handleResponse(response);
+      const result = await handleResponse(response);
+      console.log('✅ Broadcast message sent successfully');
+      
+      return result;
     } catch (error) {
       console.error('❌ Broadcast message error:', error.message);
       throw error;
@@ -345,33 +429,36 @@ getAllPosts: async (lastPostId = null) => {
   // REPORTS MANAGEMENT
   // ========================================
   
-  // Get all reported content
-  getReportedContent: async () => {
-    // Get user_id from localStorage
-    let userId;
-    try {
-      const stored = localStorage.getItem('userId') || localStorage.getItem('user_id');
-      if (stored) {
-        userId = JSON.parse(stored);
-      }
-    } catch (e) {
-      console.warn('⚠️ Unable to retrieve user_id from localStorage:', e.message);
-    }
-
-    if (!userId) {
-      throw new Error('User not logged in. Please login first.');
-    }
-
+  // Create report
+  createReport: async (reportData) => {
     const endpoint = `${API_CONFIG.BASE_URL}/admin/reports`;
-    logApiCall('POST', endpoint, { user_id: userId });
+    logApiCall('POST', endpoint, reportData);
 
     try {
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ user_id: userId })
+        body: JSON.stringify(reportData)
+      });
+
+      const result = await handleResponse(response);
+      console.log('✅ Report created successfully');
+      
+      return result;
+    } catch (error) {
+      console.error('❌ Create report error:', error.message);
+      throw error;
+    }
+  },
+
+  // Get all reported content
+  getReportedContent: async () => {
+    const endpoint = `${API_CONFIG.BASE_URL}/admin/reports`;
+    logApiCall('POST', endpoint);
+
+    try {
+      const response = await fetchWithTimeout(endpoint, {
+        method: 'POST',
+        body: JSON.stringify({}) // Send empty body as required by API
       });
 
       const result = await handleResponse(response);
@@ -385,31 +472,20 @@ getAllPosts: async (lastPostId = null) => {
   },
 
   // Resolve a report
-resolveReport: async (reportId, _userId, action = 'resolved') => {
-    // Always use user_id from localStorage
-    let userId;
-    try {
-      const stored = localStorage.getItem('userId') || localStorage.getItem('user_id');
-      if (stored) {
-        userId = JSON.parse(stored);
-      }
-    } catch (e) {
-      console.warn('⚠️ Unable to retrieve user_id from localStorage:', e.message);
-    }
-    if (!userId) {
-      throw new Error('User not logged in. Please login first.');
-    }
+  resolveReport: async (reportId, action = 'resolved') => {
     const endpoint = `${API_CONFIG.BASE_URL}/admin/reports/${reportId}/resolve`;
-    logApiCall('POST', endpoint, { reportId, userId, action });
+    logApiCall('POST', endpoint, { reportId, action });
+    
     try {
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
-        body: JSON.stringify({
-          user_id: userId,
-          action // 'approved' or 'rejected'
-        })
+        body: JSON.stringify({}) // Send empty body as shown in Postman
       });
-      return await handleResponse(response);
+      
+      const result = await handleResponse(response);
+      console.log('✅ Report resolved successfully');
+      
+      return result;
     } catch (error) {
       console.error('❌ Resolve report error:', error.message);
       throw error;
@@ -420,194 +496,52 @@ resolveReport: async (reportId, _userId, action = 'resolved') => {
   // COMMENT MANAGEMENT
   // ========================================
   
-  // Toggle comments for a post
- togglePostComments: async (postId, isCommentsAllowed) => {
-  // Get user_id from localStorage
-  let userId;
-  try {
-    const stored = localStorage.getItem('userId') || localStorage.getItem('user_id');
-    if (stored) {
-      userId = JSON.parse(stored);
-    }
-  } catch (e) {
-    console.warn('⚠️ Unable to retrieve user_id from localStorage:', e.message);
-  }
-
-  if (!userId) {
-    throw new Error('User not logged in. Please login first.');
-  }
-
-  const endpoint = `${API_CONFIG.BASE_URL}/posts/${postId}/comments/status`;
-
-  // Toggle the comment state (as strings for backend)
-  const newState = (isCommentsAllowed === true || isCommentsAllowed === "true") ? "false" : "true";
-
-  console.log('🔄 togglePostComments - Request details:', {
-    currentState: isCommentsAllowed,
-    currentStateType: typeof isCommentsAllowed,
-    newState,
-    endpoint
-  });
-
-  logApiCall('POST', endpoint, { is_comments_allowed: newState, user_id: userId });
-
-  try {
-    const response = await fetchWithTimeout(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        is_comments_allowed: newState,
-        user_id: userId
-      })
-    });
-
-    const result = await handleResponse(response);
-    console.log('✅ togglePostComments - Response:', result);
-    
-    return result;
-  } catch (error) {
-    console.error('❌ Toggle post comments error:', error.message);
-    throw error;
-  }
-},
-
-
   // Delete a comment
   deleteComment: async (commentId) => {
-    const userId = localStorage.getItem('user_id');
-    const endpoint = `${API_CONFIG.BASE_URL}/comments/${commentId}/delete`;
-    logApiCall('POST', endpoint, { commentId, userId });
+    const endpoint = `${API_CONFIG.BASE_URL}/admin/comments/${commentId}/delete`;
+    logApiCall('POST', endpoint, { commentId });
     
     try {
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
-        body: JSON.stringify({
-          user_id: userId
-        })
+        body: JSON.stringify({}) // Send empty body as shown in Postman
       });
       
-      return await handleResponse(response);
+      const result = await handleResponse(response);
+      console.log('✅ Comment deleted successfully');
+      
+      return result;
     } catch (error) {
       console.error('❌ Delete comment error:', error.message);
       throw error;
     }
   },
 
-  // Toggle comments on a post (dynamic enable/disable)
-  toggleCommentsOnPost: async (postId, currentState = null) => {
-    // Get user_id from localStorage
-    let userId;
-    try {
-      const stored = localStorage.getItem('userId') || localStorage.getItem('user_id');
-      if (stored) {
-        userId = JSON.parse(stored);
-      }
-    } catch (e) {
-      console.warn('⚠️ Unable to retrieve user_id from localStorage:', e.message);
-    }
-
-    if (!userId) {
-      throw new Error('User not logged in. Please login first.');
-    }
-
-    const endpoint = `${API_CONFIG.BASE_URL}/posts/${postId}/comments/status`;
-    
-    // If currentState is provided, toggle it. Otherwise, default to disable
-    let newState = "false"; // Default to disable
-    if (currentState !== null) {
-      newState = (currentState === true || currentState === "true") ? "false" : "true";
-    }
-    
-    console.log('🔄 toggleCommentsOnPost - Request details:', {
-      postId,
-      currentState,
-      newState,
-      endpoint
-    });
-    
-    logApiCall('POST', endpoint, { postId, userId, is_comments_allowed: newState });
+  // ========================================
+  // FILE MANAGEMENT
+  // ========================================
+  
+  // Upload file
+  uploadFile: async (fileData) => {
+    const endpoint = `${API_CONFIG.BASE_URL}/admin/upload_file`;
+    logApiCall('POST', endpoint, 'File upload');
     
     try {
+      // For file uploads, don't set Content-Type header, let browser set it
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          'Authorization': API_CONFIG.HEADERS.Authorization
         },
-        body: JSON.stringify({
-          user_id: userId,
-          is_comments_allowed: newState
-        })
+        body: fileData // Should be FormData
       });
       
       const result = await handleResponse(response);
-      console.log('✅ toggleCommentsOnPost - Response:', result);
+      console.log('✅ File uploaded successfully');
       
       return result;
     } catch (error) {
-      console.error('❌ Toggle comments error:', error.message);
-      throw error;
-    }
-  },
-
-  // Admin toggle comments on a post (uses admin endpoint)
-  adminTogglePostComments: async (postId, isCommentsAllowed) => {
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    const endpoint = `${API_CONFIG.BASE_URL}/admin/posts/${postId}/comments/toggle`;
-    
-    // Toggle the comment state (as strings for backend)
-    const newState = (isCommentsAllowed === true || isCommentsAllowed === "true") ? "false" : "true";
-
-    console.log('🔄 adminTogglePostComments - Request details:', {
-      postId,
-      currentState: isCommentsAllowed,
-      currentStateType: typeof isCommentsAllowed,
-      newState,
-      endpoint
-    });
-
-    logApiCall('POST', endpoint, { is_comments_allowed: newState, admin_user_id: user.id });
-
-    try {
-      const response = await fetchWithTimeout(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          is_comments_allowed: newState,
-          admin_user_id: user.id
-        })
-      });
-
-      const result = await handleResponse(response);
-      console.log('✅ adminTogglePostComments - Response:', result);
-      
-      return result;
-    } catch (error) {
-      console.error('❌ Admin toggle post comments error:', error.message);
-      throw error;
-    }
-  },
-
-  // Block/unblock a user
-  blockUser: async (userId) => {
-    const adminUserId = localStorage.getItem('user_id');
-    const endpoint = `${API_CONFIG.BASE_URL}/admin/${userId}/toggle_block`;
-    logApiCall('POST', endpoint, { userId, adminUserId });
-    
-    try {
-      const response = await fetchWithTimeout(endpoint, {
-        method: 'POST',
-        body: JSON.stringify({
-          user_id: adminUserId
-        })
-      });
-      
-      return await handleResponse(response);
-    } catch (error) {
-      console.error('❌ Block user error:', error.message);
+      console.error('❌ Upload file error:', error.message);
       throw error;
     }
   }
