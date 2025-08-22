@@ -210,9 +210,19 @@ export const adminAPI = {
     }
   },
 
-  // Get pinned posts (using admin posts endpoint and filtering)
+  // Get pinned posts (using dedicated pinned posts endpoint)
   getPinnedPosts: async () => {
-    const endpoint = `${API_CONFIG.BASE_URL}/admin/posts`;
+    const currentPath = window.location.pathname;
+    let endpoint;
+    
+    if (currentPath.includes('/crm')) {
+      // Admin endpoint
+      endpoint = `${API_CONFIG.BASE_URL}/admin/posts/pinned`;
+    } else {
+      // Employee endpoint  
+      endpoint = `${API_CONFIG.BASE_URL}/posts/pinned`;
+    }
+    
     logApiCall('GET', endpoint);
     
     try {
@@ -222,16 +232,10 @@ export const adminAPI = {
       
       const result = await handleResponse(response);
       
-      // Filter for pinned posts
-      const allPosts = result?.data?.posts || result?.posts || result?.data || [];
-      const pinnedPosts = allPosts.filter(post => post.is_pinned === true || post.pinned === true);
+      console.log(`✅ Retrieved pinned posts from ${endpoint}`);
+      console.log('� Pinned posts result:', result);
       
-      console.log(`✅ Retrieved ${pinnedPosts.length} pinned posts from ${allPosts.length} total posts`);
-      
-      return {
-        posts: pinnedPosts,
-        raw: result
-      };
+      return result;
     } catch (error) {
       console.error('❌ Get pinned posts error:', error.message);
       throw error;
@@ -526,6 +530,27 @@ export const adminAPI = {
       return result;
     } catch (error) {
       console.error('❌ Delete comment error:', error.message);
+      throw error;
+    }
+  },
+
+  // Toggle comments on a post (enable/disable comments)
+  togglePostComments: async (postId, currentState) => {
+    const endpoint = `${API_CONFIG.BASE_URL}/admin/comments/${postId}/toggle`;
+    logApiCall('POST', endpoint, { postId, currentState });
+    
+    try {
+      const response = await fetchWithTimeout(endpoint, {
+        method: 'POST',
+        body: JSON.stringify({}) // Send empty body as shown in Postman
+      });
+      
+      const result = await handleResponse(response);
+      console.log('✅ Post comments toggled successfully');
+      
+      return result;
+    } catch (error) {
+      console.error('❌ Toggle post comments error:', error.message);
       throw error;
     }
   },

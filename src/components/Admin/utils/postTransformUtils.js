@@ -1,5 +1,12 @@
 // Utility functions for transforming post data and handling media
 export const transformPostMedia = (post) => {
+  console.log('🔧 Transforming post:', {
+    id: post.post_id,
+    content: post.content?.substring(0, 50),
+    mediaCount: post.media?.length || 0,
+    media: post.media
+  });
+
   if (!post.media || !Array.isArray(post.media)) {
     return {
       ...post,
@@ -32,12 +39,22 @@ export const transformPostMedia = (post) => {
         try {
           const fixed = item.link.replace(/'/g, '"');
           const mediaData = JSON.parse(fixed);
-          mediaUrl = mediaData.url;
+          // Handle different JSON structures
+          if (mediaData.url) {
+            mediaUrl = mediaData.url;
+          } else if (mediaData.link) {
+            mediaUrl = mediaData.link;
+          }
         } catch (e) {
           console.error('Failed to parse media link:', item.link, e);
+          // Try to extract URL with regex as fallback
+          const urlMatch = item.link.match(/https?:\/\/[^\s'"]+/);
+          if (urlMatch) {
+            mediaUrl = urlMatch[0];
+          }
           return;
         }
-      } else {
+      } else if (item.link.startsWith('http')) {
         // New format - simple URL string
         mediaUrl = item.link;
       }
@@ -49,6 +66,12 @@ export const transformPostMedia = (post) => {
         url: mediaUrl,
         name: mediaUrl.split('/').pop() || 'Media file'
       };
+      
+      console.log('🔗 Processed media item:', {
+        originalLink: item.link,
+        extractedUrl: mediaUrl,
+        mediaItem
+      });
       
       // Determine media type by URL extension
       const urlLower = mediaUrl.toLowerCase();
@@ -70,6 +93,8 @@ export const transformPostMedia = (post) => {
           description: ''
         });
       }
+    } else {
+      console.warn('⚠️ Failed to extract media URL from:', item);
     }
   });
 
@@ -110,7 +135,7 @@ export const transformPostMedia = (post) => {
     .replace(/\s+/g, ' ') // Normalize spaces
     .trim();
 
-  return {
+  const transformedPost = {
     ...post,
     content: cleanedContent,
     ...mediaItems,
@@ -120,19 +145,40 @@ export const transformPostMedia = (post) => {
     type: post.type,
     post_type: post.post_type
   };
+
+  console.log('✅ Transformed post:', {
+    id: post.post_id,
+    originalMediaCount: post.media?.length || 0,
+    transformedMedia: {
+      images: mediaItems.images.length,
+      videos: mediaItems.videos.length,
+      documents: mediaItems.documents.length,
+      links: mediaItems.links.length
+    }
+  });
+
+  return transformedPost;
 };
 
 // Helper to fetch pinned posts
 export const fetchPinnedPosts = async (adminAPI) => {
   try {
     console.log('Fetching pinned posts using admin API...');
-   
+    const response = await adminAPI.getPinnedPosts();
     console.log('Pinned posts response:', response);
     
-    if (response?.posts && Array.isArray(response.posts)) {
-      return response.posts.map(transformPostMedia);
+    // Handle different response structures
+    let posts = [];
+    if (response?.data && Array.isArray(response.data)) {
+      posts = response.data;
+    } else if (response?.posts && Array.isArray(response.posts)) {
+      posts = response.posts;
+    } else if (Array.isArray(response)) {
+      posts = response;
     }
-    return [];
+    
+    console.log('📌 Found pinned posts:', posts.length);
+    return posts.map(transformPostMedia);
   } catch (e) {
     console.error('Error fetching pinned posts:', e);
     return [];
@@ -146,9 +192,8 @@ export const filterNonBroadcastPosts = (posts) => {
     const isBroadcast = post.is_broadcast || 
                        post.isBroadcast || 
                        post.type === 'broadcast' ||
-                       post.post_type === 'broadcast' ||
-                       // Check if this post was created via broadcast (temporary fix)
-                       (post.is_pinned && post.content && post.content.length < 100); // Short pinned posts are likely broadcasts
+                       post.post_type === 'broadcast';
+                       // Removed the problematic short pinned post filter
     
     if (isBroadcast) {
       console.log('🚫 Filtering out broadcast post:', {
@@ -159,8 +204,7 @@ export const filterNonBroadcastPosts = (posts) => {
           is_broadcast: post.is_broadcast,
           isBroadcast: post.isBroadcast,
           type: post.type,
-          post_type: post.post_type,
-          shortPinnedPost: (post.is_pinned && post.content && post.content.length < 100)
+          post_type: post.post_type
         }
       });
     }

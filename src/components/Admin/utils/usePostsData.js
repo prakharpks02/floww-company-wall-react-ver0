@@ -76,10 +76,22 @@ export const usePostsData = () => {
 
   // Load pinned posts
   const loadPinnedPosts = async () => {
-    console.log('Loading pinned posts...');
-    const pins = await fetchPinnedPosts(adminAPI);
-    console.log('Pinned posts loaded:', pins);
-    setPinnedPosts(pins);
+    try {
+      console.log('🔄 Loading pinned posts...');
+      setError(null);
+      const pins = await fetchPinnedPosts(adminAPI);
+      console.log('📌 Pinned posts loaded:', pins);
+      console.log('📌 Number of pinned posts:', pins.length);
+      setPinnedPosts(pins);
+      
+      if (pins.length === 0) {
+        console.log('⚠️ No pinned posts found');
+      }
+    } catch (error) {
+      console.error('❌ Error loading pinned posts:', error);
+      setError(`Failed to load pinned posts: ${error.message}`);
+      setPinnedPosts([]); // Set empty array on error
+    }
   };
 
   return {

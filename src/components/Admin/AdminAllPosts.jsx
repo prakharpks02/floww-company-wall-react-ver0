@@ -44,8 +44,12 @@ const AdminAllPosts = () => {
   }, [hasMore, isLoading, nextCursor, loadAllPosts]);
 
   useEffect(() => {
-    loadPinnedPosts();
-    loadAllPosts();
+    console.log('🚀 AdminAllPosts - Initial load starting...');
+    const loadData = async () => {
+      await loadPinnedPosts();
+      await loadAllPosts();
+    };
+    loadData();
   }, []);
 
   useEffect(() => {
@@ -86,7 +90,25 @@ const AdminAllPosts = () => {
       )}
 
       <div className="space-y-6">
-        {console.log('Rendering posts. Pinned:', pinnedPosts.length, 'Regular:', posts.length)}
+        {console.log('🔍 Rendering posts. Pinned:', pinnedPosts.length, 'Regular:', posts.length)}
+        {console.log('🔍 Pinned posts data:', pinnedPosts)}
+        {console.log('🔍 Regular posts data:', posts.slice(0, 3))} 
+        
+        {/* Debug info for development
+        {process.env.NODE_ENV === 'development' && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+            <h3 className="font-medium text-yellow-800">Debug Info:</h3>
+            <p className="text-sm text-yellow-700">
+              Pinned Posts: {pinnedPosts.length} | Regular Posts: {posts.length} | Loading: {isLoading ? 'Yes' : 'No'}
+            </p>
+            {pinnedPosts.length > 0 && (
+              <p className="text-sm text-yellow-700">
+                Pinned IDs: {pinnedPosts.map(p => p.post_id).join(', ')}
+              </p>
+            )}
+          </div>
+        )} */}
+        
         {/* Pinned posts always on top, unique keys */}
         {pinnedPosts.map((post) => (
           <AdminPostCard

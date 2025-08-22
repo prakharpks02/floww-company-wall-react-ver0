@@ -73,32 +73,52 @@ useEffect(() => {
 
       // For employee users, fetch real data from API
       try {
+        console.log('🔍 AuthContext - Calling getCurrentUser API...');
         const response = await userAPI.getCurrentUser();
+        console.log('🔍 AuthContext - API Response:', response);
         const userData = response.data;
+        
+        console.log('🔍 AuthContext - Raw user data from API:', userData);
+        
+        if (!userData) {
+          throw new Error('No user data received from API');
+        }
         
         const authenticatedUser = {
           id: userData.employee_id,
           employee_id: userData.employee_id,
           user_id: userData.employee_id,
           author_id: userData.employee_id,
-          name: userData.username, // Using username as display name
-          username: userData.username,
+          name: userData.employee_name, // Using employee_name as display name
+          username: userData.employee_username, // Using employee_username
           email: userData.personal_email || userData.company_email,
           company_email: userData.company_email,
           personal_email: userData.personal_email,
           is_blocked: userData.is_blocked || false,
           authenticated: true,
           token: token,
-          avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.username)}&background=9f7aea&color=white&size=128`,
-          position: 'Employee',
+          avatar: userData.profile_picture_link || `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.employee_name)}&background=9f7aea&color=white&size=128`,
+          position: userData.job_title, // Using job_title instead of 'Employee'
           department: 'General',
           is_admin: false
         };
 
+        console.log('🔍 AuthContext - Transformed user data:', authenticatedUser);
         setUser(authenticatedUser);
-        console.log(`✅ Employee user authenticated: ${userData.username} for path: ${window.location.pathname}`);
+        console.log(`✅ Employee user authenticated: ${userData.employee_name} (${userData.employee_username}) for path: ${window.location.pathname}`);
       } catch (apiError) {
         console.error('❌ Failed to fetch user data from API:', apiError);
+        console.error('❌ API Error details:', {
+          message: apiError.message,
+          stack: apiError.stack,
+          name: apiError.name
+        });
+        
+        // Use fallback with detailed error logging
+        console.error('❌ API call failed, using fallback user. Error details:');
+        console.error('Error message:', apiError.message);
+        console.error('Error name:', apiError.name);
+        console.error('Full error:', apiError);
         
         // Fallback to basic employee user if API fails
         const fallbackUser = {
@@ -106,7 +126,7 @@ useEffect(() => {
           employee_id: 'EMPLOYEE_USER',
           user_id: 'EMPLOYEE_USER',
           author_id: 'EMPLOYEE_USER',
-          name: 'Employee User',
+          name: 'Employee User (API Failed)', // Make it clear this is fallback
           username: 'employee',
           email: 'employee@company.com',
           company_email: 'employee@company.com',

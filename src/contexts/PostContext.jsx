@@ -476,11 +476,17 @@ export const PostProvider = ({ children }) => {
       user?.is_admin 
         ? adminAPI.getAllPosts(cursor)
         : postsAPI.getPosts(1, 10, cursor),
-      resetPagination ? adminAPI.getPinnedPosts() : Promise.resolve({ posts: [] })
+      resetPagination ? (user?.is_admin ? adminAPI.getPinnedPosts() : postsAPI.getPinnedPosts()) : Promise.resolve({ posts: [] })
     ]);
     
     console.log('📡 Backend response:', backendPosts);
     console.log('📌 Pinned posts response:', pinnedPostsResponse);
+    console.log('🔍 User info for pinned posts:', { 
+      isAdmin: user?.is_admin, 
+      resetPagination, 
+      shouldFetchPinned: resetPagination,
+      userType: user?.is_admin ? 'admin' : 'employee'
+    });
     
     let postsData = [];
     let pinnedPosts = [];
@@ -501,8 +507,21 @@ export const PostProvider = ({ children }) => {
     }
 
     // Process pinned posts (only on initial load)
-    if (resetPagination && pinnedPostsResponse.posts && Array.isArray(pinnedPostsResponse.posts)) {
-      pinnedPosts = pinnedPostsResponse.posts;
+    if (resetPagination) {
+      // Handle different response structures for pinned posts
+      let pinnedPostsData = [];
+      if (pinnedPostsResponse.data && Array.isArray(pinnedPostsResponse.data)) {
+        // Employee API response format
+        pinnedPostsData = pinnedPostsResponse.data;
+      } else if (pinnedPostsResponse.posts && Array.isArray(pinnedPostsResponse.posts)) {
+        // Admin API response format
+        pinnedPostsData = pinnedPostsResponse.posts;
+      } else if (Array.isArray(pinnedPostsResponse)) {
+        // Direct array response
+        pinnedPostsData = pinnedPostsResponse;
+      }
+      
+      pinnedPosts = pinnedPostsData;
       console.log('✅ Found pinned posts:', pinnedPosts.length);
       
       // Mark pinned posts with is_pinned flag

@@ -7,6 +7,18 @@ const PostFeed = ({ posts, activeView = 'home', showPagination = true }) => {
   const { loadMorePosts, hasMorePosts, isLoadingMore } = usePost();
   const loadingRef = useRef(null);
 
+  // Debug logging for employee side posts
+  console.log('🔍 PostFeed - Employee side posts data:', {
+    totalPosts: posts.length,
+    pinnedPosts: posts.filter(p => p.is_pinned === true || p.is_pinned === "true").length,
+    firstFewPosts: posts.slice(0, 3).map(p => ({ 
+      id: p.id || p.post_id, 
+      is_pinned: p.is_pinned,
+      title: p.content?.substring(0, 50) + '...'
+    })),
+    activeView
+  });
+
   // Intersection Observer callback for infinite scroll
   const handleObserver = useCallback((entries) => {
     const [target] = entries;

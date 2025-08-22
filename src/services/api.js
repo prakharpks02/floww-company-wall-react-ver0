@@ -47,6 +47,15 @@ const getCurrentUserType = () => {
   return currentPath.includes('/crm') ? 'admin' : 'employee';
 };
 
+// Get authentication headers for API requests
+const getAuthHeaders = () => {
+  const currentUserType = getCurrentUserType();
+  const token = getAuthToken(currentUserType);
+  return {
+    'Authorization': token
+  };
+};
+
 const FLOWW_TOKEN = getAuthToken();
 
 const API_CONFIG = {
@@ -271,16 +280,38 @@ export const userAPI = {
 
   // Get current user details
   getCurrentUser: async () => {
-    const endpoint = `${API_CONFIG.BASE_URL}/get_user`;
-    logApiCall('GET', endpoint);
+    const endpoint = `${API_CONFIG.BASE_URL}/api/wall/get_user`;
+    logApiCall('POST', endpoint);
     
     try {
       const response = await fetchWithTimeout(endpoint, {
-        method: 'GET'
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeaders()
+        }
       });
       
       const result = await handleResponse(response);
-      console.log('✅ Current user retrieved successfully');
+      console.log('✅ Current user retrieved successfully:', result);
+      
+      // Transform the response to match expected user structure
+      if (result.status === 'success' && result.data) {
+        const userData = result.data;
+        return {
+          status: 'success',
+          data: {
+            ...userData,
+            username: userData.employee_username, // Map employee_username to username
+            name: userData.employee_name,
+            profile_picture: userData.profile_picture_link,
+            title: userData.job_title, // Use job_title instead of employee
+            is_blocked: userData.is_blocked || false
+          },
+          message: result.message
+        };
+      }
+      
       return result;
     } catch (error) {
       console.error('❌ Get current user error:', error.message);
@@ -957,6 +988,30 @@ export const postsAPI = {
       return result;
     } catch (error) {
       console.error('❌ Get broadcast posts error:', error.message);
+      throw error;
+    }
+  },
+
+  // Get pinned posts (for employee side)
+  getPinnedPosts: async () => {
+    const endpoint = `${API_CONFIG.BASE_URL}/posts/pinned`;
+    
+    try {
+      logApiCall('GET', endpoint);
+
+      const response = await fetchWithTimeout(endpoint, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeaders()
+        }
+      });
+
+      const result = await handleResponse(response);
+      console.log('✅ Pinned posts retrieved successfully for employee:', result);
+      return result;
+    } catch (error) {
+      console.error('❌ Get pinned posts error:', error.message);
       throw error;
     }
   }
