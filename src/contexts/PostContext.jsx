@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { useAuth } from './AuthContext_token';
+import { useAuth } from './AuthContext';
 import { postsAPI } from '../services/api';
 import { adminAPI } from '../services/adminAPI';
 
@@ -362,6 +362,16 @@ export const PostProvider = ({ children }) => {
         return;
       }
       
+      // Admin users don't have personal posts, skip loading
+      if (user?.is_admin) {
+        console.log('🔍 PostContext - Admin user detected, skipping personal posts loading');
+        setPosts([]);
+        setNextCursor(null);
+        setHasMorePosts(true);
+        setLoading(false);
+        return;
+      }
+      
       try {
         setLoading(true);
         console.log('🔄 PostContext - Loading posts for user');
@@ -423,6 +433,13 @@ export const PostProvider = ({ children }) => {
 
   // Standalone function to reload posts (can be called after edit/delete)
   const reloadPosts = async () => {
+    // Admin users don't have personal posts, skip reloading
+    if (user?.is_admin) {
+      console.log('🔍 PostContext - Admin user detected, skipping personal posts reload');
+      setPosts([]);
+      return;
+    }
+    
     try {
       const backendPosts = await postsAPI.getMyPosts();
       let postsData = [];
@@ -452,10 +469,13 @@ export const PostProvider = ({ children }) => {
     try {
       const cursor = resetPagination ? null : nextCursor;
       console.log('🔄 Loading posts with cursor:', cursor, 'resetPagination:', resetPagination);
+      console.log('🔍 User type for loadAllPosts:', user?.is_admin ? 'Admin' : 'Employee');
     
     // Fetch regular posts and pinned posts in parallel (only fetch pinned on initial load)
     const [backendPosts, pinnedPostsResponse] = await Promise.all([
-      postsAPI.getPosts(1, 10, cursor),
+      user?.is_admin 
+        ? adminAPI.getAllPosts(cursor)
+        : postsAPI.getPosts(1, 10, cursor),
       resetPagination ? adminAPI.getPinnedPosts() : Promise.resolve({ posts: [] })
     ]);
     
@@ -608,15 +628,22 @@ export const PostProvider = ({ children }) => {
 
     try {
       console.log('🔄 Refreshing reactions for', posts.length, 'posts');
+      console.log('🔍 User type for refresh:', user?.is_admin ? 'Admin' : 'Employee');
       
-      // Get updated posts data
-      const backendPosts = await postsAPI.getPosts(1, 10);
+      // Get updated posts data using appropriate API based on user type
+      const backendPosts = user?.is_admin 
+        ? await adminAPI.getAllPosts()
+        : await postsAPI.getPosts(1, 10);
+        
       let postsData = [];
 
       if (backendPosts.data && Array.isArray(backendPosts.data.posts)) {
         postsData = backendPosts.data.posts;
       } else if (Array.isArray(backendPosts.data)) {
         postsData = backendPosts.data;
+      } else if (Array.isArray(backendPosts.posts)) {
+        // Handle adminAPI response structure
+        postsData = backendPosts.posts;
       }
 
       if (postsData.length === 0) return;
@@ -1150,6 +1177,12 @@ export const PostProvider = ({ children }) => {
   // Add reaction to comment - handles both emoji reactions and likes
   const addCommentReaction = async (commentId, reactionType, emoji = null) => {
     if (!user) return;
+    
+    // Admin users cannot react to comments
+    if (user?.is_admin) {
+      console.log('🔍 PostContext - Admin users cannot react to comments');
+      return;
+    }
 
     // Always use 'like' as the reactionType for likes, never the emoji
     const safeReactionType = reactionType === '❤️' ? 'like' : reactionType;
@@ -1205,6 +1238,12 @@ export const PostProvider = ({ children }) => {
   // Add reaction function - handles both emoji reactions and likes
   const addReaction = async (postId, reactionType, emoji = null, activeView = 'home') => {
     if (!user) return;
+    
+    // Admin users cannot react to posts
+    if (user?.is_admin) {
+      console.log('🔍 PostContext - Admin users cannot react to posts');
+      return;
+    }
 
     // Always use 'like' as the reactionType for likes, never the emoji
     const safeReactionType = reactionType === '❤️' ? 'like' : reactionType;

@@ -8,7 +8,7 @@ import BroadcastView from './BroadcastView';
 import ResponsiveLayout from '../Layout/ResponsiveLayout';
 import ScrollToTop from './ScrollToTop';
 import { usePost } from '../../contexts/PostContext';
-import { useAuth } from '../../contexts/AuthContext_token';
+import { useAuth } from '../../contexts/AuthContext';
 
 // Admin Components
 import AdminAllPosts from '../Admin/AdminAllPosts';
@@ -62,6 +62,14 @@ const Dashboard = () => {
     }
     // For broadcast view, data is fetched by BroadcastView component
   }, [activeView]);
+
+  // Set default view for admin users
+  useEffect(() => {
+    if (user?.is_admin && activeView === 'home') {
+      console.log('🔍 Dashboard - Admin user detected, switching to admin-posts view');
+      setActiveView('admin-posts');
+    }
+  }, [user]);
 
   const handleSearchChange = (searchValue) => {
     setFilters(prev => ({ ...prev, search: searchValue }));

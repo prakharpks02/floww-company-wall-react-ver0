@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Megaphone, Calendar, Users, ExternalLink, RefreshCw, Hash, User } from 'lucide-react';
 import { postsAPI } from '../../services/api';
-import { useAuth } from '../../contexts/AuthContext_token';
+import { adminAPI } from '../../services/adminAPI';
+import { useAuth } from '../../contexts/AuthContext';
 import PostCard from '../Posts/PostCard';
 import CreatePost from '../Posts/CreatePost';
 
@@ -18,8 +19,13 @@ const BroadcastView = () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await postsAPI.getBroadcastPosts();
       
+      // Use adminAPI for admin users, postsAPI for regular users
+      const response = user?.is_admin 
+        ? await adminAPI.getBroadcastPosts()
+        : await postsAPI.getBroadcastPosts();
+      
+      console.log('🔍 BroadcastView - User type:', user?.is_admin ? 'Admin' : 'Employee');
       console.log('🔍 BroadcastView - Full response:', response);
       
       const broadcastData = response.posts || response.data || [];
@@ -31,80 +37,148 @@ const BroadcastView = () => {
         return;
       }
       
-      const transformedBroadcasts = broadcastData.map(broadcast => ({
-        id: broadcast.post_id,
-        post_id: broadcast.post_id,
-        content: broadcast.content,
-        authorName: broadcast.author?.username || 'Unknown',
-        authorId: broadcast.author?.user_id,
-        authorEmail: broadcast.author?.email,
-        createdAt: broadcast.created_at,
-        created_at: broadcast.created_at,
-        updatedAt: broadcast.updated_at,
-        updated_at: broadcast.updated_at,
+      const transformedBroadcasts = broadcastData.map(broadcast => {
+        // Store raw media text patterns to remove from content
+        const mediaTextPatterns = [];
         
-        // Media parsing
-        images: [],
-        videos: [],
-        documents: [],
-        links: broadcast.media
-          ? broadcast.media
-              .filter(item => item.type === 'link' || item.link || item.url)
-              .map(item => {
-                let url = item.url || item.link;
-                
-                // Handle string representations of objects
-                if (typeof url === 'string') {
-                  // Handle Python-style stringified dict like "{'type': 'link', 'url': 'https://example.com'}"
-                  if (url.trim().startsWith("{'type'") || url.trim().startsWith("{'link'")) {
-                    try {
-                      const fixed = url.replace(/'/g, '"');
-                      const parsed = JSON.parse(fixed);
-                      url = parsed.url || parsed.link || url;
-                    } catch (e) {
-                      console.error('Failed to parse link:', url, e);
-                    }
-                  }
-                }
-                
-                // Handle object representations
-                if (typeof url === 'object' && url !== null) {
-                  url = url.url || url.link || JSON.stringify(url);
-                }
+        const mediaItems = {
+          images: [],
+          videos: [],
+          documents: [],
+          links: []
+        };
+        
+        if (broadcast.media && Array.isArray(broadcast.media)) {
+          broadcast.media.forEach(item => {
+            let mediaData = null;
+            
+            // The actual media data is in the 'link' field as a stringified Python dict
+            if (item.link && typeof item.link === 'string') {
+              // Store the raw text to remove from content later
+              mediaTextPatterns.push(item.link);
+              
+              try {
+                // Handle Python-style stringified dict: {'type': 'image', 'url': '...', 'name': '...'}
+                const fixed = item.link.replace(/'/g, '"');
+                mediaData = JSON.parse(fixed);
+              } catch (e) {
+                console.error('Failed to parse media link:', item.link, e);
+                return;
+              }
+            }
+            
+            if (mediaData && mediaData.type && mediaData.url) {
+              const mediaItem = {
+                id: Math.random().toString(36),
+                url: mediaData.url,
+                name: mediaData.name || 'Media file',
+                type: mediaData.type
+              };
+              
+              switch (mediaData.type) {
+                case 'image':
+                  mediaItems.images.push(mediaItem);
+                  break;
+                case 'video':
+                  mediaItems.videos.push(mediaItem);
+                  break;
+                case 'document':
+                  mediaItems.documents.push({
+                    ...mediaItem,
+                    isPDF: mediaData.url.toLowerCase().includes('.pdf')
+                  });
+                  break;
+                case 'link':
+                  mediaItems.links.push({
+                    id: mediaItem.id,
+                    url: mediaItem.url,
+                    link: mediaItem.url,
+                    title: mediaItem.url,
+                    description: ''
+                  });
+                  break;
+                default:
+                  console.log('Unknown media type:', mediaData.type);
+              }
+            }
+          });
+        }
+        
+        // Clean post content by removing raw media text
+        let cleanedContent = broadcast.content || '';
+        
+        // First remove exact patterns from mediaTextPatterns array
+        mediaTextPatterns.forEach(pattern => {
+          cleanedContent = cleanedContent.replace(new RegExp(pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), '');
+        });
+        
+        // More comprehensive regex patterns to catch all media dict variations
+        const comprehensiveMediaPatterns = [
+          // Basic dict pattern with any content inside
+          /\{[^}]*'type'[^}]*'url'[^}]*'name'[^}]*\}/gi,
+          /\{[^}]*"type"[^}]*"url"[^}]*"name"[^}]*\}/gi,
+          // Pattern that starts with {'type': and ends with }
+          /\{'type':\s*'[^']*',\s*'url':\s*'[^']*',\s*'name':\s*'[^']*'\}/gi,
+          /\{"type":\s*"[^"]*",\s*"url":\s*"[^"]*",\s*"name":\s*"[^"]*"\}/gi,
+          // Catch any dict-like structure with these keys regardless of order
+          /\{(?:[^}]*(?:'type'|"type"|'url'|"url"|'name'|"name")[^}]*){3,}\}/gi,
+          // Pattern for long URLs in dict format
+          /\{[^}]*https?:\/\/[^\s'}]+[^}]*\}/gi,
+          // Pattern that might have line breaks
+          /\{\s*'type'\s*:\s*'[^']*'\s*,\s*'url'\s*:\s*'[^']*'\s*,\s*'name'\s*:\s*'[^']*'\s*\}/gims,
+        ];
+        
+        comprehensiveMediaPatterns.forEach(pattern => {
+          cleanedContent = cleanedContent.replace(pattern, '');
+        });
+        
+        // Clean up any remaining artifacts
+        cleanedContent = cleanedContent
+          .replace(/\s*,\s*,\s*/g, '') // Remove double commas
+          .replace(/,\s*$/gm, '') // Remove trailing commas at end of lines
+          .replace(/^\s*,/gm, '') // Remove leading commas at start of lines
+          .replace(/\n\s*\n\s*\n/g, '\n\n') // Remove multiple empty lines
+          .replace(/\s+/g, ' ') // Normalize spaces
+          .trim();
 
-                return {
-                  id: item.id || Math.random().toString(36),
-                  url: url,
-                  link: url,
-                  title: url, // Use URL as title
-                  description: ''
-                };
-              })
-          : [],
-        
-        mentions: broadcast.mentions
-          ? broadcast.mentions.map(mention => ({
-              id: mention.id || Math.random().toString(36),
-              username: mention.username,
-              display_name: mention.username
-            }))
-          : [],
-        
-        tags: broadcast.tags
-          ? broadcast.tags.map(tag => ({
-              id: tag.id || Math.random().toString(36),
-              tag_name: tag.tag_name,
-              name: tag.tag_name
-            }))
-          : [],
-        
-        comments: broadcast.comments || [],
-        reaction_counts: broadcast.reaction_counts || {},
-        user_reaction: null,
-        
-        is_comments_allowed: broadcast.is_comments_allowed,
-        isBroadcast: true
-      }));
+        return {
+          id: broadcast.post_id,
+          post_id: broadcast.post_id,
+          content: cleanedContent,
+          authorName: broadcast.author?.username || 'Admin',
+          authorId: broadcast.author?.user_id,
+          authorEmail: broadcast.author?.email,
+          createdAt: broadcast.created_at,
+          created_at: broadcast.created_at,
+          updatedAt: broadcast.updated_at,
+          updated_at: broadcast.updated_at,
+          
+          ...mediaItems,
+          
+          mentions: broadcast.mentions
+            ? broadcast.mentions.map(mention => ({
+                id: mention.id || Math.random().toString(36),
+                username: mention.username,
+                display_name: mention.username
+              }))
+            : [],
+          
+          tags: broadcast.tags
+            ? broadcast.tags.map(tag => ({
+                id: tag.id || Math.random().toString(36),
+                tag_name: tag.tag_name,
+                name: tag.tag_name
+              }))
+            : [],
+          
+          comments: broadcast.comments || [],
+          reaction_counts: broadcast.reaction_counts || {},
+          user_reaction: null,
+          
+          is_comments_allowed: broadcast.is_comments_allowed,
+          isBroadcast: true
+        };
+      });
       
       setBroadcasts(transformedBroadcasts);
     } catch (err) {
@@ -122,7 +196,12 @@ const BroadcastView = () => {
 
   const handleDeleteBroadcast = async (broadcastId) => {
     try {
-      await postsAPI.deletePost(broadcastId);
+      // Use adminAPI for admin users, postsAPI for regular users
+      if (user?.is_admin) {
+        await adminAPI.deletePost(broadcastId);
+      } else {
+        await postsAPI.deletePost(broadcastId);
+      }
       // Refresh broadcasts after deletion
       fetchBroadcasts();
       setShowDeleteConfirm(null);

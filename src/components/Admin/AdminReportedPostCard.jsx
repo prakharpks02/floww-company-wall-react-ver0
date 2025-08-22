@@ -9,7 +9,7 @@ import {
   FileText
 } from 'lucide-react';
 import { adminAPI } from '../../services/adminAPI';
-import api from '../../services/api';
+
 
 // Simple media components
 const SimpleVideoPlayer = ({ src, className }) => (
@@ -89,13 +89,49 @@ function normalizeMedia(mediaArr = []) {
   return { images, videos, documents, links };
 }
 
+
 const AdminReportedPostCard = ({ postData, onPostUpdate, onPostDelete }) => {
   const [processingDelete, setProcessingDelete] = useState(false);
+  const [processingBlock, setProcessingBlock] = useState(false);
   const [showAllReports, setShowAllReports] = useState(false);
   const [selectedReportIdx, setSelectedReportIdx] = useState(0);
+  const [localAuthor, setLocalAuthor] = useState(postData.author);
 
   const { post_id, content, author, reports = [], media: rawMedia = [], is_comments_allowed } = postData;
   const media = normalizeMedia(rawMedia);
+  // Block/Unblock user logic (modeled after useUserActions.js)
+  const handleBlockUser = async (userId) => {
+    try {
+      setProcessingBlock(true);
+      // Optimistic update
+      const currentBlockedStatus = localAuthor?.is_blocked === true || localAuthor?.is_blocked === "true";
+      const optimisticNewStatus = !currentBlockedStatus;
+      setLocalAuthor(prev => ({ ...prev, is_blocked: optimisticNewStatus }));
+
+      // Call backend
+      const result = await adminAPI.toggleBlockUser(userId);
+      let serverBlockedStatus;
+      if (result.is_blocked !== undefined) {
+        serverBlockedStatus = result.is_blocked === true || result.is_blocked === "true";
+      } else if (result.new_status !== undefined) {
+        serverBlockedStatus = result.new_status === true || result.new_status === "true";
+      } else {
+        serverBlockedStatus = optimisticNewStatus;
+      }
+      // Correct optimistic update if needed
+      if (serverBlockedStatus !== optimisticNewStatus) {
+        setLocalAuthor(prev => ({ ...prev, is_blocked: serverBlockedStatus }));
+      }
+      // Optionally notify parent
+      if (onPostUpdate) onPostUpdate(post_id, serverBlockedStatus ? 'blocked' : 'unblocked');
+    } catch (error) {
+      // Revert optimistic update
+      setLocalAuthor(prev => ({ ...prev, is_blocked: author?.is_blocked }));
+      alert('Failed to toggle user block status: ' + (error.message || error));
+    } finally {
+      setProcessingBlock(false);
+    }
+  };
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -162,7 +198,7 @@ const AdminReportedPostCard = ({ postData, onPostUpdate, onPostDelete }) => {
 
     setProcessingDelete(true);
     try {
-      const response = await api.deletePost(post_id);
+  const response = await adminAPI.deletePost(post_id);
       
       if (response.status === 'success') {
         alert('Post deleted successfully');
@@ -230,9 +266,22 @@ const AdminReportedPostCard = ({ postData, onPostUpdate, onPostDelete }) => {
           <User className="h-5 w-5 text-gray-600" />
         </div>
         <div>
-          <div className="font-semibold text-blue-900">{author?.username || 'Unknown User'}</div>
-          <div className="text-sm text-blue-700">{author?.email}</div>
-          <div className="text-xs text-blue-500">User ID: {author?.user_id}</div>
+          <div className="font-semibold text-blue-900">{localAuthor?.username || 'Unknown User'}</div>
+          <div className="text-sm text-blue-700">{localAuthor?.email}</div>
+          <div className="text-xs text-blue-500">User ID: {localAuthor?.user_id}</div>
+          <div className="mt-2 flex items-center gap-2">
+            <span className={`px-2 py-1 rounded text-xs font-bold ${localAuthor?.is_blocked ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
+              {localAuthor?.is_blocked ? 'Blocked' : 'Active'}
+            </span>
+            <button
+              type="button"
+              disabled={processingBlock}
+              className={`ml-2 px-3 py-1 rounded text-xs font-semibold transition-colors ${localAuthor?.is_blocked ? 'bg-green-500 text-white hover:bg-green-600' : 'bg-red-500 text-white hover:bg-red-600'} ${processingBlock ? 'opacity-50 cursor-not-allowed' : ''}`}
+              onClick={() => handleBlockUser(localAuthor?.user_id || localAuthor?.employee_id)}
+            >
+              {processingBlock ? 'Processing...' : (localAuthor?.is_blocked ? 'Unblock User' : 'Block User')}
+            </button>
+          </div>
         </div>
       </div>
 

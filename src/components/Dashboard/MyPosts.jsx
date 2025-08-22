@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../contexts/AuthContext_token';
+import { useAuth } from '../../contexts/AuthContext';
 import { usePost } from '../../contexts/PostContext';
 import PostCard from '../Posts/PostCard';
 import PostFeed from '../Posts/PostFeed';

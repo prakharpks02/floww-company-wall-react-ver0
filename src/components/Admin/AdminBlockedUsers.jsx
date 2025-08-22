@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../contexts/AuthContext_token';
+import { useAuth } from '../../contexts/AuthContext';
 import { adminAPI } from '../../services/adminAPI';
-import { adminAPI as regularAdminAPI } from '../../services/api';
 import { Ban, Check, User, Mail, Calendar, AlertTriangle, UserCheck } from 'lucide-react';
 import Alert, { useAlert } from '../UI/Alert';
 
@@ -23,7 +22,7 @@ const AdminBlockedUsers = () => {
     try {
       setLoading(true);
       // Use the new admin API to get blocked users from backend
-      const response = await regularAdminAPI.getBlockedUsers();
+  const response = await adminAPI.getBlockedUsers();
       
       if (response.status === 'success' && response.data) {
         setUsers(response.data);
@@ -42,9 +41,7 @@ const AdminBlockedUsers = () => {
     try {
       setProcessingUser(userId);
       const response = await adminAPI.toggleBlockUser(userId);
-      
       if (response.status === 'success') {
-        // Reload users to update the display after successful unblock
         await loadUsers();
         showSuccess('User Unblocked', 'User has been successfully unblocked and can now fully access the platform.');
       } else {
@@ -134,8 +131,10 @@ const AdminBlockedUsers = () => {
           </div>
         ) : (
           <div className="divide-y divide-blue-100">
-            {users.map((blockedUser) => (
-              <div key={blockedUser.user_id || blockedUser.id} className="flex items-center py-4 px-2 border-l-4 border-blue-400 bg-white hover:bg-blue-50 transition-all">
+            {users.map((blockedUser) => {
+              const key = blockedUser.user_id || blockedUser.id || blockedUser.email || blockedUser.username || Math.random();
+              return (
+                <div key={key} className="flex items-center py-4 px-2 border-l-4 border-blue-400 bg-white hover:bg-blue-50 transition-all">
                 <div className="flex items-center space-x-4 flex-1">
                   <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
                     <User className="h-5 w-5 text-blue-600" />
@@ -163,8 +162,8 @@ const AdminBlockedUsers = () => {
                     <span>Blocked</span>
                   </div>
                   <button
-                    onClick={() => handleToggleBlock(blockedUser.user_id || blockedUser.id)}
-                    disabled={processingUser === (blockedUser.user_id || blockedUser.id)}
+                    onClick={() => handleToggleBlock(blockedUser.employee_id || blockedUser.user_id || blockedUser.id)}
+                    disabled={processingUser === (blockedUser.employee_id || blockedUser.user_id || blockedUser.id)}
                     className="ml-4 flex items-center space-x-1 px-3 py-1 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs font-semibold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
                     title="Unblock this user"
                     aria-label={`Unblock user ${blockedUser.name}`}
@@ -183,7 +182,8 @@ const AdminBlockedUsers = () => {
                   </button>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
 

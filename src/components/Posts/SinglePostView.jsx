@@ -1,10 +1,57 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Navigate, Link } from 'react-router-dom';
 import { usePost } from '../../contexts/PostContext';
-import { useAuth } from '../../contexts/AuthContext_token';
+import { useAuth } from '../../contexts/AuthContext';
 import { postsAPI } from '../../services/api';
 import PostCard from './PostCard';
+import Alert from '../UI/Alert';
 import { ArrowLeft, Home, Loader } from 'lucide-react';
+
+// ShareFooter component for unauthenticated users
+function ShareFooter() {
+  const [copied, setCopied] = useState(false);
+  const [showAlert, setShowAlert] = useState(false);
+  
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setCopied(true);
+      setShowAlert(true);
+      setTimeout(() => {
+        setCopied(false);
+        setShowAlert(false);
+      }, 3000);
+    } catch (e) {
+      setCopied(false);
+      setShowAlert(false);
+    }
+  };
+  
+  return (
+    <div className="relative">
+      {showAlert && (
+        <div className="mb-4">
+          <Alert
+            type="success"
+            message="Link copied to clipboard!"
+            onClose={() => setShowAlert(false)}
+          />
+        </div>
+      )}
+      <button
+        onClick={handleCopy}
+        className="inline-flex items-center px-6 py-2 text-white rounded-lg hover:opacity-90 transition-opacity"
+        style={{ backgroundColor: '#9f7aea' }}
+      >
+        <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+          <rect x="9" y="9" width="13" height="13" rx="2"/>
+          <path d="M5 15V5a2 2 0 0 1 2-2h10"/>
+        </svg>
+        {copied ? 'Link Copied!' : 'Copy Link'}
+      </button>
+    </div>
+  );
+}
 
 const SinglePostView = () => {
   const { postId } = useParams();
@@ -27,11 +74,7 @@ const SinglePostView = () => {
           String(p.id) === postId || 
           String(p.post_id) === postId
         );
-        
         if (localPost) {
-          console.log('🔍 SinglePostView - Found post in local state:', localPost);
-          
-          // Ensure the local post has proper avatar structure
           const normalizedLocalPost = {
             ...localPost,
             authorAvatar: localPost.author?.avatar || localPost.authorAvatar || localPost.author_avatar || 
@@ -39,7 +82,6 @@ const SinglePostView = () => {
             authorName: localPost.author?.username || localPost.authorName || localPost.author_name || 'Anonymous',
             authorPosition: localPost.author?.position || localPost.authorPosition || localPost.author_position || 'Employee'
           };
-          
           setPost(normalizedLocalPost);
           setLoading(false);
           return;
@@ -174,13 +216,6 @@ const SinglePostView = () => {
                   <span>Go to Floww</span>
                 </button>
               )}
-              <Link
-                to={user ? "/dashboard" : "https://dev.gofloww.co"}
-                className="flex items-center space-x-2 text-gray-600 hover:text-purple-600 transition-colors"
-              >
-                <Home className="h-5 w-5" />
-                <span>Home</span>
-              </Link>
             </div>
           </div>
 
@@ -195,14 +230,25 @@ const SinglePostView = () => {
             <p className="text-gray-600 mb-6">
               {error || "The post you're looking for doesn't exist or may have been deleted."}
             </p>
-            <Link
-              to={user ? "/dashboard" : "https://dev.gofloww.co"}
-              className="inline-flex items-center px-4 py-2 text-white rounded-lg hover:opacity-90 transition-opacity"
-              style={{ backgroundColor: '#9f7aea' }}
-            >
-              <Home className="h-4 w-4 mr-2" />
-              {user ? 'Go to Dashboard' : 'Go to Floww'}
-            </Link>
+            {user ? (
+              <Link
+                to="/dashboard"
+                className="inline-flex items-center px-4 py-2 text-white rounded-lg hover:opacity-90 transition-opacity"
+                style={{ backgroundColor: '#9f7aea' }}
+              >
+                <Home className="h-4 w-4 mr-2" />
+                Go to Dashboard
+              </Link>
+            ) : (
+              <a
+                href="https://dev.gofloww.co"
+                className="inline-flex items-center px-4 py-2 text-white rounded-lg hover:opacity-90 transition-opacity"
+                style={{ backgroundColor: '#9f7aea' }}
+              >
+                <Home className="h-4 w-4 mr-2" />
+                Go to Floww
+              </a>
+            )}
           </div>
         </div>
       </div>
@@ -223,25 +269,19 @@ const SinglePostView = () => {
                 <ArrowLeft className="h-5 w-5" />
                 <span>Back to Feed</span>
               </Link>
-            ) : (
-              <button
-                onClick={() => window.location.href = 'https://dev.gofloww.co'}
-                className="flex items-center space-x-2 text-gray-600 hover:text-purple-600 transition-colors"
-              >
-                <ArrowLeft className="h-5 w-5" />
-                <span>Go to Floww</span>
-              </button>
-            )}
+            ) : null}
             <div className="text-sm text-gray-500">
               {user ? 'Shared Post' : 'Public Post'}
             </div>
-            <Link
-              to={user ? "/dashboard" : "https://dev.gofloww.co"}
-              className="flex items-center space-x-2 text-gray-600 hover:text-purple-600 transition-colors"
-            >
-              <Home className="h-5 w-5" />
-              <span>Home</span>
-            </Link>
+            {user ? (
+              <Link
+                to="/dashboard"
+                className="flex items-center space-x-2 text-gray-600 hover:text-purple-600 transition-colors"
+              >
+                <Home className="h-5 w-5" />
+                <span>Home</span>
+              </Link>
+            ) : null}
           </div>
         </div>
 
@@ -253,17 +293,23 @@ const SinglePostView = () => {
         {/* Footer */}
         <div className="mt-8 text-center">
           <p className="text-sm text-gray-500 mb-4">
-            {user ? 'Want to see more posts like this?' : 'Join our community to interact with posts!'}
+            {user ? 'Want to see more posts like this?' : 'Share this post with others!'}
           </p>
-          <Link
-            to={user ? "/dashboard" : "https://dev.gofloww.co"}
-            className="inline-flex items-center px-6 py-2 text-white rounded-lg hover:opacity-90 transition-opacity"
-            style={{ backgroundColor: '#9f7aea' }}
-          >
-            <Home className="h-4 w-4 mr-2" />
-            {user ? 'View More Posts' : 'Join Floww'}
-          </Link>
+          {user ? (
+            <Link
+              to="/dashboard"
+              className="inline-flex items-center px-6 py-2 text-white rounded-lg hover:opacity-90 transition-opacity"
+              style={{ backgroundColor: '#9f7aea' }}
+            >
+              <Home className="h-4 w-4 mr-2" />
+              View More Posts
+            </Link>
+          ) : (
+            <ShareFooter />
+          )}
         </div>
+
+
       </div>
     </div>
   );

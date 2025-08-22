@@ -13,6 +13,7 @@ import PostStats from './PostStats';
 import PostActions from './PostActions';
 import CommentsSection from './CommentsSection';
 import PostModals from './PostModals';
+import Alert from '../UI/Alert';
 
 const PostCard = ({ 
   post, 
@@ -53,6 +54,8 @@ const PostCard = ({
     replyText,
     setReplyText,
     shareCount,
+    showShareAlert,
+    setShowShareAlert,
 
     // Computed values
     isLiked,
@@ -191,6 +194,17 @@ const PostCard = ({
     <div className={`bg-white rounded-lg shadow-sm border border-gray-200 p-6 ${
       showOptimisticState ? 'opacity-75' : ''
     }`}>
+      {/* Share Alert */}
+      {showShareAlert && (
+        <div className="mb-4">
+          <Alert
+            type="success"
+            message="Post URL copied to clipboard!"
+            onClose={() => setShowShareAlert(false)}
+          />
+        </div>
+      )}
+      
       {/* Pinned Post Indicator */}
       {(normalizedPost.is_pinned === true || normalizedPost.is_pinned === "true") && (
         <div className="mb-3 px-3 py-1 bg-yellow-50 border border-yellow-200 rounded-lg">

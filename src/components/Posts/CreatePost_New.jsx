@@ -3,7 +3,7 @@ import { X, Send, Loader2 } from 'lucide-react';
 import RichTextEditor from '../Editor/RichTextEditor';
 import ImageCropModal from '../Media/ImageCropModal';
 import { usePost } from '../../contexts/PostContext';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../contexts/AuthContext_token';
 import { usePostCreation } from './utils/usePostCreation';
 import { usePostMediaHandling } from './utils/usePostMediaHandling';
 import { useMentionsHandling } from './utils/useMentionsHandling';
@@ -140,9 +140,9 @@ const CreatePost = ({ onClose, editingPost = null }) => {
         {mediaHandling.showCropModal && mediaHandling.imageToProcess && (
           <ImageCropModal
             isOpen={mediaHandling.showCropModal}
-            onCancel={() => mediaHandling.setShowCropModal(false)}
+            onClose={() => mediaHandling.setShowCropModal(false)}
             imageFile={mediaHandling.imageToProcess}
-            onSave={(croppedBlob) => 
+            onCropComplete={(croppedBlob) => 
               mediaHandling.handleCropComplete(croppedBlob, mediaHandling.imageToProcess)
             }
           />

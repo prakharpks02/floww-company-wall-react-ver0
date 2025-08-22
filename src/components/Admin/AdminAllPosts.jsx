@@ -1,530 +1,31 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { adminAPI } from '../../services/adminAPI';
-import { postsAPI } from '../../services/api';
-import AdminPostCard from './AdminPostCard';
+import React, { useEffect, useCallback } from 'react';
 import { Loader } from 'lucide-react';
-
-// Helper to fetch pinned posts
-const fetchPinnedPosts = async () => {
-  try {
-    console.log('Fetching pinned posts using admin API...');
-    const response = await adminAPI.getBroadcastPosts();
-    console.log('Pinned posts response:', response);
-    
-    if (response?.posts && Array.isArray(response.posts)) {
-      return response.posts;
-    }
-    return [];
-  } catch (e) {
-    console.error('Error fetching pinned posts:', e);
-    return [];
-  }
-};
+import AdminPostCard from './AdminPostCard';
+import { usePostsData } from './utils/usePostsData';
+import { usePostActions } from './utils/usePostActions';
+import { useCommentActions } from './utils/useCommentActions';
+import { useUserActions } from './utils/useUserActions';
 
 const AdminAllPosts = () => {
-  const [posts, setPosts] = useState([]);
-  const [pinnedPosts, setPinnedPosts] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [nextCursor, setNextCursor] = useState(null);
-  const [hasMore, setHasMore] = useState(true);
-  const [error, setError] = useState(null);
+  // Use custom hooks for data management
+  const {
+    posts,
+    setPosts,
+    pinnedPosts,
+    setPinnedPosts,
+    isLoading,
+    nextCursor,
+    hasMore,
+    error,
+    setError,
+    loadAllPosts,
+    loadPinnedPosts
+  } = usePostsData();
 
-  // Load all posts until lastPostId is null
-  const loadAllPosts = async (lastPostId = null, replace = false) => {
-    if (isLoading) return;
-    setIsLoading(true);
-    setError(null);
-    try {
-      let allPosts = [];
-      let nextId = lastPostId;
-      let first = true;
-      
-      do {
-        const response = await adminAPI.getAllPosts(nextId);
-        console.log('AdminAllPosts response:', response);
-        
-        if (response?.posts && Array.isArray(response.posts)) {
-          const newPosts = response.posts;
-          if (first && (replace || !lastPostId)) {
-            allPosts = newPosts;
-          } else {
-            allPosts = [...allPosts, ...newPosts];
-          }
-          nextId = response.nextCursor || response.lastPostId;
-          first = false;
-          
-          // If no more posts or hasMore is false, break
-          if (!response.hasMore || !nextId || newPosts.length === 0) {
-            nextId = null;
-          }
-        } else {
-          console.log('No posts found in response or invalid format');
-          nextId = null;
-        }
-      } while (nextId);
-      
-      console.log('Final allPosts array:', allPosts);
-      setPosts(allPosts);
-      setNextCursor(null);
-      setHasMore(false);
-    } catch (error) {
-      console.error('Error in loadAllPosts:', error);
-      setError(`Failed to load posts: ${error.message}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Load pinned posts
-  const loadPinnedPosts = async () => {
-    console.log('Loading pinned posts...');
-    const pins = await fetchPinnedPosts();
-    console.log('Pinned posts loaded:', pins);
-    setPinnedPosts(pins);
-  };
-
-  const handleTogglePin = async (postId) => {
-    try {
-      await adminAPI.togglePinPost(postId);
-      // Update the post in the current list in real-time
-      setPosts(prev => prev.map(post => 
-        post.post_id === postId 
-          ? { ...post, is_pinned: !post.is_pinned }
-          : post
-      ));
-      // Also update in pinned posts if it exists there
-      setPinnedPosts(prev => {
-        const existingIndex = prev.findIndex(p => p.post_id === postId);
-        if (existingIndex >= 0) {
-          // If currently pinned, remove from pinned posts
-          return prev.filter(p => p.post_id !== postId);
-        } else {
-          // If being pinned, add to pinned posts (find from main posts)
-          const postToPin = posts.find(p => p.post_id === postId);
-          if (postToPin) {
-            return [...prev, { ...postToPin, is_pinned: true }];
-          }
-        }
-        return prev;
-      });
-    } catch (error) {
-      console.error('Error toggling pin status:', error);
-      setError(`Failed to toggle pin status: ${error.message}`);
-    }
-  };
-
-  const handleToggleComments = async (postId) => {
-    try {
-      const post = posts.find(p => p.post_id === postId);
-      console.log('🔄 Toggling comments for post:', {
-        postId,
-        currentState: post?.is_comments_allowed,
-        currentStateType: typeof post?.is_comments_allowed
-      });
-      await adminAPI.togglePostComments(postId, post?.is_comments_allowed);
-      // Update the post in the current list in real-time - convert to boolean for consistency
-      setPosts(prev => prev.map(post => 
-        post.post_id === postId 
-          ? { 
-              ...post, 
-              is_comments_allowed: post.is_comments_allowed === true || post.is_comments_allowed === "true" ? false : true
-            }
-          : post
-      ));
-      // Also update in pinned posts if it exists there
-      setPinnedPosts(prev => prev.map(post => 
-        post.post_id === postId 
-          ? { 
-              ...post, 
-              is_comments_allowed: post.is_comments_allowed === true || post.is_comments_allowed === "true" ? false : true
-            }
-          : post
-      ));
-      console.log('✅ Comments toggled successfully for post:', postId);
-    } catch (error) {
-      console.error('Error toggling comments:', error);
-      setError(`Failed to toggle comments: ${error.message}`);
-    }
-  };
-
-  const handleLike = async (postId) => {
-    try {
-      await postsAPI.toggleLike(postId);
-      // Update the post reactions in real-time
-      setPosts(prev => prev.map(post => {
-        if (post.post_id === postId) {
-          const updatedReactions = { ...post.reactions };
-          const userReacted = post.user_reaction === 'like';
-          
-          if (userReacted) {
-            // Remove like
-            updatedReactions.like = Math.max(0, (updatedReactions.like || 0) - 1);
-            return { ...post, reactions: updatedReactions, user_reaction: null };
-          } else {
-            // Add like, remove old reaction if exists
-            if (post.user_reaction) {
-              updatedReactions[post.user_reaction] = Math.max(0, (updatedReactions[post.user_reaction] || 0) - 1);
-            }
-            updatedReactions.like = (updatedReactions.like || 0) + 1;
-            return { ...post, reactions: updatedReactions, user_reaction: 'like' };
-          }
-        }
-        return post;
-      }));
-      
-      // Also update in pinned posts
-      setPinnedPosts(prev => prev.map(post => {
-        if (post.post_id === postId) {
-          const updatedReactions = { ...post.reactions };
-          const userReacted = post.user_reaction === 'like';
-          
-          if (userReacted) {
-            updatedReactions.like = Math.max(0, (updatedReactions.like || 0) - 1);
-            return { ...post, reactions: updatedReactions, user_reaction: null };
-          } else {
-            if (post.user_reaction) {
-              updatedReactions[post.user_reaction] = Math.max(0, (updatedReactions[post.user_reaction] || 0) - 1);
-            }
-            updatedReactions.like = (updatedReactions.like || 0) + 1;
-            return { ...post, reactions: updatedReactions, user_reaction: 'like' };
-          }
-        }
-        return post;
-      }));
-    } catch (error) {
-      console.error('Error liking post:', error);
-      setError(`Failed to like post: ${error.message}`);
-    }
-  };
-
-  const handleReaction = async (postId, reactionType) => {
-    try {
-      // Get the corresponding emoji for the reaction type
-      const emojiMap = {
-        'like': '👍',
-        'love': '❤️',
-        'haha': '😆',
-        'wow': '😮',
-        'sad': '😢',
-        'angry': '😠'
-      };
-      
-      await postsAPI.addReaction(postId, reactionType, emojiMap[reactionType] || '👍');
-      
-      // Update the post reactions in real-time
-      setPosts(prev => prev.map(post => {
-        if (post.post_id === postId) {
-          const updatedReactions = { ...post.reactions };
-          const userReacted = post.user_reaction === reactionType;
-          
-          if (userReacted) {
-            // Remove reaction
-            updatedReactions[reactionType] = Math.max(0, (updatedReactions[reactionType] || 0) - 1);
-            return { ...post, reactions: updatedReactions, user_reaction: null };
-          } else {
-            // Add new reaction, remove old one if exists
-            if (post.user_reaction) {
-              updatedReactions[post.user_reaction] = Math.max(0, (updatedReactions[post.user_reaction] || 0) - 1);
-            }
-            updatedReactions[reactionType] = (updatedReactions[reactionType] || 0) + 1;
-            return { ...post, reactions: updatedReactions, user_reaction: reactionType };
-          }
-        }
-        return post;
-      }));
-      
-      // Also update in pinned posts
-      setPinnedPosts(prev => prev.map(post => {
-        if (post.post_id === postId) {
-          const updatedReactions = { ...post.reactions };
-          const userReacted = post.user_reaction === reactionType;
-          
-          if (userReacted) {
-            updatedReactions[reactionType] = Math.max(0, (updatedReactions[reactionType] || 0) - 1);
-            return { ...post, reactions: updatedReactions, user_reaction: null };
-          } else {
-            if (post.user_reaction) {
-              updatedReactions[post.user_reaction] = Math.max(0, (updatedReactions[post.user_reaction] || 0) - 1);
-            }
-            updatedReactions[reactionType] = (updatedReactions[reactionType] || 0) + 1;
-            return { ...post, reactions: updatedReactions, user_reaction: reactionType };
-          }
-        }
-        return post;
-      }));
-    } catch (error) {
-      console.error('Error reacting to post:', error);
-      setError(`Failed to react to post: ${error.message}`);
-    }
-  };
-
-  const handleAddComment = async (postId, commentText, parentCommentId = null) => {
-    try {
-      let newComment;
-      if (parentCommentId) {
-        // Use the reply API for replies - no user ID needed with token auth
-        newComment = await postsAPI.addCommentReply(postId, parentCommentId, commentText);
-      } else {
-        // Use the regular comment API for top-level comments
-        newComment = await postsAPI.addComment(postId, { content: commentText });
-      }
-      
-      // Update the post with the new comment
-      setPosts(prev => prev.map(post => {
-        if (post.post_id === postId) {
-          const updatedComments = [...(post.comments || [])];
-          if (parentCommentId) {
-            // Add as reply
-            const parentIndex = updatedComments.findIndex(c => c.comment_id === parentCommentId);
-            if (parentIndex >= 0) {
-              updatedComments[parentIndex].replies = [...(updatedComments[parentIndex].replies || []), newComment];
-            }
-          } else {
-            // Add as top-level comment
-            updatedComments.push(newComment);
-          }
-          return { ...post, comments: updatedComments };
-        }
-        return post;
-      }));
-      
-      // Also update in pinned posts
-      setPinnedPosts(prev => prev.map(post => {
-        if (post.post_id === postId) {
-          const updatedComments = [...(post.comments || [])];
-          if (parentCommentId) {
-            const parentIndex = updatedComments.findIndex(c => c.comment_id === parentCommentId);
-            if (parentIndex >= 0) {
-              updatedComments[parentIndex].replies = [...(updatedComments[parentIndex].replies || []), newComment];
-            }
-          } else {
-            updatedComments.push(newComment);
-          }
-          return { ...post, comments: updatedComments };
-        }
-        return post;
-      }));
-    } catch (error) {
-      console.error('Error adding comment:', error);
-      setError(`Failed to add comment: ${error.message}`);
-    }
-  };
-
-  const handleSharePost = async (postId) => {
-    try {
-      // Copy post URL to clipboard
-      const postUrl = `${window.location.origin}/post/${postId}`;
-      await navigator.clipboard.writeText(postUrl);
-      console.log('Post URL copied to clipboard');
-      // You could show a toast notification here
-    } catch (error) {
-      console.error('Error sharing post:', error);
-      setError(`Failed to share post: ${error.message}`);
-    }
-  };
-
-  const handleDeleteComment = async (commentId) => {
-    try {
-      // Use admin API to delete comment (admin can delete any comment)
-      await adminAPI.adminDeleteComment(commentId);
-      
-      // Remove the comment from the posts state
-      setPosts(prev => prev.map(post => ({
-        ...post,
-        comments: post.comments ? post.comments.filter(comment => {
-          if (comment.comment_id === commentId) return false;
-          if (comment.replies) {
-            comment.replies = comment.replies.filter(reply => reply.comment_id !== commentId);
-          }
-          return true;
-        }) : []
-      })));
-      
-      // Also update in pinned posts
-      setPinnedPosts(prev => prev.map(post => ({
-        ...post,
-        comments: post.comments ? post.comments.filter(comment => {
-          if (comment.comment_id === commentId) return false;
-          if (comment.replies) {
-            comment.replies = comment.replies.filter(reply => reply.comment_id !== commentId);
-          }
-          return true;
-        }) : []
-      })));
-      
-      console.log('✅ Admin comment deleted successfully:', commentId);
-    } catch (error) {
-      console.error('❌ Admin delete comment error:', error);
-      setError(`Failed to delete comment: ${error.message}`);
-    }
-  };
-
-  const handleDeleteReply = async (postId, commentId, replyId) => {
-    try {
-      // Use admin API to delete reply (admin can delete any reply)
-      await adminAPI.adminDeleteReply(postId, commentId, replyId);
-      
-      // Remove the reply from the posts state
-      setPosts(prev => prev.map(post => {
-        if (post.post_id === postId) {
-          return {
-            ...post,
-            comments: post.comments ? post.comments.map(comment => {
-              if (comment.comment_id === commentId || comment.id === commentId) {
-                return {
-                  ...comment,
-                  replies: (comment.replies || []).filter(reply => 
-                    reply.id !== replyId && reply.reply_id !== replyId
-                  )
-                };
-              }
-              return comment;
-            }) : []
-          };
-        }
-        return post;
-      }));
-      
-      // Also update in pinned posts
-      setPinnedPosts(prev => prev.map(post => {
-        if (post.post_id === postId) {
-          return {
-            ...post,
-            comments: post.comments ? post.comments.map(comment => {
-              if (comment.comment_id === commentId || comment.id === commentId) {
-                return {
-                  ...comment,
-                  replies: (comment.replies || []).filter(reply => 
-                    reply.id !== replyId && reply.reply_id !== replyId
-                  )
-                };
-              }
-              return comment;
-            }) : []
-          };
-        }
-        return post;
-      }));
-      
-      console.log('✅ Admin reply deleted successfully:', replyId);
-    } catch (error) {
-      console.error('❌ Admin delete reply error:', error);
-      setError(`Failed to delete reply: ${error.message}`);
-    }
-  };
-
-  const handleBlockUser = async (userId) => {
-    try {
-      console.log('🔍 Blocking/Unblocking user:', userId);
-      
-      // Find current user status before toggling - use employee_id instead of user_id
-      const currentUser = posts.find(post => 
-        post.author?.user_id === userId || 
-        post.author?.employee_id === userId
-      )?.author;
-      console.log('🔍 Current user before toggle:', currentUser);
-      
-      // Optimistic update - toggle the status immediately for better UX
-      const currentBlockedStatus = currentUser?.is_blocked === true || currentUser?.is_blocked === "true";
-      const optimisticNewStatus = !currentBlockedStatus;
-      
-      console.log('🔍 Optimistic update - Current status:', currentBlockedStatus, '-> New status:', optimisticNewStatus);
-      
-      // Update UI immediately (optimistic update) - check both user_id and employee_id
-      const updateUserStatus = (posts, newStatus) => posts.map(post => ({
-        ...post,
-        author: (post.author?.user_id === userId || post.author?.employee_id === userId)
-          ? { ...post.author, is_blocked: newStatus }
-          : post.author,
-        comments: post.comments ? post.comments.map(comment => ({
-          ...comment,
-          author: (comment.author?.user_id === userId || comment.author?.employee_id === userId)
-            ? { ...comment.author, is_blocked: newStatus }
-            : comment.author,
-          replies: comment.replies ? comment.replies.map(reply => ({
-            ...reply,
-            author: (reply.author?.user_id === userId || reply.author?.employee_id === userId)
-              ? { ...reply.author, is_blocked: newStatus }
-              : reply.author
-          })) : []
-        })) : []
-      }));
-      
-      // Apply optimistic update
-      setPosts(prev => updateUserStatus(prev, optimisticNewStatus));
-      setPinnedPosts(prev => updateUserStatus(prev, optimisticNewStatus));
-      
-      // Call the API with the correct ID format
-      const result = await adminAPI.toggleBlockUser(userId);
-      console.log('🔍 Toggle block result:', result);
-      
-      // Handle the response - the backend should return the new status
-      let serverBlockedStatus;
-      if (result.is_blocked !== undefined) {
-        serverBlockedStatus = result.is_blocked === true || result.is_blocked === "true";
-      } else if (result.new_status !== undefined) {
-        serverBlockedStatus = result.new_status === true || result.new_status === "true";
-      } else {
-        console.log('⚠️ No status returned, keeping optimistic update');
-        const action = optimisticNewStatus ? 'blocked' : 'unblocked';
-        console.log(`✅ User ${userId} has been ${action} successfully (optimistic)`);
-        return;
-      }
-      
-      console.log('🔍 Server blocked status:', serverBlockedStatus);
-      
-      // If server response differs from optimistic update, correct it
-      if (serverBlockedStatus !== optimisticNewStatus) {
-        console.log('🔄 Correcting optimistic update with server response');
-        setPosts(prev => updateUserStatus(prev, serverBlockedStatus));
-        setPinnedPosts(prev => updateUserStatus(prev, serverBlockedStatus));
-      }
-      
-      // Show success message
-      const action = serverBlockedStatus ? 'blocked' : 'unblocked';
-      console.log(`✅ User ${userId} has been ${action} successfully`);
-      
-    } catch (error) {
-      console.error('Error blocking user:', error);
-      setError(`Failed to toggle user block status: ${error.message}`);
-      
-      // Revert optimistic update on error - check both user_id and employee_id
-      const revertStatus = currentUser?.is_blocked === true || currentUser?.is_blocked === "true";
-      const updateUserStatus = (posts, newStatus) => posts.map(post => ({
-        ...post,
-        author: (post.author?.user_id === userId || post.author?.employee_id === userId)
-          ? { ...post.author, is_blocked: newStatus }
-          : post.author,
-        comments: post.comments ? post.comments.map(comment => ({
-          ...comment,
-          author: (comment.author?.user_id === userId || comment.author?.employee_id === userId)
-            ? { ...comment.author, is_blocked: newStatus }
-            : comment.author,
-          replies: comment.replies ? comment.replies.map(reply => ({
-            ...reply,
-            author: (reply.author?.user_id === userId || reply.author?.employee_id === userId)
-              ? { ...reply.author, is_blocked: newStatus }
-              : reply.author
-          })) : []
-        })) : []
-      }));
-      
-      setPosts(prev => updateUserStatus(prev, revertStatus));
-      setPinnedPosts(prev => updateUserStatus(prev, revertStatus));
-    }
-  };
-
-  const handleDeletePost = async (postId) => {
-    try {
-      await adminAPI.deletePost(postId);
-      // Remove the post from both posts and pinnedPosts state
-      setPosts(prev => prev.filter(post => post.post_id !== postId));
-      setPinnedPosts(prev => prev.filter(post => post.post_id !== postId));
-    } catch (error) {
-      console.error('Error deleting post:', error);
-      setError(`Failed to delete post: ${error.message}`);
-    }
-  };
+  // Use custom hooks for actions
+  const postActions = usePostActions(posts, setPosts, pinnedPosts, setPinnedPosts, setError);
+  const commentActions = useCommentActions(posts, setPosts, pinnedPosts, setPinnedPosts, setError);
+  const userActions = useUserActions(posts, setPosts, pinnedPosts, setPinnedPosts, setError);
 
   // Auto-load more posts when scrolling near the bottom
   const handleScroll = useCallback(() => {
@@ -536,7 +37,7 @@ const AdminAllPosts = () => {
     ) {
       loadAllPosts(nextCursor);
     }
-  }, [hasMore, isLoading, nextCursor]);
+  }, [hasMore, isLoading, nextCursor, loadAllPosts]);
 
   useEffect(() => {
     loadPinnedPosts();
@@ -577,15 +78,15 @@ const AdminAllPosts = () => {
           <AdminPostCard
             key={`pinned-${post.post_id}-${post.author?.is_blocked || 'unblocked'}`}
             post={post}
-            onTogglePin={handleTogglePin}
-            onToggleComments={handleToggleComments}
-            onDeleteComment={handleDeleteComment}
-            onDeleteReply={handleDeleteReply}
-            onBlockUser={handleBlockUser}
-            onDeletePost={handleDeletePost}
-            onReaction={handleReaction}
-            onAddComment={handleAddComment}
-            onSharePost={handleSharePost}
+            onTogglePin={postActions.handleTogglePin}
+            onToggleComments={postActions.handleToggleComments}
+            onDeleteComment={commentActions.handleDeleteComment}
+            onDeleteReply={commentActions.handleDeleteReply}
+            onBlockUser={userActions.handleBlockUser}
+            onDeletePost={postActions.handleDeletePost}
+            onReaction={postActions.handleReaction}
+            onAddComment={commentActions.handleAddComment}
+            onSharePost={postActions.handleSharePost}
             isPinned={true}
           />
         ))}
@@ -598,15 +99,15 @@ const AdminAllPosts = () => {
             <AdminPostCard
               key={`post-${post.post_id}-${post.author?.is_blocked || 'unblocked'}`}
               post={post}
-              onTogglePin={handleTogglePin}
-              onToggleComments={handleToggleComments}
-              onDeleteComment={handleDeleteComment}
-              onDeleteReply={handleDeleteReply}
-              onBlockUser={handleBlockUser}
-              onDeletePost={handleDeletePost}
-              onReaction={handleReaction}
-              onAddComment={handleAddComment}
-              onSharePost={handleSharePost}
+              onTogglePin={postActions.handleTogglePin}
+              onToggleComments={postActions.handleToggleComments}
+              onDeleteComment={commentActions.handleDeleteComment}
+              onDeleteReply={commentActions.handleDeleteReply}
+              onBlockUser={userActions.handleBlockUser}
+              onDeletePost={postActions.handleDeletePost}
+              onReaction={postActions.handleReaction}
+              onAddComment={commentActions.handleAddComment}
+              onSharePost={postActions.handleSharePost}
               isPinned={false}
             />
           );

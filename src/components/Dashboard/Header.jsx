@@ -1,5 +1,5 @@
 import React from 'react';
-import { useAuth } from '../../contexts/AuthContext_token';
+import { useAuth } from '../../contexts/AuthContext';
 import { Search, LogOut, Users } from 'lucide-react';
 import NotificationDropdown from '../Notifications/NotificationDropdown';
 
@@ -69,7 +69,7 @@ const Header = ({ onSearchChange, searchValue }) => {
           {/* User Profile and Actions */}
           <div className="flex items-center space-x-2 lg:space-x-4">
             {/* Notifications */}
-            <NotificationDropdown />
+            {/* <NotificationDropdown /> */}
 
             {/* User Profile */}
             <div className="flex items-center space-x-2 lg:space-x-3">

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../contexts/AuthContext_token';
+import { useAuth } from '../../contexts/AuthContext';
 import { adminAPI } from '../../services/adminAPI';
 import { Flag, FileText, MessageSquare, AlertTriangle, RefreshCw } from 'lucide-react';
 import AdminReportedPostCard from './AdminReportedPostCard';

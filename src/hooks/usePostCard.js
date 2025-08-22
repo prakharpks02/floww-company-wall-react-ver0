@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from './../contexts/AuthContext_token';
+import { useAuth } from './../contexts/AuthContext';
 import { usePost } from './../contexts/PostContext';
 import { postsAPI } from '../services/api';
 
@@ -34,6 +34,7 @@ export const usePostCard = (post, activeView = 'home') => {
   const [replyingTo, setReplyingTo] = useState(null);
   const [replyText, setReplyText] = useState('');
   const [shareCount, setShareCount] = useState(0);
+  const [showShareAlert, setShowShareAlert] = useState(false);
   const [commentReactionsTimeouts, setCommentReactionsTimeouts] = useState({});
   const [reportType, setReportType] = useState('post');
   const [reportTargetId, setReportTargetId] = useState(null);
@@ -524,7 +525,9 @@ export const usePostCard = (post, activeView = 'home') => {
   const copyToClipboard = (text) => {
     console.log('🔍 Copying to clipboard:', text);
     navigator.clipboard.writeText(text).then(() => {
-      alert('✅ Shareable link copied to clipboard! You can now share this post with anyone.');
+      setShowShareAlert(true);
+      setTimeout(() => setShowShareAlert(false), 3000);
+      console.log('✅ Share link copied to clipboard!');
     }).catch(() => {
       // Fallback for older browsers
       const textArea = document.createElement('textarea');
@@ -533,7 +536,9 @@ export const usePostCard = (post, activeView = 'home') => {
       textArea.select();
       document.execCommand('copy');
       document.body.removeChild(textArea);
-      alert('✅ Shareable link copied to clipboard! You can now share this post with anyone.');
+      setShowShareAlert(true);
+      setTimeout(() => setShowShareAlert(false), 3000);
+      console.log('✅ Share link copied to clipboard (fallback)!');
     });
   };
 
@@ -793,6 +798,8 @@ export const usePostCard = (post, activeView = 'home') => {
     replyText,
     setReplyText,
     shareCount,
+    showShareAlert,
+    setShowShareAlert,
 
     // Computed values
     isLiked,

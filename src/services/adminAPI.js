@@ -50,15 +50,22 @@ const fetchWithTimeout = async (url, options = {}) => {
   // Get fresh token for each request
   const currentToken = getAdminToken();
   
+  // Prepare headers
+  let headers = {
+    'Authorization': currentToken,
+    ...options.headers
+  };
+  
+  // Only set Content-Type for non-FormData requests
+  if (!(options.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json';
+  }
+  
   try {
     const response = await fetch(url, {
       ...options,
       signal: controller.signal,
-      headers: {
-        'Authorization': currentToken,
-        'Content-Type': 'application/json',
-        ...options.headers
-      }
+      headers
     });
     
     clearTimeout(timeoutId);
@@ -87,11 +94,17 @@ export const adminAPI = {
   // ========================================
   
   // Get all posts (admin only)
-  getAllPosts: async (lastPostId = null) => {
+  getAllPosts: async (lastPostId = null, excludeBroadcasts = true) => {
     // Build endpoint with pagination parameter if provided
     let endpoint = `${API_CONFIG.BASE_URL}/admin/posts`;
+    const params = new URLSearchParams();
+    
     if (lastPostId) {
-      endpoint += `?lastPostId=${encodeURIComponent(lastPostId)}`;
+      params.append('lastPostId', lastPostId);
+    }
+    
+    if (params.toString()) {
+      endpoint += `?${params.toString()}`;
     }
 
     console.log('🔄 API getAllPosts - Endpoint:', endpoint);
@@ -178,7 +191,7 @@ export const adminAPI = {
 
   // Broadcast post
   broadcastPost: async (postData) => {
-    const endpoint = `${API_CONFIG.BASE_URL}/admin/posts/broadcast`;
+    const endpoint = `${API_CONFIG.BASE_URL}/admin/broadcast`;
     logApiCall('POST', endpoint, postData);
     
     try {
@@ -527,12 +540,9 @@ export const adminAPI = {
     logApiCall('POST', endpoint, 'File upload');
     
     try {
-      // For file uploads, don't set Content-Type header, let browser set it
+      // Use fetchWithTimeout which will automatically handle headers correctly for FormData
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
-        headers: {
-          'Authorization': API_CONFIG.HEADERS.Authorization
-        },
         body: fileData // Should be FormData
       });
       
