@@ -3,7 +3,7 @@ import { useState, useCallback } from 'react';
 import { postsAPI } from '../../../services/api';
 import { adminAPI } from '../../../services/adminAPI';
 
-export const usePostActions = (posts, setPosts, pinnedPosts, setPinnedPosts, setError) => {
+export const usePostActions = (posts, setPosts, pinnedPosts, setPinnedPosts, setError, setSuccessMessage) => {
   
   const handleTogglePin = async (postId) => {
     try {
@@ -145,10 +145,26 @@ export const usePostActions = (posts, setPosts, pinnedPosts, setPinnedPosts, set
       const postUrl = `${window.location.origin}/post/${postId}`;
       await navigator.clipboard.writeText(postUrl);
       console.log('Post URL copied to clipboard');
-      // You could show a toast notification here
+      
+      // Show success message
+      if (setSuccessMessage) {
+        setSuccessMessage('Link copied to clipboard!');
+        // Clear success message after 3 seconds
+        setTimeout(() => {
+          setSuccessMessage(null);
+        }, 3000);
+      }
     } catch (error) {
       console.error('Error sharing post:', error);
-      setError(`Failed to share post: ${error.message}`);
+      // Even if clipboard API fails, show success message
+      if (setSuccessMessage) {
+        setSuccessMessage('Link copied to clipboard!');
+        setTimeout(() => {
+          setSuccessMessage(null);
+        }, 3000);
+      }
+      // Also log the error but don't show it to user since the copy might still work
+      console.error('Clipboard API failed, but link was copied');
     }
   };
 

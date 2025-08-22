@@ -24,11 +24,11 @@ function AppRoutes() {
   return (
     <Routes>
       <Route 
-        path="/dashboard" 
+        path="/employee/dashboard" 
         element={<Dashboard />} 
       />
       <Route 
-        path="/dashboard/admin" 
+        path="/crm/dashboard" 
         element={<Dashboard />} 
       />
       <Route 
@@ -37,7 +37,7 @@ function AppRoutes() {
       />
       <Route 
         path="/" 
-        element={<Navigate to="/dashboard" />} 
+        element={<Navigate to="/employee/dashboard" />} 
       />
       <Route path="*" element={<NotFound />} />
     </Routes>

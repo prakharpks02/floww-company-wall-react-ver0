@@ -28,7 +28,7 @@ export const NotificationProvider = ({ children }) => {
           avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
           timestamp: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
           read: false,
-          actionUrl: '/dashboard'
+          actionUrl: '/employee/dashboard'
         },
         {
           id: '2',
@@ -38,7 +38,7 @@ export const NotificationProvider = ({ children }) => {
           avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
           timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
           read: false,
-          actionUrl: '/dashboard'
+          actionUrl: '/employee/dashboard'
         },
         {
           id: '3',
@@ -48,7 +48,7 @@ export const NotificationProvider = ({ children }) => {
           avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
           timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
           read: false,
-          actionUrl: '/dashboard'
+          actionUrl: '/employee/dashboard'
         },
         {
           id: '4',
@@ -58,7 +58,7 @@ export const NotificationProvider = ({ children }) => {
           avatar: 'https://images.unsplash.com/photo-1494790108755-2616b5b34b7d?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
           timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
           read: true,
-          actionUrl: '/dashboard'
+          actionUrl: '/employee/dashboard'
         },
         {
           id: '5',
@@ -68,7 +68,7 @@ export const NotificationProvider = ({ children }) => {
           avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
           timestamp: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
           read: true,
-          actionUrl: '/dashboard'
+          actionUrl: '/employee/dashboard'
         }
       ];
 

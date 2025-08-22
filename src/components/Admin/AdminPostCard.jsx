@@ -106,19 +106,15 @@ const AdminPostCard = ({
 
   // Override handlers with admin-specific ones
   const adminHandleLike = () => {
-    if (onReaction) {
-      onReaction(normalizedPost.post_id, 'like');
-    } else {
-      handleLike();
-    }
+    // Admins cannot react to posts
+    console.log('Admin reaction disabled');
+    return;
   };
 
   const adminHandleReaction = (reactionType) => {
-    if (onReaction) {
-      onReaction(normalizedPost.post_id, reactionType);
-    } else {
-      handleReaction(reactionType);
-    }
+    // Admins cannot react to posts
+    console.log('Admin reaction disabled');
+    return;
   };
 
   const adminHandleComment = (commentText) => {
@@ -469,6 +465,7 @@ const AdminPostCard = ({
           <PostActions
             isLiked={isLiked}
             isPublicView={false}
+            isAdmin={true}
             isBlocked={isBlocked}
             handleLike={adminHandleLike}
             totalLikes={getTotalLikes()}

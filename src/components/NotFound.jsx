@@ -19,7 +19,7 @@ const NotFound = () => (
       <p className="text-2xl font-semibold text-gray-800 mb-2">Page Not Found</p>
       <p className="text-gray-500 mb-6">Sorry, the page you are looking for does not exist or has been moved.</p>
       <Link
-        to="/dashboard"
+        to="/employee/dashboard"
         className="inline-block px-6 py-3 rounded-lg bg-[#9F7AEA] text-white font-semibold shadow-lg hover:bg-[#7C5CD6] focus:bg-[#7C5CD6] transition-all duration-200"
       >
         Go to Dashboard

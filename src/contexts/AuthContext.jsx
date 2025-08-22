@@ -24,8 +24,8 @@ const getTokenAndUserType = () => {
   const adminToken = import.meta.env.VITE_FLOWW_ADMIN_TOKEN;
   const employeeToken = import.meta.env.VITE_FLOWW_EMPLOYEE_TOKEN;
   
-  // If current path contains /admin, use admin token
-  if (currentPath.includes('/admin')) {
+  // If current path contains /crm, use admin token
+  if (currentPath.includes('/crm')) {
     console.log('🛡️ Admin route detected, using admin token');
     return { token: adminToken, isAdmin: true };
   }

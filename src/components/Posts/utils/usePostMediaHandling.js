@@ -20,13 +20,8 @@ export const usePostMediaHandling = () => {
     try {
       // Use the correct API method - mediaAPI.uploadFile
       const response = await mediaAPI.uploadFile(file, type);
-      return {
-        id: Math.random().toString(36),
-        url: response.file_url || response.url,
-        name: file.name,
-        type: type,
-        file: file
-      };
+      // Return only the URL string
+      return response.file_url || response.url;
     } catch (error) {
       console.error(`Error uploading ${type}:`, error);
       throw error;
@@ -59,10 +54,7 @@ export const usePostMediaHandling = () => {
     for (const file of Array.from(files)) {
       try {
         const uploadedDocument = await uploadMedia(file, 'document');
-        setDocuments(prev => [...prev, {
-          ...uploadedDocument,
-          isPDF: file.type === 'application/pdf'
-        }]);
+        setDocuments(prev => [...prev, uploadedDocument]);
       } catch (error) {
         console.error('Failed to upload document:', error);
       }
@@ -88,14 +80,8 @@ export const usePostMediaHandling = () => {
     if (linkUrl.trim()) {
       try {
         const url = new URL(linkUrl);
-        const newLink = {
-          id: Math.random().toString(36),
-          url: linkUrl,
-          link: linkUrl,
-          title: url.hostname,
-          description: 'External link'
-        };
-        setLinks(prev => [...prev, newLink]);
+        // Store only the URL string
+        setLinks(prev => [...prev, linkUrl]);
         setLinkUrl('');
         setShowLinkInput(false);
       } catch (error) {
@@ -104,20 +90,20 @@ export const usePostMediaHandling = () => {
     }
   };
 
-  const removeImage = (imageId) => {
-    setImages(prev => prev.filter(img => img.id !== imageId));
+  const removeImage = (imageUrl) => {
+    setImages(prev => prev.filter(img => img !== imageUrl));
   };
 
-  const removeVideo = (videoId) => {
-    setVideos(prev => prev.filter(vid => vid.id !== videoId));
+  const removeVideo = (videoUrl) => {
+    setVideos(prev => prev.filter(vid => vid !== videoUrl));
   };
 
-  const removeDocument = (docId) => {
-    setDocuments(prev => prev.filter(doc => doc.id !== docId));
+  const removeDocument = (docUrl) => {
+    setDocuments(prev => prev.filter(doc => doc !== docUrl));
   };
 
-  const removeLink = (linkId) => {
-    setLinks(prev => prev.filter(link => link.id !== linkId));
+  const removeLink = (linkUrl) => {
+    setLinks(prev => prev.filter(link => link !== linkUrl));
   };
 
   return {

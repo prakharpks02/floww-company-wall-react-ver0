@@ -148,17 +148,22 @@ export const usePostCard = (post, activeView = 'home') => {
         const mediaImages = (rawPost.media || []).filter(item => {
           if (!item.link) return false;
           
-          // Parse JSON-encoded links from backend
+          // Parse JSON-encoded links from backend or handle simple URLs
           let actualUrl = item.link;
-          if (typeof item.link === 'string' && item.link.startsWith("{'link'")) {
-            try {
-              // Fix the malformed JSON by replacing single quotes with double quotes
-              const fixedJson = item.link.replace(/'/g, '"');
-              const parsed = JSON.parse(fixedJson);
-              actualUrl = parsed.link;
-            } catch (e) {
-              console.warn('Failed to parse media link:', item.link);
-              return false;
+          if (typeof item.link === 'string') {
+            if (item.link.startsWith("{'link'") || item.link.startsWith('{"link"')) {
+              // Old format - JSON string
+              try {
+                const fixedJson = item.link.replace(/'/g, '"');
+                const parsed = JSON.parse(fixedJson);
+                actualUrl = parsed.link;
+              } catch (e) {
+                console.warn('Failed to parse media link:', item.link);
+                return false;
+              }
+            } else {
+              // New format - simple URL string
+              actualUrl = item.link;
             }
           }
           
@@ -170,12 +175,18 @@ export const usePostCard = (post, activeView = 'home') => {
           return isImageByExtension || isImageByType || isImageByMimeType;
         }).map(item => {
           let actualUrl = item.link;
-          if (typeof item.link === 'string' && item.link.startsWith("{'link'")) {
-            try {
-              const fixedJson = item.link.replace(/'/g, '"');
-              const parsed = JSON.parse(fixedJson);
-              actualUrl = parsed.link;
-            } catch (e) {
+          if (typeof item.link === 'string') {
+            if (item.link.startsWith("{'link'") || item.link.startsWith('{"link"')) {
+              // Old format - JSON string
+              try {
+                const fixedJson = item.link.replace(/'/g, '"');
+                const parsed = JSON.parse(fixedJson);
+                actualUrl = parsed.link;
+              } catch (e) {
+                actualUrl = item.link;
+              }
+            } else {
+              // New format - simple URL string
               actualUrl = item.link;
             }
           }

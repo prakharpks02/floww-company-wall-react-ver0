@@ -21,55 +21,54 @@ export const transformPostMedia = (post) => {
   const mediaTextPatterns = [];
 
   post.media.forEach(item => {
-    let mediaData = null;
+    let mediaUrl = null;
     
-    // The actual media data is in the 'link' field as a stringified Python dict
+    // Handle both old format (JSON strings) and new format (simple URLs)
     if (item.link && typeof item.link === 'string') {
-      // Store the raw text to remove from content later
-      mediaTextPatterns.push(item.link);
-      
-      try {
-        // Handle Python-style stringified dict: {'type': 'image', 'url': '...', 'name': '...'}
-        const fixed = item.link.replace(/'/g, '"');
-        mediaData = JSON.parse(fixed);
-      } catch (e) {
-        console.error('Failed to parse media link:', item.link, e);
-        return;
+      // Check if it's a JSON string (old format) or a simple URL (new format)
+      if (item.link.startsWith("{'") || item.link.startsWith('{"')) {
+        // Old format - JSON string
+        mediaTextPatterns.push(item.link);
+        try {
+          const fixed = item.link.replace(/'/g, '"');
+          const mediaData = JSON.parse(fixed);
+          mediaUrl = mediaData.url;
+        } catch (e) {
+          console.error('Failed to parse media link:', item.link, e);
+          return;
+        }
+      } else {
+        // New format - simple URL string
+        mediaUrl = item.link;
       }
     }
     
-    if (mediaData && mediaData.type && mediaData.url) {
+    if (mediaUrl) {
       const mediaItem = {
         id: Math.random().toString(36),
-        url: mediaData.url,
-        name: mediaData.name || 'Media file',
-        type: mediaData.type
+        url: mediaUrl,
+        name: mediaUrl.split('/').pop() || 'Media file'
       };
       
-      switch (mediaData.type) {
-        case 'image':
-          mediaItems.images.push(mediaItem);
-          break;
-        case 'video':
-          mediaItems.videos.push(mediaItem);
-          break;
-        case 'document':
-          mediaItems.documents.push({
-            ...mediaItem,
-            isPDF: mediaData.url.toLowerCase().includes('.pdf')
-          });
-          break;
-        case 'link':
-          mediaItems.links.push({
-            id: mediaItem.id,
-            url: mediaItem.url,
-            link: mediaItem.url,
-            title: mediaItem.url,
-            description: ''
-          });
-          break;
-        default:
-          console.log('Unknown media type:', mediaData.type);
+      // Determine media type by URL extension
+      const urlLower = mediaUrl.toLowerCase();
+      if (urlLower.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
+        mediaItems.images.push(mediaItem);
+      } else if (urlLower.match(/\.(mp4|avi|mov|wmv|flv|webm)$/i)) {
+        mediaItems.videos.push(mediaItem);
+      } else if (urlLower.match(/\.(pdf|doc|docx|txt|xls|xlsx|ppt|pptx)$/i)) {
+        mediaItems.documents.push({
+          ...mediaItem,
+          isPDF: urlLower.includes('.pdf')
+        });
+      } else {
+        mediaItems.links.push({
+          id: mediaItem.id,
+          url: mediaItem.url,
+          link: mediaItem.url,
+          title: mediaItem.url,
+          description: ''
+        });
       }
     }
   });

@@ -44,7 +44,7 @@ const storeTokenInCookies = (token, userType = 'employee') => {
 // Get current user type from current URL path
 const getCurrentUserType = () => {
   const currentPath = window.location.pathname;
-  return currentPath.includes('/admin') ? 'admin' : 'employee';
+  return currentPath.includes('/crm') ? 'admin' : 'employee';
 };
 
 const FLOWW_TOKEN = getAuthToken();
@@ -72,7 +72,7 @@ const checkAuthToken = (userType = null) => {
       } else {
         console.warn('⚠️ Redirecting to Floww authentication');
         if (currentUserType === 'admin') {
-          window.location.href = import.meta.env.VITE_ADMIN_DASHBOARD_URL || 'http://localhost:8000/dashboard/admin';
+          window.location.href = import.meta.env.VITE_ADMIN_DASHBOARD_URL || 'http://localhost:8000/crm/dashboard';
         } else {
           window.location.href = 'https://dev.gofloww.co';
         }

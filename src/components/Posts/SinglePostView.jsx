@@ -21,16 +21,22 @@ function ShareFooter() {
         setCopied(false);
         setShowAlert(false);
       }, 3000);
-    } catch (e) {
-      setCopied(false);
-      setShowAlert(false);
+    } catch (error) {
+      console.error('Failed to copy link:', error);
+      // Still show the alert even if clipboard API fails
+      setCopied(true);
+      setShowAlert(true);
+      setTimeout(() => {
+        setCopied(false);
+        setShowAlert(false);
+      }, 3000);
     }
   };
   
   return (
-    <div className="relative">
+    <div className="w-full">
       {showAlert && (
-        <div className="mb-4">
+        <div className="mb-4 w-full">
           <Alert
             type="success"
             message="Link copied to clipboard!"
@@ -232,7 +238,7 @@ const SinglePostView = () => {
             </p>
             {user ? (
               <Link
-                to="/dashboard"
+                to="/employee/dashboard"
                 className="inline-flex items-center px-4 py-2 text-white rounded-lg hover:opacity-90 transition-opacity"
                 style={{ backgroundColor: '#9f7aea' }}
               >
@@ -263,7 +269,7 @@ const SinglePostView = () => {
           <div className="flex items-center justify-between">
             {user ? (
               <Link
-                to="/dashboard"
+                to="/employee/dashboard"
                 className="flex items-center space-x-2 text-gray-600 hover:text-purple-600 transition-colors"
               >
                 <ArrowLeft className="h-5 w-5" />
@@ -275,7 +281,7 @@ const SinglePostView = () => {
             </div>
             {user ? (
               <Link
-                to="/dashboard"
+                to="/employee/dashboard"
                 className="flex items-center space-x-2 text-gray-600 hover:text-purple-600 transition-colors"
               >
                 <Home className="h-5 w-5" />
@@ -297,7 +303,7 @@ const SinglePostView = () => {
           </p>
           {user ? (
             <Link
-              to="/dashboard"
+              to="/employee/dashboard"
               className="inline-flex items-center px-6 py-2 text-white rounded-lg hover:opacity-90 transition-opacity"
               style={{ backgroundColor: '#9f7aea' }}
             >

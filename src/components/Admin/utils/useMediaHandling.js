@@ -78,10 +78,7 @@ export const useMediaHandling = (uploadMedia, showError) => {
       
       const uploadedDocument = await uploadMedia(file, 'document');
       if (uploadedDocument) {
-        setDocuments(prev => [...prev, {
-          ...uploadedDocument,
-          isPDF: file.type === 'application/pdf'
-        }]);
+        setDocuments(prev => [...prev, uploadedDocument]);
       }
     }
   };
@@ -116,13 +113,8 @@ export const useMediaHandling = (uploadMedia, showError) => {
       // Basic URL validation
       try {
         const url = new URL(linkUrl);
-        const newLink = {
-          id: Math.random().toString(36),
-          url: linkUrl,
-          title: url.hostname,
-          description: 'External link'
-        };
-        setLinks(prev => [...prev, newLink]);
+        // Store only the URL string
+        setLinks(prev => [...prev, linkUrl]);
         setLinkUrl('');
         setShowLinkInput(false);
       } catch (error) {
@@ -131,20 +123,20 @@ export const useMediaHandling = (uploadMedia, showError) => {
     }
   };
 
-  const removeImage = (imageId) => {
-    setImages(prev => prev.filter(img => img.id !== imageId));
+  const removeImage = (imageUrl) => {
+    setImages(prev => prev.filter(img => img !== imageUrl));
   };
 
-  const removeVideo = (videoId) => {
-    setVideos(prev => prev.filter(vid => vid.id !== videoId));
+  const removeVideo = (videoUrl) => {
+    setVideos(prev => prev.filter(vid => vid !== videoUrl));
   };
 
-  const removeDocument = (docId) => {
-    setDocuments(prev => prev.filter(doc => doc.id !== docId));
+  const removeDocument = (docUrl) => {
+    setDocuments(prev => prev.filter(doc => doc !== docUrl));
   };
 
-  const removeLink = (linkId) => {
-    setLinks(prev => prev.filter(link => link.id !== linkId));
+  const removeLink = (linkUrl) => {
+    setLinks(prev => prev.filter(link => link !== linkUrl));
   };
 
   const clearAllMedia = () => {

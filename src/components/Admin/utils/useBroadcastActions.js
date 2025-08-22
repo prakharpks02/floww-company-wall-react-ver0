@@ -57,13 +57,8 @@ export const useBroadcastActions = (showSuccess, showError, showWarning) => {
       const response = await adminAPI.uploadFile(formData);
       console.log(`✅ ${type} uploaded successfully:`, response);
       
-      return {
-        id: Math.random().toString(36),
-        url: response.data?.file_url || response.file_url || response.url,
-        name: file.name,
-        type: type,
-        file: file
-      };
+      // Return only the URL string instead of object
+      return response.data?.file_url || response.file_url || response.url;
     } catch (error) {
       console.error(`❌ Error uploading ${type}:`, error);
       showError(`Failed to upload ${type}: ${error.message}`);

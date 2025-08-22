@@ -1,12 +1,16 @@
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useState } from 'react';
 import { Loader } from 'lucide-react';
 import AdminPostCard from './AdminPostCard';
+import Alert from '../UI/Alert';
 import { usePostsData } from './utils/usePostsData';
 import { usePostActions } from './utils/usePostActions';
 import { useCommentActions } from './utils/useCommentActions';
 import { useUserActions } from './utils/useUserActions';
 
 const AdminAllPosts = () => {
+  // State for success messages
+  const [successMessage, setSuccessMessage] = useState(null);
+
   // Use custom hooks for data management
   const {
     posts,
@@ -23,7 +27,7 @@ const AdminAllPosts = () => {
   } = usePostsData();
 
   // Use custom hooks for actions
-  const postActions = usePostActions(posts, setPosts, pinnedPosts, setPinnedPosts, setError);
+  const postActions = usePostActions(posts, setPosts, pinnedPosts, setPinnedPosts, setError, setSuccessMessage);
   const commentActions = useCommentActions(posts, setPosts, pinnedPosts, setPinnedPosts, setError);
   const userActions = useUserActions(posts, setPosts, pinnedPosts, setPinnedPosts, setError);
 
@@ -68,6 +72,16 @@ const AdminAllPosts = () => {
           >
             Retry
           </button>
+        </div>
+      )}
+
+      {successMessage && (
+        <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-top-2 duration-300">
+          <Alert
+            type="success"
+            message={successMessage}
+            onClose={() => setSuccessMessage(null)}
+          />
         </div>
       )}
 

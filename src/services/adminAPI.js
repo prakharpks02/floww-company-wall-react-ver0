@@ -5,7 +5,7 @@
 // Get the appropriate admin token based on current URL
 const getAdminToken = () => {
   const currentPath = window.location.pathname;
-  if (currentPath.includes('/admin')) {
+  if (currentPath.includes('/crm')) {
     return import.meta.env.VITE_FLOWW_ADMIN_TOKEN;
   }
   return import.meta.env.VITE_FLOWW_EMPLOYEE_TOKEN;
@@ -23,7 +23,7 @@ const API_CONFIG = {
 // Debug: Log the token being used
 console.log('🔑 Admin API Token:', API_CONFIG.HEADERS.Authorization ? 'Token loaded' : 'No token found');
 console.log('🔑 Current path:', window.location.pathname);
-console.log('🔑 Using token type:', window.location.pathname.includes('/admin') ? 'Admin' : 'Employee');
+console.log('🔑 Using token type:', window.location.pathname.includes('/crm') ? 'Admin' : 'Employee');
 
 // Helper function to handle API responses
 const handleResponse = async (response) => {
