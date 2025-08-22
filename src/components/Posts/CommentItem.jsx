@@ -53,12 +53,44 @@ const CommentItem = ({
     repliesData: comment.replies
   });
 
-  // Check if current user is the comment author
+    console.log('🔍 CommentItem - Full comment data:', comment);
+  console.log('🔍 CommentItem - Comment author object:', comment.author);
+  console.log('🔍 CommentItem - Available author fields:', comment.author ? Object.keys(comment.author) : 'No author');
+
+  // Helper function to get display name from author data
+  const getAuthorDisplayName = (author) => {
+    if (!author) return 'Anonymous';
+    
+    // If this comment is from the current user, use their display name
+    if (user && (
+      author.employee_id === user.employee_id ||
+      author.employee_id === user.id ||
+      author.employee_username === user.username ||
+      author.employee_username === user.employee_username
+    )) {
+      console.log('🔍 CommentItem - Using current user name for author:', user.name);
+      return user.name || user.username || 'Current User';
+    }
+    
+    // Priority order for display name
+    const displayName = author.username || 
+                       author.employee_name || 
+                       author.employee_username || 
+                       author.personal_email || 
+                       author.company_email || 
+                       'Anonymous';
+    
+    console.log('🔍 CommentItem - Author display name:', displayName, 'from author:', author);
+    return displayName;
+  };
+
+  // Check if the current user is the comment author
   const isCommentAuthor = user && (
     comment.author?.user_id === user.user_id ||
     comment.author?.user_id === user.id ||
     comment.author?.username === user.username ||
-    comment.author === user.username
+    comment.author?.employee_name === user.username ||
+    comment.author?.employee_id === user.id
   );
 
  
@@ -84,7 +116,11 @@ const CommentItem = ({
       return comment.reactions || {};
     })(),
     content: comment.content || '',
-    author: comment.author?.username || comment.author || 'Anonymous',
+    author: comment.author?.username || 
+            comment.author?.employee_name || 
+            comment.author?.personal_email || 
+            comment.author?.company_email || 
+            'Anonymous',
     comment_id: comment.comment_id || comment.id,
     created_at: comment.created_at || comment.createdAt || comment.timestamp
   };
@@ -154,12 +190,15 @@ const CommentItem = ({
         <div className="flex items-center space-x-2">
           <div className="w-8 h-8 bg-gradient-to-br from-purple-400 to-blue-500 rounded-full flex items-center justify-center">
             <span className="text-sm font-medium text-white">
-              {(comment.author?.username || comment.author || 'A')[0].toUpperCase()}
+              {(() => {
+                const authorName = getAuthorDisplayName(comment.author);
+                return (typeof authorName === 'string' ? authorName : 'A')[0].toUpperCase();
+              })()}
             </span>
           </div>
           <div>
             <span className="font-medium text-sm text-gray-900">
-              {comment.author?.username || comment.author || 'Anonymous'}
+              {getAuthorDisplayName(comment.author)}
             </span>
             <span className="text-xs text-gray-500 ml-2">
               {comment.created_at ? formatDistanceToNow(new Date(comment.created_at), { addSuffix: true }) : 'Just now'}
@@ -433,11 +472,16 @@ const CommentItem = ({
           <div className="flex items-center gap-2 mb-2">
             <div className="w-6 h-6 bg-gradient-to-br from-purple-400 to-blue-500 rounded-full flex items-center justify-center">
               <span className="text-xs font-medium text-white">
-                {(comment.author?.username || comment.author || 'A')[0].toUpperCase()}
+                {(() => {
+                  const authorName = getAuthorDisplayName(comment.author);
+                  return (typeof authorName === 'string' ? authorName : 'A')[0].toUpperCase();
+                })()}
               </span>
             </div>
             <p className="text-xs text-gray-600">
-              Replying to <span className="font-medium">{comment.author?.username || comment.author || 'Anonymous'}</span>
+              Replying to <span className="font-medium">
+                {getAuthorDisplayName(comment.author)}
+              </span>
             </p>
           </div>
           <div className="space-y-2">

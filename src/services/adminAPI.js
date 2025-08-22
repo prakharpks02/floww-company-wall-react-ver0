@@ -276,6 +276,11 @@ export const adminAPI = {
       
       const result = await handleResponse(response);
       console.log('✅ Comment added successfully');
+      console.log('🔍 AdminAPI - New comment response:', result);
+      if (result.author) {
+        console.log('🔍 AdminAPI - New comment author:', result.author);
+        console.log('🔍 AdminAPI - New comment author fields:', Object.keys(result.author));
+      }
       
       return result;
     } catch (error) {
@@ -297,6 +302,14 @@ export const adminAPI = {
       
       const result = await handleResponse(response);
       console.log('✅ Retrieved post comments');
+      console.log('🔍 AdminAPI - Comment response:', result);
+      if (result.data && Array.isArray(result.data)) {
+        console.log('🔍 AdminAPI - First comment structure:', result.data[0]);
+        if (result.data[0]?.author) {
+          console.log('🔍 AdminAPI - First comment author:', result.data[0].author);
+          console.log('🔍 AdminAPI - Author fields:', Object.keys(result.data[0].author));
+        }
+      }
       
       return result;
     } catch (error) {
@@ -579,6 +592,20 @@ export const adminAPI = {
       console.error('❌ Upload file error:', error.message);
       throw error;
     }
+  },
+
+  // ========================================
+  // ALIASES FOR BACKWARD COMPATIBILITY
+  // ========================================
+  
+  // Alias for deleteComment for backward compatibility
+  adminDeleteComment: function(commentId) {
+    return this.deleteComment(commentId);
+  },
+
+  // Alias for deleteComment for replies (since there's no separate reply delete endpoint)
+  adminDeleteReply: function(postId, commentId, replyId) {
+    return this.deleteComment(replyId);
   }
 };
 

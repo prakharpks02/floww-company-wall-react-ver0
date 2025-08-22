@@ -403,7 +403,10 @@ const RichTextEditor = ({
               >
                 <div className="w-6 h-6 bg-gradient-to-br from-purple-400 to-blue-500 rounded-full flex items-center justify-center">
                   <span className="text-xs font-medium text-white">
-                    {(user.username || user.email || 'U')[0].toUpperCase()}
+                    {(() => {
+                      const userName = user.username || user.email || 'User';
+                      return (typeof userName === 'string' ? userName : 'U')[0].toUpperCase();
+                    })()}
                   </span>
                 </div>
                 <div>

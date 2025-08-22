@@ -53,7 +53,13 @@ const CommentReply = ({
       return reply.reactions || {};
     })(),
     content: reply.content || reply.comment || reply.text || reply.reply_content || '',
-    author: reply.author?.username || reply.authorName || 'Anonymous',
+    author: reply.author?.username || 
+            reply.author?.employee_name || 
+            reply.author?.employee_username || 
+            reply.author?.personal_email || 
+            reply.author?.company_email || 
+            reply.authorName || 
+            'Anonymous',
     comment_id: reply.comment_id || reply.id || reply.reply_id, // Use proper reply ID
     created_at: reply.created_at || reply.timestamp
   };
@@ -82,7 +88,16 @@ const CommentReply = ({
     <div className="flex space-x-2">
       <div className="w-6 h-6 bg-gradient-to-br from-green-400 to-blue-500 rounded-full flex items-center justify-center">
         <span className="text-xs font-medium text-white">
-          {(reply.author?.username || reply.authorName || 'U')[0].toUpperCase()}
+          {(() => {
+            const authorName = reply.author?.username || 
+                             reply.author?.employee_name || 
+                            
+                             reply.author?.personal_email || 
+                             reply.author?.company_email || 
+                             reply.authorName || 
+                             'User';
+            return (typeof authorName === 'string' ? authorName : 'U')[0].toUpperCase();
+          })()}
         </span>
       </div>
       <div className="flex-1">
@@ -90,7 +105,13 @@ const CommentReply = ({
           <div className="flex items-center justify-between mb-1">
             <div className="flex items-center space-x-2">
               <span className="font-medium text-xs text-gray-900">
-                {reply.author?.username || reply.authorName || 'Anonymous'}
+                {reply.author?.username || 
+                 reply.author?.employee_name || 
+                 reply.author?.employee_username || 
+                 reply.author?.personal_email || 
+                 reply.author?.company_email || 
+                 reply.authorName || 
+                 'Anonymous'}
               </span>
               <span className="text-xs text-gray-500">
                 {(reply.created_at || reply.timestamp) && !isNaN(new Date(reply.created_at || reply.timestamp))

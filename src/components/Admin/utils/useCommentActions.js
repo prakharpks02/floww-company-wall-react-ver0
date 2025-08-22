@@ -8,11 +8,11 @@ export const useCommentActions = (posts, setPosts, pinnedPosts, setPinnedPosts, 
     try {
       let newComment;
       if (parentCommentId) {
-        // Use the reply API for replies - no user ID needed with token auth
+        // For replies, still use regular postsAPI as admin API doesn't have reply endpoint
         newComment = await postsAPI.addCommentReply(postId, parentCommentId, commentText);
       } else {
-        // Use the regular comment API for top-level comments
-        newComment = await postsAPI.addComment(postId, { content: commentText });
+        // Use admin API for top-level comments
+        newComment = await adminAPI.addPostComment(postId, { content: commentText });
       }
       
       const updateComments = (posts) => posts.map(post => {
@@ -81,7 +81,7 @@ export const useCommentActions = (posts, setPosts, pinnedPosts, setPinnedPosts, 
                 return {
                   ...comment,
                   replies: (comment.replies || []).filter(reply => 
-                    reply.id !== replyId && reply.reply_id !== replyId
+                    reply.id !== replyId && reply.reply_id !== replyId && reply.comment_id !== replyId
                   )
                 };
               }
