@@ -1,7 +1,16 @@
 import React from 'react';
 import { Hash } from 'lucide-react';
 
-const TagsSection = ({ tags, selectedTags, onTagToggle }) => {
+const TagsSection = ({ selectedTags, onTagToggle }) => {
+  // Predefined tags
+  const predefinedTags = [
+    { id: 1, name: 'Announcements' },
+    { id: 2, name: 'Achievements' },
+    { id: 3, name: 'General Discussion' },
+    { id: 4, name: 'Policy Updates' },
+    { id: 5, name: 'Ideas & Suggestions' },
+    { id: 6, name: 'Training Materials' }
+  ];
   return (
     <div className="space-y-3">
       <div className="flex items-center space-x-2">
@@ -9,24 +18,22 @@ const TagsSection = ({ tags, selectedTags, onTagToggle }) => {
         <span className="text-sm font-medium text-gray-700">Tags</span>
       </div>
       
-      {tags && tags.length > 0 && (
-        <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
-          {tags.map(tag => (
-            <button
-              key={tag.id}
-              type="button"
-              onClick={() => onTagToggle(tag.name)}
-              className={`px-3 py-1 text-sm rounded-full border transition-colors ${
-                selectedTags.includes(tag.name)
-                  ? 'bg-purple-100 border-purple-300 text-purple-700'
-                  : 'bg-gray-100 border-gray-200 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              #{tag.name}
-            </button>
-          ))}
-        </div>
-      )}
+      <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
+        {predefinedTags.map(tag => (
+          <button
+            key={tag.id}
+            type="button"
+            onClick={() => onTagToggle(tag.name)}
+            className={`px-3 py-1 text-sm rounded-full border transition-colors ${
+              selectedTags.includes(tag.name)
+                ? 'bg-purple-100 border-purple-300 text-purple-700'
+                : 'bg-gray-100 border-gray-200 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            #{tag.name}
+          </button>
+        ))}
+      </div>
       
       {selectedTags.length > 0 && (
         <div className="text-xs text-gray-500">

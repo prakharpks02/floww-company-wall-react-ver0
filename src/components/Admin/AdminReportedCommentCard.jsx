@@ -144,7 +144,7 @@ const AdminReportedCommentCard = ({ commentData, onCommentUpdate, onCommentDelet
           <User className="h-4 w-4 text-gray-600" />
         </div>
         <div>
-          <div className="font-medium text-gray-900">{author?.username || 'Unknown User'}</div>
+          <div className="font-medium text-gray-900">{author?.username || author?.name || author?.employee_name || 'Employee User'}</div>
           <div className="text-sm text-gray-500">{author?.email}</div>
           <div className="text-xs text-gray-400">User ID: {author?.user_id}</div>
         </div>
@@ -188,7 +188,7 @@ const AdminReportedCommentCard = ({ commentData, onCommentUpdate, onCommentDelet
                     </span>
                   </div>
                   <div className="text-sm text-gray-600">
-                    Reported by: {report.reported_by?.username || 'Unknown'}
+                    Reported by: {report.reported_by?.username || report.reported_by?.name || report.reported_by?.employee_name || 'Employee User'}
                   </div>
                   <div className="text-xs text-gray-500">
                     <Calendar className="h-3 w-3 inline mr-1" />

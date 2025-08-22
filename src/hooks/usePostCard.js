@@ -127,12 +127,21 @@ export const usePostCard = (post, activeView = 'home') => {
         is_blocked: rawPost.author.is_blocked
       } : null,
       // Use backend author data if available, otherwise fall back to current user data
-      authorName: rawPost.author?.username || rawPost.authorName || rawPost.author_name || rawPost.username || 
-                  (isCurrentUserPost ? (user?.name || user?.username) : 'Unknown User'),
+      authorName: rawPost.author?.username || 
+                  rawPost.author?.name || 
+                  rawPost.author?.employee_name || 
+                  rawPost.authorName || 
+                  rawPost.author_name || 
+                  rawPost.username || 
+                  (isCurrentUserPost ? (user?.name || user?.username) : (user?.is_admin ? 'Admin' : 'Employee User')),
       authorAvatar: rawPost.author?.avatar || rawPost.authorAvatar || rawPost.author_avatar || rawPost.avatar || 
                     (isCurrentUserPost ? user?.avatar : 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80'),
-      authorPosition: rawPost.author?.position || rawPost.authorPosition || rawPost.author_position || rawPost.position || 
-                      (isCurrentUserPost ? (user?.position || 'Employee') : 'Employee'),
+      authorPosition: rawPost.author?.position || 
+                      rawPost.author?.job_title || 
+                      rawPost.authorPosition || 
+                      rawPost.author_position || 
+                      rawPost.position || 
+                      (isCurrentUserPost ? (user?.position || user?.job_title || 'Employee') : (user?.position || user?.job_title || 'Employee')),
       authorEmail: rawPost.author?.email || rawPost.authorEmail || rawPost.author_email,
       // Ensure consistent timestamp field - backend uses created_at
       timestamp: rawPost.timestamp || rawPost.created_at || rawPost.createdAt || new Date().toISOString(),

@@ -266,7 +266,7 @@ const AdminReportedPostCard = ({ postData, onPostUpdate, onPostDelete }) => {
           <User className="h-5 w-5 text-gray-600" />
         </div>
         <div>
-          <div className="font-semibold text-blue-900">{localAuthor?.username || 'Unknown User'}</div>
+          <div className="font-semibold text-blue-900">{localAuthor?.username || localAuthor?.name || localAuthor?.employee_name || 'Employee User'}</div>
           <div className="text-sm text-blue-700">{localAuthor?.email}</div>
           <div className="text-xs text-blue-500">User ID: {localAuthor?.user_id}</div>
           <div className="mt-2 flex items-center gap-2">
@@ -412,7 +412,7 @@ const AdminReportedPostCard = ({ postData, onPostUpdate, onPostDelete }) => {
                     <span className={`px-2 py-1 rounded-full text-xs font-bold border ${getStatusColor(report.status)}`}>{report.status || 'pending'}</span>
                   </div>
                   <div className="text-sm text-blue-800">
-                    Reported by: {report.reported_by?.username || 'Unknown'}
+                    Reported by: {report.reported_by?.username || report.reported_by?.name || report.reported_by?.employee_name || 'Employee User'}
                   </div>
                   <div className="text-xs text-blue-500">
                     <Calendar className="h-3 w-3 inline mr-1" />

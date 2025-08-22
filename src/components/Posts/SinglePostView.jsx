@@ -86,7 +86,11 @@ const SinglePostView = () => {
             authorAvatar: localPost.author?.avatar || localPost.authorAvatar || localPost.author_avatar || 
                          'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
             authorName: localPost.author?.username || localPost.authorName || localPost.author_name || 'Anonymous',
-            authorPosition: localPost.author?.position || localPost.authorPosition || localPost.author_position || 'Employee'
+            authorPosition: localPost.author?.position || 
+                           localPost.author?.job_title || 
+                           localPost.authorPosition || 
+                           localPost.author_position || 
+                           'Employee'
           };
           setPost(normalizedLocalPost);
           setLoading(false);
@@ -138,10 +142,12 @@ const SinglePostView = () => {
             id: response.data.post_id,
             post_id: response.data.post_id,
             content: response.data.content,
-            authorName: response.data.author?.username || 'Anonymous',
+            authorName: response.data.author?.username || response.data.author?.name || response.data.author?.employee_name || 'Employee User',
             authorAvatar: response.data.author?.avatar ||
               'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
-            authorPosition: response.data.author?.position || 'Employee',
+            authorPosition: response.data.author?.position || 
+                           response.data.author?.job_title || 
+                           'Employee',
             timestamp: response.data.created_at || new Date().toISOString(),
             media,
             mentions: response.data.mentions || [],

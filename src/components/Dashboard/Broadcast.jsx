@@ -191,7 +191,7 @@ const Broadcast = () => {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900 truncate">
-                    {broadcast.author?.username || 'Unknown'}
+                    {broadcast.author?.username || broadcast.author?.name || broadcast.author?.employee_name || broadcast.authorName || 'Admin'}
                   </p>
                   <div className="flex items-center space-x-1 text-xs text-gray-500">
                     <Calendar className="h-3 w-3" />

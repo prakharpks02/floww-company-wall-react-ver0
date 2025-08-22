@@ -130,8 +130,14 @@ export const PostProvider = ({ children }) => {
       normalizedReactions = normalizeReactions(rawPost.reactions);
     }
     
-    // Extract author information from backend format
-    const authorName = rawPost.author?.username || rawPost.author?.name || rawPost.authorName || rawPost.author_name || user?.name || 'Unknown User';
+    // Extract author information from backend format with better fallbacks
+    const authorName = rawPost.author?.username || 
+                      rawPost.author?.name || 
+                      rawPost.author?.employee_name || 
+                      rawPost.authorName || 
+                      rawPost.author_name || 
+                      user?.name || 
+                      (user?.is_admin ? 'Admin' : 'Employee User');
     const authorAvatar = rawPost.author?.avatar || rawPost.authorAvatar || rawPost.author_avatar;
     
     console.log('🔍 PostContext normalizePost - Author info:', {
@@ -142,7 +148,12 @@ export const PostProvider = ({ children }) => {
     
     // Normalize comments to handle backend format
     const normalizedComments = rawPost.comments?.map(comment => {
-      const commentAuthorName = comment.author?.username || comment.author?.name || comment.authorName || user?.name || 'Unknown User';
+      const commentAuthorName = comment.author?.username || 
+                               comment.author?.name || 
+                               comment.author?.employee_name || 
+                               comment.authorName || 
+                               user?.name || 
+                               (user?.is_admin ? 'Admin' : 'Employee User');
       const commentAuthorAvatar = comment.author?.avatar || comment.authorAvatar || 
                                  'https://ui-avatars.com/api/?name=' + encodeURIComponent(commentAuthorName) + '&background=random';
       
@@ -194,6 +205,14 @@ export const PostProvider = ({ children }) => {
       authorAvatar: authorAvatar,
       author_avatar: authorAvatar,
       avatar: authorAvatar,
+      // Ensure consistent author position fields
+      authorPosition: rawPost.author?.position || 
+                     rawPost.author?.job_title || 
+                     rawPost.authorPosition || 
+                     rawPost.author_position || 
+                     user?.position || 
+                     user?.job_title || 
+                     (user?.is_admin ? 'Administrator' : 'Employee'),
       // Normalize reactions
       reactions: normalizedReactions || {},
       likes: rawPost.likes || [],
@@ -702,7 +721,7 @@ export const PostProvider = ({ children }) => {
     }
 
     // Use token-based authentication - backend will handle user identification
-    const authorName = user?.name || user?.username || 'Unknown User';
+    const authorName = user?.name || user?.username || (user?.is_admin ? 'Admin' : 'Employee User');
     const authorAvatar = user?.avatar || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80';
 
     try {
@@ -713,6 +732,7 @@ export const PostProvider = ({ children }) => {
         post_id: tempId,
         authorName: authorName,
         authorAvatar: authorAvatar,
+        authorPosition: user?.position || user?.job_title || (user?.is_admin ? 'Administrator' : 'Employee'),
         content: postData.content,
         images: postData.images || [],
         videos: postData.videos || [],
@@ -773,6 +793,7 @@ export const PostProvider = ({ children }) => {
         author: backendResult.author || authorName,
         authorName: backendResult.author || authorName,
         authorAvatar: authorAvatar,
+        authorPosition: user?.position || user?.job_title || (user?.is_admin ? 'Administrator' : 'Employee'),
         content: postData.content,
         images: postData.images || [],
         videos: postData.videos || [],
@@ -1159,7 +1180,7 @@ export const PostProvider = ({ children }) => {
         reply_id: response?.reply_id,
         content: replyContent,
         author: {
-          username: user?.name || user?.username || 'Unknown User'
+          username: user?.name || user?.username || (user?.is_admin ? 'Admin' : 'Employee User')
         },
         created_at: new Date().toISOString(),
         reactions: {}

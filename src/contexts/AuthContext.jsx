@@ -46,14 +46,58 @@ useEffect(() => {
         return;
       }
 
-      // For admin users, still use hardcoded data since they don't have user profiles
+      // For admin users, try to fetch real data from API first
       if (isAdmin) {
+        try {
+          console.log('🔍 AuthContext - Admin: Calling getCurrentUser API...');
+          console.log('🔍 AuthContext - Admin: Token being used:', token ? 'Token exists' : 'No token');
+          console.log('🔍 AuthContext - Admin: Current path:', window.location.pathname);
+          
+          const response = await userAPI.getCurrentUser();
+          console.log('🔍 AuthContext - Admin: API Response:', response);
+          console.log('🔍 AuthContext - Admin: Response status:', response?.status);
+          console.log('🔍 AuthContext - Admin: Response data:', response?.data);
+          
+          const userData = response.data;
+          
+          if (userData && userData.employee_name) {
+            // Use real admin data from API
+            const adminUser = {
+              id: userData.employee_id,
+              employee_id: userData.employee_id,
+              user_id: userData.employee_id,
+              author_id: userData.employee_id,
+              name: userData.employee_name,
+              username: userData.employee_username,
+              email: userData.personal_email || userData.company_email,
+              company_email: userData.company_email,
+              personal_email: userData.personal_email,
+              is_blocked: userData.is_blocked || false,
+              authenticated: true,
+              token: token,
+              avatar: userData.profile_picture_link || `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.employee_name)}&background=9f7aea&color=white&size=128`,
+              position: userData.job_title || 'Administrator',
+              department: 'Administration',
+              is_admin: true
+            };
+            
+            console.log('🔍 AuthContext - Admin: Transformed user data:', adminUser);
+            setUser(adminUser);
+            console.log(`✅ Admin user authenticated: ${userData.employee_name} (${userData.employee_username}) for path: ${window.location.pathname}`);
+            return;
+          }
+        } catch (apiError) {
+          console.error('❌ Admin: Failed to fetch user data from API:', apiError);
+          console.error('❌ Admin: Using fallback admin user');
+        }
+        
+        // Fallback to hardcoded admin data if API fails
         const adminUser = {
           id: 'ADMIN_USER',
           employee_id: 'ADMIN_USER',
           user_id: 'ADMIN_USER',
           author_id: 'ADMIN_USER',
-          name: 'Admin User',
+          name: 'Admin',
           username: 'admin',
           email: 'admin@company.com',
           company_email: 'admin@company.com',
@@ -67,15 +111,21 @@ useEffect(() => {
           is_admin: true
         };
         setUser(adminUser);
-        console.log(`✅ Admin user authenticated for path: ${window.location.pathname}`);
+        console.log(`⚠️ Admin user authenticated with fallback data for path: ${window.location.pathname}`);
         return;
       }
 
       // For employee users, fetch real data from API
       try {
         console.log('🔍 AuthContext - Calling getCurrentUser API...');
+        console.log('🔍 AuthContext - Token being used:', token ? 'Token exists' : 'No token');
+        console.log('🔍 AuthContext - Current path:', window.location.pathname);
+        
         const response = await userAPI.getCurrentUser();
         console.log('🔍 AuthContext - API Response:', response);
+        console.log('🔍 AuthContext - Response status:', response?.status);
+        console.log('🔍 AuthContext - Response data:', response?.data);
+        
         const userData = response.data;
         
         console.log('🔍 AuthContext - Raw user data from API:', userData);
@@ -126,7 +176,7 @@ useEffect(() => {
           employee_id: 'EMPLOYEE_USER',
           user_id: 'EMPLOYEE_USER',
           author_id: 'EMPLOYEE_USER',
-          name: 'Employee User (API Failed)', // Make it clear this is fallback
+          name: 'Employee User',
           username: 'employee',
           email: 'employee@company.com',
           company_email: 'employee@company.com',

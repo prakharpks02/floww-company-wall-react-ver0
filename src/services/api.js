@@ -280,7 +280,7 @@ export const userAPI = {
 
   // Get current user details
   getCurrentUser: async () => {
-    const endpoint = `${API_CONFIG.BASE_URL}/api/wall/get_user`;
+    const endpoint = `${API_CONFIG.BASE_URL}/get_user`;
     logApiCall('POST', endpoint);
     
     try {

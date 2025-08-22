@@ -144,9 +144,24 @@ const BroadcastView = () => {
           id: broadcast.post_id,
           post_id: broadcast.post_id,
           content: cleanedContent,
-          authorName: broadcast.author?.username || 'Admin',
-          authorId: broadcast.author?.user_id,
-          authorEmail: broadcast.author?.email,
+          authorName: broadcast.author?.username || broadcast.author?.name || broadcast.author?.employee_name || user?.name || 'Admin',
+          authorId: broadcast.author?.user_id || broadcast.author?.employee_id,
+          authorEmail: broadcast.author?.email || broadcast.author?.company_email || broadcast.author?.personal_email,
+          // Add author object with complete information for components that expect it
+          author: {
+            user_id: broadcast.author?.user_id || broadcast.author?.employee_id || user?.id,
+            employee_id: broadcast.author?.employee_id || broadcast.author?.user_id || user?.employee_id,
+            username: broadcast.author?.username || broadcast.author?.name || broadcast.author?.employee_name || user?.name || 'Admin',
+            name: broadcast.author?.name || broadcast.author?.employee_name || broadcast.author?.username || user?.name || 'Admin',
+            employee_name: broadcast.author?.employee_name || broadcast.author?.name || broadcast.author?.username || user?.name || 'Admin',
+            email: broadcast.author?.email || broadcast.author?.company_email || broadcast.author?.personal_email || user?.email,
+            avatar: broadcast.author?.avatar || broadcast.author?.profile_picture_link || user?.avatar,
+            position: broadcast.author?.position || broadcast.author?.job_title || user?.position || 'Administrator',
+            is_blocked: broadcast.author?.is_blocked || false
+          },
+          // Legacy fields for backward compatibility
+          authorAvatar: broadcast.author?.avatar || broadcast.author?.profile_picture_link || user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(broadcast.author?.name || user?.name || 'Admin')}&background=9f7aea&color=white&size=128`,
+          authorPosition: broadcast.author?.position || broadcast.author?.job_title || user?.position || 'Administrator',
           createdAt: broadcast.created_at,
           created_at: broadcast.created_at,
           updatedAt: broadcast.updated_at,
