@@ -19,7 +19,7 @@ const CreatePost = ({ onClose, editingPost = null }) => {
   // Custom hooks
   const postCreation = usePostCreation(createPost, editPost, editingPost, onClose);
   const mediaHandling = usePostMediaHandling();
-  const mentionsHandling = useMentionsHandling(getAllEmployees);
+  const mentionsHandling = useMentionsHandling();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -70,15 +70,18 @@ const CreatePost = ({ onClose, editingPost = null }) => {
             onTagToggle={postCreation.handleTagToggle}
           />
 
-          {/* Mentions */}
-          <MentionsSection
+          {/* Mentions - handled in text editor only */}
+          {/* <MentionsSection
             mentions={postCreation.mentions}
             showMentions={mentionsHandling.showMentions}
             onShowMentions={mentionsHandling.setShowMentions}
             onAddMention={postCreation.addMention}
             onRemoveMention={postCreation.removeMention}
             filterEmployees={mentionsHandling.filterEmployees}
-          />
+            mentionSuggestions={mentionsHandling.mentionSuggestions}
+            loadingMentions={mentionsHandling.loadingMentions}
+            onFetchMentionSuggestions={mentionsHandling.fetchMentionSuggestions}
+          /> */}
 
           {/* Media Upload */}
           <MediaUploadSection

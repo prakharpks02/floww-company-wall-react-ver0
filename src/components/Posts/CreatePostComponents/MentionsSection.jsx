@@ -7,10 +7,22 @@ const MentionsSection = ({
   onShowMentions, 
   onAddMention, 
   onRemoveMention,
-  filterEmployees 
+  filterEmployees,
+  mentionSuggestions,
+  loadingMentions,
+  onFetchMentionSuggestions
 }) => {
   const [mentionSearch, setMentionSearch] = React.useState('');
-  const filteredEmployees = filterEmployees(mentionSearch);
+  
+  // Use API suggestions if available, otherwise fall back to filter function
+  const filteredEmployees = mentionSuggestions || filterEmployees(mentionSearch);
+
+  const handleSearchChange = (value) => {
+    setMentionSearch(value);
+    if (onFetchMentionSuggestions) {
+      onFetchMentionSuggestions(value);
+    }
+  };
 
   return (
     <div className="space-y-3">
@@ -59,8 +71,8 @@ const MentionsSection = ({
             <input
               type="text"
               value={mentionSearch}
-              onChange={(e) => setMentionSearch(e.target.value)}
-              placeholder="Search employees..."
+              onChange={(e) => handleSearchChange(e.target.value)}
+              placeholder="Type to search for users..."
               className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
             />
             <button
@@ -74,9 +86,14 @@ const MentionsSection = ({
 
           {/* Employee List */}
           <div className="max-h-40 overflow-y-auto border rounded-md">
-            {filteredEmployees.map(employee => (
+            {loadingMentions && (
+              <div className="px-3 py-2 text-sm text-gray-500">
+                Searching...
+              </div>
+            )}
+            {!loadingMentions && filteredEmployees && filteredEmployees.map(employee => (
               <button
-                key={employee.employee_id || employee.user_id}
+                key={employee.employee_id || employee.user_id || employee.id}
                 type="button"
                 onClick={() => {
                   onAddMention(employee);
@@ -85,10 +102,18 @@ const MentionsSection = ({
                 }}
                 className="w-full text-left px-3 py-2 hover:bg-gray-50 border-b last:border-b-0 text-sm"
               >
-                <div className="font-medium">{employee.name}</div>
+                <div className="font-medium">{employee.name || employee.employee_name}</div>
                 <div className="text-gray-500 text-xs">{employee.email}</div>
+                {(employee.job_title || employee.position) && (
+                  <div className="text-blue-600 text-xs">{employee.job_title || employee.position}</div>
+                )}
               </button>
             ))}
+            {!loadingMentions && (!filteredEmployees || filteredEmployees.length === 0) && mentionSearch && (
+              <div className="px-3 py-2 text-sm text-gray-500">
+                No users found
+              </div>
+            )}
           </div>
         </div>
       )}

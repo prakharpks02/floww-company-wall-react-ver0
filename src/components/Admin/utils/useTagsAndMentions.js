@@ -1,5 +1,6 @@
 // Custom hooks for tags and mentions handling
 import { useState } from 'react';
+import { adminAPI } from '../../../services/adminAPI';
 
 export const useTagsAndMentions = (tags, getAllEmployees, showError) => {
   const [selectedTags, setSelectedTags] = useState([]);
@@ -7,6 +8,27 @@ export const useTagsAndMentions = (tags, getAllEmployees, showError) => {
   const [newTag, setNewTag] = useState('');
   const [newMention, setNewMention] = useState('');
   const [showMentions, setShowMentions] = useState(false);
+  const [mentionSuggestions, setMentionSuggestions] = useState([]);
+  const [loadingMentions, setLoadingMentions] = useState(false);
+
+  const fetchMentionSuggestions = async (searchTerm) => {
+    if (!searchTerm.trim()) {
+      setMentionSuggestions([]);
+      return;
+    }
+
+    setLoadingMentions(true);
+    try {
+      const response = await adminAPI.getUsersForMentions(searchTerm, 10);
+      const users = response.data || response.users || [];
+      setMentionSuggestions(users);
+    } catch (error) {
+      console.error('Error fetching admin mention suggestions:', error);
+      setMentionSuggestions([]);
+    } finally {
+      setLoadingMentions(false);
+    }
+  };
 
   const handleAddTag = () => {
     if (newTag.trim()) {
@@ -24,42 +46,54 @@ export const useTagsAndMentions = (tags, getAllEmployees, showError) => {
     }
   };
 
-  const handleAddMention = async () => {
-    if (newMention.trim()) {
+  const handleAddMention = async (selectedUser = null) => {
+    let mentionedUser = selectedUser;
+    
+    // If no user selected, try to find by search term
+    if (!mentionedUser && newMention.trim()) {
       try {
-        // Get all employees to find the mentioned user
-        const employees = await getAllEmployees();
-        const mentionedUser = employees.find(emp => 
-          emp.name?.toLowerCase().includes(newMention.toLowerCase()) ||
-          emp.email?.toLowerCase().includes(newMention.toLowerCase()) ||
-          emp.employee_id?.toLowerCase().includes(newMention.toLowerCase())
+        // Get users from API
+        const response = await adminAPI.getUsersForMentions(newMention, 10);
+        const users = response.data || response.users || [];
+        
+        mentionedUser = users.find(user => 
+          user.name?.toLowerCase().includes(newMention.toLowerCase()) ||
+          user.email?.toLowerCase().includes(newMention.toLowerCase()) ||
+          user.employee_id?.toLowerCase().includes(newMention.toLowerCase())
         );
 
         if (!mentionedUser) {
           showError('User not found. Please check the name or email.');
           return;
         }
-
-        // Check if user is already mentioned
-        if (mentions.some(mention => mention.user_id === mentionedUser.employee_id)) {
-          showError('This user is already mentioned');
-          return;
-        }
-
-        const newMentionObj = {
-          user_id: mentionedUser.employee_id,
-          name: mentionedUser.name,
-          email: mentionedUser.email
-        };
-
-        setMentions(prev => [...prev, newMentionObj]);
-        setNewMention('');
-        setShowMentions(false);
       } catch (error) {
-        console.error('Error adding mention:', error);
-        showError('Failed to add mention. Please try again.');
+        console.error('Error searching for user:', error);
+        showError('Failed to search for user. Please try again.');
+        return;
       }
     }
+
+    if (!mentionedUser) {
+      showError('Please select a user to mention.');
+      return;
+    }
+
+    // Check if user is already mentioned
+    if (mentions.some(mention => mention.user_id === mentionedUser.employee_id || mention.user_id === mentionedUser.id)) {
+      showError('This user is already mentioned');
+      return;
+    }
+
+    const newMentionObj = {
+      user_id: mentionedUser.employee_id || mentionedUser.id,
+      name: mentionedUser.name || mentionedUser.employee_name,
+      email: mentionedUser.email
+    };
+
+    setMentions(prev => [...prev, newMentionObj]);
+    setNewMention('');
+    setShowMentions(false);
+    setMentionSuggestions([]);
   };
 
   const removeTag = (tagToRemove) => {
@@ -76,6 +110,7 @@ export const useTagsAndMentions = (tags, getAllEmployees, showError) => {
     setNewTag('');
     setNewMention('');
     setShowMentions(false);
+    setMentionSuggestions([]);
   };
 
   return {
@@ -85,6 +120,8 @@ export const useTagsAndMentions = (tags, getAllEmployees, showError) => {
     newTag,
     newMention,
     showMentions,
+    mentionSuggestions,
+    loadingMentions,
     
     // Actions
     handleAddTag,
@@ -92,6 +129,7 @@ export const useTagsAndMentions = (tags, getAllEmployees, showError) => {
     removeTag,
     removeMention,
     clearTagsAndMentions,
+    fetchMentionSuggestions,
     
     // Setters
     setNewTag,

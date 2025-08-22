@@ -1,11 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Bold, Italic, List, Underline, AlignLeft, AlignCenter, AlignRight,PaintBucket  } from 'lucide-react';
+import { userAPI } from '../../services/api';
+import { adminAPI } from '../../services/adminAPI';
 
 const RichTextEditor = ({ 
   value, 
   onChange, 
   placeholder = "What's on your mind?", 
-  className = "" 
+  className = "",
+  isAdmin = false // Add prop to determine admin context
 }) => {
   const editorRef = useRef(null);
   const [isActive, setIsActive] = useState(false);
@@ -39,27 +42,35 @@ const RichTextEditor = ({
 
     setIsLoadingUsers(true);
     try {
-      const url = `http://127.0.0.1:8000/api/wall/get_user_for_mentions?query=${encodeURIComponent(query)}&limit=10`;
-      console.log('Fetching users from:', url);
+      console.log('Fetching users for query:', query, 'isAdmin:', isAdmin);
       
-      const response = await fetch(url);
-      console.log('Response status:', response.status);
+      let responseData;
       
-      if (response.ok) {
-        const responseData = await response.json();
-        console.log('API Response data:', responseData);
-        
-        // Extract the users array from the data property
-        const users = responseData.data || [];
-        setUsers(users);
+      // Use proper API service based on admin context
+      if (isAdmin) {
+        responseData = await adminAPI.getUsersForMentions(query, 10);
       } else {
-        console.error('Failed to fetch users for mentions, status:', response.status);
-        const errorText = await response.text();
-        console.error('Error response:', errorText);
-        setUsers([]);
+        responseData = await userAPI.getUsersForMentions(query, 10);
       }
+      
+      console.log('API Response data:', responseData);
+      
+      // Extract the users array from the response
+      const users = responseData.data || responseData.users || responseData || [];
+      console.log('Extracted users:', users);
+      setUsers(Array.isArray(users) ? users : []);
+      
     } catch (error) {
       console.error('Error fetching users for mentions:', error);
+      
+      // Check if it's a network/auth error
+      if (error.message.includes('403') || error.message.includes('Forbidden')) {
+        console.warn('Authentication error: Make sure you are logged in and have proper permissions.');
+      } else if (error.message.includes('404') || error.message.includes('Not Found')) {
+        console.warn('Backend API endpoint for mentions is not implemented yet.');
+      }
+      
+      // Provide fallback empty array when API is not available
       setUsers([]);
     } finally {
       setIsLoadingUsers(false);
@@ -142,9 +153,9 @@ const RichTextEditor = ({
       // Create mention element
       const mentionSpan = document.createElement('span');
       mentionSpan.className = 'mention bg-purple-100 text-purple-800 px-1 rounded';
-      mentionSpan.setAttribute('data-user-id', user.user_id || user.id);
+      mentionSpan.setAttribute('data-user-id', user.user_id || user.id || user.employee_id);
       mentionSpan.setAttribute('contenteditable', 'false');
-      mentionSpan.textContent = `@${user.username}`;
+      mentionSpan.textContent = `@${user.username || user.name || user.employee_name}`;
       
       // Replace text
       textNode.textContent = beforeMention;
@@ -397,27 +408,33 @@ const RichTextEditor = ({
           ) : users.length > 0 ? (
             users.map((user, index) => (
               <button
-                key={user.user_id || user.id}
+                key={user.user_id || user.id || user.employee_id}
                 onClick={() => insertMention(user)}
                 className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center space-x-2 border-none bg-transparent"
               >
                 <div className="w-6 h-6 bg-gradient-to-br from-purple-400 to-blue-500 rounded-full flex items-center justify-center">
                   <span className="text-xs font-medium text-white">
                     {(() => {
-                      const userName = user.username || user.email || 'User';
+                      const userName = user.username || user.name || user.employee_name || user.email || 'User';
                       return (typeof userName === 'string' ? userName : 'U')[0].toUpperCase();
                     })()}
                   </span>
                 </div>
                 <div>
-                  <div className="text-sm font-medium text-gray-900">@{user.username}</div>
+                  <div className="text-sm font-medium text-gray-900">@{user.username || user.name || user.employee_name}</div>
                   <div className="text-xs text-gray-500">{user.email}</div>
+                  {(user.job_title || user.position) && (
+                    <div className="text-xs text-blue-600">{user.job_title || user.position}</div>
+                  )}
                 </div>
               </button>
             ))
           ) : mentionQuery.length > 0 ? (
             <div className="px-3 py-2 text-sm text-gray-500">
-              No users found for "{mentionQuery}"
+              {mentionQuery.length > 2 ? 
+                'No users found or mention API not available yet' : 
+                'Type at least 3 characters to search users'
+              }
             </div>
           ) : (
             <div className="px-3 py-2 text-sm text-gray-500">

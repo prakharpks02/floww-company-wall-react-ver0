@@ -17,6 +17,8 @@ const TagsAndMentionsSection = ({
   newTag,
   newMention,
   showMentions,
+  mentionSuggestions,
+  loadingMentions,
   onAddTag,
   onAddMention,
   onRemoveTag,
@@ -24,7 +26,9 @@ const TagsAndMentionsSection = ({
   onNewTagChange,
   onNewMentionChange,
   onShowMentions,
-  onToggleTag // New prop for explicit tag toggling
+  onFetchMentionSuggestions,
+  onToggleTag, // New prop for explicit tag toggling
+  hideMentions = false // Add prop to hide mentions section completely
 }) => {
   // Use provided tags prop if available, otherwise use predefined tags
   const availableTags = (tags && tags.length > 0) ? tags : PREDEFINED_TAGS;
@@ -104,7 +108,8 @@ const TagsAndMentionsSection = ({
         </div>
       </div>
 
-      {/* Mentions Section */}
+      {/* Mentions Section - Only show if not hidden */}
+      {!hideMentions && (
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
           <AtSign className="inline w-4 h-4 mr-1" />
@@ -132,7 +137,7 @@ const TagsAndMentionsSection = ({
         )}
 
         {/* Add Mention Button */}
-        {/* {!showMentions && (
+        {!showMentions && (
           <button
             type="button"
             onClick={() => onShowMentions(true)}
@@ -141,41 +146,82 @@ const TagsAndMentionsSection = ({
             <AtSign size={16} />
             <span>Mention Someone</span>
           </button>
-        )} */}
+        )}
 
         {/* Mention Input */}
         {showMentions && (
-          <div className="flex items-center space-x-2 p-3 bg-green-50 border border-green-200 rounded-md">
-            <input
-              type="text"
-              value={newMention}
-              onChange={(e) => onNewMentionChange(e.target.value)}
-              placeholder="Enter name or email..."
-              className="flex-1 px-3 py-2 border border-green-300 rounded focus:outline-none focus:ring-2 focus:ring-green-500"
-              onKeyPress={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  onAddMention();
-                }
-              }}
-            />
-            <button
-              type="button"
-              onClick={onAddMention}
-              className="px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
-            >
-              <Plus size={16} />
-            </button>
-            <button
-              type="button"
-              onClick={() => onShowMentions(false)}
-              className="px-3 py-2 bg-gray-400 text-white rounded hover:bg-gray-500 transition-colors"
-            >
-              <X size={16} />
-            </button>
+          <div className="relative">
+            <div className="flex items-center space-x-2 p-3 bg-green-50 border border-green-200 rounded-md">
+              <input
+                type="text"
+                value={newMention}
+                onChange={(e) => {
+                  onNewMentionChange(e.target.value);
+                  if (onFetchMentionSuggestions) {
+                    onFetchMentionSuggestions(e.target.value);
+                  }
+                }}
+                placeholder="Type to search for users..."
+                className="flex-1 px-3 py-2 border border-green-300 rounded focus:outline-none focus:ring-2 focus:ring-green-500"
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    onAddMention();
+                  }
+                }}
+              />
+              <button
+                type="button"
+                onClick={onAddMention}
+                className="px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+              >
+                <Plus size={16} />
+              </button>
+              <button
+                type="button"
+                onClick={() => onShowMentions(false)}
+                className="px-3 py-2 bg-gray-400 text-white rounded hover:bg-gray-500 transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            
+            {/* Mention Suggestions Dropdown */}
+            {mentionSuggestions && mentionSuggestions.length > 0 && (
+              <div className="absolute top-full left-0 right-0 z-10 mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-40 overflow-y-auto">
+                {loadingMentions && (
+                  <div className="px-3 py-2 text-sm text-gray-500">
+                    Searching...
+                  </div>
+                )}
+                {!loadingMentions && mentionSuggestions.map((user) => (
+                  <button
+                    key={user.employee_id || user.id}
+                    type="button"
+                    onClick={() => {
+                      onAddMention(user);
+                    }}
+                    className="w-full text-left px-3 py-2 hover:bg-gray-100 border-b border-gray-100 last:border-b-0"
+                  >
+                    <div className="text-sm font-medium text-gray-900">
+                      {user.name || user.employee_name}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {user.email}
+                    </div>
+                    {(user.job_title || user.position) && (
+                      <div className="text-xs text-blue-600">
+                        {user.job_title || user.position}
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
+      )}
     </div>
   );
 };

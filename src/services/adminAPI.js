@@ -594,6 +594,33 @@ export const adminAPI = {
     }
   },
 
+  // Get users for mentions (admin side)
+  getUsersForMentions: async (query = '', limit = 10) => {
+    const endpoint = `${API_CONFIG.BASE_URL}/admin/get_user_for_mentions?query=${encodeURIComponent(query)}&limit=${limit}`;
+    logApiCall('GET', endpoint);
+    
+    try {
+      const response = await fetchWithTimeout(endpoint, {
+        method: 'GET'
+      });
+      
+      // Check if response is actually JSON
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        console.warn('Admin mention API endpoint not available yet, returning empty array');
+        return { data: [] };
+      }
+      
+      const result = await handleResponse(response);
+      console.log('✅ Admin - Users for mentions retrieved successfully:', result);
+      return result;
+    } catch (error) {
+      console.warn('Admin mention API not available yet:', error.message);
+      // Return empty array as fallback when API is not available
+      return { data: [] };
+    }
+  },
+
   // ========================================
   // ALIASES FOR BACKWARD COMPATIBILITY
   // ========================================

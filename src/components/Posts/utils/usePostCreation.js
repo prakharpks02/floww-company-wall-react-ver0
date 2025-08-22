@@ -17,8 +17,8 @@ export const usePostCreation = (createPost, editPost, editingPost, onClose) => {
 
   const addMention = (employee) => {
     const mention = {
-      user_id: employee.employee_id || employee.user_id,
-      name: employee.name,
+      user_id: employee.employee_id || employee.user_id || employee.id,
+      name: employee.name || employee.employee_name,
       email: employee.email
     };
 

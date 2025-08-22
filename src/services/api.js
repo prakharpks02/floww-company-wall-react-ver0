@@ -326,6 +326,37 @@ export const userAPI = {
       console.log('✅ Token removed from cookies');
     }
     console.log('✅ Session cleared (token-based auth)');
+  },
+
+  // Get users for mentions (employee side)
+  getUsersForMentions: async (query = '', limit = 10) => {
+    const endpoint = `${API_CONFIG.BASE_URL}/get_user_for_mentions?query=${encodeURIComponent(query)}&limit=${limit}`;
+    logApiCall('GET', endpoint);
+    
+    try {
+      const response = await fetchWithTimeout(endpoint, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeaders()
+        }
+      });
+      
+      // Check if response is actually JSON
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        console.warn('Mention API endpoint not available yet, returning empty array');
+        return { data: [] };
+      }
+      
+      const result = await handleResponse(response);
+      console.log('✅ Users for mentions retrieved successfully:', result);
+      return result;
+    } catch (error) {
+      console.warn('Mention API not available yet:', error.message);
+      // Return empty array as fallback when API is not available
+      return { data: [] };
+    }
   }
 };
 

@@ -93,23 +93,28 @@ const AdminBroadcastMessage = () => {
             onChange={setContent}
             placeholder="Write your broadcast message here..."
             className="min-h-[200px]"
+            isAdmin={true}
           />
         </div>
 
-        {/* Tags and Mentions */}
+        {/* Tags Section Only - Mentions handled in text editor */}
         <TagsAndMentionsSection
           selectedTags={tagsAndMentions.selectedTags}
           mentions={tagsAndMentions.mentions}
           newTag={tagsAndMentions.newTag}
           newMention={tagsAndMentions.newMention}
-          showMentions={tagsAndMentions.showMentions}
+          showMentions={false}
+          mentionSuggestions={tagsAndMentions.mentionSuggestions}
+          loadingMentions={tagsAndMentions.loadingMentions}
           onAddTag={tagsAndMentions.handleAddTag}
           onAddMention={tagsAndMentions.handleAddMention}
           onRemoveTag={tagsAndMentions.removeTag}
           onRemoveMention={tagsAndMentions.removeMention}
           onNewTagChange={tagsAndMentions.setNewTag}
           onNewMentionChange={tagsAndMentions.setNewMention}
-          onShowMentions={tagsAndMentions.setShowMentions}
+          onShowMentions={() => {}}
+          onFetchMentionSuggestions={tagsAndMentions.fetchMentionSuggestions}
+          hideMentions={true}
         />
 
         {/* Media Controls */}
