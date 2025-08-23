@@ -736,8 +736,26 @@ export const postsAPI = {
     }
   },
 
+  // Get replies for a comment
+  getReplies: async (postId, commentId, page = 1, limit = 20) => {
+    const endpoint = `${API_CONFIG.BASE_URL}/posts/${postId}/comments/${commentId}/replies?page=${page}&limit=${limit}`;
+    logApiCall('POST', endpoint);
+    
+    try {
+      const response = await fetchWithTimeout(endpoint, {
+        method: 'POST'
+      });
+      
+      return await handleResponse(response);
+    } catch (error) {
+      console.error('❌ Get replies error:', error.message);
+      throw error;
+    }
+  },
+
   // Delete comment (only post author can delete)
-  deleteComment: async (postId, commentId) => {
+  // Delete comment (using postId and commentId) - DEPRECATED: Use deleteCommentById instead
+  deleteCommentLegacy: async (postId, commentId) => {
     const endpoint = `${API_CONFIG.BASE_URL}/posts/${postId}/comments/${commentId}`;
     logApiCall('DELETE', endpoint);
     
@@ -813,7 +831,7 @@ export const postsAPI = {
       throw error;
     }
   },
-  // Delete comment by comment_id (POST)
+  // Delete comment by comment_id (POST) - Current API endpoint
   deleteComment: async (commentId) => {
     const endpoint = `${API_CONFIG.BASE_URL}/comments/${commentId}/delete`;
     logApiCall('POST', endpoint);

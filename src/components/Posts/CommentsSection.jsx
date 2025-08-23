@@ -113,6 +113,7 @@ const CommentsSection = ({
       {Array.isArray(normalizedPost.comments) && normalizedPost.comments.length > 0 && (
         <div className="space-y-3">
           {normalizedPost.comments.map((comment, idx) => {
+            console.log('🔍 Rendering comment:', comment);
             return (
               <div key={comment.comment_id || comment.id || idx} className="bg-gray-50 rounded-lg p-3 sm:p-4">
                 <CommentItem

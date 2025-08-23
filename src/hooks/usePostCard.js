@@ -110,7 +110,7 @@ export const usePostCard = (post, activeView = 'home') => {
                   rawPost.username || 
                   (isCurrentUserPost ? (user?.name || user?.username) : (user?.is_admin ? 'Admin' : 'Employee User')),
       authorAvatar: rawPost.author?.avatar || rawPost.authorAvatar || rawPost.author_avatar || rawPost.avatar || 
-                    (isCurrentUserPost ? user?.avatar : 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80'),
+                    (isCurrentUserPost ? user?.profile_picture_link : 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80'),
       authorPosition: rawPost.author?.position || 
                       rawPost.author?.job_title || 
                       rawPost.authorPosition || 
@@ -425,10 +425,24 @@ export const usePostCard = (post, activeView = 'home') => {
 
   const handleComment = () => {
     const postId = getPostId();
+    console.log('🚀 handleComment called:', { 
+      postId, 
+      commentText: commentText.trim(),
+      userFromPostContext: user,
+      userExists: !!user
+    });
+    
     if (commentText.trim() && postId) {
-     
+      console.log('✅ Adding comment for post:', postId);
       addComment(postId, { content: commentText.trim() });
       setCommentText('');
+    } else {
+      console.warn('⚠️ Cannot add comment:', { 
+        hasContent: !!commentText.trim(), 
+        hasPostId: !!postId,
+        postId,
+        commentText 
+      });
     }
   };
 

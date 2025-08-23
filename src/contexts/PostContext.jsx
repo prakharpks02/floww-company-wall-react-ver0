@@ -133,7 +133,7 @@ export const PostProvider = ({ children }) => {
                       rawPost.author_name || 
                       user?.name || 
                       (user?.is_admin ? 'Admin' : 'Employee User');
-    const authorAvatar = rawPost.author?.avatar || rawPost.authorAvatar || rawPost.author_avatar;
+    const authorAvatar = rawPost.author?.profile_picture_link || rawPost.profile_picture_link || rawPost.profile_picture_link;
     
     // Normalize comments to handle backend format
     const normalizedComments = rawPost.comments?.map(comment => {
@@ -630,7 +630,7 @@ export const PostProvider = ({ children }) => {
 
     // Use token-based authentication - backend will handle user identification
     const authorName = user?.name || user?.username || (user?.is_admin ? 'Admin' : 'Employee User');
-    const authorAvatar = user?.avatar || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80';
+    const authorAvatar = user?.profile_picture_link || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80';
 
     try {
       // Optimistically create the post object first for immediate UI update
@@ -822,25 +822,45 @@ export const PostProvider = ({ children }) => {
   // with proper toggle behavior using add/remove reaction API endpoints
 
   const addComment = async (postId, commentData) => {
-    if (!user) return;
+    console.log('🔥 PostContext addComment called:', { 
+      postId, 
+      commentData, 
+      user: user,
+      userExists: !!user,
+      userKeys: user ? Object.keys(user) : 'NO_USER'
+    });
+    
+    if (!user) {
+      console.error('❌ No user found for adding comment - user object is:', user);
+      // Instead of throwing an error, let's wait for the user to load
+      console.warn('⚠️ User not loaded yet, please try again');
+      return;
+    }
 
     try {
+      console.log('📡 Calling API to add comment...');
       // Call the API to add comment
       const result = await postsAPI.addComment(postId, commentData);
+      console.log('✅ API response for addComment:', result);
       
       // Optimistically update the UI
       const newComment = {
         id: result.comment_id || result.id || uuidv4(),
         comment_id: result.comment_id || result.id, // Store the backend comment_id
         author: {
-          username: result.author?.username || result.author || username,
-          email: result.author?.email || "employee@floww.com"
+          username: result.author?.username || result.author || user.username || user.name,
+          employee_id: user.employee_id || user.id,
+          employee_name: user.name,
+          employee_username: user.username || user.employee_username,
+          email: result.author?.email || user.email || "employee@floww.com"
         },
         content: commentData.content,
         created_at: result.timestamp || new Date().toISOString(),
         replies: [],
         reactions: []
       };
+
+      console.log('💾 Adding comment to UI:', newComment);
 
     setPosts(prevPosts =>
       prevPosts.map(post =>
@@ -867,10 +887,18 @@ export const PostProvider = ({ children }) => {
       const newReply = {
         id: result.reply_id || result.id || uuidv4(),
         reply_id: result.reply_id || result.id, // Store the backend reply_id
-        author: result.author?.username || result.author || username,
-        author_name: result.author?.username || result.author || username,
+        comment_id: result.reply_id || result.id, // Also store as comment_id for consistency
+        author: {
+          username: result.author?.username || result.author || user.username || user.name,
+          employee_id: user.employee_id || user.id,
+          employee_name: user.name,
+          employee_username: user.username || user.employee_username,
+          email: result.author?.email || user.email || "employee@floww.com"
+        },
+        author_name: result.author?.username || result.author || user.username || user.name,
         content: replyData.content,
         timestamp: result.timestamp || new Date().toISOString(),
+        created_at: result.timestamp || new Date().toISOString(),
         likes: [],
         reactions: {}
       };
@@ -900,16 +928,38 @@ export const PostProvider = ({ children }) => {
     }
   };
 
-  // Delete comment (only post author can delete)
+  // Delete comment (comment author or admin can delete)
   const deleteComment = async (postId, commentId) => {
     if (!user) return;
 
     try {
-      // Find the comment to get the backend comment_id
+      // Find the comment to check authorization
       const post = posts.find(p => p.id === postId || p.post_id === postId);
       const comment = post?.comments?.find(c => c.id === commentId || c.comment_id === commentId);
-      const backendCommentId = comment?.comment_id || commentId;
+      
+      if (!comment) {
+        throw new Error('Comment not found');
+      }
 
+      // Check if user is authorized to delete (comment author or admin)
+      const isCommentAuthor = comment.author && (
+        comment.author.employee_id === user.employee_id ||
+        comment.author.employee_id === user.id ||
+        comment.author.user_id === user.employee_id ||
+        comment.author.user_id === user.id ||
+        comment.author.username === user.username ||
+        comment.author.username === user.employee_username ||
+        comment.author.employee_username === user.username ||
+        comment.author.employee_username === user.employee_username ||
+        comment.author.id === user.id ||
+        comment.author.id === user.employee_id
+      );
+
+      if (!isCommentAuthor && !user.is_admin) {
+        throw new Error('Not authorized to delete this comment');
+      }
+
+      const backendCommentId = comment?.comment_id || commentId;
       await postsAPI.deleteComment(backendCommentId);
 
       // Optimistically update the UI
@@ -972,6 +1022,41 @@ export const PostProvider = ({ children }) => {
     if (!user) return;
 
     try {
+      // Find the comment to check authorization
+      let targetComment = null;
+      let targetPost = null;
+      
+      for (const post of posts) {
+        const comment = post.comments?.find(c => c.id === commentId || c.comment_id === commentId);
+        if (comment) {
+          targetComment = comment;
+          targetPost = post;
+          break;
+        }
+      }
+
+      if (!targetComment) {
+        throw new Error('Comment not found');
+      }
+
+      // Check if user is authorized to edit (only comment author)
+      const isCommentAuthor = targetComment.author && (
+        targetComment.author.employee_id === user.employee_id ||
+        targetComment.author.employee_id === user.id ||
+        targetComment.author.user_id === user.employee_id ||
+        targetComment.author.user_id === user.id ||
+        targetComment.author.username === user.username ||
+        targetComment.author.username === user.employee_username ||
+        targetComment.author.employee_username === user.username ||
+        targetComment.author.employee_username === user.employee_username ||
+        targetComment.author.id === user.id ||
+        targetComment.author.id === user.employee_id
+      );
+
+      if (!isCommentAuthor) {
+        throw new Error('Not authorized to edit this comment');
+      }
+
       const apiResponse = await postsAPI.editComment(commentId, newContent);
       
       // First, let's see the current state before updating

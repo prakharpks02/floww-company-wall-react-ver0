@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Trash2, Heart, MessageCircle, Flag } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Trash2, Heart, MessageCircle, Flag, Edit, MoreHorizontal } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import ReportModal from './ReportModal';
 
@@ -11,6 +11,7 @@ const CommentReply = ({
   commentId,
   emojiReactions,
   handleDeleteReply,
+  handleEditReply, // Add edit handler
   handleReactToComment,
   getCommentUserReaction,
   showCommentReactions,
@@ -20,12 +21,44 @@ const CommentReply = ({
   getCommentTotalReactions
 }) => {
   const [showReportModal, setShowReportModal] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editContent, setEditContent] = useState(reply.content || '');
+  const [showMenu, setShowMenu] = useState(false);
+  const menuRef = useRef(null);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setShowMenu(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
   
   // Check if current user is the reply author
-  const isReplyAuthor = user && (
-    reply.author?.user_id === user?.user_id || 
-    reply.authorId === user?.id ||
-    reply.author?.username === user?.username
+  const isReplyAuthor = user && reply.author && (
+    // Check by employee_id (most reliable)
+    reply.author.employee_id === user.employee_id ||
+    reply.author.employee_id === user.id ||
+    reply.author.user_id === user.employee_id ||
+    reply.author.user_id === user.id ||
+    // Check by username/employee_username
+    reply.author.username === user.username ||
+    reply.author.username === user.employee_username ||
+    reply.author.employee_username === user.username ||
+    reply.author.employee_username === user.employee_username ||
+    // Check by name
+    reply.author.employee_name === user.name ||
+    reply.author.name === user.name ||
+    // Additional fallback checks
+    reply.author.id === user.id ||
+    reply.author.id === user.employee_id ||
+    reply.authorId === user.id
   );
   
   // Normalize reply reactions array to object (same as comments)
@@ -66,6 +99,25 @@ const CommentReply = ({
     const replyId = reply.comment_id || reply.id || reply.reply_id;
    
     handleReactToComment(replyId, reactionType);
+  };
+
+  const handleEdit = () => {
+    if (isPublicView || !isReplyAuthor) return;
+    setIsEditing(true);
+    setEditContent(reply.content || '');
+    setShowMenu(false);
+  };
+
+  const handleSaveEdit = () => {
+    if (editContent.trim() && editContent !== reply.content && handleEditReply) {
+      handleEditReply(editContent.trim());
+    }
+    setIsEditing(false);
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditContent(reply.content || '');
   };
 
   return (
@@ -117,19 +169,85 @@ const CommentReply = ({
                 </button>
               )}
               
-              {/* Delete button for reply author or admin */}
+              {/* Author menu for reply owner or admin */}
               {!isPublicView && (isReplyAuthor || isAdmin) && (
-                <button
-                  onClick={() => handleDeleteReply(commentId, reply.id)}
-                  className="text-gray-400 hover:text-red-600 transition-colors p-1 rounded"
-                  title="Delete reply"
-                >
-                  <Trash2 className="h-2 w-2" />
-                </button>
+                <div className="relative" ref={menuRef}>
+                  <button
+                    onClick={() => setShowMenu(!showMenu)}
+                    className="text-gray-400 hover:text-gray-600 transition-colors p-1"
+                  >
+                    <MoreHorizontal className="h-3 w-3" />
+                  </button>
+                  
+                  {showMenu && (
+                    <div className="absolute right-0 top-6 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-10 min-w-[100px]">
+                      {/* Edit option only for reply author */}
+                      {isReplyAuthor && handleEditReply && (
+                        <button
+                          onClick={handleEdit}
+                          className="w-full text-left px-2 py-1 text-xs text-gray-700 hover:bg-gray-100 flex items-center gap-1"
+                        >
+                          <Edit className="h-2 w-2" />
+                          Edit
+                        </button>
+                      )}
+                      {/* Delete option for reply author or admin */}
+                      <button
+                        onClick={() => {
+                          handleDeleteReply(commentId, reply.id);
+                          setShowMenu(false);
+                        }}
+                        className="w-full text-left px-2 py-1 text-xs text-red-600 hover:bg-red-50 flex items-center gap-1"
+                      >
+                        <Trash2 className="h-2 w-2" />
+                        Delete
+                      </button>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           </div>
-          <p className="text-xs text-gray-700">{normalizedReply.content}</p>
+          
+          {/* Reply Content */}
+          <div className="mb-2">
+            {isEditing ? (
+              /* Edit Mode */
+              <div className="space-y-2">
+                <textarea
+                  value={editContent}
+                  onChange={(e) => setEditContent(e.target.value)}
+                  className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-purple-500 focus:border-purple-500 resize-none"
+                  rows="2"
+                  placeholder="Edit your reply..."
+                />
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={handleSaveEdit}
+                    className="px-2 py-1 bg-purple-600 text-white text-xs rounded hover:bg-purple-700 transition-colors"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={handleCancelEdit}
+                    className="px-2 py-1 text-gray-500 text-xs hover:text-gray-700 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* Display Mode */
+              <div>
+                <p className="text-xs text-gray-700">{normalizedReply.content}</p>
+                {reply.edited && (
+                  <p className="text-xs text-gray-400 mt-1 italic">
+                    (edited)
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
           
           {/* Reply Actions - Same as comments */}
           <div className="flex items-center space-x-3 mt-2">

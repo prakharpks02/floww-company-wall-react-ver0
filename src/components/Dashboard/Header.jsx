@@ -35,9 +35,7 @@ const Header = ({ onSearchChange, searchValue }) => {
                   Human Resources Department
                 </p>
               </div>
-              <div className="xs:hidden">
-                <h1 className="text-lg font-semibold text-gray-900">Atom</h1>
-              </div>
+           
             </div>
 
             {/* Desktop Search Bar */}
@@ -75,7 +73,7 @@ const Header = ({ onSearchChange, searchValue }) => {
               {/* User Profile */}
               <div className="flex items-center space-x-2 sm:space-x-3">
                 <img
-                  src={user?.avatar}
+                  src={user?.profile_picture_link}
                   alt={user?.name}
                   className="h-8 w-8 sm:h-9 sm:w-9 lg:h-10 lg:w-10 rounded-full object-cover border-2 border-gray-200 hover:border-purple-300 transition-colors"
                 />

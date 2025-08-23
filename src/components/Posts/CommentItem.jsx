@@ -76,13 +76,33 @@ const CommentItem = ({
   };
 
   // Check if the current user is the comment author
-  const isCommentAuthor = user && (
-    comment.author?.user_id === user.user_id ||
-    comment.author?.user_id === user.id ||
-    comment.author?.username === user.username ||
-    comment.author?.employee_name === user.username ||
-    comment.author?.employee_id === user.id
+  const isCommentAuthor = user && comment.author && (
+    // Check by employee_id (most reliable)
+    comment.author.employee_id === user.employee_id ||
+    comment.author.employee_id === user.id ||
+    comment.author.user_id === user.employee_id ||
+    comment.author.user_id === user.id ||
+    // Check by username/employee_username
+    comment.author.username === user.username ||
+    comment.author.username === user.employee_username ||
+    comment.author.employee_username === user.username ||
+    comment.author.employee_username === user.employee_username ||
+    // Check by name
+    comment.author.employee_name === user.name ||
+    comment.author.name === user.name ||
+    // Additional fallback checks
+    comment.author.id === user.id ||
+    comment.author.id === user.employee_id
   );
+
+  // Debug log to see what's happening
+  console.log('🔍 CommentItem debug:', {
+    user: user,
+    commentAuthor: comment.author,
+    isCommentAuthor,
+    isAdmin,
+    isPublicView
+  });
 
  
 
@@ -517,6 +537,8 @@ const CommentItem = ({
               emojiReactions={emojiReactions}
               // For deleting a reply, use the same delete endpoint as comments, passing reply.comment_id
               handleDeleteReply={() => handleDeleteComment(reply.comment_id)}
+              // For editing a reply, use the same edit endpoint as comments
+              handleEditReply={(newContent) => handleEditComment(reply.comment_id, newContent)}
               handleReactToComment={handleReactToComment}
               getCommentUserReaction={getCommentUserReaction}
               showCommentReactions={showCommentReactions}

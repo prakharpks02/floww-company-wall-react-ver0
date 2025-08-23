@@ -35,10 +35,13 @@ const getTokenAndUserType = () => {
 
 useEffect(() => {
   const fetchUser = async () => {
+    console.log('🔍 AuthContext: Starting fetchUser...');
     try {
       const { token, isAdmin } = getTokenAndUserType();
+      console.log('🔍 AuthContext: Got token and user type:', { token: token ? 'EXISTS' : 'NULL', isAdmin });
       
       if (!token) {
+        console.log('❌ AuthContext: No token found, redirecting...');
         // Redirect if no token
         window.location.href = "https://dev.gofloww.co";
         return;
@@ -67,13 +70,13 @@ useEffect(() => {
               is_blocked: userData.is_blocked || false,
               authenticated: true,
               token: token,
-              avatar: userData.profile_picture_link || `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.employee_name)}&background=9f7aea&color=white&size=128`,
+              profile_picture_link: userData.profile_picture_link || `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.employee_name)}&background=9f7aea&color=white&size=128`,
               position: userData.job_title || 'Administrator',
               department: 'Administration',
               is_admin: true
             };
             
-           
+            console.log('✅ AuthContext: Setting admin user:', adminUser);
             setUser(adminUser);
           
             return;
@@ -96,13 +99,13 @@ useEffect(() => {
           is_blocked: false,
           authenticated: true,
           token: token,
-          avatar: `https://ui-avatars.com/api/?name=Admin&background=9f7aea&color=white&size=128`,
+          profile_picture_link: `https://ui-avatars.com/api/?name=Admin&background=9f7aea&color=white&size=128`,
           position: 'Administrator',
           department: 'Administration',
           is_admin: true
         };
         setUser(adminUser);
-       
+        console.log('✅ AuthContext: Fallback admin user set:', adminUser);
         return;
       }
 
@@ -134,13 +137,14 @@ useEffect(() => {
           is_blocked: userData.is_blocked || false,
           authenticated: true,
           token: token,
-          avatar: userData.profile_picture_link || `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.employee_name)}&background=9f7aea&color=white&size=128`,
+          profile_picture_link: userData.profile_picture_link || `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.employee_name)}&background=9f7aea&color=white&size=128`,
           position: userData.job_title, // Using job_title instead of 'Employee'
           department: 'General',
           is_admin: false
         };
 
-       
+        console.log('✅ AuthContext: Employee user set:', authenticatedUser);
+        setUser(authenticatedUser);
         
       } catch (apiError) {
         
@@ -161,7 +165,7 @@ useEffect(() => {
           is_blocked: false,
           authenticated: true,
           token: token,
-          avatar: `https://ui-avatars.com/api/?name=Employee&background=9f7aea&color=white&size=128`,
+          profile_picture_link: `https://ui-avatars.com/api/?name=Employee&background=9f7aea&color=white&size=128`,
           position: 'Employee',
           department: 'General',
           is_admin: false
