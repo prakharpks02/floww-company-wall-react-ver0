@@ -1,4 +1,4 @@
-# Atom HR Community Wall
+# Atom Buzz Community Wall
 
 A modern and highly interactive community platform designed exclusively for HR department employees to foster seamless engagement, communication, and knowledge sharing.
 

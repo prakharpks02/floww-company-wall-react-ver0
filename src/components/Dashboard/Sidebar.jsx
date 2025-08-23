@@ -1,7 +1,7 @@
 "use client"
 import { usePost } from "../../contexts/PostContext"
 import { useAuth } from "../../contexts/AuthContext"
-import { Home, Plus, Hash, Filter, FileText, Shield, Users, Flag, Megaphone, Ban } from "lucide-react"
+import { Home, Plus, Hash, Filter, FileText, Shield, Users, Flag, Megaphone, Ban, ChevronDown, MessageCircle, Bell, Bookmark, MoreHorizontal } from "lucide-react"
 
 const Sidebar = ({ filters, setFilters, onCreatePost, activeView, onViewChange }) => {
   const { tags, posts } = usePost()
@@ -27,313 +27,316 @@ const Sidebar = ({ filters, setFilters, onCreatePost, activeView, onViewChange }
   return (
     <>
       <style>{`
-        .liquid-glass-bg {
-          background: linear-gradient(
-            135deg,
-            rgba(159, 122, 234, 0.15) 0%,
-            rgba(124, 58, 237, 0.25) 25%,
-            rgba(99, 102, 241, 0.2) 50%,
-            rgba(139, 92, 246, 0.15) 75%,
-            rgba(159, 122, 234, 0.1) 100%
-          );
-          backdrop-filter: blur(25px) saturate(180%);
-          border-right: 1px solid rgba(159, 122, 234, 0.4);
-          box-shadow: 
-            0 8px 32px rgba(159, 122, 234, 0.15),
-            inset 0 1px 0 rgba(255, 255, 255, 0.1),
-            inset 0 -1px 0 rgba(159, 122, 234, 0.2);
+        .slack-sidebar {
+         padding-top : 25px;
+    
+          background: #3f0f4f;
+          color: #FFFFFF;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
-
-        .liquid-orb {
+        
+        .slack-scrollbar::-webkit-scrollbar {
+          width: 8px;
+        }
+        
+        .slack-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        
+        .slack-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.2);
+          border-radius: 4px;
+        }
+        
+        .slack-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgba(255, 255, 255, 0.3);
+        }
+        
+        .sidebar-section-header {
+          color: #FFFFFF;
+          font-size: 15px;
+          font-weight: 700;
+          display: flex;
+          align-items: center;
+          padding: 8px 16px;
+          margin: 8px 0 4px 0;
+          cursor: pointer;
+          border-radius: 6px;
+          transition: background-color 0.1s ease;
+        }
+        
+        .sidebar-section-header:hover {
+          background: rgba(255, 255, 255, 0.06);
+        }
+        
+        .channel-item {
+          display: flex;
+          align-items: center;
+          padding: 4px 16px 4px 36px;
+          margin: 1px 8px;
+          border-radius: 6px;
+          font-size: 15px;
+          color: #FFFFFF;
+          cursor: pointer;
+          transition: background-color 0.1s ease;
+          min-height: 28px;
+        }
+        
+        .channel-item:hover {
+          background: rgba(255, 255, 255, 0.06);
+        }
+        
+        .channel-item.active {
+          background: #6d28d9;
+          color: white;
+          font-weight: 600;
+        }
+        
+        .channel-item.unread {
+          color: white;
+          font-weight: 600;
+        }
+        
+        .channel-prefix {
+          width: 16px;
+          height: 16px;
+          margin-right: 8px;
+          color: #9c88b5;
+          flex-shrink: 0;
+        }
+        
+        .channel-item.active .channel-prefix {
+          color: white;
+        }
+        
+        .create-channel-btn {
+          display: flex;
+          align-items: center;
+          padding: 4px 16px 4px 36px;
+          margin: 1px 8px;
+          border-radius: 6px;
+          font-size: 15px;
+          color: #FFFFFF;
+          cursor: pointer;
+          transition: all 0.1s ease;
+          min-height: 28px;
+        }
+        
+        .create-channel-btn:hover {
+          background: rgba(255, 255, 255, 0.06);
+          color: #FFFFFF;
+        }
+        
+        .workspace-header {
+          padding: 16px;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+          margin-bottom: 16px;
+        }
+        
+        .workspace-title {
+          font-size: 18px;
+          font-weight: 900;
+          color: white;
+          margin-bottom: 4px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+        
+        .nav-item {
+          display: flex;
+          align-items: center;
+          padding: 6px 16px;
+          margin: 1px 8px;
+          border-radius: 6px;
+          font-size: 15px;
+          font-weight: 600;
+          color: #FFFFFF;
+          cursor: pointer;
+          transition: background-color 0.1s ease;
+          min-height: 32px;
+        }
+        
+        .nav-item:hover {
+          background: rgba(255, 255, 255, 0.06);
+        }
+        
+        .nav-item.active {
+          background: #6d28d9;
+          color: white;
+        }
+        
+        .nav-icon {
+          width: 20px;
+          height: 20px;
+          margin-right: 12px;
+          flex-shrink: 0;
+        }
+        
+        .user-section {
           position: absolute;
-          border-radius: 50%;
-          filter: blur(50px);
-          animation: liquidFloat 10s ease-in-out infinite;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          padding: 12px;
+          background: rgba(0, 0, 0, 0.2);
+          border-top: 1px solid rgba(255, 255, 255, 0.1);
         }
-
-        .liquid-orb-1 {
-          width: 180px;
-          height: 180px;
-          background: radial-gradient(circle, rgba(159, 122, 234, 0.5) 0%, rgba(124, 58, 237, 0.3) 40%, transparent 100%);
-          top: -40px;
-          left: -40px;
-          animation-delay: 0s;
+        
+        .user-info {
+          display: flex;
+          align-items: center;
+          padding: 8px;
+          border-radius: 6px;
+          cursor: pointer;
+          transition: background-color 0.1s ease;
         }
-
-        .liquid-orb-2 {
-          width: 120px;
-          height: 120px;
-          background: radial-gradient(circle, rgba(99, 102, 241, 0.4) 0%, rgba(139, 92, 246, 0.2) 40%, transparent 100%);
-          bottom: -20px;
-          right: -20px;
-          animation-delay: -5s;
+        
+        .user-info:hover {
+          background: rgba(255, 255, 255, 0.06);
         }
-
-        .liquid-orb-3 {
-          width: 100px;
-          height: 100px;
-          background: radial-gradient(circle, rgba(168, 85, 247, 0.35) 0%, rgba(147, 51, 234, 0.15) 40%, transparent 100%);
-          top: 45%;
-          right: -20px;
-          animation-delay: -2.5s;
-        }
-
-        @keyframes liquidFloat {
-          0%, 100% { transform: translate(0, 0) scale(1) rotate(0deg); }
-          25% { transform: translate(10px, -15px) scale(1.05) rotate(90deg); }
-          50% { transform: translate(-8px, 12px) scale(0.95) rotate(180deg); }
-          75% { transform: translate(-10px, -8px) scale(1.02) rotate(270deg); }
-        }
-
-        .liquid-create-btn {
-          background: linear-gradient(135deg, #9F7AEA 0%, #7C3AED 50%, #8B5CF6 100%);
-          border: 1px solid rgba(159, 122, 234, 0.6);
-          box-shadow: 
-            0 8px 24px rgba(159, 122, 234, 0.4),
-            inset 0 1px 0 rgba(255, 255, 255, 0.25);
-          position: relative;
-          overflow: hidden;
-        }
-
-        .liquid-create-btn::before {
-          content: '';
-          position: absolute;
-          top: 0;
-          left: -100%;
-          width: 100%;
-          height: 100%;
-          background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
-          transition: left 0.7s ease;
-        }
-
-        .liquid-create-btn:hover::before {
-          left: 100%;
-        }
-
-        .liquid-create-btn:hover {
-          transform: scale(1.02) translateY(-1px);
-          box-shadow: 
-            0 12px 32px rgba(159, 122, 234, 0.5),
-            inset 0 1px 0 rgba(255, 255, 255, 0.3);
-        }
-
-        @media (max-width: 1023px) {
-          .liquid-orb-1 {
-            width: 140px;
-            height: 140px;
-          }
-          .liquid-orb-2 {
-            width: 100px;
-            height: 100px;
-          }
-          .liquid-orb-3 {
-            width: 80px;
-            height: 80px;
-          }
+        
+        .user-avatar {
+          width: 32px;
+          height: 32px;
+          border-radius: 6px;
+          background: #6d28d9;
+          margin-right: 8px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: white;
+          font-weight: 600;
+          font-size: 14px;
         }
       `}</style>
 
-      <aside className="h-full w-full lg:w-64">
-        {/* Enhanced Liquid Glass Background */}
-        <div className="liquid-glass-bg absolute inset-0" />
-
-        {/* Enhanced Liquid Orbs */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="liquid-orb liquid-orb-1" />
-          <div className="liquid-orb liquid-orb-2" />
-          <div className="liquid-orb liquid-orb-3" />
+      <aside className="slack-sidebar h-full  w-full lg:w-64 flex flex-col relative">
+        {/* Workspace Header */}
+        <div className="workspace-header">
+          <div className="workspace-title">
+            Community Hub
+            <ChevronDown className="w-5 h-5 text-white" />
+          </div>
         </div>
 
-        <div className="relative z-10 p-4 sm:p-6 h-full overflow-y-auto custom-scrollbar">
-          {/* Enhanced Create Post Button - Only show for non-admin users */}
-          {!user?.is_admin && (
-        <div className="mt-4 mb-3 w-full sm:w-[200px]"> 
-  <button
-    onClick={onCreatePost}
-    className="liquid-create-btn w-full flex items-center justify-center space-x-2 px-4 py-3 sm:py-4 rounded-2xl font-semibold transition-all duration-300 group text-white touch-friendly"
-  >
-    <Plus className="h-5 w-5 relative z-10" />
-    <span className="relative z-10 text-sm sm:text-base">Create Post</span>
-  </button>
-</div>
-
-          )}
-
-          {/* Enhanced Navigation */}
-          <div className="mt-4 mb-8">
-            <nav className="space-y-1 sm:space-y-2">
-              {[
-                // Only show Home Feed if not admin
-                ...(!isAdmin ? [{ view: "home", label: "Home Feed", icon: Home }] : []),
-                { view: "broadcast", label: "Community Broadcast", icon: Megaphone },
-                // Only show My Posts if not admin
-                ...(!isAdmin ? [{ view: "myposts", label: "My Posts", icon: FileText }] : []),
-              ].map(({ view, label, icon: Icon }) => {
+        {/* Scrollable Content */}
+  <div className="flex-1 overflow-y-auto slack-scrollbar" style={{ paddingBottom: 72 }}>
+          {/* Main Navigation */}
+          <div className="mb-6">
+            {[
+              // Only show Home Feed if not admin
+              ...(!isAdmin ? [{ view: "home", label: "Home Feed", icon: Home }] : []),
+              { view: "broadcast", label: "Community Broadcast", icon: Megaphone },
+              // Only show My Posts if not admin
+              ...(!isAdmin ? [{ view: "myposts", label: "My Posts", icon: FileText }] : []),
+            ].map(({ view, label, icon: Icon }) => {
               const isActive = activeView === view
               return (
-                <button
+                <div
                   key={view}
                   onClick={() => onViewChange(view)}
-                  className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl font-medium transition-all duration-300 relative overflow-hidden group ${
-                    isActive ? "text-white" : "text-slate-500 hover:text-white"
-                  }`}
-                  style={{
-                    background: isActive
-                      ? "linear-gradient(135deg, rgba(159, 122, 234, 0.4), rgba(124, 58, 237, 0.35))"
-                      : "rgba(159, 122, 234, 0.08)",
-                    border: isActive ? "1px solid rgba(159, 122, 234, 0.7)" : "1px solid rgba(159, 122, 234, 0.2)",
-                    boxShadow: isActive
-                      ? "0 4px 16px rgba(159, 122, 234, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1)"
-                      : "none",
-                    backdropFilter: "blur(12px)",
-                    transform: isActive ? "translateY(-1px)" : "none",
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isActive) {
-                      e.target.style.background = "rgba(159, 122, 234, 0.15)"
-                      e.target.style.borderColor = "rgba(159, 122, 234, 0.4)"
-                      e.target.style.transform = "translateY(-1px)"
-                      e.target.style.boxShadow = "0 4px 12px rgba(159, 122, 234, 0.2)"
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isActive) {
-                      e.target.style.background = "rgba(159, 122, 234, 0.08)"
-                      e.target.style.borderColor = "rgba(159, 122, 234, 0.2)"
-                      e.target.style.transform = "none"
-                      e.target.style.boxShadow = "none"
-                    }
-                  }}
+                  className={`nav-item ${isActive ? "active" : ""}`}
                 >
-                  <Icon className="h-5 w-5 relative z-10" />
-                  <span className="relative z-10">{label}</span>
-                </button>
+                  <Icon className="nav-icon" />
+                  <span>{label}</span>
+                </div>
               )
             })}
-            </nav>
           </div>
 
-          {/* Admin Navigation - Only show if user is admin */}
+          {/* Admin Panel */}
           {user?.is_admin && (
             <div className="mb-6">
-              <div className="flex items-center space-x-2 mb-3">
-                <Shield className="h-4 w-4 text-amber-400" />
-                <h3 className="text-sm font-medium text-slate-600">Admin Panel</h3>
+              <div className="sidebar-section-header">
+                <Shield className="w-4 h-4 mr-2 text-amber-400" />
+                Admin Panel
               </div>
-              <nav className="space-y-2">
-                {[
-                  { view: "admin-posts", label: "All Posts", icon: FileText },
-                  { view: "admin-users", label: "Blocked Users", icon: Ban },
-                  { view: "admin-reports", label: "Reported Content", icon: Flag },
-                  { view: "admin-broadcast", label: "Create Broadcast", icon: Megaphone },
-                ].map(({ view, label, icon: Icon }) => {
-                  const isActive = activeView === view
-                  return (
-                    <button
-                      key={view}
-                      onClick={() => onViewChange(view)}
-                      className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl font-medium transition-all duration-300 relative overflow-hidden group ${
-                        isActive ? "text-white" : "text-slate-500 hover:text-white"
-                      }`}
-                      style={{
-                        background: isActive
-                          ? "linear-gradient(135deg, rgba(245, 158, 11, 0.4), rgba(217, 119, 6, 0.35))"
-                          : "rgba(245, 158, 11, 0.08)",
-                        border: isActive ? "1px solid rgba(245, 158, 11, 0.7)" : "1px solid rgba(245, 158, 11, 0.2)",
-                        boxShadow: isActive
-                          ? "0 4px 16px rgba(245, 158, 11, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1)"
-                          : "none",
-                        backdropFilter: "blur(12px)",
-                        transform: isActive ? "translateY(-1px)" : "none",
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!isActive) {
-                          e.target.style.background = "rgba(245, 158, 11, 0.15)"
-                          e.target.style.borderColor = "rgba(245, 158, 11, 0.4)"
-                          e.target.style.transform = "translateY(-1px)"
-                          e.target.style.boxShadow = "0 4px 12px rgba(245, 158, 11, 0.2)"
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!isActive) {
-                          e.target.style.background = "rgba(245, 158, 11, 0.08)"
-                          e.target.style.borderColor = "rgba(245, 158, 11, 0.2)"
-                          e.target.style.transform = "none"
-                          e.target.style.boxShadow = "none"
-                        }
-                      }}
-                    >
-                      <Icon className="h-5 w-5 relative z-10" />
-                      <span className="relative z-10">{label}</span>
-                    </button>
-                  )
-                })}
-              </nav>
-            </div>
-          )}
-
-          {/* Enhanced Tags */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-slate-600 mb-3 flex items-center">
-              <Filter className="inline h-4 w-4 mr-2" /> Tags
-            </label>
-            <div className="space-y-2">
-              {["all", ...tags].map((tag) => {
-                const isSelected = filters.tag === tag
+              {[
+                { view: "admin-posts", label: "All Posts", icon: FileText },
+                { view: "admin-users", label: "Blocked Users", icon: Ban },
+                { view: "admin-reports", label: "Reported Content", icon: Flag },
+                { view: "admin-broadcast", label: "Create Broadcast", icon: Megaphone },
+              ].map(({ view, label, icon: Icon }) => {
+                const isActive = activeView === view
                 return (
-                  <button
-                    key={tag}
-                    onClick={() => handleTagChange(tag)}
-                    className={`w-full text-left px-4 py-3 rounded-xl text-sm transition-all duration-300 flex items-center justify-between group relative overflow-hidden ${
-                      isSelected ? "font-medium text-white" : "text-slate-600 hover:text-white"
-                    }`}
-                    style={{
-                      background: isSelected
-                        ? "linear-gradient(135deg, rgba(159, 122, 234, 0.3), rgba(124, 58, 237, 0.25))"
-                        : "rgba(159, 122, 234, 0.06)",
-                      border: isSelected ? "1px solid rgba(159, 122, 234, 0.6)" : "1px solid rgba(159, 122, 234, 0.15)",
-                      boxShadow: isSelected
-                        ? "0 4px 16px rgba(159, 122, 234, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.1)"
-                        : "none",
-                      backdropFilter: "blur(10px)",
-                      transform: isSelected ? "translateX(2px)" : "none",
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!isSelected) {
-                        e.target.style.background = "rgba(159, 122, 234, 0.12)"
-                        e.target.style.borderColor = "rgba(159, 122, 234, 0.3)"
-                        e.target.style.transform = "translateX(2px)"
-                        e.target.style.boxShadow = "0 2px 8px rgba(159, 122, 234, 0.15)"
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!isSelected) {
-                        e.target.style.background = "rgba(159, 122, 234, 0.06)"
-                        e.target.style.borderColor = "rgba(159, 122, 234, 0.15)"
-                        e.target.style.transform = "none"
-                        e.target.style.boxShadow = "none"
-                      }
-                    }}
+                  <div
+                    key={view}
+                    onClick={() => onViewChange(view)}
+                    className={`channel-item ${isActive ? "active" : ""}`}
                   >
-                    <div className="flex items-center space-x-2 min-w-0 relative z-10">
-                      {tag !== "all" && <Hash className="h-4 w-4 flex-shrink-0" />}
-                      <span className="truncate">{tag === "all" ? "All Posts" : tag}</span>
-                    </div>
-                    <span
-                      className="text-xs px-2 py-1 rounded-full flex-shrink-0 ml-2 relative z-10"
-                      style={{
-                        backgroundColor: isSelected ? "rgba(255, 255, 255, 0.25)" : "rgba(159, 122, 234, 0.2)",
-                        color: isSelected ? "white" : "#9F7AEA",
-                        border: `1px solid ${isSelected ? "rgba(255, 255, 255, 0.3)" : "rgba(159, 122, 234, 0.3)"}`,
-                        backdropFilter: "blur(4px)",
-                      }}
-                    >
-                      {getTagCount(tag)}
-                    </span>
-                  </button>
+                    <Icon className="channel-prefix" />
+                    <span>{label}</span>
+                  </div>
                 )
               })}
             </div>
+          )}
+
+          {/* Tags Section */}
+          <div className="mb-6">
+            <div className="sidebar-section-header">
+              <ChevronDown className="w-4 h-4 mr-1" />
+              Tags
+            </div>
+            {["all", ...tags].map((tag) => {
+              const isSelected = filters.tag === tag
+              const count = getTagCount(tag)
+              return (
+                <div
+                  key={tag}
+                  onClick={() => handleTagChange(tag)}
+                  className={`channel-item ${isSelected ? "active" : ""} justify-between`}
+                >
+                  <div className="flex items-center min-w-0">
+                    {tag !== "all" ? (
+                      <Hash className="channel-prefix" />
+                    ) : (
+                      <div className="w-4 h-4 mr-2" />
+                    )}
+                    <span className="truncate">
+                      {tag === "all" ? "All Posts" : tag}
+                    </span>
+                  </div>
+                  {count > 0 && (
+                    <span className="text-xs bg-opacity-20 px-2 py-1 rounded-full ml-2 flex-shrink-0">
+                      {count}
+                    </span>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Create Post Button - Only show for non-admin users */}
+          {!user?.is_admin && (
+            <div className="px-8 mb-6">
+              <button
+                onClick={onCreatePost}
+                className="w-full  bg-opacity-10 hover:bg-opacity-15 border border-white border-opacity-20 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 flex items-center justify-center space-x-2"
+              >
+                <Plus className="w-5 h-5" />
+                <span>Create Post</span>
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* User Section */}
+  <div className="user-section" style={{ position: "sticky", bottom: 0, left: 0, right: 0, zIndex: 10 }}>
+          <div className="user-info">
+            <div className="user-avatar">
+              {user?.employee_name ? user.employee_name.charAt(0).toUpperCase() : "U"}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-white font-semibold text-sm truncate">
+                {user?.name || "User"}
+              </div>
+              <div className="text-xs text-green-400">
+                ● Active
+              </div>
+            </div>
+            <MoreHorizontal className="w-4 h-4 text-gray-400" />
           </div>
         </div>
       </aside>

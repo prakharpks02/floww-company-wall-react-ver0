@@ -44,7 +44,29 @@ export const usePostCard = (post, activeView = 'home') => {
                             post.author_id === user?.user_id || 
                             post.author_id === user?.id ||
                             post.user_id === user?.user_id ||
-                            post.user_id === user?.id;
+                            post.user_id === user?.id ||
+                            post.author?.employee_id === user?.employee_id ||
+                            post.author?.employee_id === user?.id ||
+                            post.author?.id === user?.id ||
+                            post.author?.id === user?.employee_id;
+
+  // Debug logging to help identify the issue
+  console.log('🔍 Post ownership check:', {
+    postAuthor: post.author,
+    currentUser: user,
+    isCurrentUserPost,
+    comparisons: {
+      'post.author?.user_id === user?.user_id': post.author?.user_id === user?.user_id,
+      'post.author_id === user?.user_id': post.author_id === user?.user_id,
+      'post.author_id === user?.id': post.author_id === user?.id,
+      'post.user_id === user?.user_id': post.user_id === user?.user_id,
+      'post.user_id === user?.id': post.user_id === user?.id,
+      'post.author?.employee_id === user?.employee_id': post.author?.employee_id === user?.employee_id,
+      'post.author?.employee_id === user?.id': post.author?.employee_id === user?.id,
+      'post.author?.id === user?.id': post.author?.id === user?.id,
+      'post.author?.id === user?.employee_id': post.author?.id === user?.employee_id
+    }
+  });
 
   // Available emoji reactions - using backend-compatible reaction type names
   const emojiReactions = [

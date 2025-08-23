@@ -154,7 +154,7 @@ const AdminReportedCommentCard = ({ commentData, onCommentUpdate, onCommentDelet
       <div className="mb-4">
         <div className="text-sm font-medium text-gray-700 mb-2">Comment Content:</div>
         <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-          <p className="text-gray-800 whitespace-pre-wrap">{content}</p>
+          <p className="text-gray-800 whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: content }} />
         </div>
       </div>
 

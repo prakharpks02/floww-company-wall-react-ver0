@@ -249,7 +249,7 @@ useEffect(() => {
   const logout = () => {
     // For token auth, we could clear the token or redirect
   
-    window.location.href = 'https://dev.gofloww.co';
+    window.location.href = 'https://console.gofloww.co/employee/';
   };
 
   const value = {

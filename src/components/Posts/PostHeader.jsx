@@ -17,6 +17,16 @@ const PostHeader = ({
   onAdminEdit,
   onAdminDelete
 }) => {
+  // Debug logging for menu logic
+  console.log('🔍 PostHeader menu logic:', {
+    isAuthor,
+    isAdminView,
+    isBroadcast: post.isBroadcast,
+    hasAdminCallbacks: !!(onAdminEdit && onAdminDelete),
+    postAuthor: post.authorName,
+    postId: post.post_id
+  });
+
   return (
     <div className="flex items-start justify-between mb-4">
       <div className="flex items-center space-x-3">

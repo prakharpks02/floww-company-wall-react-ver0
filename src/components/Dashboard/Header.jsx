@@ -27,9 +27,9 @@ const Header = ({ onSearchChange, searchValue }) => {
               <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#9f7aea' }}>
                 <Users className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
               </div>
-              <div className="hidden xs:block sm:block min-w-0">
+              <div className="block min-w-0">
                 <h1 className="text-base sm:text-lg lg:text-xl font-semibold text-gray-900 truncate">
-                  Atom HR Community
+                  Atom Buzz Community
                 </h1>
                 <p className="text-xs sm:text-sm text-gray-500 truncate hidden sm:block">
                   Human Resources Department

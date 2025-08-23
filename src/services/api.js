@@ -366,11 +366,16 @@ export const postsAPI = {
         content: postData.content,
         ...(postData.media && postData.media.length > 0 && { media: postData.media }),
         ...(postData.mentions && postData.mentions.length > 0 && { 
-          // Ensure backend receives only usernames (strings) for mentions
+          // Send mentions as array of objects with employee_name
           mentions: postData.mentions.map(m => {
-            if (typeof m === 'string') return m;
-            if (m && typeof m === 'object') return m.username || m.user_id || '';
-            return String(m);
+            console.log('🔍 Processing mention:', m, 'Type:', typeof m);
+            if (typeof m === 'string') return { employee_name: m };
+            if (m && typeof m === 'object') {
+              const employee_name = m.employee_name || m.user_id || '';
+              console.log('🔍 Extracted employee_name:', employee_name);
+              return employee_name ? { employee_name: employee_name } : null;
+            }
+            return { employee_name: String(m) };
           }).filter(Boolean)
         }),
         // Process tags to extract just the tag names, not the nested objects
@@ -388,6 +393,8 @@ export const postsAPI = {
         ...((!postData.tags || postData.tags.length === 0) && { tags: [] })
       };
 
+      console.log('🔍 Final requestBody before sending:', JSON.stringify(requestBody, null, 2));
+      
       logApiCall('POST', endpoint, requestBody);
 
       const response = await fetchWithTimeout(endpoint, {
@@ -547,11 +554,14 @@ export const postsAPI = {
         return { media: allMedia };
       })(),
       ...(updateData.mentions && { 
-        // Ensure backend receives only usernames (strings) for mentions
+        // Send mentions as array of objects with employee_name
         mentions: (Array.isArray(updateData.mentions) ? updateData.mentions : [updateData.mentions]).map(m => {
-          if (typeof m === 'string') return m;
-          if (m && typeof m === 'object') return m.username || m.user_id || '';
-          return String(m);
+          if (typeof m === 'string') return { employee_name: m };
+          if (m && typeof m === 'object') {
+            const employee_name = m.employee_name || m.user_id || '';
+            return employee_name ? { employee_name: employee_name } : null;
+          }
+          return { employee_name: String(m) };
         }).filter(Boolean)
       })
     };

@@ -152,8 +152,16 @@ const RichTextEditor = ({
       const mentionSpan = document.createElement('span');
       mentionSpan.className = 'mention bg-purple-100 text-purple-800 px-1 rounded';
       mentionSpan.setAttribute('data-user-id', user.user_id || user.id || user.employee_id);
+      
+      // Debug: Log user object to see available properties
+      console.log('🔍 User object for mention:', user);
+      
+      const employeeUsername = user.employee_name || user.username || user.name;
+      console.log('🔍 Setting data-employee_name to:', employeeUsername);
+      
+      mentionSpan.setAttribute('data-employee_name', employeeUsername);
       mentionSpan.setAttribute('contenteditable', 'false');
-      mentionSpan.textContent = `@${user.username || user.name || user.employee_name}`;
+      mentionSpan.textContent = `@${user.employee_name || user.username}`;
       
       // Replace text
       textNode.textContent = beforeMention;
@@ -413,13 +421,13 @@ const RichTextEditor = ({
                 <div className="w-6 h-6 bg-gradient-to-br from-purple-400 to-blue-500 rounded-full flex items-center justify-center">
                   <span className="text-xs font-medium text-white">
                     {(() => {
-                      const userName = user.username || user.name || user.employee_name || user.email || 'User';
+                      const userName = user.employee_name || user.name || user.employee_name || user.email || 'User';
                       return (typeof userName === 'string' ? userName : 'U')[0].toUpperCase();
                     })()}
                   </span>
                 </div>
                 <div>
-                  <div className="text-sm font-medium text-gray-900">@{user.username || user.name || user.employee_name}</div>
+                  <div className="text-sm font-medium text-gray-900">@{user.employee_name || user.name}</div>
                   <div className="text-xs text-gray-500">{user.email}</div>
                   {(user.job_title || user.position) && (
                     <div className="text-xs text-blue-600">{user.job_title || user.position}</div>

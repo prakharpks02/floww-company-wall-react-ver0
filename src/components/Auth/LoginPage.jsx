@@ -81,7 +81,7 @@ const LoginPage = () => {
             {isLoginMode ? 'Sign in to your account' : 'Create new account'}
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
-            Atom HR Community Wall
+            Atom Buzz Community Wall
           </p>
         </div>
 

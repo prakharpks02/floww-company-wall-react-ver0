@@ -1,3 +1,12 @@
+// Add CSS to visually indicate non-breaking spaces
+const nbspStyle = {
+  background: 'rgba(156, 163, 175, 0.2)',
+  borderRadius: '3px',
+  padding: '0 2px',
+  fontStyle: 'italic',
+  color: '#7c3aed',
+};
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { adminAPI } from '../../services/adminAPI';
@@ -212,6 +221,16 @@ const AdminReportedContent = ({ activeView }) => {
     );
   }
 
+  // Helper to render text with visible &nbsp;
+  const renderWithNbsp = (text) => {
+    if (typeof text !== 'string') return text;
+    return text.split(/(\u00a0|&nbsp;)/).map((part, i) =>
+      part === '\u00a0' || part === '&nbsp;'
+        ? <span key={i} title="Non-breaking space">&nbsp;</span>
+        : part
+    );
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-8">
       <div className="max-w-7xl mx-auto space-y-8">
@@ -372,7 +391,7 @@ const AdminReportedContent = ({ activeView }) => {
                   {filteredPosts.map((post) => (
                     <AdminReportedPostCard
                       key={post.post_id}
-                      postData={post}
+                      postData={{...post, content: renderWithNbsp(post.content)}}
                       onPostUpdate={handlePostUpdate}
                       onPostDelete={handlePostDelete}
                     />
@@ -392,7 +411,7 @@ const AdminReportedContent = ({ activeView }) => {
                   {filteredComments.map((comment) => (
                     <AdminReportedCommentCard
                       key={comment.comment_id}
-                      commentData={comment}
+                      commentData={{...comment, content: renderWithNbsp(comment.content)}}
                       onCommentUpdate={handleCommentUpdate}
                       onCommentDelete={handleCommentDelete}
                     />

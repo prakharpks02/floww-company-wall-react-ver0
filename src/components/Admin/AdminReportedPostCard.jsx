@@ -268,7 +268,7 @@ const AdminReportedPostCard = ({ postData, onPostUpdate, onPostDelete }) => {
         <div>
           <div className="font-semibold text-blue-900">{localAuthor?.username || localAuthor?.name || localAuthor?.employee_name || 'Employee User'}</div>
           <div className="text-sm text-blue-700">{localAuthor?.email}</div>
-          <div className="text-xs text-blue-500">User ID: {localAuthor?.user_id}</div>
+          
           <div className="mt-2 flex items-center gap-2">
             <span className={`px-2 py-1 rounded text-xs font-bold ${localAuthor?.is_blocked ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
               {localAuthor?.is_blocked ? 'Blocked' : 'Active'}
@@ -289,7 +289,13 @@ const AdminReportedPostCard = ({ postData, onPostUpdate, onPostDelete }) => {
       <div className="mb-6">
         <div className="text-sm font-semibold text-blue-900 mb-2">Post Content:</div>
         <div className="bg-white border border-blue-100 rounded-xl p-4 shadow">
-          <p className="text-gray-800 whitespace-pre-wrap">{content}</p>
+          {typeof content === 'string' ? (
+            <p className="text-gray-800 whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: content }} />
+          ) : Array.isArray(content) ? (
+            <p className="text-gray-800 whitespace-pre-wrap">{content.map((c, i) => typeof c === 'string' ? <span key={i} dangerouslySetInnerHTML={{ __html: c }} /> : null)}</p>
+          ) : content && typeof content === 'object' ? (
+            <p className="text-gray-800 whitespace-pre-wrap">{JSON.stringify(content)}</p>
+          ) : null}
         </div>
       </div>
 

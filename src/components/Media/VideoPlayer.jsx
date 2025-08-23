@@ -14,16 +14,14 @@ const VideoPlayer = ({ src, poster, className = "" }) => {
   const togglePlay = async () => {
     if (videoRef.current) {
       try {
-        if (isPlaying) {
-          videoRef.current.pause();
-        } else {
+        if (videoRef.current.paused) {
           await videoRef.current.play();
+        } else {
+          videoRef.current.pause();
         }
-        setIsPlaying(!isPlaying);
+        // No need to setIsPlaying here, let onPlay/onPause handlers update it
       } catch (error) {
-       
-      
-        // Update state based on actual video state
+        // Fallback: update state based on actual video state
         setIsPlaying(!videoRef.current.paused);
       }
     }
@@ -122,12 +120,12 @@ const VideoPlayer = ({ src, poster, className = "" }) => {
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2 sm:p-4">
           {/* Progress Bar */}
           <div
-            className="w-full h-1 sm:h-2 bg-white/30 rounded-full cursor-pointer mb-2 sm:mb-3 touch-friendly"
+            className="w-full h-0 bg-white/10 rounded-full cursor-pointer mb-2 sm:mb-3 touch-friendly flex items-center"
             onClick={handleSeek}
           >
             <div
-              className="h-full bg-purple-500 rounded-full transition-all duration-150"
-              style={{ width: `${progressPercentage}%` }}
+              className="h-1 bg-purple-500 rounded-full transition-all duration-150 ml-1"
+              style={{ width: `calc(${progressPercentage}% - 2px)` }}
             />
           </div>
 
