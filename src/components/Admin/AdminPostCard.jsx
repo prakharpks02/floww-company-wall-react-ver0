@@ -96,24 +96,21 @@ const AdminPostCard = ({
   // Memoize block status to ensure re-renders when it changes
   const isUserBlocked = useMemo(() => {
     const blocked = normalizedPost.author?.is_blocked === true || normalizedPost.author?.is_blocked === "true";
-    console.log('🔍 AdminPostCard - Block status check:', {
-      authorId: normalizedPost.author?.user_id,
-      isBlocked: normalizedPost.author?.is_blocked,
-      computed: blocked
-    });
+  
+  
     return blocked;
   }, [normalizedPost.author?.is_blocked, normalizedPost.author?.user_id]);
 
   // Override handlers with admin-specific ones
   const adminHandleLike = () => {
     // Admins cannot react to posts
-    console.log('Admin reaction disabled');
+
     return;
   };
 
   const adminHandleReaction = (reactionType) => {
     // Admins cannot react to posts
-    console.log('Admin reaction disabled');
+ 
     return;
   };
 
@@ -301,12 +298,7 @@ const AdminPostCard = ({
   // Custom admin header with admin actions
   const renderAdminHeader = () => {
     // Debug log to check author object structure
-    console.log('🔍 AdminPostCard - Author object:', {
-      rawAuthor: post.author,
-      normalizedAuthor: normalizedPost.author,
-      isBlocked: normalizedPost.author?.is_blocked
-    });
-
+   
     return (
       <div className="flex items-center justify-between mb-4">
         {/* Custom header without PostHeader's menu */}
@@ -365,19 +357,13 @@ const AdminPostCard = ({
                 {normalizedPost.author && (
                   <button
                     onClick={() => { 
-                      console.log('🔍 Block button clicked for user:', {
-                        userId: normalizedPost.author.user_id,
-                        employeeId: normalizedPost.author.employee_id,
-                        author: normalizedPost.author,
-                        isBlocked: normalizedPost.author.is_blocked,
-                        computed: isUserBlocked
-                      });
+                    
                       // Debug: Log all possible IDs from the author object
-                      console.log('🔍 All author data:', normalizedPost.author);
+                      
                       
                       // Try different ID formats - use employee_id first, fallback to user_id
                       const userIdToBlock = normalizedPost.author.employee_id || normalizedPost.author.user_id;
-                      console.log('🔍 Using ID for blocking:', userIdToBlock);
+                   
                       
                       if (!userIdToBlock) {
                         console.error('❌ No valid user ID found for blocking');

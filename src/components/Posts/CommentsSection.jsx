@@ -38,15 +38,6 @@ const CommentsSection = ({
   const userBlocked = user?.is_blocked === true || user?.is_blocked === "true";
   const userIsAdmin = user?.is_admin === true || user?.is_admin === "true" || isAdmin;
 
-  console.log('🔍 CommentsSection - Comment status check:', {
-    postId: normalizedPost.post_id || normalizedPost.id,
-    is_comments_allowed: normalizedPost.is_comments_allowed,
-    is_comments_allowed_type: typeof normalizedPost.is_comments_allowed,
-    commentsAllowed,
-    userBlocked,
-    userIsAdmin
-  });
-
   return (
     <div className="space-y-3 mt-4 border-t border-gray-100 pt-4">
       {/* Show comment input box when comments are open and allowed */}

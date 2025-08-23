@@ -21,12 +21,8 @@ const VideoPlayer = ({ src, poster, className = "" }) => {
         }
         setIsPlaying(!isPlaying);
       } catch (error) {
-        // Handle AbortError and other play/pause errors
-        if (error.name === 'AbortError') {
-          console.log('Video play was interrupted, ignoring error');
-        } else {
-          console.error('Video play/pause error:', error);
-        }
+       
+      
         // Update state based on actual video state
         setIsPlaying(!videoRef.current.paused);
       }

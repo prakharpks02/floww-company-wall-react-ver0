@@ -48,7 +48,6 @@ export const PostProvider = ({ children }) => {
     
     if (!Array.isArray(reactionsArray)) {
       // If it's already an object, return as is
-      console.log('🔍 PostContext normalizeReactions - Not an array, returning as is:', reactionsArray);
       return reactionsArray || {};
     }
     
@@ -115,18 +114,14 @@ export const PostProvider = ({ children }) => {
 
   // Normalize post data to ensure consistent format
   const normalizePost = (rawPost) => {
-    console.log('🔍 PostContext normalizePost - Raw post:', rawPost);
-    
     let normalizedReactions = {};
     
     // Handle new reaction_counts format first (takes priority)
     if (rawPost.reaction_counts) {
-      console.log('🔍 PostContext normalizePost - Using reaction_counts format');
       normalizedReactions = normalizeReactionCounts(rawPost.reaction_counts);
     } 
     // Fallback to old reactions array format
     else if (rawPost.reactions) {
-      console.log('🔍 PostContext normalizePost - Using reactions array format');
       normalizedReactions = normalizeReactions(rawPost.reactions);
     }
     
@@ -139,12 +134,6 @@ export const PostProvider = ({ children }) => {
                       user?.name || 
                       (user?.is_admin ? 'Admin' : 'Employee User');
     const authorAvatar = rawPost.author?.avatar || rawPost.authorAvatar || rawPost.author_avatar;
-    
-    console.log('🔍 PostContext normalizePost - Author info:', {
-      authorName,
-      authorAvatar,
-      originalAuthor: rawPost.author
-    });
     
     // Normalize comments to handle backend format
     const normalizedComments = rawPost.comments?.map(comment => {
@@ -224,7 +213,6 @@ export const PostProvider = ({ children }) => {
       is_broadcast: rawPost.is_broadcast || false,
       // Convert media array back to separate arrays for frontend compatibility
       ...(rawPost.media && Array.isArray(rawPost.media) ? (() => {
-        console.log('🔍 Processing media array:', rawPost.media);
         const mediaArrays = { images: [], videos: [], documents: [], links: [] };
         rawPost.media.forEach((mediaItem, index) => {
           if (mediaItem && mediaItem.link) {
@@ -258,8 +246,6 @@ export const PostProvider = ({ children }) => {
               type: mediaItem.type || 'unknown'
             };
             
-            console.log('🔍 Processing media URL:', url);
-            
             // Simplified image detection - just check for common image extensions
             const isImage = /\.(jpg|jpeg|png|gif|webp|svg|bmp|ico)(\?.*)?$/i.test(url) ||
                            url.includes('cdn.gofloww.co') && /\.(jpg|jpeg|png|gif|webp|svg|bmp|ico)/i.test(url);
@@ -270,24 +256,19 @@ export const PostProvider = ({ children }) => {
             
             if (isImage) {
               mediaArrays.images.push(mediaObj);
-              console.log('✅ Added as image:', mediaObj);
             } else if (isVideo) {
               mediaArrays.videos.push(mediaObj);
-              console.log('✅ Added as video:', mediaObj);
             } else if (isDocument) {
               mediaObj.isPDF = /\.pdf(\?.*)?$/i.test(url);
               mediaArrays.documents.push(mediaObj);
-              console.log('✅ Added as document:', mediaObj);
             } else {
               // Only add to links if it's not categorized as image, video, or document
               // This prevents duplicates
               mediaArrays.links.push(mediaObj);
-              console.log('✅ Added as link:', mediaObj);
             }
           }
         });
         
-        console.log('🔍 Final media arrays:', mediaArrays);
         return mediaArrays;
       })() : {
         // Keep existing arrays if no media array
@@ -298,7 +279,6 @@ export const PostProvider = ({ children }) => {
       })
     };
   
-    console.log('🔍 PostContext normalizePost - Normalized post:', normalized);
     return normalized;
   };
 
@@ -373,7 +353,6 @@ export const PostProvider = ({ children }) => {
   useEffect(() => {
     const loadPosts = async () => {
       if (!user) {
-        console.log('⚠️ PostContext - No authenticated user, skipping post loading');
         setPosts([]);
         setNextCursor(null);
         setHasMorePosts(true);
@@ -383,7 +362,6 @@ export const PostProvider = ({ children }) => {
       
       // Admin users don't have personal posts, skip loading
       if (user?.is_admin) {
-        console.log('🔍 PostContext - Admin user detected, skipping personal posts loading');
         setPosts([]);
         setNextCursor(null);
         setHasMorePosts(true);
@@ -393,30 +371,24 @@ export const PostProvider = ({ children }) => {
       
       try {
         setLoading(true);
-        console.log('🔄 PostContext - Loading posts for user');
         
         const backendPosts = await postsAPI.getMyPosts();
-        console.log('🔄 PostContext - Backend response:', backendPosts);
         
         let postsData = [];
 
         // Check the new nested structure (same as loadAllPosts)
         if (backendPosts.data && Array.isArray(backendPosts.data.posts)) {
           postsData = backendPosts.data.posts;
-          console.log('✅ PostContext - Found posts in nested structure:', postsData.length);
         } else if (Array.isArray(backendPosts.data)) {
           // Fallback to old structure if present
           postsData = backendPosts.data;
-          console.log('✅ PostContext - Found posts in old structure:', postsData.length);
         } else {
-          console.log('📝 PostContext - No posts found for current user, showing empty state');
           postsData = [];
         }
 
         // Normalize all posts to ensure consistent format
         const normalizedPosts = postsData.map(post => {
           const normalized = normalizePost(post);
-          console.log('🔄 PostContext - Normalized post:', normalized);
           return normalized;
         });
         
@@ -426,7 +398,6 @@ export const PostProvider = ({ children }) => {
         setHasMorePosts(true);
       } catch (error) {
         console.error('❌ PostContext - Failed to load user posts from backend:', error.message);
-        console.log('📝 PostContext - Showing empty posts state due to backend error');
         setPosts([]);
         setNextCursor(null);
         setHasMorePosts(false);
@@ -454,7 +425,6 @@ export const PostProvider = ({ children }) => {
   const reloadPosts = async () => {
     // Admin users don't have personal posts, skip reloading
     if (user?.is_admin) {
-      console.log('🔍 PostContext - Admin user detected, skipping personal posts reload');
       setPosts([]);
       return;
     }
@@ -470,7 +440,6 @@ export const PostProvider = ({ children }) => {
         // Fallback to old structure if present
         postsData = backendPosts.data;
       } else {
-        console.log('📝 No posts found for current user');
         postsData = [];
       }
         
@@ -488,20 +457,15 @@ export const PostProvider = ({ children }) => {
     try {
       setLoading(true);
       const cursor = resetPagination ? null : nextCursor;
-      console.log('🔄 Loading posts with cursor:', cursor, 'resetPagination:', resetPagination);
-      console.log('🔍 User type for loadAllPosts:', user?.is_admin ? 'Admin' : 'Employee');
     
       let pinnedPosts = [];
       
       // Load pinned posts first on initial load (sequential loading for better UX)
       if (resetPagination) {
         try {
-          console.log('📌 Loading pinned posts first...');
           const pinnedPostsResponse = user?.is_admin 
             ? await adminAPI.getPinnedPosts() 
             : await postsAPI.getPinnedPosts();
-          
-          console.log('📌 Pinned posts response:', pinnedPostsResponse);
           
           // Process pinned posts with different response structures
           let pinnedPostsData = [];
@@ -518,20 +482,17 @@ export const PostProvider = ({ children }) => {
             is_pinned: true
           }));
           
-          console.log('✅ Pinned posts loaded:', pinnedPosts.length);
         } catch (pinnedError) {
-          console.error('❌ Error loading pinned posts:', pinnedError);
+
           pinnedPosts = [];
         }
       }
       
       // Then load regular posts
-      console.log('📄 Loading regular posts...');
       const backendPosts = user?.is_admin 
         ? await adminAPI.getAllPosts(cursor)
         : await postsAPI.getPosts(1, 10, cursor);
     
-      console.log('📡 Backend response:', backendPosts);
       
       // Process regular posts
       let postsData = [];
@@ -542,7 +503,7 @@ export const PostProvider = ({ children }) => {
       } else if (Array.isArray(backendPosts.posts)) {
         postsData = backendPosts.posts;
       } else {
-        console.warn('🛑 No posts found in backend response:', backendPosts);
+      
         postsData = [];
       }
 
@@ -553,11 +514,7 @@ export const PostProvider = ({ children }) => {
         const pinnedPostIds = new Set(pinnedPosts.map(p => p.post_id));
         const regularPostsFiltered = postsData.filter(p => !pinnedPostIds.has(p.post_id));
         allPosts = [...pinnedPosts, ...regularPostsFiltered];
-        console.log('🔄 Combined posts for home feed:', {
-          pinnedCount: pinnedPosts.length,
-          regularCount: regularPostsFiltered.length,
-          totalCombined: allPosts.length
-        });
+    
       } else {
         // For pagination, just add new regular posts
         allPosts = postsData;
@@ -587,7 +544,6 @@ export const PostProvider = ({ children }) => {
       
       if (resetPagination) {
         setPosts(uniqueNormalizedPosts);
-        console.log('✅ Posts loaded:', uniqueNormalizedPosts.length);
       } else {
         // Append new posts for pagination
         setPosts(prevPosts => {
@@ -621,9 +577,6 @@ export const PostProvider = ({ children }) => {
     if (!autoRefreshEnabled || posts.length === 0) return;
 
     try {
-      console.log('🔄 Refreshing reactions for', posts.length, 'posts');
-      console.log('🔍 User type for refresh:', user?.is_admin ? 'Admin' : 'Employee');
-      
       // Get updated posts data using appropriate API based on user type
       const backendPosts = user?.is_admin 
         ? await adminAPI.getAllPosts()
@@ -664,7 +617,6 @@ export const PostProvider = ({ children }) => {
       });
 
       setLastRefreshTime(Date.now());
-      console.log('✅ Reactions refreshed successfully');
     } catch (error) {
       console.error('❌ Failed to refresh reactions:', error.message);
     }
@@ -731,16 +683,12 @@ export const PostProvider = ({ children }) => {
         }))
       ];
 
-      console.log('🔍 PostContext createPost - All media objects:', allMedia);
-
       const backendResult = await postsAPI.createPost({
         content: postData.content,
         media: allMedia,
         mentions: postData.mentions || [],
         tags: postData.tags || []
       });
-      
-      console.log('✅ Backend post creation successful:', backendResult);
       
       // Create final post object with backend data
       const finalPost = {
@@ -775,7 +723,6 @@ export const PostProvider = ({ children }) => {
         )
       );
 
-      console.log('✅ Post created successfully with real-time update:', finalPost);
       return finalPost;
 
     } catch (error) {
@@ -792,15 +739,6 @@ export const PostProvider = ({ children }) => {
 
   const editPost = async (postId, updatedData) => {
     if (!user) return;
-
-    console.log('🔍 PostContext editPost - Input data:', {
-      postId,
-      updatedData,
-      images: updatedData.images,
-      videos: updatedData.videos,
-      documents: updatedData.documents,
-      links: updatedData.links
-    });
 
     try {
       const postToUpdate = posts.find(p => (p.id === postId || p.post_id === postId));
@@ -825,7 +763,6 @@ export const PostProvider = ({ children }) => {
       // Call the API to update the post - use the correct post ID
       const actualPostId = postToUpdate.post_id || postToUpdate.id;
       const apiResponse = await postsAPI.updatePost(actualPostId, updatedData);
-      console.log('🔍 PostContext editPost - API response:', apiResponse);
       
       // Update with final data from backend
       const finalUpdate = {
@@ -839,8 +776,6 @@ export const PostProvider = ({ children }) => {
           (post.id === postId || post.post_id === postId) ? finalUpdate : post
         )
       );
-      
-      console.log('✅ Post updated successfully with real-time update:', postId);
       
     } catch (error) {
       console.error('❌ Edit post error:', error);
@@ -871,7 +806,6 @@ export const PostProvider = ({ children }) => {
       // Call the API to delete the post
       await postsAPI.deletePost(postId);
       
-      console.log('✅ Post deleted successfully with real-time update:', postId);
     } catch (error) {
       console.error('❌ Delete post failed:', error.message);
       
@@ -1037,49 +971,15 @@ export const PostProvider = ({ children }) => {
   const editComment = async (commentId, newContent) => {
     if (!user) return;
 
-    console.log('🔍 PostContext editComment called:', {
-      commentId,
-      newContent
-    });
-
     try {
       const apiResponse = await postsAPI.editComment(commentId, newContent);
       
-      console.log('🔍 PostContext editComment API response:', apiResponse);
-
       // First, let's see the current state before updating
       setPosts(prevPosts => {
-        console.log('🔍 PostContext before edit - current posts:', prevPosts.length);
-        
         const updatedPosts = prevPosts.map(post => {
-          console.log('🔍 PostContext checking post:', {
-            postId: post.id || post.post_id,
-            commentsCount: post.comments?.length || 0,
-            hasComments: !!post.comments
-          });
-          
-          if (post.comments && post.comments.length > 0) {
-            console.log('🔍 PostContext post comments before edit:', post.comments.map(c => ({
-              id: c.comment_id || c.id,
-              content: c.content,
-              contentType: typeof c.content
-            })));
-          }
-          
           return {
             ...post,
             comments: post.comments?.map(comment => {
-              console.log('🔍 PostContext checking comment for edit:', {
-                commentIdToEdit: commentId,
-                commentId: comment.comment_id,
-                commentIdAlt: comment.id,
-                currentContent: comment.content,
-                currentContentType: typeof comment.content,
-                newContent: newContent,
-                newContentType: typeof newContent,
-                willUpdate: comment.id === commentId || comment.comment_id === commentId
-              });
-              
               if (comment.id === commentId || comment.comment_id === commentId) {
                 const updatedComment = {
                   ...comment,
@@ -1087,30 +987,16 @@ export const PostProvider = ({ children }) => {
                   edited: true,
                   edited_at: new Date().toISOString()
                 };
-                console.log('🔍 PostContext updated comment result:', {
-                  original: comment,
-                  updated: updatedComment,
-                  contentChanged: comment.content !== newContent
-                });
                 return updatedComment;
               }
               return comment;
             }) || []
           };
         });
-        
-        console.log('🔍 PostContext updated posts after edit - checking first post comments:', 
-          updatedPosts[0]?.comments?.map(c => ({
-            id: c.comment_id || c.id,
-            content: c.content,
-            contentType: typeof c.content
-          }))
-        );
         return updatedPosts;
       });
       
       // Also check if we need to refresh from server
-      console.log('🔍 PostContext checking if we should refresh post data from server...');
       
     } catch (error) {
       console.error('❌ Edit comment error:', error);
@@ -1176,7 +1062,6 @@ export const PostProvider = ({ children }) => {
     
     // Admin users cannot react to comments
     if (user?.is_admin) {
-      console.log('🔍 PostContext - Admin users cannot react to comments');
       return;
     }
 
@@ -1237,7 +1122,6 @@ export const PostProvider = ({ children }) => {
     
     // Admin users cannot react to posts
     if (user?.is_admin) {
-      console.log('🔍 PostContext - Admin users cannot react to posts');
       return;
     }
 
@@ -1252,16 +1136,13 @@ export const PostProvider = ({ children }) => {
       
       // Immediately refresh reactions for real-time updates
       await refreshReactions();
-      console.log('✅ Refreshed reactions in real-time after user action');
       
       // Reload the appropriate feed based on the active view
       if (activeView === 'myposts') {
         await reloadPosts();
-        console.log('✅ Reloaded user posts after reaction');
       } else {
         // Default to home feed
         await loadAllPosts();
-        console.log('✅ Reloaded home feed after reaction');
       }
 
     } catch (error) {
@@ -1325,14 +1206,6 @@ export const PostProvider = ({ children }) => {
 
   const getFilteredPosts = (filters = {}) => {
     let filteredPosts = [...posts];
-    console.log('🔍 getFilteredPosts called with:', { 
-      filters, 
-      totalPosts: posts.length,
-      postsPreview: posts.slice(0, 2).map(p => ({ 
-        id: p.post_id || p.id, 
-        content: p.content?.substring(0, 30) 
-      }))
-    });
 
     // Filter by tag
     if (filters.tag && filters.tag !== 'all') {
@@ -1343,11 +1216,6 @@ export const PostProvider = ({ children }) => {
           return tagName === filters.tag;
         })
       );
-      console.log('🏷️ Tag filter applied:', { 
-        tag: filters.tag, 
-        before: beforeTagFilter, 
-        after: filteredPosts.length 
-      });
     }
 
     // Filter by search query
@@ -1362,17 +1230,8 @@ export const PostProvider = ({ children }) => {
           return tagName.toLowerCase().includes(searchQuery);
         }))
       );
-      console.log('🔍 Search filter applied:', { 
-        query: searchQuery, 
-        before: beforeSearchFilter, 
-        after: filteredPosts.length 
-      });
     }
 
-    console.log('🔍 getFilteredPosts result:', { 
-      finalCount: filteredPosts.length,
-      originalCount: posts.length 
-    });
     return filteredPosts;
   };
 

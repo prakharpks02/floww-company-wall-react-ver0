@@ -5,20 +5,20 @@ export const useUserActions = (posts, setPosts, pinnedPosts, setPinnedPosts, set
   
   const handleBlockUser = async (userId) => {
     try {
-      console.log('🔍 Blocking/Unblocking user:', userId);
+     
       
       // Find current user status before toggling - use employee_id instead of user_id
       const currentUser = posts.find(post => 
         post.author?.user_id === userId || 
         post.author?.employee_id === userId
       )?.author;
-      console.log('🔍 Current user before toggle:', currentUser);
+     
       
       // Optimistic update - toggle the status immediately for better UX
       const currentBlockedStatus = currentUser?.is_blocked === true || currentUser?.is_blocked === "true";
       const optimisticNewStatus = !currentBlockedStatus;
       
-      console.log('🔍 Optimistic update - Current status:', currentBlockedStatus, '-> New status:', optimisticNewStatus);
+    
       
       // Update UI immediately (optimistic update) - check both user_id and employee_id
       const updateUserStatus = (posts, newStatus) => posts.map(post => ({
@@ -46,7 +46,7 @@ export const useUserActions = (posts, setPosts, pinnedPosts, setPinnedPosts, set
       
       // Call the API with the correct ID format
       const result = await adminAPI.toggleBlockUser(userId);
-      console.log('🔍 Toggle block result:', result);
+    
       
       // Handle the response - the backend should return the new status
       let serverBlockedStatus;
@@ -55,24 +55,24 @@ export const useUserActions = (posts, setPosts, pinnedPosts, setPinnedPosts, set
       } else if (result.new_status !== undefined) {
         serverBlockedStatus = result.new_status === true || result.new_status === "true";
       } else {
-        console.log('⚠️ No status returned, keeping optimistic update');
+        
         const action = optimisticNewStatus ? 'blocked' : 'unblocked';
-        console.log(`✅ User ${userId} has been ${action} successfully (optimistic)`);
+      
         return;
       }
       
-      console.log('🔍 Server blocked status:', serverBlockedStatus);
+     
       
       // If server response differs from optimistic update, correct it
       if (serverBlockedStatus !== optimisticNewStatus) {
-        console.log('🔄 Correcting optimistic update with server response');
+       
         setPosts(prev => updateUserStatus(prev, serverBlockedStatus));
         setPinnedPosts(prev => updateUserStatus(prev, serverBlockedStatus));
       }
       
       // Show success message
       const action = serverBlockedStatus ? 'blocked' : 'unblocked';
-      console.log(`✅ User ${userId} has been ${action} successfully`);
+     
       
     } catch (error) {
       console.error('Error blocking user:', error);

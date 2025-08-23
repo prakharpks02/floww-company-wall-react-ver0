@@ -107,9 +107,6 @@ export const adminAPI = {
       endpoint += `?${params.toString()}`;
     }
 
-    console.log('🔄 API getAllPosts - Endpoint:', endpoint);
-    logApiCall('GET', endpoint);
-
     try {
       const response = await fetchWithTimeout(endpoint, {
         method: 'GET'
@@ -120,12 +117,6 @@ export const adminAPI = {
       const posts = result?.data?.posts || result?.posts || result?.data || [];
       const next = result?.data?.nextCursor || result?.nextCursor || null;
       const hasMore = result?.data?.hasMore || result?.hasMore || (next !== null);
-
-      console.log(`✅ Retrieved ${posts.length} admin posts`);
-      console.log('🔍 Pagination info:', {
-        nextCursor: next,
-        hasMore
-      });
 
       return {
         posts,
@@ -143,7 +134,6 @@ export const adminAPI = {
   // Get broadcast posts
   getBroadcastPosts: async () => {
     const endpoint = `${API_CONFIG.BASE_URL}/admin/posts/broadcast`;
-    logApiCall('GET', endpoint);
     
     try {
       const response = await fetchWithTimeout(endpoint, {
@@ -153,10 +143,6 @@ export const adminAPI = {
       const result = await handleResponse(response);
       // Handle the nested data structure from API response
       const posts = result?.data?.posts || result?.posts || result?.data || [];
-      
-      console.log(`✅ Retrieved ${posts.length} broadcast posts`);
-      console.log('🔍 Admin API getBroadcastPosts - Raw result:', result);
-      console.log('🔍 Admin API getBroadcastPosts - Extracted posts:', posts);
       
       return {
         posts,
@@ -171,7 +157,6 @@ export const adminAPI = {
   // Create new post
   createPost: async (postData) => {
     const endpoint = `${API_CONFIG.BASE_URL}/admin/posts`;
-    logApiCall('POST', endpoint, postData);
     
     try {
       const response = await fetchWithTimeout(endpoint, {
@@ -180,7 +165,6 @@ export const adminAPI = {
       });
       
       const result = await handleResponse(response);
-      console.log('✅ Post created successfully');
       
       return result;
     } catch (error) {
@@ -192,7 +176,6 @@ export const adminAPI = {
   // Broadcast post
   broadcastPost: async (postData) => {
     const endpoint = `${API_CONFIG.BASE_URL}/admin/broadcast`;
-    logApiCall('POST', endpoint, postData);
     
     try {
       const response = await fetchWithTimeout(endpoint, {
@@ -201,7 +184,6 @@ export const adminAPI = {
       });
       
       const result = await handleResponse(response);
-      console.log('✅ Post broadcasted successfully');
       
       return result;
     } catch (error) {
@@ -223,17 +205,12 @@ export const adminAPI = {
       endpoint = `${API_CONFIG.BASE_URL}/posts/pinned`;
     }
     
-    logApiCall('GET', endpoint);
-    
     try {
       const response = await fetchWithTimeout(endpoint, {
         method: 'GET'
       });
       
       const result = await handleResponse(response);
-      
-      console.log(`✅ Retrieved pinned posts from ${endpoint}`);
-      console.log('� Pinned posts result:', result);
       
       return result;
     } catch (error) {
@@ -245,8 +222,7 @@ export const adminAPI = {
   // Toggle pin status of a post
   togglePinPost: async (postId) => {
     const endpoint = `${API_CONFIG.BASE_URL}/admin/posts/${postId}/toggle_pin`;
-    logApiCall('POST', endpoint, { postId });
-
+    
     try {
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
@@ -254,7 +230,6 @@ export const adminAPI = {
       });
 
       const result = await handleResponse(response);
-      console.log('✅ Post pin status toggled successfully');
       
       return result;
     } catch (error) {
@@ -266,7 +241,6 @@ export const adminAPI = {
   // Add comment to post
   addPostComment: async (postId, commentData) => {
     const endpoint = `${API_CONFIG.BASE_URL}/admin/posts/${postId}/comments`;
-    logApiCall('POST', endpoint, { postId, commentData });
     
     try {
       const response = await fetchWithTimeout(endpoint, {
@@ -275,12 +249,6 @@ export const adminAPI = {
       });
       
       const result = await handleResponse(response);
-      console.log('✅ Comment added successfully');
-      console.log('🔍 AdminAPI - New comment response:', result);
-      if (result.author) {
-        console.log('🔍 AdminAPI - New comment author:', result.author);
-        console.log('🔍 AdminAPI - New comment author fields:', Object.keys(result.author));
-      }
       
       return result;
     } catch (error) {
@@ -292,7 +260,6 @@ export const adminAPI = {
   // Get post comments for admin view
   getPostComments: async (postId) => {
     const endpoint = `${API_CONFIG.BASE_URL}/admin/posts/${postId}/comments`;
-    logApiCall('POST', endpoint, { postId });
     
     try {
       const response = await fetchWithTimeout(endpoint, {
@@ -301,15 +268,6 @@ export const adminAPI = {
       });
       
       const result = await handleResponse(response);
-      console.log('✅ Retrieved post comments');
-      console.log('🔍 AdminAPI - Comment response:', result);
-      if (result.data && Array.isArray(result.data)) {
-        console.log('🔍 AdminAPI - First comment structure:', result.data[0]);
-        if (result.data[0]?.author) {
-          console.log('🔍 AdminAPI - First comment author:', result.data[0].author);
-          console.log('🔍 AdminAPI - Author fields:', Object.keys(result.data[0].author));
-        }
-      }
       
       return result;
     } catch (error) {
@@ -323,10 +281,6 @@ export const adminAPI = {
     // Handle both direct postId and post data with post_id
     const actualPostId = (typeof postId === 'object' && postId.post_id) ? postId.post_id : postId;
     const endpoint = `${API_CONFIG.BASE_URL}/admin/posts/${actualPostId}/delete`;
-    
-    console.log('🔍 API deletePost - Post ID:', actualPostId);
-    console.log('🔍 API deletePost - Endpoint:', endpoint);
-    logApiCall('POST', endpoint, { postId: actualPostId });
     
     try {
       const response = await fetchWithTimeout(endpoint, {
@@ -348,9 +302,6 @@ export const adminAPI = {
         }
       }
       
-      console.log('✅ Post deleted successfully:', actualPostId);
-      console.log('🔍 Backend response:', result);
-      
       return result;
     } catch (error) {
       console.error('❌ Delete post error:', error.message);
@@ -366,12 +317,6 @@ export const adminAPI = {
   toggleBlockUser: async (employeeId) => {
     const endpoint = `${API_CONFIG.BASE_URL}/admin/${employeeId}/toggle_block`;
     
-    console.log('🔍 Toggle block user - Employee ID:', employeeId);
-    console.log('🔍 Toggle block user - Employee ID type:', typeof employeeId);
-    console.log('🔍 Toggle block user - Employee ID length:', employeeId?.length);
-    console.log('🔍 Toggle block user - Endpoint:', endpoint);
-    logApiCall('POST', endpoint, { employeeId });
-
     try {
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
@@ -379,7 +324,6 @@ export const adminAPI = {
       });
 
       const result = await handleResponse(response);
-      console.log('✅ Employee block status toggled successfully:', result);
       
       // Parse the message to extract the new status
       let newBlockStatus = false;
@@ -388,8 +332,6 @@ export const adminAPI = {
       } else if (result.message && result.message.includes('Blocked: False')) {
         newBlockStatus = false;
       }
-      
-      console.log('🔍 Parsed new block status:', newBlockStatus);
       
       return {
         ...result,
@@ -405,8 +347,7 @@ export const adminAPI = {
   // Get blocked users
   getBlockedUsers: async () => {
     const endpoint = `${API_CONFIG.BASE_URL}/admin/get_blocked_users`;
-    logApiCall('POST', endpoint);
-
+    
     try {
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
@@ -414,7 +355,6 @@ export const adminAPI = {
       });
 
       const result = await handleResponse(response);
-      console.log('✅ Retrieved blocked users');
       
       return result;
     } catch (error) {
@@ -432,7 +372,6 @@ export const adminAPI = {
   // Send broadcast message
   broadcastMessage: async (content, media = [], mentions = [], tags = []) => {
     const endpoint = `${API_CONFIG.BASE_URL}/admin/broadcast`;
-    logApiCall('POST', endpoint, { content, media, mentions, tags });
     
     try {
       const response = await fetchWithTimeout(endpoint, {
@@ -446,7 +385,6 @@ export const adminAPI = {
       });
       
       const result = await handleResponse(response);
-      console.log('✅ Broadcast message sent successfully');
       
       return result;
     } catch (error) {
@@ -458,7 +396,6 @@ export const adminAPI = {
   // Clear all broadcast messages (admin only)
   clearAllBroadcasts: async () => {
     const endpoint = `${API_CONFIG.BASE_URL}/admin/broadcasts/clear`;
-    logApiCall('DELETE', endpoint);
     
     try {
       const response = await fetchWithTimeout(endpoint, {
@@ -466,7 +403,6 @@ export const adminAPI = {
       });
       
       const result = await handleResponse(response);
-      console.log('✅ All broadcasts cleared successfully');
       
       return result;
     } catch (error) {
@@ -482,8 +418,7 @@ export const adminAPI = {
   // Create report
   createReport: async (reportData) => {
     const endpoint = `${API_CONFIG.BASE_URL}/admin/reports`;
-    logApiCall('POST', endpoint, reportData);
-
+    
     try {
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
@@ -491,7 +426,6 @@ export const adminAPI = {
       });
 
       const result = await handleResponse(response);
-      console.log('✅ Report created successfully');
       
       return result;
     } catch (error) {
@@ -503,8 +437,7 @@ export const adminAPI = {
   // Get all reported content
   getReportedContent: async () => {
     const endpoint = `${API_CONFIG.BASE_URL}/admin/reports`;
-    logApiCall('POST', endpoint);
-
+    
     try {
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
@@ -512,7 +445,6 @@ export const adminAPI = {
       });
 
       const result = await handleResponse(response);
-      console.log('✅ getReportedContent - Response:', result);
       
       return result;
     } catch (error) {
@@ -524,7 +456,6 @@ export const adminAPI = {
   // Resolve a report
   resolveReport: async (reportId, action = 'resolved') => {
     const endpoint = `${API_CONFIG.BASE_URL}/admin/reports/${reportId}/resolve`;
-    logApiCall('POST', endpoint, { reportId, action });
     
     try {
       const response = await fetchWithTimeout(endpoint, {
@@ -533,7 +464,6 @@ export const adminAPI = {
       });
       
       const result = await handleResponse(response);
-      console.log('✅ Report resolved successfully');
       
       return result;
     } catch (error) {
@@ -549,7 +479,6 @@ export const adminAPI = {
   // Delete a comment
   deleteComment: async (commentId) => {
     const endpoint = `${API_CONFIG.BASE_URL}/admin/comments/${commentId}/delete`;
-    logApiCall('POST', endpoint, { commentId });
     
     try {
       const response = await fetchWithTimeout(endpoint, {
@@ -558,7 +487,6 @@ export const adminAPI = {
       });
       
       const result = await handleResponse(response);
-      console.log('✅ Comment deleted successfully');
       
       return result;
     } catch (error) {
@@ -570,7 +498,6 @@ export const adminAPI = {
   // Toggle comments on a post (enable/disable comments)
   togglePostComments: async (postId, currentState) => {
     const endpoint = `${API_CONFIG.BASE_URL}/admin/comments/${postId}/toggle`;
-    logApiCall('POST', endpoint, { postId, currentState });
     
     try {
       const response = await fetchWithTimeout(endpoint, {
@@ -579,7 +506,6 @@ export const adminAPI = {
       });
       
       const result = await handleResponse(response);
-      console.log('✅ Post comments toggled successfully');
       
       return result;
     } catch (error) {
@@ -595,7 +521,6 @@ export const adminAPI = {
   // Upload file
   uploadFile: async (fileData) => {
     const endpoint = `${API_CONFIG.BASE_URL}/admin/upload_file`;
-    logApiCall('POST', endpoint, 'File upload');
     
     try {
       // Use fetchWithTimeout which will automatically handle headers correctly for FormData
@@ -605,7 +530,6 @@ export const adminAPI = {
       });
       
       const result = await handleResponse(response);
-      console.log('✅ File uploaded successfully');
       
       return result;
     } catch (error) {
@@ -617,7 +541,6 @@ export const adminAPI = {
   // Get users for mentions (admin side)
   getUsersForMentions: async (query = '', limit = 10) => {
     const endpoint = `${API_CONFIG.BASE_URL}/admin/get_user_for_mentions?query=${encodeURIComponent(query)}&limit=${limit}`;
-    logApiCall('GET', endpoint);
     
     try {
       const response = await fetchWithTimeout(endpoint, {
@@ -632,7 +555,6 @@ export const adminAPI = {
       }
       
       const result = await handleResponse(response);
-      console.log('✅ Admin - Users for mentions retrieved successfully:', result);
       return result;
     } catch (error) {
       console.warn('Admin mention API not available yet:', error.message);

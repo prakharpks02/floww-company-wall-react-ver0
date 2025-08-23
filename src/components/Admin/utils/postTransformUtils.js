@@ -1,11 +1,6 @@
 // Utility functions for transforming post data and handling media
 export const transformPostMedia = (post) => {
-  console.log('🔧 Transforming post:', {
-    id: post.post_id,
-    content: post.content?.substring(0, 50),
-    mediaCount: post.media?.length || 0,
-    media: post.media
-  });
+ 
 
   if (!post.media || !Array.isArray(post.media)) {
     return {
@@ -67,11 +62,7 @@ export const transformPostMedia = (post) => {
         name: mediaUrl.split('/').pop() || 'Media file'
       };
       
-      console.log('🔗 Processed media item:', {
-        originalLink: item.link,
-        extractedUrl: mediaUrl,
-        mediaItem
-      });
+   
       
       // Determine media type by URL extension
       const urlLower = mediaUrl.toLowerCase();
@@ -146,16 +137,7 @@ export const transformPostMedia = (post) => {
     post_type: post.post_type
   };
 
-  console.log('✅ Transformed post:', {
-    id: post.post_id,
-    originalMediaCount: post.media?.length || 0,
-    transformedMedia: {
-      images: mediaItems.images.length,
-      videos: mediaItems.videos.length,
-      documents: mediaItems.documents.length,
-      links: mediaItems.links.length
-    }
-  });
+ 
 
   return transformedPost;
 };
@@ -163,9 +145,9 @@ export const transformPostMedia = (post) => {
 // Helper to fetch pinned posts
 export const fetchPinnedPosts = async (adminAPI) => {
   try {
-    console.log('Fetching pinned posts using admin API...');
+ 
     const response = await adminAPI.getPinnedPosts();
-    console.log('Pinned posts response:', response);
+  
     
     // Handle different response structures
     let posts = [];
@@ -177,7 +159,7 @@ export const fetchPinnedPosts = async (adminAPI) => {
       posts = response;
     }
     
-    console.log('📌 Found pinned posts:', posts.length);
+   
     return posts.map(transformPostMedia);
   } catch (e) {
     console.error('Error fetching pinned posts:', e);
@@ -194,20 +176,7 @@ export const filterNonBroadcastPosts = (posts) => {
                        post.type === 'broadcast' ||
                        post.post_type === 'broadcast';
                        // Removed the problematic short pinned post filter
-    
-    if (isBroadcast) {
-      console.log('🚫 Filtering out broadcast post:', {
-        id: post.post_id,
-        content: post.content?.substring(0, 50),
-        is_pinned: post.is_pinned,
-        reason: {
-          is_broadcast: post.is_broadcast,
-          isBroadcast: post.isBroadcast,
-          type: post.type,
-          post_type: post.post_type
-        }
-      });
-    }
+  
     
     return !isBroadcast;
   });

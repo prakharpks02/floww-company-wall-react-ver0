@@ -14,7 +14,6 @@ const Broadcast = () => {
       const response = await postsAPI.getBroadcastPosts();
       setBroadcasts(response.data || []);
     } catch (err) {
-      console.error('Error fetching broadcasts:', err);
       setError(err.message || 'Failed to load broadcasts');
     } finally {
       setLoading(false);

@@ -25,14 +25,9 @@ const BroadcastView = () => {
         ? await adminAPI.getBroadcastPosts()
         : await postsAPI.getBroadcastPosts();
       
-      console.log('🔍 BroadcastView - User type:', user?.is_admin ? 'Admin' : 'Employee');
-      console.log('🔍 BroadcastView - Full response:', response);
-      
       const broadcastData = response.posts || response.data || [];
-      console.log('🔍 BroadcastView - Broadcast data:', broadcastData);
       
       if (!Array.isArray(broadcastData)) {
-        console.error('❌ BroadcastView - Expected array but got:', typeof broadcastData, broadcastData);
         setBroadcasts([]);
         return;
       }
@@ -64,7 +59,6 @@ const BroadcastView = () => {
                   const mediaData = JSON.parse(fixed);
                   mediaUrl = mediaData.url;
                 } catch (e) {
-                  console.error('Failed to parse media link:', item.link, e);
                   return;
                 }
               } else {
@@ -198,7 +192,6 @@ const BroadcastView = () => {
       
       setBroadcasts(transformedBroadcasts);
     } catch (err) {
-      console.error('Error fetching broadcasts:', err);
       setError(err.message || 'Failed to load broadcast messages');
     } finally {
       setLoading(false);
@@ -222,7 +215,6 @@ const BroadcastView = () => {
       fetchBroadcasts();
       setShowDeleteConfirm(null);
     } catch (error) {
-      console.error('Error deleting broadcast:', error);
       alert('Failed to delete broadcast. Please try again.');
     }
   };

@@ -43,16 +43,6 @@ const Dashboard = () => {
       : post.comments
   }));
 
-  console.log('🔍 Dashboard - Final post arrangement:', {
-    totalPosts: sortedPosts.length,
-    pinnedPosts: sortedPosts.filter(p => p.is_pinned === true || p.is_pinned === "true").length,
-    firstFewPosts: sortedPosts.slice(0, 3).map(p => ({ 
-      id: p.id || p.post_id, 
-      is_pinned: p.is_pinned,
-      title: p.content?.substring(0, 50) + '...'
-    }))
-  });
-
   // Load appropriate posts based on active view
   useEffect(() => {
     if (activeView === 'home') {
@@ -66,7 +56,6 @@ const Dashboard = () => {
   // Set default view for admin users
   useEffect(() => {
     if (user?.is_admin && activeView === 'home') {
-      console.log('🔍 Dashboard - Admin user detected, switching to admin-posts view');
       setActiveView('admin-posts');
     }
   }, [user]);
@@ -145,7 +134,7 @@ const Dashboard = () => {
           <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
             <button
               onClick={() => setShowCreatePost(true)}
-              className="w-[3xl] text-left p-3 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors touch-friendly"
+              className="w-full text-left p-3 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors touch-friendly"
             >
               <span className="text-gray-500 text-sm lg:text-base">
                 What's on your mind? Share with the HR team...

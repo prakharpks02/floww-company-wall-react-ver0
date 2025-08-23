@@ -60,31 +60,6 @@ export const usePostCard = (post, activeView = 'home') => {
 
   // Normalize post data to handle different field names from backend
   const normalizePost = (rawPost) => {
-    // Debug logging for media processing
-    if (rawPost.media && rawPost.media.length > 0) {
-      console.log('🖼️ Media processing for post:', {
-        postId: rawPost.post_id || rawPost.id,
-        media: rawPost.media,
-        mediaCount: rawPost.media.length
-      });
-      
-      rawPost.media.forEach((item, idx) => {
-        if (item.link) {
-          const decodedUrl = decodeURIComponent(item.link);
-          console.log(`🔍 Media item ${idx}:`, {
-            originalUrl: item.link,
-            decodedUrl: decodedUrl,
-            name: item.name,
-            type: item.type,
-            mimeType: item.mime_type,
-            isImageByExtension: decodedUrl.match(/\.(jpeg|jpg|gif|png|webp|bmp|svg)$/i),
-            isImageByType: item.type === 'image',
-            isImageByMimeType: item.mime_type && item.mime_type.startsWith('image/')
-          });
-        }
-      });
-    }
-    
     // CRITICAL: Handle reactions normalization properly
     let normalizedReactions = {};
     
@@ -451,12 +426,7 @@ export const usePostCard = (post, activeView = 'home') => {
   const handleComment = () => {
     const postId = getPostId();
     if (commentText.trim() && postId) {
-      console.log('🔍 Adding comment with data:', {
-        postId,
-        commentData: { content: commentText.trim() },
-        user: user,
-        commentText: commentText.trim()
-      });
+     
       addComment(postId, { content: commentText.trim() });
       setCommentText('');
     }
@@ -521,10 +491,7 @@ export const usePostCard = (post, activeView = 'home') => {
     const shareUrl = `https://dev.gofloww.co/api/wall/posts/${actualPostId}/get_single_post`;
     const shareText = `Check out this post by ${normalizedPost.authorName}: ${normalizedPost.content.replace(/<[^>]*>/g, '').substring(0, 100)}...`;
     
-    console.log('🔍 Share - Post ID:', actualPostId);
-    console.log('🔍 Share - Share URL:', shareUrl);
-    console.log('🔍 Share - Share Text:', shareText);
-    
+
     if (navigator.share) {
       navigator.share({
         title: `Post by ${normalizedPost.authorName}`,
@@ -543,11 +510,11 @@ export const usePostCard = (post, activeView = 'home') => {
   };
 
   const copyToClipboard = (text) => {
-    console.log('🔍 Copying to clipboard:', text);
+
     navigator.clipboard.writeText(text).then(() => {
       setShowShareAlert(true);
       setTimeout(() => setShowShareAlert(false), 3000);
-      console.log('✅ Share link copied to clipboard!');
+      
     }).catch(() => {
       // Fallback for older browsers
       const textArea = document.createElement('textarea');
@@ -558,7 +525,7 @@ export const usePostCard = (post, activeView = 'home') => {
       document.body.removeChild(textArea);
       setShowShareAlert(true);
       setTimeout(() => setShowShareAlert(false), 3000);
-      console.log('✅ Share link copied to clipboard (fallback)!');
+ 
     });
   };
 
@@ -658,32 +625,23 @@ export const usePostCard = (post, activeView = 'home') => {
   };
 
   const getCommentUserReaction = (comment) => {
-    console.log('🔍 getCommentUserReaction called with:', {
-      commentId: comment.comment_id || comment.id,
-      reactions: comment.reactions,
-      reactionsType: typeof comment.reactions,
-      reactionsKeys: comment.reactions ? Object.keys(comment.reactions) : 'no reactions',
-      reactionsEntries: comment.reactions ? Object.entries(comment.reactions) : 'no reactions',
-      currentUser: { id: user?.id, user_id: user?.user_id },
-      authorId: comment.authorId
-    });
+   
     
     if (!comment.reactions) {
-      console.log('🔍 No reactions object found');
-      return null;
+     return null;
     }
     
     if (Object.keys(comment.reactions).length === 0) {
-      console.log('🔍 Reactions object is empty');
+
       return null;
     }
     
     // Get current user IDs to check against
     const currentUserIds = [user?.id, user?.user_id, user?.userId].filter(Boolean);
-    console.log('🔍 Current user IDs:', currentUserIds);
+
     
     for (const [reactionType, reaction] of Object.entries(comment.reactions)) {
-      console.log('🔍 Checking reaction type:', reactionType, 'with data:', reaction);
+     
       
       // Handle different reaction data formats
       let hasReaction = false;
@@ -694,13 +652,11 @@ export const usePostCard = (post, activeView = 'home') => {
           currentUserIds.includes(r.user_id) || 
           currentUserIds.includes(r.id)
         );
-        console.log('🔍 Array format - checking user IDs in reaction array');
       } else if (reaction.users && Array.isArray(reaction.users)) {
         // Format: { users: [123, 456], count: 2 } (from API)
         hasReaction = reaction.users.some(userId => {
           const match = currentUserIds.includes(userId);
-          console.log('🔍 Checking userId:', userId, 'against currentUserIds:', currentUserIds, 'match:', match);
-          return match;
+                   return match;
         });
       } else if (reaction.count > 0) {
         // For reaction_counts format, if there's a reaction count > 0 and it's user's own comment,
@@ -709,23 +665,18 @@ export const usePostCard = (post, activeView = 'home') => {
                             currentUserIds.includes(comment.author?.user_id) ||
                             currentUserIds.includes(comment.author?.id);
         hasReaction = isOwnComment;
-        console.log('🔍 Count format - own comment reaction check');
+     
       }
       
-      console.log('🔍 Reaction check results:', {
-        reactionType,
-        hasReaction,
-        reactionFormat: Array.isArray(reaction) ? 'array' : 'object',
-        reaction
-      });
+    
       
       if (hasReaction) {
-        console.log('🔍 User has reaction:', reactionType);
+       
         return reactionType;
       }
     }
     
-    console.log('🔍 User has no reactions');
+   
     return null;
   };
 

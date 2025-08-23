@@ -42,7 +42,7 @@ const RichTextEditor = ({
 
     setIsLoadingUsers(true);
     try {
-      console.log('Fetching users for query:', query, 'isAdmin:', isAdmin);
+
       
       let responseData;
       
@@ -53,23 +53,21 @@ const RichTextEditor = ({
         responseData = await userAPI.getUsersForMentions(query, 10);
       }
       
-      console.log('API Response data:', responseData);
+     
       
       // Extract the users array from the response
       const users = responseData.data || responseData.users || responseData || [];
-      console.log('Extracted users:', users);
+ 
       setUsers(Array.isArray(users) ? users : []);
       
     } catch (error) {
-      console.error('Error fetching users for mentions:', error);
-      
-      // Check if it's a network/auth error
+      // Handle specific error cases
       if (error.message.includes('403') || error.message.includes('Forbidden')) {
-        console.warn('Authentication error: Make sure you are logged in and have proper permissions.');
+        // Handle forbidden error
       } else if (error.message.includes('404') || error.message.includes('Not Found')) {
-        console.warn('Backend API endpoint for mentions is not implemented yet.');
+        // Handle not found error
       }
-      
+
       // Provide fallback empty array when API is not available
       setUsers([]);
     } finally {

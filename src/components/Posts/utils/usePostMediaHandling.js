@@ -23,7 +23,6 @@ export const usePostMediaHandling = () => {
       // Return only the URL string
       return response.file_url || response.url;
     } catch (error) {
-      console.error(`Error uploading ${type}:`, error);
       throw error;
     }
   };
@@ -44,7 +43,7 @@ export const usePostMediaHandling = () => {
           const uploadedVideo = await uploadMedia(file, 'video');
           setVideos(prev => [...prev, uploadedVideo]);
         } catch (error) {
-          console.error('Failed to upload video:', error);
+         
         }
       }
     }
@@ -56,7 +55,7 @@ export const usePostMediaHandling = () => {
         const uploadedDocument = await uploadMedia(file, 'document');
         setDocuments(prev => [...prev, uploadedDocument]);
       } catch (error) {
-        console.error('Failed to upload document:', error);
+      
       }
     }
   };
@@ -72,7 +71,7 @@ export const usePostMediaHandling = () => {
       setShowCropModal(false);
       setImageToProcess(null);
     } catch (error) {
-      console.error('Error processing cropped image:', error);
+     
     }
   };
 
@@ -85,7 +84,7 @@ export const usePostMediaHandling = () => {
         setLinkUrl('');
         setShowLinkInput(false);
       } catch (error) {
-        console.error('Invalid URL');
+       
       }
     }
   };

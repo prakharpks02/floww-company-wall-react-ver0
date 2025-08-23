@@ -22,7 +22,7 @@ function ShareFooter() {
         setShowAlert(false);
       }, 3000);
     } catch (error) {
-      console.error('Failed to copy link:', error);
+     
       // Still show the alert even if clipboard API fails
       setCopied(true);
       setShowAlert(true);
@@ -97,19 +97,10 @@ const SinglePostView = () => {
           return;
         }
         
-        // If not found locally, fetch from API
-        console.log('🔍 SinglePostView - Fetching post from API with ID:', postId);
-        console.log('🔍 SinglePostView - API URL will be:', `https://dev.gofloww.co/api/wall/posts/${postId}/get_single_post`);
-        
         const response = await postsAPI.getPostById(postId);
         
-        console.log('🔍 SinglePostView - API Response:', response);
-        console.log('🔍 SinglePostView - Response Status:', response?.status);
-        console.log('🔍 SinglePostView - Response Data:', response?.data);
-        console.log('🔍 SinglePostView - Response Posts:', response?.data?.posts);
-        
         if (response && response.data) {
-          console.log('🔍 SinglePostView - Post data found:', response.data);
+       
 
           // Split media array by file extension
           const media = response.data.media || [];
@@ -161,21 +152,21 @@ const SinglePostView = () => {
             links
           };
 
-          console.log('🔍 SinglePostView - Normalized post:', normalizedPost);
+        
           setPost(normalizedPost);
         } else if (response && response.posts) {
-          console.log('🔍 SinglePostView - Post found directly in response.posts:', response.posts);
+          
           setPost(response.posts);
         } else if (response) {
-          console.log('🔍 SinglePostView - Using full response as post:', response);
+          
           setPost(response);
         } else {
-          console.log('❌ SinglePostView - No post data found in response');
+         
           throw new Error('Post not found');
         }
         
       } catch (err) {
-        console.error('❌ SinglePostView - Error fetching post:', err);
+      
         setError(err.message || 'Failed to load post');
       } finally {
         setLoading(false);

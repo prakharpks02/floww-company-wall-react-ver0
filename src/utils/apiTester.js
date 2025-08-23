@@ -8,17 +8,12 @@ import api from '../services/api';
  */
 export const testUserCreation = async () => {
   try {
-    console.log('🧪 Testing user creation...');
-    
     const userData = {
       username: "john_doe",
       email: "john.doe@example.com"
     };
     
     const result = await api.user.createUser(userData);
-    console.log('✅ User created successfully:', result);
-    console.log('📁 User ID stored in localStorage:', api.user.getCurrentUserId());
-    
     return result;
   } catch (error) {
     console.error('❌ User creation failed:', error.message);
@@ -31,19 +26,15 @@ export const testUserCreation = async () => {
  */
 export const testUserLogin = async (credentials) => {
   try {
-    console.log('🧪 Testing user login...');
-    
     // Login with username
     if (credentials.username) {
       const result = await api.user.login({ username: credentials.username });
-      console.log('✅ Login with username successful:', result);
       return result;
     }
     
     // Login with email
     if (credentials.email) {
       const result = await api.user.login({ email: credentials.email });
-      console.log('✅ Login with email successful:', result);
       return result;
     }
     

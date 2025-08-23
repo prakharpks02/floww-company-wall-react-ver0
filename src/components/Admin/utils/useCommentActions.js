@@ -60,7 +60,7 @@ export const useCommentActions = (posts, setPosts, pinnedPosts, setPinnedPosts, 
       setPosts(prev => updateComments(prev));
       setPinnedPosts(prev => updateComments(prev));
       
-      console.log('✅ Admin comment deleted successfully:', commentId);
+    
     } catch (error) {
       console.error('❌ Admin delete comment error:', error);
       setError(`Failed to delete comment: ${error.message}`);
@@ -95,7 +95,7 @@ export const useCommentActions = (posts, setPosts, pinnedPosts, setPinnedPosts, 
       setPosts(prev => updateReplies(prev));
       setPinnedPosts(prev => updateReplies(prev));
       
-      console.log('✅ Admin reply deleted successfully:', replyId);
+    
     } catch (error) {
       console.error('❌ Admin delete reply error:', error);
       setError(`Failed to delete reply: ${error.message}`);

@@ -45,17 +45,8 @@ const CommentItem = ({
     };
   }, []);
 
-  // Debug logging for comments and replies
-  console.log('🔍 CommentItem - Comment data:', {
-    comment,
-    hasReplies: comment.replies && comment.replies.length > 0,
-    repliesCount: comment.replies?.length || 0,
-    repliesData: comment.replies
-  });
 
-    console.log('🔍 CommentItem - Full comment data:', comment);
-  console.log('🔍 CommentItem - Comment author object:', comment.author);
-  console.log('🔍 CommentItem - Available author fields:', comment.author ? Object.keys(comment.author) : 'No author');
+
 
   // Helper function to get display name from author data
   const getAuthorDisplayName = (author) => {
@@ -68,7 +59,7 @@ const CommentItem = ({
       author.employee_username === user.username ||
       author.employee_username === user.employee_username
     )) {
-      console.log('🔍 CommentItem - Using current user name for author:', user.name);
+   
       return user.name || user.username || 'Current User';
     }
     
@@ -80,7 +71,7 @@ const CommentItem = ({
                        author.company_email || 
                        'Anonymous';
     
-    console.log('🔍 CommentItem - Author display name:', displayName, 'from author:', author);
+   
     return displayName;
   };
 
@@ -514,7 +505,7 @@ const CommentItem = ({
       {/* Display Replies */}
       {comment.replies && comment.replies.length > 0 && (
         <div className="mt-3 pl-4 border-l-2 border-purple-200 space-y-2">
-          {console.log('🔍 CommentItem - Rendering replies:', comment.replies)}
+        
           {comment.replies.map((reply, idx) => (
             <CommentReply
               key={reply.comment_id || reply.id || reply.reply_id || `reply-${idx}`}

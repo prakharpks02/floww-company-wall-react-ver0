@@ -8,7 +8,7 @@ export const useBroadcastActions = (showSuccess, showError, showWarning) => {
   const sendBroadcast = async (broadcastData) => {
     setLoading(true);
     try {
-      console.log('📢 Sending broadcast with data:', broadcastData);
+    
       
       // Validate required fields
       if (!broadcastData.content || broadcastData.content.trim() === '') {
@@ -31,7 +31,7 @@ export const useBroadcastActions = (showSuccess, showError, showWarning) => {
         broadcastData.mentions || [],
         broadcastData.tags || []
       );
-      console.log('✅ Broadcast sent successfully:', response);
+      
       
       showSuccess('Broadcast message sent successfully to all users!');
       return true;
@@ -46,7 +46,7 @@ export const useBroadcastActions = (showSuccess, showError, showWarning) => {
 
   const uploadMedia = async (file, type) => {
     try {
-      console.log(`📁 Uploading ${type}:`, file.name);
+    
       
       // Create FormData for admin upload
       const formData = new FormData();
@@ -55,7 +55,7 @@ export const useBroadcastActions = (showSuccess, showError, showWarning) => {
       
       // Use admin API for file uploads
       const response = await adminAPI.uploadFile(formData);
-      console.log(`✅ ${type} uploaded successfully:`, response);
+     
       
       // Return only the URL string instead of object
       return response.data?.file_url || response.file_url || response.url;

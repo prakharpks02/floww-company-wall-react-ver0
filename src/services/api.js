@@ -37,7 +37,6 @@ const storeTokenInCookies = (token, userType = 'employee') => {
       secure: window.location.protocol === 'https:',
       sameSite: 'strict'
     });
-    console.log(`✅ ${userType} token stored in cookies successfully`);
   }
 };
 
@@ -59,7 +58,7 @@ const getAuthHeaders = () => {
 const FLOWW_TOKEN = getAuthToken();
 
 const API_CONFIG = {
-  BASE_URL: 'https://dev.gofloww.co/api/wall',
+  BASE_URL: import.meta.env.VITE_API_BASE_URL || 'https://dev.gofloww.co/api/wall',
   TIMEOUT: 10000, // 10 seconds
 };
 
@@ -73,17 +72,14 @@ const checkAuthToken = (userType = null) => {
   const currentToken = getAuthToken(currentUserType);
   
   if (!currentToken) {
-    console.warn(`⚠️ No ${currentUserType} authentication token found`);
     if (typeof window !== 'undefined') {
       if (window.location.hostname === "localhost") {
-        console.error(`❌ Missing ${currentUserType} token for localhost development`);
         throw new Error(`Missing ${currentUserType} authentication token for localhost development`);
       } else {
-        console.warn('⚠️ Redirecting to Floww authentication');
         if (currentUserType === 'admin') {
           window.location.href = import.meta.env.VITE_ADMIN_DASHBOARD_URL || 'http://localhost:8000/crm/dashboard';
         } else {
-          window.location.href = 'https://dev.gofloww.co';
+          window.location.href = import.meta.env.VITE_API_BASE_URL?.replace('/api/wall', '') || 'https://dev.gofloww.co';
         }
         throw new Error('Missing authentication token. Redirecting...');
       }
@@ -293,7 +289,6 @@ export const userAPI = {
       });
       
       const result = await handleResponse(response);
-      console.log('✅ Current user retrieved successfully:', result);
       
       // Transform the response to match expected user structure
       if (result.status === 'success' && result.data) {
@@ -323,9 +318,7 @@ export const userAPI = {
   clearSession: () => {
     if (typeof window !== 'undefined') {
       Cookies.remove("floww-employee-token");
-      console.log('✅ Token removed from cookies');
     }
-    console.log('✅ Session cleared (token-based auth)');
   },
 
   // Get users for mentions (employee side)
@@ -350,7 +343,6 @@ export const userAPI = {
       }
       
       const result = await handleResponse(response);
-      console.log('✅ Users for mentions retrieved successfully:', result);
       return result;
     } catch (error) {
       console.warn('Mention API not available yet:', error.message);
@@ -396,10 +388,6 @@ export const postsAPI = {
         ...((!postData.tags || postData.tags.length === 0) && { tags: [] })
       };
 
-      console.log('🔍 API createPost - Original tags:', postData.tags);
-      console.log('🔍 API createPost - Processed tags:', requestBody.tags);
-      console.log('🔍 API createPost - Processed mentions (usernames only):', requestBody.mentions);
-
       logApiCall('POST', endpoint, requestBody);
 
       const response = await fetchWithTimeout(endpoint, {
@@ -408,7 +396,6 @@ export const postsAPI = {
       });
       
       const result = await handleResponse(response);
-      console.log('✅ Post created successfully:', result.post_id || result.id);
       
       return result;
     } catch (error) {
@@ -428,7 +415,6 @@ export const postsAPI = {
       endpoint = `${API_CONFIG.BASE_URL}/posts?limit=${limit}`;
     }
     
-    console.log('🔄 API getPosts - Endpoint:', endpoint);
     logApiCall('GET', endpoint);
     
     try {
@@ -437,18 +423,7 @@ export const postsAPI = {
       });
       
       const result = await handleResponse(response);
-      console.log(`✅ Retrieved ${result.posts?.length || result.data?.posts?.length || result.data?.length || 0} posts from home feed`);
-      console.log('🔍 API getPosts - Full response structure:', result);
-      console.log('🔍 API getPosts - Response keys:', Object.keys(result));
-      console.log('🔍 API getPosts - Data structure:', result.data ? Object.keys(result.data) : 'No data object');
-      console.log('🔍 API getPosts - Pagination info:', {
-        hasNextCursor: !!(result.data?.nextCursor || result.nextCursor),
-        nextCursor: result.data?.nextCursor || result.nextCursor,
-        hasLastPostId: !!(result.data?.lastPostId || result.lastPostId),
-        lastPostId: result.data?.lastPostId || result.lastPostId,
-        hasMore: result.data?.hasMore || result.hasMore
-      });
-       
+      
       return result;
     } catch (error) {
       console.error('❌ Get posts error:', error.message);
@@ -465,8 +440,6 @@ export const postsAPI = {
       : `${API_CONFIG.BASE_URL}/posts`;
     
     try {
-      console.log('🔍 API getMyPosts - User type:', currentUserType);
-      console.log('🔍 API getMyPosts - Endpoint:', endpoint);
       logApiCall('GET', endpoint);
 
       const response = await fetchWithTimeout(endpoint, {
@@ -475,14 +448,9 @@ export const postsAPI = {
       });
       
       const result = await handleResponse(response);
-      console.log('🔍 API getMyPosts - Full response:', result);
       
       // Extract posts from the response
       const posts = result?.data?.posts || result?.posts || result?.data || [];
-      console.log(`✅ Retrieved ${posts.length} posts from ${currentUserType} endpoint`);
-      if (posts.length > 0) {
-        console.log('🔍 API getMyPosts - First post structure:', posts[0]);
-      }
       
       return {
         ...result,
@@ -506,7 +474,6 @@ export const postsAPI = {
       });
       
       const result = await handleResponse(response);
-      console.log(`✅ Retrieved ${result.posts?.length || 0} posts for user ${userId}`);
       
       return result;
     } catch (error) {
@@ -577,13 +544,6 @@ export const postsAPI = {
         ];
         
         // Always send media array, even if empty (to clear existing media)
-        console.log('🔍 API updatePost - All media combined:', allMedia);
-        console.log('🔍 API updatePost - Update data breakdown:', {
-          images: updateData.images,
-          videos: updateData.videos,
-          documents: updateData.documents,
-          links: updateData.links
-        });
         return { media: allMedia };
       })(),
       ...(updateData.mentions && { 
@@ -596,8 +556,6 @@ export const postsAPI = {
       })
     };
     
-    console.log('🔍 API updatePost - Post ID:', actualPostId);
-    console.log('🔍 API updatePost - Endpoint:', endpoint);
     logApiCall('POST', endpoint, backendData);
     
     try {
@@ -607,8 +565,6 @@ export const postsAPI = {
       });
       
       const result = await handleResponse(response);
-      console.log('✅ Post updated successfully:', actualPostId);
-      console.log('🔍 Backend response:', result);
       
       return result;
     } catch (error) {
@@ -623,8 +579,6 @@ export const postsAPI = {
     const actualPostId = (typeof postId === 'object' && postId.post_id) ? postId.post_id : postId;
     const endpoint = `${API_CONFIG.BASE_URL}/posts/delete/${actualPostId}`;
     
-    console.log('🔍 API deletePost - Post ID:', actualPostId);
-    console.log('🔍 API deletePost - Endpoint:', endpoint);
     logApiCall('POST', endpoint);
     
     try {
@@ -634,8 +588,6 @@ export const postsAPI = {
       });
       
       const result = await handleResponse(response);
-      console.log('✅ Post deleted successfully:', actualPostId);
-      console.log('🔍 Backend response:', result);
       
       return result;
     } catch (error) {
@@ -659,8 +611,6 @@ export const postsAPI = {
       });
       
       const result = await handleResponse(response);
-      console.log('✅ Like toggled successfully for post:', actualPostId);
-      console.log('🔍 Backend response:', result);
       
       return result;
     } catch (error) {
@@ -682,12 +632,6 @@ export const postsAPI = {
         emoji: emoji
       };
 
-      console.log('🔍 API addReaction - Original postId:', postId);
-      console.log('🔍 API addReaction - Actual postId:', actualPostId);
-      console.log('🔍 API addReaction - Reaction Type:', reactionType);
-      console.log('🔍 API addReaction - Emoji:', emoji);
-      console.log('🔍 API addReaction - Request body:', requestBody);
-      console.log('🔍 API addReaction - Endpoint:', endpoint);
       logApiCall('POST', endpoint, requestBody);
 
       const response = await fetchWithTimeout(endpoint, {
@@ -696,8 +640,6 @@ export const postsAPI = {
       });
       
       const result = await handleResponse(response);
-      console.log('✅ Reaction added successfully for post:', actualPostId);
-      console.log('🔍 Backend response:', result);
       
       return result;
     } catch (error) {
@@ -718,11 +660,6 @@ export const postsAPI = {
         reaction_type: reactionType
       };
 
-      console.log('🔍 API removeReaction - Original postId:', postId);
-      console.log('🔍 API removeReaction - Actual postId:', actualPostId);
-      console.log('🔍 API removeReaction - Reaction Type:', reactionType);
-      console.log('🔍 API removeReaction - Request body:', requestBody);
-      console.log('🔍 API removeReaction - Endpoint:', endpoint);
       logApiCall('POST', endpoint, requestBody);
 
       const response = await fetchWithTimeout(endpoint, {
@@ -731,8 +668,6 @@ export const postsAPI = {
       });
       
       const result = await handleResponse(response);
-      console.log('✅ Reaction removed successfully for post:', actualPostId);
-      console.log('🔍 Backend response:', result);
       
       return result;
     } catch (error) {
@@ -905,13 +840,6 @@ export const postsAPI = {
       new_content: content     // Alternative field name
     };
     
-    console.log('🔍 API editComment:', {
-      commentId,
-      content,
-      requestBody,
-      endpoint
-    });
-    
     logApiCall('POST', endpoint, requestBody);
     try {
       const response = await fetchWithTimeout(endpoint, {
@@ -920,7 +848,6 @@ export const postsAPI = {
       });
       
       const result = await handleResponse(response);
-      console.log('🔍 API editComment response:', result);
       return result;
     } catch (error) {
       console.error('❌ Edit comment error:', error.message);
@@ -956,9 +883,6 @@ export const postsAPI = {
         reason: reason
       };
 
-      console.log('🔍 API reportPost - Post ID:', actualPostId);
-      console.log('🔍 API reportPost - Reason:', reason);
-      console.log('🔍 API reportPost - Request body:', requestBody);
       logApiCall('POST', endpoint, requestBody);
 
       const response = await fetchWithTimeout(endpoint, {
@@ -967,7 +891,6 @@ export const postsAPI = {
       });
 
       const result = await handleResponse(response);
-      console.log('✅ Post reported successfully:', actualPostId);
       return result;
     } catch (error) {
       console.error('❌ Report post error:', error.message);
@@ -984,9 +907,6 @@ export const postsAPI = {
         reason: reason
       };
 
-      console.log('🔍 API reportComment - Comment ID:', commentId);
-      console.log('🔍 API reportComment - Reason:', reason);
-      console.log('🔍 API reportComment - Request body:', requestBody);
       logApiCall('POST', endpoint, requestBody);
 
       const response = await fetchWithTimeout(endpoint, {
@@ -995,7 +915,6 @@ export const postsAPI = {
       });
 
       const result = await handleResponse(response);
-      console.log('✅ Comment reported successfully:', commentId);
       return result;
     } catch (error) {
       console.error('❌ Report comment error:', error.message);
@@ -1015,7 +934,6 @@ export const postsAPI = {
       });
 
       const result = await handleResponse(response);
-      console.log('✅ Broadcast posts retrieved successfully');
       return result;
     } catch (error) {
       console.error('❌ Get broadcast posts error:', error.message);
@@ -1039,7 +957,6 @@ export const postsAPI = {
       });
 
       const result = await handleResponse(response);
-      console.log('✅ Pinned posts retrieved successfully for employee:', result);
       return result;
     } catch (error) {
       console.error('❌ Get pinned posts error:', error.message);
@@ -1071,7 +988,6 @@ export const mediaAPI = {
       });
       
       const result = await handleResponse(response);
-      console.log('✅ File uploaded successfully:', result);
       
       // Extract file URL from the nested response structure
       // Expected format: { status: "success", message: "...", data: { file_url: "..." } }
@@ -1095,8 +1011,6 @@ export const mediaAPI = {
       // Upload files individually since the endpoint expects single file uploads
       const uploadPromises = files.map(file => mediaAPI.uploadFile(file, type));
       const results = await Promise.all(uploadPromises);
-      
-      console.log(`✅ ${files.length} files uploaded successfully`);
       
       return results;
     } catch (error) {
@@ -1247,7 +1161,6 @@ export const adminAPI = {
     const endpoint = `${API_CONFIG.BASE_URL}/admin/get_blocked_users`;
     
     try {
-      console.log('🔍 API getBlockedUsers - Endpoint:', endpoint);
       logApiCall('POST', endpoint);
 
       const response = await fetchWithTimeout(endpoint, {
@@ -1256,7 +1169,6 @@ export const adminAPI = {
       });
 
       const result = await handleResponse(response);
-      console.log('✅ Blocked users retrieved successfully');
       return result;
     } catch (error) {
       console.error('❌ Get blocked users error:', error.message);
@@ -1269,11 +1181,6 @@ export const adminAPI = {
     const endpoint = `${API_CONFIG.BASE_URL}/admin/comments/${commentId}/delete`;
     
     try {
-      console.log('🔍 API adminDeleteComment:', {
-        commentId,
-        endpoint
-      });
-      
       logApiCall('POST', endpoint);
       
       const response = await fetchWithTimeout(endpoint, {
@@ -1282,7 +1189,6 @@ export const adminAPI = {
       });
       
       const result = await handleResponse(response);
-      console.log('✅ Admin comment deleted successfully:', commentId);
       return result;
     } catch (error) {
       console.error('❌ Admin delete comment error:', error.message);
@@ -1295,13 +1201,6 @@ export const adminAPI = {
     const endpoint = `${API_CONFIG.BASE_URL}/admin/posts/${postId}/comments/${commentId}/replies/${replyId}/delete`;
     
     try {
-      console.log('🔍 API adminDeleteReply:', {
-        postId,
-        commentId,
-        replyId,
-        endpoint
-      });
-      
       logApiCall('POST', endpoint);
       
       const response = await fetchWithTimeout(endpoint, {
@@ -1310,7 +1209,6 @@ export const adminAPI = {
       });
       
       const result = await handleResponse(response);
-      console.log('✅ Admin reply deleted successfully:', replyId);
       return result;
     } catch (error) {
       console.error('❌ Admin delete reply error:', error.message);
@@ -1443,10 +1341,6 @@ if (typeof window !== 'undefined') {
   } else {
     const environment = window.location.hostname === "localhost" ? 'development' : 'production';
     const tokenSource = window.location.hostname === "localhost" ? 'hardcoded' : 'cookie';
-    
-    console.log(`✅ Authentication token loaded successfully`);
-    console.log(`🔍 Environment: ${environment}`);
-    console.log(`🔍 Token source: ${tokenSource}`);
     
     // Store token in cookies if not already stored (for production)
     if (environment === 'production' && !Cookies.get("floww-employee-token")) {

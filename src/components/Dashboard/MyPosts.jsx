@@ -42,7 +42,7 @@ const MyPosts = () => {
       ));
     
     } catch (error) {
-      console.error('Error deleting post:', error);
+      // Error handled silently
     }
   };
 

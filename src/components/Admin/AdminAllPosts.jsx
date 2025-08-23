@@ -45,19 +45,12 @@ const AdminAllPosts = () => {
   }, [hasMore, isLoading, nextCursor, loadAllPosts]);
 
   useEffect(() => {
-    console.log('🚀 AdminAllPosts - Initial load starting...');
     const loadData = async () => {
       try {
         // Ensure pinned posts load first, then regular posts
-        console.log('📌 Loading pinned posts first...');
         await loadPinnedPosts();
-        
-        console.log('📄 Loading regular posts...');
         await loadAllPosts();
-        
-        console.log('✅ All data loaded successfully');
       } catch (error) {
-        console.error('❌ Error in sequential loading:', error);
         setError(`Failed to load posts: ${error.message}`);
       }
     };
@@ -109,24 +102,6 @@ const AdminAllPosts = () => {
       {/* Show posts only when not in initial loading state */}
       {(!isLoading || posts.length > 0 || pinnedPosts.length > 0) && (
         <div className="space-y-6 max-w-2xl mx-auto">
-          {console.log('🔍 Rendering posts. Pinned:', pinnedPosts.length, 'Regular:', posts.length)}
-          {console.log('🔍 Pinned posts data:', pinnedPosts)}
-          {console.log('🔍 Regular posts data:', posts.slice(0, 3))} 
-        
-        {/* Debug info for development
-        {process.env.NODE_ENV === 'development' && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
-            <h3 className="font-medium text-yellow-800">Debug Info:</h3>
-            <p className="text-sm text-yellow-700">
-              Pinned Posts: {pinnedPosts.length} | Regular Posts: {posts.length} | Loading: {isLoading ? 'Yes' : 'No'}
-            </p>
-            {pinnedPosts.length > 0 && (
-              <p className="text-sm text-yellow-700">
-                Pinned IDs: {pinnedPosts.map(p => p.post_id).join(', ')}
-              </p>
-            )}
-          </div>
-        )} */}
         
         {/* Pinned posts always on top, unique keys */}
         {pinnedPosts.map((post) => (
@@ -149,7 +124,6 @@ const AdminAllPosts = () => {
         {posts.filter(
           (post) => !pinnedPosts.some((p) => p.post_id === post.post_id)
         ).map((post) => {
-          console.log('Rendering post:', post.post_id, 'Author blocked:', post.author?.is_blocked);
           return (
             <AdminPostCard
               key={`post-${post.post_id}-${post.author?.is_blocked || 'unblocked'}`}

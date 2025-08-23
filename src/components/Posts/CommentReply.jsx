@@ -42,14 +42,10 @@ const CommentReply = ({
           }
           reactionsObj[reactionType].push({ user_id: reaction.user_id });
         });
-        console.log('🔍 CommentReply - Normalized reactions from array:', {
-          originalReactions: reply.reactions,
-          normalizedReactions: reactionsObj,
-          replyId: reply.comment_id || reply.id || reply.reply_id
-        });
+     
         return reactionsObj;
       }
-      console.log('🔍 CommentReply - Using existing reactions object:', reply.reactions);
+     
       return reply.reactions || {};
     })(),
     content: reply.content || reply.comment || reply.text || reply.reply_content || '',
@@ -64,23 +60,11 @@ const CommentReply = ({
     created_at: reply.created_at || reply.timestamp
   };
 
-  // Debug logging for content
-  console.log('🔍 CommentReply - Reply data:', {
-    originalReply: reply,
-    normalizedContent: normalizedReply.content,
-    availableFields: Object.keys(reply)
-  });
-
   const handleReplyReaction = (reactionType) => {
     if (isPublicView) return;
     // Use the reply's own ID for reactions, not the parent comment ID
     const replyId = reply.comment_id || reply.id || reply.reply_id;
-    console.log('🔍 CommentReply - handleReplyReaction called:', {
-      reactionType,
-      replyId,
-      originalReply: reply,
-      normalizedReply: normalizedReply
-    });
+   
     handleReactToComment(replyId, reactionType);
   };
 
@@ -158,11 +142,7 @@ const CommentReply = ({
               <button
                 onClick={() => {
                   const userReaction = getCommentUserReaction(normalizedReply);
-                  console.log('🔍 CommentReply - User reaction check:', {
-                    userReaction,
-                    normalizedReply,
-                    replyId: normalizedReply.comment_id
-                  });
+                 
                   if (userReaction) {
                     // User has a reaction, remove it (toggle off)
                     handleReplyReaction(userReaction);

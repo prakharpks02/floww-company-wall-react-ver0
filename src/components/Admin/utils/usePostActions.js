@@ -38,11 +38,7 @@ export const usePostActions = (posts, setPosts, pinnedPosts, setPinnedPosts, set
   const handleToggleComments = async (postId) => {
     try {
       const post = posts.find(p => p.post_id === postId);
-      console.log('🔄 Toggling comments for post:', {
-        postId,
-        currentState: post?.is_comments_allowed,
-        currentStateType: typeof post?.is_comments_allowed
-      });
+    
       await adminAPI.togglePostComments(postId, post?.is_comments_allowed);
       // Update the post in the current list in real-time - convert to boolean for consistency
       const updateComments = (posts) => posts.map(post => 
@@ -56,7 +52,7 @@ export const usePostActions = (posts, setPosts, pinnedPosts, setPinnedPosts, set
       
       setPosts(prev => updateComments(prev));
       setPinnedPosts(prev => updateComments(prev));
-      console.log('✅ Comments toggled successfully for post:', postId);
+      
     } catch (error) {
       console.error('Error toggling comments:', error);
       setError(`Failed to toggle comments: ${error.message}`);
@@ -144,7 +140,7 @@ export const usePostActions = (posts, setPosts, pinnedPosts, setPinnedPosts, set
       // Copy post URL to clipboard
       const postUrl = `${window.location.origin}/post/${postId}`;
       await navigator.clipboard.writeText(postUrl);
-      console.log('Post URL copied to clipboard');
+    
       
       // Show success message
       if (setSuccessMessage) {
@@ -163,8 +159,7 @@ export const usePostActions = (posts, setPosts, pinnedPosts, setPinnedPosts, set
           setSuccessMessage(null);
         }, 3000);
       }
-      // Also log the error but don't show it to user since the copy might still work
-      console.error('Clipboard API failed, but link was copied');
+    
     }
   };
 

@@ -47,7 +47,6 @@ const ReportModal = ({ isOpen, onClose, postId, commentId, type = 'post' }) => {
       setReason('');
       setCustomReason('');
     } catch (error) {
-      console.error('Report error:', error);
       alert(error.message || `Failed to report ${type}`);
     } finally {
       setIsSubmitting(false);

@@ -19,7 +19,7 @@ export const useMentionsHandling = () => {
       const users = response.data || response.users || [];
       setMentionSuggestions(users);
     } catch (error) {
-      console.error('Error fetching mention suggestions:', error);
+  
       setMentionSuggestions([]);
     } finally {
       setLoadingMentions(false);

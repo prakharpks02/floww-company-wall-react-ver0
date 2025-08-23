@@ -8,7 +8,7 @@ export const usePerformanceMonitor = () => {
     const end = performance.now();
     
     if (import.meta.env.DEV) {
-      console.log(`⚡ ${name}: ${(end - start).toFixed(2)}ms`);
+   
     }
     
     return result;
@@ -20,7 +20,7 @@ export const usePerformanceMonitor = () => {
     const end = performance.now();
     
     if (import.meta.env.DEV) {
-      console.log(`⚡ ${name}: ${(end - start).toFixed(2)}ms`);
+  
     }
     
     return result;
@@ -100,11 +100,7 @@ export const useMemoryMonitor = () => {
     
     const interval = setInterval(() => {
       const memory = performance.memory;
-      console.log('🧠 Memory Usage:', {
-        used: `${(memory.usedJSHeapSize / 1024 / 1024).toFixed(2)} MB`,
-        total: `${(memory.totalJSHeapSize / 1024 / 1024).toFixed(2)} MB`,
-        limit: `${(memory.jsHeapSizeLimit / 1024 / 1024).toFixed(2)} MB`
-      });
+   
     }, 10000); // Log every 10 seconds
     
     return () => clearInterval(interval);

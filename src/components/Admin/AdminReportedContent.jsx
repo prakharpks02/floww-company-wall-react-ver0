@@ -30,10 +30,7 @@ const AdminReportedContent = ({ activeView }) => {
       if (response.status === 'success' && response.data) {
         const { posts = [], comments = [] } = response.data;
         
-        console.log('📊 Loaded reported content:', {
-          posts: posts.length,
-          comments: comments.length
-        });
+ 
         
         setReportedPosts(posts);
         setReportedComments(comments);
@@ -49,25 +46,25 @@ const AdminReportedContent = ({ activeView }) => {
   };
 
   const handlePostUpdate = (postId, action) => {
-    console.log('Post updated:', postId, action);
+   
     // Optionally refresh the data or update local state
     loadReportedContent();
   };
 
   const handlePostDelete = (postId) => {
-    console.log('Post deleted:', postId);
+
     // Remove the post from local state
     setReportedPosts(prev => prev.filter(post => post.post_id !== postId));
   };
 
   const handleCommentUpdate = (commentId, action) => {
-    console.log('Comment updated:', commentId, action);
+    
     // Optionally refresh the data or update local state
     loadReportedContent();
   };
 
   const handleCommentDelete = (commentId) => {
-    console.log('Comment deleted:', commentId);
+  
     // Remove the comment from local state
     setReportedComments(prev => prev.filter(comment => comment.comment_id !== commentId));
   };
@@ -90,7 +87,7 @@ const AdminReportedContent = ({ activeView }) => {
         )
       ];
 
-      console.log('Resolving reports:', pendingReportIds);
+   
 
       // Resolve all pending reports
       const resolvePromises = pendingReportIds.map(reportId => 
