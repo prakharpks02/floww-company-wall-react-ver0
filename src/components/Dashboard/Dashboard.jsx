@@ -23,7 +23,7 @@ const Dashboard = () => {
   });
   const [showCreatePost, setShowCreatePost] = useState(false);
   const [activeView, setActiveView] = useState('home'); // 'home', 'broadcast', 'myposts', 'admin-posts', 'admin-users', 'admin-reports', 'admin-broadcast'
-  const { posts, getFilteredPosts, loadAllPosts, reloadPosts } = usePost();
+  const { posts, getFilteredPosts, loadAllPosts, reloadPosts, loading } = usePost();
   const { user } = useAuth();
 
   // Sort comments and replies so that the latest are on top
@@ -122,9 +122,9 @@ const Dashboard = () => {
 
     // Default home view
     return (
-      <>
+      <div className="space-y-4 sm:space-y-6">
         {/* Welcome Message */}
-        <div className="bg-white rounded-lg shadow-sm p-4 lg:p-6 mb-6 border border-gray-200">
+        <div className="bg-white rounded-lg shadow-sm p-4 lg:p-6 border border-gray-200">
           <h1 className="text-xl lg:text-2xl font-bold text-gray-900 mb-2">
             Welcome to Atom HR Community Wall 👋
           </h1>
@@ -142,10 +142,10 @@ const Dashboard = () => {
 
         {/* Quick Create Post Button - Only show if user is not blocked and not admin */}
         {!(user?.is_blocked === true || user?.is_blocked === "true") && !user?.is_admin && (
-          <div className="bg-white rounded-lg shadow-sm p-4 mb-6 border border-gray-200">
+          <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
             <button
               onClick={() => setShowCreatePost(true)}
-              className="w-full text-left p-3 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors"
+              className="w-[3xl] text-left p-3 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors touch-friendly"
             >
               <span className="text-gray-500 text-sm lg:text-base">
                 What's on your mind? Share with the HR team...
@@ -156,7 +156,7 @@ const Dashboard = () => {
 
         {/* Blocked User Notice */}
         {(user?.is_blocked === true || user?.is_blocked === "true") && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
             <div className="flex items-center space-x-2">
               <div className="w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
                 <span className="text-white text-sm">!</span>
@@ -172,14 +172,15 @@ const Dashboard = () => {
         )}
 
         {/* Posts Feed */}
-        <div>
+        <div className="max-w-3xl mx-auto">
           <PostFeed 
             posts={sortedPosts} 
             activeView={activeView} 
             showPagination={true}
+            isLoading={loading}
           />
         </div>
-      </>
+      </div>
     );
   };
 
@@ -187,6 +188,10 @@ const Dashboard = () => {
     <ResponsiveLayout 
       header={headerComponent}
       sidebar={sidebarComponent}
+      activeView={activeView}
+      onViewChange={handleViewChange}
+      onCreatePost={() => setShowCreatePost(true)}
+      user={user}
     >
       {/* Create Post Modal - Only show if user is not blocked and not admin */}
       {showCreatePost && !(user?.is_blocked === true || user?.is_blocked === "true") && !user?.is_admin && (

@@ -1,9 +1,10 @@
 import React, { useEffect, useRef, useCallback } from 'react';
 import PostCard from './PostCard';
+import PostSkeleton from './PostSkeleton';
 import { usePost } from '../../contexts/PostContext';
 import { Loader2 } from 'lucide-react';
 
-const PostFeed = ({ posts, activeView = 'home', showPagination = true }) => {
+const PostFeed = ({ posts, activeView = 'home', showPagination = true, isLoading = false }) => {
   const { loadMorePosts, hasMorePosts, isLoadingMore } = usePost();
   const loadingRef = useRef(null);
 
@@ -47,6 +48,11 @@ const PostFeed = ({ posts, activeView = 'home', showPagination = true }) => {
     };
   }, [handleObserver, showPagination]);
 
+  // Show skeleton loading while posts are being loaded
+  if (isLoading) {
+    return <PostSkeleton count={5} />;
+  }
+
   if (posts.length === 0) {
     return (
       <div className="text-center py-12">
@@ -64,7 +70,7 @@ const PostFeed = ({ posts, activeView = 'home', showPagination = true }) => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 sm:space-y-4 lg:space-y-6">
       {posts.map((post, index) => (
         <PostCard 
           key={post.id || post.post_id || `post-${index}`} 
@@ -76,10 +82,10 @@ const PostFeed = ({ posts, activeView = 'home', showPagination = true }) => {
       
       {/* Infinite Scroll Loader */}
       {showPagination && posts.length > 0 && (
-        <div ref={loadingRef} className="flex flex-col items-center py-8">
+        <div ref={loadingRef} className="flex flex-col items-center py-6 sm:py-8">
           {isLoadingMore ? (
             <div className="flex items-center space-x-2 text-gray-500">
-              <Loader2 className="h-6 w-6 animate-spin" />
+              <Loader2 className="h-5 w-5 sm:h-6 sm:w-6 animate-spin" />
               <span className="text-sm">Loading more posts...</span>
             </div>
           ) : hasMorePosts ? (
@@ -89,13 +95,21 @@ const PostFeed = ({ posts, activeView = 'home', showPagination = true }) => {
               <div className="h-1 w-1 bg-gray-300 rounded-full"></div>
             </div>
           ) : (
-            <div className="text-center">
-              <p className="text-gray-500 text-sm">No more posts to display.</p>
-              <p className="text-gray-400 text-xs mt-1">You've reached the end!</p>
+            <div className="text-center space-y-2">
+              <div className="flex items-center justify-center space-x-2 text-gray-400 mb-2">
+                <div className="h-px bg-gray-200 flex-1"></div>
+                <span className="text-xs px-3">End of Posts</span>
+                <div className="h-px bg-gray-200 flex-1"></div>
+              </div>
+              <p className="text-gray-500 text-sm">You've seen all the latest posts!</p>
+              <p className="text-gray-400 text-xs">Check back later for new updates</p>
             </div>
           )}
         </div>
       )}
+      
+      {/* Add extra bottom spacing for mobile to account for bottom navigation */}
+      <div className="h-4 lg:h-0"></div>
     </div>
   );
 };

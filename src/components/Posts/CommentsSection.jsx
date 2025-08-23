@@ -48,35 +48,54 @@ const CommentsSection = ({
   });
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 mt-4 border-t border-gray-100 pt-4">
       {/* Show comment input box when comments are open and allowed */}
       {!isPublicView && commentsAllowed && !userIsAdmin && (
-        <div className="flex mb-2">
-          <div className="flex-1 flex mt-6 space-x-2">
-            <input
-              type="text"
-              value={commentText}
-              onChange={(e) => setCommentText(e.target.value)}
-              placeholder={userBlocked ? "Blocked users cannot comment" : "Add a comment..."}
-              className="flex-1  px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-purple-500 focus:border-purple-500"
-              onKeyPress={(e) => e.key === 'Enter' && handleComment()}
-              disabled={userBlocked}
-            />
-            <button
-              onClick={handleComment}
-              disabled={!commentText.trim() || userBlocked}
-              className="px-3 py-1 text-white rounded text-sm hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
-              style={{ backgroundColor: '#9f7aea' }}
-            >
-              Post
-            </button>
+        <div className="space-y-3">
+          <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
+            <div className="flex-1">
+              <textarea
+                value={commentText}
+                onChange={(e) => setCommentText(e.target.value)}
+                placeholder={userBlocked ? "Blocked users cannot comment" : "Add a comment..."}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none transition-all duration-200"
+                rows="2"
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleComment();
+                  }
+                }}
+                disabled={userBlocked}
+                maxLength={500}
+              />
+              <div className="flex justify-between items-center mt-1">
+                <span className="text-xs text-gray-400">
+                  {commentText.length}/500 characters
+                </span>
+                <span className="text-xs text-gray-400">
+                  Press Enter to post, Shift+Enter for new line
+                </span>
+              </div>
+            </div>
+            <div className="flex justify-end sm:self-start">
+              <button
+                onClick={handleComment}
+                disabled={!commentText.trim() || userBlocked}
+                className="px-4 py-2 text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 touch-friendly"
+                style={{ backgroundColor: '#9f7aea' }}
+              >
+                <span className="hidden sm:inline">Post Comment</span>
+                <span className="sm:hidden">Post</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
 
       {/* Show message when user is admin */}
       {userIsAdmin && (
-        <div className="mt-6 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+        <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
           <p className="text-sm text-amber-800 text-center">
             🛡️ Admin users cannot comment on posts
           </p>
@@ -85,53 +104,55 @@ const CommentsSection = ({
 
       {/* Show message when comments are disabled */}
       {!commentsAllowed && (
-        <div className="mt-6 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+        <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
           <p className="text-sm text-gray-600 text-center">
             💬 Comments have been disabled for this post
           </p>
         </div>
       )}
       
-      {/* If no comments */}
-      {Array.isArray(normalizedPost.comments) && normalizedPost.comments.length === 0 && (
-        <div className="text-sm text-gray-500">No comments yet. Be the first to comment!</div>
+      {/* If no comments - only show encouraging message when comments are allowed */}
+      {Array.isArray(normalizedPost.comments) && normalizedPost.comments.length === 0 && commentsAllowed && (
+        <div className="text-sm text-gray-500 text-center py-4 border border-gray-200 rounded-lg bg-gray-50">
+          💭 No comments yet. Be the first to share your thoughts!
+        </div>
       )}
       
       {/* Render each comment with full UI */}
       {Array.isArray(normalizedPost.comments) && normalizedPost.comments.length > 0 && (
-        normalizedPost.comments.map((comment, idx) => {
-   
-          
-          return (
-            <div key={comment.comment_id || comment.id || idx}>
-              <CommentItem
-                comment={comment}
-                user={user}
-              isPublicView={isPublicView}
-              isAdmin={isAdmin}
-              emojiReactions={emojiReactions}
-              handleDeleteComment={handleDeleteComment}
-              handleEditComment={handleEditComment}
-              handleReactToComment={handleCommentReaction}
-              handleCommentReply={handleCommentReply}
-              handleDeleteReply={handleDeleteReply}
-              getCommentUserReaction={getCommentUserReaction}
-              getCommentTopReactions={getCommentTopReactions}
-              getCommentTotalReactions={getCommentTotalReactions}
-              handleCommentReactionsMouseEnter={handleCommentReactionsMouseEnter}
-              handleCommentReactionsMouseLeave={handleCommentReactionsMouseLeave}
-              showCommentReactions={showCommentReactions}
-              handleCommentLike={handleCommentLike}
-              hasUserReacted={hasUserReacted}
-              onToggleReply={setReplyingTo}
-              replyingTo={replyingTo}
-              replyText={replyText}
-              setReplyText={setReplyText}
-              handleReply={handleReply}
-            />
-          </div>
-          );
-        })
+        <div className="space-y-3">
+          {normalizedPost.comments.map((comment, idx) => {
+            return (
+              <div key={comment.comment_id || comment.id || idx} className="bg-gray-50 rounded-lg p-3 sm:p-4">
+                <CommentItem
+                  comment={comment}
+                  user={user}
+                  isPublicView={isPublicView}
+                  isAdmin={isAdmin}
+                  emojiReactions={emojiReactions}
+                  handleDeleteComment={handleDeleteComment}
+                  handleEditComment={handleEditComment}
+                  handleReactToComment={handleCommentReaction}
+                  handleCommentReply={handleCommentReply}
+                  handleDeleteReply={handleDeleteReply}
+                  getCommentUserReaction={getCommentUserReaction}
+                  getCommentTopReactions={getCommentTopReactions}
+                  getCommentTotalReactions={getCommentTotalReactions}
+                  handleCommentReactionsMouseEnter={handleCommentReactionsMouseEnter}
+                  handleCommentReactionsMouseLeave={handleCommentReactionsMouseLeave}
+                  showCommentReactions={showCommentReactions}
+                  handleCommentLike={handleCommentLike}
+                  hasUserReacted={hasUserReacted}
+                  onToggleReply={setReplyingTo}
+                  replyingTo={replyingTo}
+                  replyText={replyText}
+                  setReplyText={setReplyText}
+                  handleReply={handleReply}
+                />
+              </div>
+            );
+          })}
+        </div>
       )}
     </div>
   );

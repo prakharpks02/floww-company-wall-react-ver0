@@ -457,7 +457,7 @@ const AdminPostCard = ({
           totalLikes={getTotalLikes()}
           totalReactions={getTotalReactions()}
           totalComments={getTotalComments()}
-          shareCount={shareCount}
+          // shareCount={shareCount}
           getTopReactions={getTopReactions}
         />
 

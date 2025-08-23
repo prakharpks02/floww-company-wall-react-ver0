@@ -186,12 +186,15 @@ const Broadcast = () => {
               <div className="flex items-center space-x-2 mb-2">
                 <div className="w-6 h-6 bg-purple-600 rounded-full flex items-center justify-center">
                   <span className="text-white text-xs font-bold">
-                    {broadcast.author?.username?.charAt(0).toUpperCase() || 'A'}
+                    A
                   </span>
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900 truncate">
-                    {broadcast.author?.username || broadcast.author?.name || broadcast.author?.employee_name || broadcast.authorName || 'Admin'}
+                    Admin
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    Administrator
                   </p>
                   <div className="flex items-center space-x-1 text-xs text-gray-500">
                     <Calendar className="h-3 w-3" />

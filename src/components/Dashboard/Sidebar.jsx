@@ -23,9 +23,10 @@ const Sidebar = ({ filters, setFilters, onCreatePost, activeView, onViewChange }
   }
 
   const isAdmin = user?.is_admin;
+  
   return (
     <>
-      <style >{`
+      <style>{`
         .liquid-glass-bg {
           background: linear-gradient(
             135deg,
@@ -51,37 +52,37 @@ const Sidebar = ({ filters, setFilters, onCreatePost, activeView, onViewChange }
         }
 
         .liquid-orb-1 {
-          width: 220px;
-          height: 220px;
+          width: 180px;
+          height: 180px;
           background: radial-gradient(circle, rgba(159, 122, 234, 0.5) 0%, rgba(124, 58, 237, 0.3) 40%, transparent 100%);
-          top: -60px;
-          left: -60px;
+          top: -40px;
+          left: -40px;
           animation-delay: 0s;
         }
 
         .liquid-orb-2 {
-          width: 160px;
-          height: 160px;
+          width: 120px;
+          height: 120px;
           background: radial-gradient(circle, rgba(99, 102, 241, 0.4) 0%, rgba(139, 92, 246, 0.2) 40%, transparent 100%);
-          bottom: -40px;
-          right: -40px;
+          bottom: -20px;
+          right: -20px;
           animation-delay: -5s;
         }
 
         .liquid-orb-3 {
-          width: 120px;
-          height: 120px;
+          width: 100px;
+          height: 100px;
           background: radial-gradient(circle, rgba(168, 85, 247, 0.35) 0%, rgba(147, 51, 234, 0.15) 40%, transparent 100%);
           top: 45%;
-          right: -30px;
+          right: -20px;
           animation-delay: -2.5s;
         }
 
         @keyframes liquidFloat {
           0%, 100% { transform: translate(0, 0) scale(1) rotate(0deg); }
-          25% { transform: translate(15px, -20px) scale(1.1) rotate(90deg); }
-          50% { transform: translate(-10px, 15px) scale(0.9) rotate(180deg); }
-          75% { transform: translate(-15px, -10px) scale(1.05) rotate(270deg); }
+          25% { transform: translate(10px, -15px) scale(1.05) rotate(90deg); }
+          50% { transform: translate(-8px, 12px) scale(0.95) rotate(180deg); }
+          75% { transform: translate(-10px, -8px) scale(1.02) rotate(270deg); }
         }
 
         .liquid-create-btn {
@@ -115,9 +116,24 @@ const Sidebar = ({ filters, setFilters, onCreatePost, activeView, onViewChange }
             0 12px 32px rgba(159, 122, 234, 0.5),
             inset 0 1px 0 rgba(255, 255, 255, 0.3);
         }
+
+        @media (max-width: 1023px) {
+          .liquid-orb-1 {
+            width: 140px;
+            height: 140px;
+          }
+          .liquid-orb-2 {
+            width: 100px;
+            height: 100px;
+          }
+          .liquid-orb-3 {
+            width: 80px;
+            height: 80px;
+          }
+        }
       `}</style>
 
-      <aside className="lg:fixed lg:left-0 lg:top-16 lg:h-[calc(100vh-4rem)] lg:w-64 lg:overflow-y-auto">
+      <aside className="h-full w-full lg:w-64">
         {/* Enhanced Liquid Glass Background */}
         <div className="liquid-glass-bg absolute inset-0" />
 
@@ -128,27 +144,31 @@ const Sidebar = ({ filters, setFilters, onCreatePost, activeView, onViewChange }
           <div className="liquid-orb liquid-orb-3" />
         </div>
 
-        <div className="relative z-10 p-4 lg:p-6">
+        <div className="relative z-10 p-4 sm:p-6 h-full overflow-y-auto custom-scrollbar">
           {/* Enhanced Create Post Button - Only show for non-admin users */}
           {!user?.is_admin && (
-            <button
-              onClick={onCreatePost}
-              className="liquid-create-btn w-full flex items-center justify-center space-x-2 px-4 py-3 rounded-2xl font-semibold transition-all duration-300 mb-6 group text-white"
-            >
-              <Plus className="h-5 w-5 relative z-10" />
-              <span className="relative z-10">Create Post</span>
-            </button>
+        <div className="mt-4 mb-3 w-full sm:w-[200px]"> 
+  <button
+    onClick={onCreatePost}
+    className="liquid-create-btn w-full flex items-center justify-center space-x-2 px-4 py-3 sm:py-4 rounded-2xl font-semibold transition-all duration-300 group text-white touch-friendly"
+  >
+    <Plus className="h-5 w-5 relative z-10" />
+    <span className="relative z-10 text-sm sm:text-base">Create Post</span>
+  </button>
+</div>
+
           )}
 
           {/* Enhanced Navigation */}
-          <nav className="space-y-2 mb-6">
-            {[
-              // Only show Home Feed if not admin
-              ...(!isAdmin ? [{ view: "home", label: "Home Feed", icon: Home }] : []),
-              { view: "broadcast", label: "Community Broadcast", icon: Megaphone },
-              // Only show My Posts if not admin
-              ...(!isAdmin ? [{ view: "myposts", label: "My Posts", icon: FileText }] : []),
-            ].map(({ view, label, icon: Icon }) => {
+          <div className="mt-4 mb-8">
+            <nav className="space-y-1 sm:space-y-2">
+              {[
+                // Only show Home Feed if not admin
+                ...(!isAdmin ? [{ view: "home", label: "Home Feed", icon: Home }] : []),
+                { view: "broadcast", label: "Community Broadcast", icon: Megaphone },
+                // Only show My Posts if not admin
+                ...(!isAdmin ? [{ view: "myposts", label: "My Posts", icon: FileText }] : []),
+              ].map(({ view, label, icon: Icon }) => {
               const isActive = activeView === view
               return (
                 <button
@@ -190,7 +210,8 @@ const Sidebar = ({ filters, setFilters, onCreatePost, activeView, onViewChange }
                 </button>
               )
             })}
-          </nav>
+            </nav>
+          </div>
 
           {/* Admin Navigation - Only show if user is admin */}
           {user?.is_admin && (

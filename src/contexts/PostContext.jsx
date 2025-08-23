@@ -486,167 +486,123 @@ export const PostProvider = ({ children }) => {
   // Function to load all posts for home feed with pagination support
   const loadAllPosts = async (resetPagination = false) => {
     try {
+      setLoading(true);
       const cursor = resetPagination ? null : nextCursor;
       console.log('🔄 Loading posts with cursor:', cursor, 'resetPagination:', resetPagination);
       console.log('🔍 User type for loadAllPosts:', user?.is_admin ? 'Admin' : 'Employee');
     
-    // Fetch regular posts and pinned posts in parallel (only fetch pinned on initial load)
-    const [backendPosts, pinnedPostsResponse] = await Promise.all([
-      user?.is_admin 
-        ? adminAPI.getAllPosts(cursor)
-        : postsAPI.getPosts(1, 10, cursor),
-      resetPagination ? (user?.is_admin ? adminAPI.getPinnedPosts() : postsAPI.getPinnedPosts()) : Promise.resolve({ posts: [] })
-    ]);
-    
-    console.log('📡 Backend response:', backendPosts);
-    console.log('📌 Pinned posts response:', pinnedPostsResponse);
-    console.log('🔍 User info for pinned posts:', { 
-      isAdmin: user?.is_admin, 
-      resetPagination, 
-      shouldFetchPinned: resetPagination,
-      userType: user?.is_admin ? 'admin' : 'employee'
-    });
-    
-    let postsData = [];
-    let pinnedPosts = [];
-
-    // Process regular posts
-    if (backendPosts.data && Array.isArray(backendPosts.data.posts)) {
-      postsData = backendPosts.data.posts;
-      console.log('✅ Found posts in nested structure:', postsData.length);
-    } else if (Array.isArray(backendPosts.data)) {
-      postsData = backendPosts.data;
-      console.log('✅ Found posts in flat structure:', postsData.length);
-    } else if (Array.isArray(backendPosts.posts)) {
-      postsData = backendPosts.posts;
-      console.log('✅ Found posts in posts array:', postsData.length);
-    } else {
-      console.warn('🛑 No posts found in backend response:', backendPosts);
-      postsData = [];
-    }
-
-    // Process pinned posts (only on initial load)
-    if (resetPagination) {
-      // Handle different response structures for pinned posts
-      let pinnedPostsData = [];
-      if (pinnedPostsResponse.data && Array.isArray(pinnedPostsResponse.data)) {
-        // Employee API response format
-        pinnedPostsData = pinnedPostsResponse.data;
-      } else if (pinnedPostsResponse.posts && Array.isArray(pinnedPostsResponse.posts)) {
-        // Admin API response format
-        pinnedPostsData = pinnedPostsResponse.posts;
-      } else if (Array.isArray(pinnedPostsResponse)) {
-        // Direct array response
-        pinnedPostsData = pinnedPostsResponse;
+      let pinnedPosts = [];
+      
+      // Load pinned posts first on initial load (sequential loading for better UX)
+      if (resetPagination) {
+        try {
+          console.log('📌 Loading pinned posts first...');
+          const pinnedPostsResponse = user?.is_admin 
+            ? await adminAPI.getPinnedPosts() 
+            : await postsAPI.getPinnedPosts();
+          
+          console.log('📌 Pinned posts response:', pinnedPostsResponse);
+          
+          // Process pinned posts with different response structures
+          let pinnedPostsData = [];
+          if (pinnedPostsResponse.data && Array.isArray(pinnedPostsResponse.data)) {
+            pinnedPostsData = pinnedPostsResponse.data;
+          } else if (pinnedPostsResponse.posts && Array.isArray(pinnedPostsResponse.posts)) {
+            pinnedPostsData = pinnedPostsResponse.posts;
+          } else if (Array.isArray(pinnedPostsResponse)) {
+            pinnedPostsData = pinnedPostsResponse;
+          }
+          
+          pinnedPosts = pinnedPostsData.map(post => ({
+            ...post,
+            is_pinned: true
+          }));
+          
+          console.log('✅ Pinned posts loaded:', pinnedPosts.length);
+        } catch (pinnedError) {
+          console.error('❌ Error loading pinned posts:', pinnedError);
+          pinnedPosts = [];
+        }
       }
       
-      pinnedPosts = pinnedPostsData;
-      console.log('✅ Found pinned posts:', pinnedPosts.length);
+      // Then load regular posts
+      console.log('📄 Loading regular posts...');
+      const backendPosts = user?.is_admin 
+        ? await adminAPI.getAllPosts(cursor)
+        : await postsAPI.getPosts(1, 10, cursor);
+    
+      console.log('📡 Backend response:', backendPosts);
       
-      // Mark pinned posts with is_pinned flag
-      pinnedPosts = pinnedPosts.map(post => ({
-        ...post,
-        is_pinned: true
-      }));
-    }
-
-    // Combine and deduplicate posts
-    let allPosts = [];
-    if (resetPagination) {
-      // For initial load, combine pinned and regular posts, removing duplicates
-      const pinnedPostIds = new Set(pinnedPosts.map(p => p.post_id));
-      const regularPostsFiltered = postsData.filter(p => !pinnedPostIds.has(p.post_id));
-      allPosts = [...pinnedPosts, ...regularPostsFiltered];
-      console.log('� Combined posts for home feed:', {
-        pinnedCount: pinnedPosts.length,
-        regularCount: regularPostsFiltered.length,
-        totalCombined: allPosts.length,
-        duplicatesRemoved: postsData.length - regularPostsFiltered.length
-      });
-    } else {
-      // For pagination, just add new regular posts
-      allPosts = postsData;
-    }
-
-    // Update pagination state - check multiple possible cursor field names in data object
-    const newNextCursor = backendPosts.data?.nextCursor || backendPosts.data?.lastPostId || 
-                         backendPosts.data?.next_cursor || backendPosts.data?.last_post_id ||
-                         backendPosts.nextCursor || backendPosts.lastPostId || null;
-    setNextCursor(newNextCursor);
-    
-    // Check if there are more posts - we have more if:
-    // 1. We have a valid next cursor/lastPostId AND
-    // 2. We got some posts back (even if less than requested limit)
-    const hasMore = newNextCursor !== null && newNextCursor !== undefined && allPosts.length > 0;
-    setHasMorePosts(hasMore);
-
-    console.log('🔍 Pagination decision logic:', {
-      postsReceived: allPosts.length,
-      newNextCursor,
-      hasValidCursor: newNextCursor !== null && newNextCursor !== undefined,
-      willHaveMore: hasMore,
-      resetPagination
-    });
-
-    // Normalize and set posts
-    const normalizedPosts = allPosts.map(normalizePost);
-    
-    // Additional deduplication check based on post_id to prevent React key conflicts
-    const seenPostIds = new Set();
-    const uniqueNormalizedPosts = normalizedPosts.filter(post => {
-      const postId = post.post_id || post.id;
-      if (seenPostIds.has(postId)) {
-        console.log('⚠️ Duplicate post detected and removed:', postId);
-        return false;
+      // Process regular posts
+      let postsData = [];
+      if (backendPosts.data && Array.isArray(backendPosts.data.posts)) {
+        postsData = backendPosts.data.posts;
+      } else if (Array.isArray(backendPosts.data)) {
+        postsData = backendPosts.data;
+      } else if (Array.isArray(backendPosts.posts)) {
+        postsData = backendPosts.posts;
+      } else {
+        console.warn('🛑 No posts found in backend response:', backendPosts);
+        postsData = [];
       }
-      seenPostIds.add(postId);
-      return true;
-    });
-    
-    if (resetPagination) {
-      setPosts(uniqueNormalizedPosts);
-      console.log('🔍 PostContext - Posts set after reset:', {
-        count: uniqueNormalizedPosts.length,
-        firstFew: uniqueNormalizedPosts.slice(0, 2).map(p => ({
-          id: p.post_id || p.id,
-          content: p.content?.substring(0, 50),
-          author: p.author?.username || p.authorName
-        }))
-      });
-    } else {
-      // Append new posts for pagination
-      setPosts(prevPosts => {
-        const existingIds = new Set(prevPosts.map(p => p.post_id || p.id));
-        const newUniquePosts = uniqueNormalizedPosts.filter(p => !existingIds.has(p.post_id || p.id));
-        const updatedPosts = [...prevPosts, ...newUniquePosts];
-        console.log('🔍 PostContext - Posts updated after append:', {
-          prevCount: prevPosts.length,
-          newCount: newUniquePosts.length,
-          totalCount: updatedPosts.length
+
+      // Combine and deduplicate posts
+      let allPosts = [];
+      if (resetPagination) {
+        // For initial load, combine pinned and regular posts, removing duplicates
+        const pinnedPostIds = new Set(pinnedPosts.map(p => p.post_id));
+        const regularPostsFiltered = postsData.filter(p => !pinnedPostIds.has(p.post_id));
+        allPosts = [...pinnedPosts, ...regularPostsFiltered];
+        console.log('🔄 Combined posts for home feed:', {
+          pinnedCount: pinnedPosts.length,
+          regularCount: regularPostsFiltered.length,
+          totalCombined: allPosts.length
         });
-        return updatedPosts;
+      } else {
+        // For pagination, just add new regular posts
+        allPosts = postsData;
+      }
+
+      // Update pagination state
+      const newNextCursor = backendPosts.data?.nextCursor || backendPosts.data?.lastPostId || 
+                           backendPosts.nextCursor || backendPosts.lastPostId || null;
+      setNextCursor(newNextCursor);
+      
+      const hasMore = newNextCursor !== null && allPosts.length > 0;
+      setHasMorePosts(hasMore);
+
+      // Normalize and set posts
+      const normalizedPosts = allPosts.map(normalizePost);
+      
+      // Additional deduplication check
+      const seenPostIds = new Set();
+      const uniqueNormalizedPosts = normalizedPosts.filter(post => {
+        const postId = post.post_id || post.id;
+        if (seenPostIds.has(postId)) {
+          return false;
+        }
+        seenPostIds.add(postId);
+        return true;
       });
-    }
-    
-    console.log('📄 Pagination state updated:', {
-      rawPostsCount: allPosts.length,
-      normalizedPostsCount: normalizedPosts.length,
-      uniquePostsCount: uniqueNormalizedPosts.length,
-      duplicatesFiltered: normalizedPosts.length - uniqueNormalizedPosts.length,
-      totalPosts: resetPagination ? uniqueNormalizedPosts.length : posts.length + uniqueNormalizedPosts.length,
-      hasMore,
-      nextCursor: newNextCursor
-    });
-    
-  } catch (error) {
-    console.error('❌ Failed to load posts for home feed:', error.message);
-    if (resetPagination) {
-      setPosts([]);
+      
+      if (resetPagination) {
+        setPosts(uniqueNormalizedPosts);
+        console.log('✅ Posts loaded:', uniqueNormalizedPosts.length);
+      } else {
+        // Append new posts for pagination
+        setPosts(prevPosts => {
+          const existingIds = new Set(prevPosts.map(p => p.post_id || p.id));
+          const newUniquePosts = uniqueNormalizedPosts.filter(p => !existingIds.has(p.post_id || p.id));
+          return [...prevPosts, ...newUniquePosts];
+        });
+      }
+    } catch (error) {
+      console.error('❌ Error loading posts:', error);
       setHasMorePosts(false);
-      setNextCursor(null);
+    } finally {
+      setLoading(false);
     }
-  }
-};
+  };
 
   // Function to load more posts (pagination)
   const loadMorePosts = async () => {

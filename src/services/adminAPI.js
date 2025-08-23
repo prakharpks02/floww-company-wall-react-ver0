@@ -455,6 +455,26 @@ export const adminAPI = {
     }
   },
 
+  // Clear all broadcast messages (admin only)
+  clearAllBroadcasts: async () => {
+    const endpoint = `${API_CONFIG.BASE_URL}/admin/broadcasts/clear`;
+    logApiCall('DELETE', endpoint);
+    
+    try {
+      const response = await fetchWithTimeout(endpoint, {
+        method: 'DELETE'
+      });
+      
+      const result = await handleResponse(response);
+      console.log('✅ All broadcasts cleared successfully');
+      
+      return result;
+    } catch (error) {
+      console.error('❌ Clear broadcasts error:', error.message);
+      throw error;
+    }
+  },
+
   // ========================================
   // REPORTS MANAGEMENT
   // ========================================

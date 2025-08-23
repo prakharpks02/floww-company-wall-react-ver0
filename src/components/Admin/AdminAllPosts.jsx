@@ -1,6 +1,7 @@
 import React, { useEffect, useCallback, useState } from 'react';
 import { Loader } from 'lucide-react';
 import AdminPostCard from './AdminPostCard';
+import PostSkeleton from '../Posts/PostSkeleton';
 import Alert from '../UI/Alert';
 import { usePostsData } from './utils/usePostsData';
 import { usePostActions } from './utils/usePostActions';
@@ -46,8 +47,19 @@ const AdminAllPosts = () => {
   useEffect(() => {
     console.log('🚀 AdminAllPosts - Initial load starting...');
     const loadData = async () => {
-      await loadPinnedPosts();
-      await loadAllPosts();
+      try {
+        // Ensure pinned posts load first, then regular posts
+        console.log('📌 Loading pinned posts first...');
+        await loadPinnedPosts();
+        
+        console.log('📄 Loading regular posts...');
+        await loadAllPosts();
+        
+        console.log('✅ All data loaded successfully');
+      } catch (error) {
+        console.error('❌ Error in sequential loading:', error);
+        setError(`Failed to load posts: ${error.message}`);
+      }
     };
     loadData();
   }, []);
@@ -89,10 +101,17 @@ const AdminAllPosts = () => {
         </div>
       )}
 
-      <div className="space-y-6">
-        {console.log('🔍 Rendering posts. Pinned:', pinnedPosts.length, 'Regular:', posts.length)}
-        {console.log('🔍 Pinned posts data:', pinnedPosts)}
-        {console.log('🔍 Regular posts data:', posts.slice(0, 3))} 
+      {/* Show skeleton loading while posts are being loaded */}
+      {isLoading && posts.length === 0 && pinnedPosts.length === 0 && (
+        <PostSkeleton count={5} />
+      )}
+
+      {/* Show posts only when not in initial loading state */}
+      {(!isLoading || posts.length > 0 || pinnedPosts.length > 0) && (
+        <div className="space-y-6 max-w-2xl mx-auto">
+          {console.log('🔍 Rendering posts. Pinned:', pinnedPosts.length, 'Regular:', posts.length)}
+          {console.log('🔍 Pinned posts data:', pinnedPosts)}
+          {console.log('🔍 Regular posts data:', posts.slice(0, 3))} 
         
         {/* Debug info for development
         {process.env.NODE_ENV === 'development' && (
@@ -148,9 +167,11 @@ const AdminAllPosts = () => {
             />
           );
         })}
-      </div>
+        </div>
+      )}
 
-      {isLoading && (
+      {/* Loading indicator for additional posts */}
+      {isLoading && (posts.length > 0 || pinnedPosts.length > 0) && (
         <div className="flex justify-center items-center py-8">
           <Loader className="animate-spin h-8 w-8 text-purple-600" />
           <span className="ml-3 text-gray-600">Loading posts...</span>

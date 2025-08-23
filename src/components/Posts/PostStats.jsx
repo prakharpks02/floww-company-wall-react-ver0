@@ -2,7 +2,7 @@ import React from 'react';
 import { Heart, MessageCircle, Share2 } from 'lucide-react';
 
 const PostStats = ({ totalLikes, totalReactions, totalComments, shareCount, getTopReactions }) => {
-  if (totalReactions === 0 && totalLikes === 0) return null;
+  if (totalReactions === 0 && totalLikes === 0 && totalComments === 0 && shareCount === 0) return null;
 
   return (
     <div className="flex items-center justify-between mb-3 text-sm">
@@ -29,12 +29,18 @@ const PostStats = ({ totalLikes, totalReactions, totalComments, shareCount, getT
           </div>
         )}
       </div>
-      <div className="flex items-center space-x-4 text-gray-500">
-        <span>{totalComments} {totalComments === 1 ? 'comment' : 'comments'}</span>
-        {shareCount > 0 && (
-          <span>{shareCount} {shareCount === 1 ? 'share' : 'shares'}</span>
-        )}
-      </div>
+      
+      {/* Always show the right side if there are comments or shares */}
+      {(totalComments > 0 || shareCount > 0) && (
+        <div className="flex items-center space-x-4 text-gray-500">
+          {totalComments > 0 && (
+            <span>{totalComments} {totalComments === 1 ? 'comment' : 'comments'}</span>
+          )}
+          {shareCount > 0 && (
+            <span>{shareCount} {shareCount === 1 ? 'share' : 'shares'}</span>
+          )}
+        </div>
+      )}
     </div>
   );
 };
