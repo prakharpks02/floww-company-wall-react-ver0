@@ -3,7 +3,7 @@
 export const sanitizeHtml = (html) => {
   // Basic HTML sanitization - in a real app, use a library like DOMPurify
   const allowedTags = ['p', 'strong', 'em', 'ul', 'li', 'br', 'span', 'div'];
-  const allowedAttributes = ['class', 'data-user-id', 'data-employee_name', 'style'];
+  const allowedAttributes = ['class', 'data-user-id', 'data-employee_name', 'data-employee_username', 'style'];
   
   const div = document.createElement('div');
   div.innerHTML = html;

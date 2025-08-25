@@ -383,15 +383,15 @@ export const postsAPI = {
           return allMedia.length > 0 ? { media: allMedia } : {};
         })(),
         ...(postData.mentions && postData.mentions.length > 0 && { 
-          // Send mentions as array of employee names (strings only)
+          // Send mentions as array of employee usernames (strings only)
           mentions: postData.mentions.map(m => {
             // If it's already a string, use it directly
             if (typeof m === 'string') {
               return m;
             }
-            // If it's an object, extract the name from various possible properties
+            // If it's an object, extract the username from various possible properties
             if (m && typeof m === 'object') {
-              return m.username || m.employee_name || m.name || m.user_id || '';
+              return m.employee_username || m.username || m.employee_name || m.name || m.user_id || '';
             }
             // Fallback for other types
             return String(m);

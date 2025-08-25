@@ -153,12 +153,14 @@ const RichTextEditor = ({
       mentionSpan.className = 'mention bg-purple-100 text-purple-800 px-1 rounded';
       mentionSpan.setAttribute('data-user-id', user.user_id || user.id || user.employee_id);
       
-      const employeeUsername = user.employee_name || user.username || user.name;
+      const employeeDisplayName = user.employee_name || user.username || user.name;
+      const employeeUsername = user.employee_username || user.username || user.name;
    
-      
-      mentionSpan.setAttribute('data-employee_name', employeeUsername);
+      // Store the username for extraction, but display the friendly name
+      mentionSpan.setAttribute('data-employee_username', employeeUsername);
+      mentionSpan.setAttribute('data-employee_name', employeeDisplayName);
       mentionSpan.setAttribute('contenteditable', 'false');
-      mentionSpan.textContent = `@${user.employee_name || user.username}`;
+      mentionSpan.textContent = `@${employeeDisplayName}`;
       
       // Replace text
       textNode.textContent = beforeMention;
