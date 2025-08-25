@@ -154,7 +154,7 @@ const fetchWithTimeout = async (url, options = {}) => {
 // Helper function to log API calls (for debugging)
 const logApiCall = (method, endpoint, data = null) => {
   if (process.env.NODE_ENV === 'development') {
-    console.log(`🌐 API ${method}: ${endpoint}`, data ? { data } : '');
+
   }
 };
 
@@ -364,15 +364,32 @@ export const postsAPI = {
     try {
       const requestBody = {
         content: postData.content,
-        ...(postData.media && postData.media.length > 0 && { media: postData.media }),
+        // Combine all media into a single array of URLs
+        ...(postData.media && postData.media.length > 0 && { 
+          media: postData.media.map(item => {
+            if (typeof item === 'string') return item;
+            return item.url || item.link || item;
+          }).filter(Boolean)
+        }),
+        // Also handle individual media arrays and convert to single media array
+        ...(() => {
+          const allMedia = [
+            ...(postData.images || []).map(img => typeof img === 'string' ? img : img.url || img.link),
+            ...(postData.videos || []).map(vid => typeof vid === 'string' ? vid : vid.url || vid.link),
+            ...(postData.documents || []).map(doc => typeof doc === 'string' ? doc : doc.url || doc.link),
+            ...(postData.links || []).map(link => typeof link === 'string' ? link : link.url || link.link)
+          ].filter(Boolean);
+          
+          return allMedia.length > 0 ? { media: allMedia } : {};
+        })(),
         ...(postData.mentions && postData.mentions.length > 0 && { 
           // Send mentions as array of objects with employee_name
           mentions: postData.mentions.map(m => {
-            console.log('🔍 Processing mention:', m, 'Type:', typeof m);
+  
             if (typeof m === 'string') return { employee_name: m };
             if (m && typeof m === 'object') {
               const employee_name = m.employee_name || m.user_id || '';
-              console.log('🔍 Extracted employee_name:', employee_name);
+     
               return employee_name ? { employee_name: employee_name } : null;
             }
             return { employee_name: String(m) };
@@ -529,25 +546,25 @@ export const postsAPI = {
       }),
       // If no tags are provided, explicitly send empty array to clear existing tags
       ...((!updateData.tags || updateData.tags.length === 0) && { tags: [] }),
-      // Combine all media into single media array with proper format
+      // Combine all media into single media array as URLs
       ...(() => {
         const allMedia = [
-          // Images as media objects
-          ...(updateData.images || []).filter(img => img && (typeof img === 'string' || img.url)).map(img => ({ 
-            link: typeof img === 'string' ? img : img.url 
-          })),
-          // Videos as media objects  
-          ...(updateData.videos || []).filter(vid => vid && (typeof vid === 'string' || vid.url)).map(vid => ({ 
-            link: typeof vid === 'string' ? vid : vid.url 
-          })),
-          // Documents as media objects
-          ...(updateData.documents || []).filter(doc => doc && (typeof doc === 'string' || doc.url)).map(doc => ({ 
-            link: typeof doc === 'string' ? doc : doc.url 
-          })),
-          // Links as media objects
-          ...(updateData.links || []).filter(link => link && (typeof link === 'string' || link.url)).map(link => ({ 
-            link: typeof link === 'string' ? link : link.url 
-          }))
+          // Images as URLs
+          ...(updateData.images || []).filter(img => img && (typeof img === 'string' || img.url)).map(img => 
+            typeof img === 'string' ? img : img.url
+          ),
+          // Videos as URLs  
+          ...(updateData.videos || []).filter(vid => vid && (typeof vid === 'string' || vid.url)).map(vid => 
+            typeof vid === 'string' ? vid : vid.url
+          ),
+          // Documents as URLs
+          ...(updateData.documents || []).filter(doc => doc && (typeof doc === 'string' || doc.url)).map(doc => 
+            typeof doc === 'string' ? doc : doc.url
+          ),
+          // Links as URLs
+          ...(updateData.links || []).filter(link => link && (typeof link === 'string' || link.url)).map(link => 
+            typeof link === 'string' ? link : link.url
+          )
         ];
         
         // Always send media array, even if empty (to clear existing media)
@@ -692,10 +709,20 @@ export const postsAPI = {
     const endpoint = `${API_CONFIG.BASE_URL}/posts/${postId}/comments`;
     logApiCall('POST', endpoint, commentData);
     try {
-      // The backend expects { content }
+      // Extract mentions from the content if it's HTML
+      const mentions = commentData.mentions || [];
+      
+      // The backend expects { content, mentions }
       const requestBody = {
-        content: commentData.content || commentData.comment // always send as 'content'
+        content: commentData.content || commentData.comment, // always send as 'content'
+        ...(mentions.length > 0 && { 
+          mentions: mentions.map(m => ({
+            employee_name: m.employee_name || m.employeeName || m.username,
+            user_id: m.user_id || m.userId
+          }))
+        })
       };
+      
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
         body: JSON.stringify(requestBody)
@@ -730,8 +757,17 @@ export const postsAPI = {
     logApiCall('POST', endpoint, replyData);
     
     try {
+      // Extract mentions from the content if it's HTML
+      const mentions = replyData.mentions || [];
+      
       const requestBody = {
-        content: replyData.content
+        content: replyData.content,
+        ...(mentions.length > 0 && { 
+          mentions: mentions.map(m => ({
+            employee_name: m.employee_name || m.employeeName || m.username,
+            user_id: m.user_id || m.userId
+          }))
+        })
       };
 
       const response = await fetchWithTimeout(endpoint, {
@@ -858,14 +894,24 @@ export const postsAPI = {
   },
 
   // Edit comment by comment_id (POST)
-  editComment: async (commentId, content) => {
+  editComment: async (commentId, contentOrData) => {
     const endpoint = `${API_CONFIG.BASE_URL}/comments/${commentId}/edit`;
+    
+    // Handle both string content and object data
+    const content = typeof contentOrData === 'string' ? contentOrData : contentOrData.content;
+    const mentions = typeof contentOrData === 'object' ? contentOrData.mentions || [] : [];
     
     // Try multiple field names to match backend expectations
     const requestBody = {
       content: content,        // Primary field name
       comment: content,        // Fallback field name
-      new_content: content     // Alternative field name
+      new_content: content,    // Alternative field name
+      ...(mentions.length > 0 && { 
+        mentions: mentions.map(m => ({
+          employee_name: m.employee_name || m.employeeName || m.username,
+          user_id: m.user_id || m.userId
+        }))
+      })
     };
     
     logApiCall('POST', endpoint, requestBody);
@@ -884,15 +930,28 @@ export const postsAPI = {
   },
 
   // Add reply to comment
-  addCommentReply: async (postId, commentId, content) => {
+  addCommentReply: async (postId, commentId, contentOrData) => {
     const endpoint = `${API_CONFIG.BASE_URL}/posts/${postId}/comments/${commentId}/replies`;
-    logApiCall('POST', endpoint, { content });
+    
+    // Handle both string content and object data
+    const content = typeof contentOrData === 'string' ? contentOrData : contentOrData.content;
+    const mentions = typeof contentOrData === 'object' ? contentOrData.mentions || [] : [];
+    
+    const requestBody = {
+      content: content,
+      ...(mentions.length > 0 && { 
+        mentions: mentions.map(m => ({
+          employee_name: m.employee_name || m.employeeName || m.username,
+          user_id: m.user_id || m.userId
+        }))
+      })
+    };
+    
+    logApiCall('POST', endpoint, requestBody);
     try {
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
-        body: JSON.stringify({ 
-          content: content 
-        })
+        body: JSON.stringify(requestBody)
       });
       return await handleResponse(response);
     } catch (error) {

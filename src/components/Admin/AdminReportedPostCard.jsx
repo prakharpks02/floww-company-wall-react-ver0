@@ -9,6 +9,7 @@ import {
   FileText
 } from 'lucide-react';
 import { adminAPI } from '../../services/adminAPI';
+import { useAlert } from '../UI/Alert';
 
 
 // Simple media components
@@ -97,6 +98,9 @@ const AdminReportedPostCard = ({ postData, onPostUpdate, onPostDelete }) => {
   const [selectedReportIdx, setSelectedReportIdx] = useState(0);
   const [localAuthor, setLocalAuthor] = useState(postData.author);
 
+  // Alert hook for better UI notifications
+  const { showSuccess, showError, showWarning, AlertContainer } = useAlert();
+
   const { post_id, content, author, reports = [], media: rawMedia = [], is_comments_allowed } = postData;
   const media = normalizeMedia(rawMedia);
   // Block/Unblock user logic (modeled after useUserActions.js)
@@ -124,10 +128,16 @@ const AdminReportedPostCard = ({ postData, onPostUpdate, onPostDelete }) => {
       }
       // Optionally notify parent
       if (onPostUpdate) onPostUpdate(post_id, serverBlockedStatus ? 'blocked' : 'unblocked');
+      
+      // Show success message
+      showSuccess(
+        serverBlockedStatus ? 'User Blocked' : 'User Unblocked', 
+        `User has been ${serverBlockedStatus ? 'blocked' : 'unblocked'} successfully`
+      );
     } catch (error) {
       // Revert optimistic update
       setLocalAuthor(prev => ({ ...prev, is_blocked: author?.is_blocked }));
-      alert('Failed to toggle user block status: ' + (error.message || error));
+      showError('Block Action Failed', error.message || 'Failed to toggle user block status');
     } finally {
       setProcessingBlock(false);
     }
@@ -176,18 +186,17 @@ const AdminReportedPostCard = ({ postData, onPostUpdate, onPostDelete }) => {
     }
 
     try {
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
-      const response = await adminAPI.resolveReport(reportId, user.id, 'resolved');
+      const response = await adminAPI.resolveReport(reportId, 'resolved');
       
       if (response.status === 'success') {
-        alert('Report resolved successfully');
+        showSuccess('Report Resolved', 'Report has been resolved successfully');
         onPostUpdate?.(post_id, 'report_resolved');
       } else {
-        alert(response.message || 'Failed to resolve report');
+        showError('Resolution Failed', response.message || 'Failed to resolve report');
       }
     } catch (error) {
       console.error('Error resolving report:', error);
-      alert(error.message || 'Failed to resolve report');
+      showError('Resolution Error', error.message || 'Failed to resolve report');
     }
   };
 
@@ -198,17 +207,17 @@ const AdminReportedPostCard = ({ postData, onPostUpdate, onPostDelete }) => {
 
     setProcessingDelete(true);
     try {
-  const response = await adminAPI.deletePost(post_id);
+      const response = await adminAPI.deletePost(post_id);
       
       if (response.status === 'success') {
-        alert('Post deleted successfully');
+        showSuccess('Post Deleted', 'Post has been deleted successfully');
         onPostDelete?.(post_id);
       } else {
-        alert(response.message || 'Failed to delete post');
+        showError('Deletion Failed', response.message || 'Failed to delete post');
       }
     } catch (error) {
       console.error('Error deleting post:', error);
-      alert(error.message || 'Failed to delete post');
+      showError('Deletion Error', error.message || 'Failed to delete post');
     } finally {
       setProcessingDelete(false);
     }
@@ -223,7 +232,11 @@ const AdminReportedPostCard = ({ postData, onPostUpdate, onPostDelete }) => {
       : reports;
 
   return (
-    <div className="bg-gradient-to-br from-white via-blue-50 to-indigo-50 rounded-2xl shadow-xl border border-blue-100 p-8 mb-8">
+    <>
+      {/* Alert Container for notifications */}
+      <AlertContainer />
+      
+      <div className="bg-gradient-to-br from-white via-blue-50 to-indigo-50 rounded-2xl shadow-xl border border-blue-100 p-8 mb-8">
       {/* Header with Alert */}
       <div className="flex items-start justify-between mb-6 border-l-4 border-blue-400 pl-4">
         <div className="flex items-center space-x-4">
@@ -442,6 +455,7 @@ const AdminReportedPostCard = ({ postData, onPostUpdate, onPostDelete }) => {
         </div>
       </div>
     </div>
+    </>
   );
 };
 

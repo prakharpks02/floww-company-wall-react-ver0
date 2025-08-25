@@ -35,30 +35,24 @@ export const usePostCreation = (createPost, editPost, editingPost, onClose) => {
   const extractMentionsFromContent = (htmlContent) => {
     if (!htmlContent || typeof htmlContent !== 'string') return [];
     
-    console.log('🔍 Extracting mentions from content:', htmlContent);
+
     
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = htmlContent;
     const mentionElements = tempDiv.querySelectorAll('span[data-user-id]');
     
-    console.log('🔍 Found mention elements:', mentionElements.length);
     
     // Return array of objects: { employee_name: ... }
     const extractedMentions = Array.from(mentionElements).map(element => {
       const employee_name = element.getAttribute('data-employee_name');
       const textContent = element.textContent.replace('@', '');
-      console.log('🔍 Mention element:', { 
-        employee_name, 
-        textContent, 
-        allAttributes: Array.from(element.attributes).map(attr => ({ name: attr.name, value: attr.value }))
-      });
-      
+
       return {
         employee_name: employee_name   || textContent
       };
     });
     
-    console.log('🔍 Final extracted mentions:', extractedMentions);
+ 
     return extractedMentions;
   };
 
@@ -71,7 +65,7 @@ export const usePostCreation = (createPost, editPost, editingPost, onClose) => {
     try {
       // Extract mentions from HTML content
       const extractedMentions = extractMentionsFromContent(content);
-      console.log('🔍 Extracted mentions before sending to API:', extractedMentions);
+     
       
       const postData = {
         content: content.trim(),
@@ -83,7 +77,7 @@ export const usePostCreation = (createPost, editPost, editingPost, onClose) => {
         mentions: extractedMentions // Use extracted mentions from content
       };
 
-      console.log('🔍 Final postData being sent to API:', postData);
+  
 
       if (editingPost) {
         await editPost(editingPost.post_id, postData);

@@ -50,8 +50,6 @@ export const testUserLogin = async (credentials) => {
  */
 export const testPostCreation = async () => {
   try {
-    console.log('🧪 Testing post creation...');
-    
     // Make sure user is logged in first
     const userId = api.user.getCurrentUserId();
     if (!userId) {
@@ -76,8 +74,6 @@ export const testPostCreation = async () => {
     };
     
     const result = await api.posts.createPost(postData);
-    console.log('✅ Post created successfully:', result);
-    
     return result;
   } catch (error) {
     console.error('❌ Post creation failed:', error.message);
@@ -90,8 +86,6 @@ export const testPostCreation = async () => {
  */
 export const testQuickMethods = async () => {
   try {
-    console.log('🧪 Testing quick access methods...');
-    
     // Test quick signup
     const userData = {
       username: "quick_user_" + Date.now(),
@@ -99,22 +93,16 @@ export const testQuickMethods = async () => {
     };
     
     const user = await api.auth.signUp(userData);
-    console.log('✅ Quick signup successful:', user);
     
     // Test auth status
-    console.log('📍 Is logged in:', api.auth.isLoggedIn());
-    console.log('👤 Current user:', api.auth.getCurrentUser());
-    
     // Test quick post
     const post = await api.quick.post("Hello from quick method!", {
       tags: ["test", "quick-method"],
       mentions: ["team"]
     });
-    console.log('✅ Quick post created:', post);
     
     // Test quick feed fetch
     const feed = await api.quick.getFeed(1);
-    console.log('✅ Quick feed fetched:', feed);
     
     return { user, post, feed };
   } catch (error) {
@@ -128,14 +116,10 @@ export const testQuickMethods = async () => {
  */
 export const testMediaUpload = async () => {
   try {
-    console.log('🧪 Testing media upload...');
-    
     // Create a dummy file for testing
     const dummyFile = new File(['test content'], 'test.txt', { type: 'text/plain' });
     
     const result = await api.media.uploadFile(dummyFile, 'document');
-    console.log('✅ File uploaded successfully:', result);
-    
     return result;
   } catch (error) {
     console.error('❌ Media upload failed:', error.message);
@@ -148,15 +132,11 @@ export const testMediaUpload = async () => {
  */
 export const testNotifications = async () => {
   try {
-    console.log('🧪 Testing notifications...');
-    
     if (!api.auth.isLoggedIn()) {
       throw new Error('User must be logged in to test notifications');
     }
     
     const notifications = await api.notifications.getNotifications(1, 10);
-    console.log('✅ Notifications fetched:', notifications);
-    
     return notifications;
   } catch (error) {
     console.error('❌ Notifications test failed:', error.message);
@@ -169,11 +149,7 @@ export const testNotifications = async () => {
  */
 export const testAdminFunctions = async () => {
   try {
-    console.log('🧪 Testing admin functions...');
-    
     const users = await api.admin.getAllUsers(1, 10);
-    console.log('✅ All users fetched (admin):', users);
-    
     return users;
   } catch (error) {
     console.error('❌ Admin functions test failed:', error.message);
@@ -186,18 +162,11 @@ export const testAdminFunctions = async () => {
  */
 export const testUtilityFunctions = async () => {
   try {
-    console.log('🧪 Testing utility functions...');
-    
-    
-
-    
     // Server info
     const info = await api.utility.getServerInfo();
-    console.log('✅ Server info:', info);
     
     // Quick ping
     const ping = await api.quick.ping();
-    console.log('✅ Quick ping:', ping);
     
     return { info, ping };
   } catch (error) {
@@ -211,46 +180,30 @@ export const testUtilityFunctions = async () => {
  */
 export const testCompleteWorkflow = async () => {
   try {
-    console.log('🔄 Starting complete workflow test...');
-    
     // Step 1: Create user
-    console.log('\n--- Step 1: Creating User ---');
     const userData = {
       username: "workflow_user_" + Date.now(),
       email: `workflow${Date.now()}@example.com`
     };
     
     const user = await api.auth.signUp(userData);
-    console.log('✅ User created:', JSON.stringify(user, null, 2));
     
     // Step 2: Verify login status
-    console.log('\n--- Step 2: Verifying Login Status ---');
-    console.log('Is logged in:', api.auth.isLoggedIn());
-    console.log('Current user:', api.auth.getCurrentUser());
-    
     // Step 3: Create post using quick method
-    console.log('\n--- Step 3: Creating Post ---');
     const post = await api.quick.post("Hello from complete workflow test! 🎉", {
       tags: ["workflow-test", "api-integration", "demo"],
       mentions: ["team", "developers"]
     });
-    console.log('✅ Post created successfully');
     
     // Step 4: Fetch user's posts
-    console.log('\n--- Step 4: Fetching User Posts ---');
     const userPosts = await api.posts.getUserPosts(user.user_id, 1, 5);
-    console.log(`✅ Retrieved ${userPosts.posts?.length || 0} user posts`);
     
     // Step 5: Test storage management
-    console.log('\n--- Step 5: Testing Storage ---');
     const storedSession = api.storage.getItem(api.storage.KEYS.USER_SESSION);
-    console.log('✅ Stored session retrieved:', storedSession);
     
     // Step 6: Test utility functions
-    console.log('\n--- Step 6: Testing Utilities ---');
     await testUtilityFunctions();
     
-    console.log('\n🎉 Complete workflow test successful!');
     return { user, post, userPosts };
     
   } catch (error) {
@@ -264,52 +217,42 @@ export const testCompleteWorkflow = async () => {
  */
 export const testAllEndpoints = async () => {
   try {
-    console.log('🧪 Testing ALL API endpoints...');
-    
     const results = {};
     
     // Test user APIs
-    console.log('\n=== Testing User APIs ===');
     results.userCreation = await testUserCreation();
     results.userLogin = await testUserLogin({ username: results.userCreation.username });
     
     // Test post APIs
-    console.log('\n=== Testing Post APIs ===');
     results.postCreation = await testPostCreation();
     
     // Test quick methods
-    console.log('\n=== Testing Quick Methods ===');
     results.quickMethods = await testQuickMethods();
     
     // Test utility functions
-    console.log('\n=== Testing Utility Functions ===');
     results.utilities = await testUtilityFunctions();
     
     // Test media upload (will likely fail without actual file)
-    console.log('\n=== Testing Media Upload ===');
     try {
       results.mediaUpload = await testMediaUpload();
     } catch (error) {
-      console.log('⚠️ Media upload test skipped (expected in demo)');
+      // Media upload test skipped
     }
     
     // Test notifications
-    console.log('\n=== Testing Notifications ===');
     try {
       results.notifications = await testNotifications();
     } catch (error) {
-      console.log('⚠️ Notifications test skipped (may not be implemented)');
+      // Notifications test skipped
     }
     
     // Test admin functions
-    console.log('\n=== Testing Admin Functions ===');
     try {
       results.admin = await testAdminFunctions();
     } catch (error) {
-      console.log('⚠️ Admin functions test skipped (requires admin privileges)');
+      // Admin functions test skipped
     }
     
-    console.log('\n🎉 All endpoint tests completed!');
     return results;
     
   } catch (error) {
@@ -322,21 +265,21 @@ export const testAllEndpoints = async () => {
  * Test helper to clear all stored data
  */
 export const clearTestData = () => {
-  console.log('🧹 Clearing test data...');
   api.storage.clearAllData();
-  console.log('✅ Test data cleared');
 };
 
 /**
  * Show current API status
  */
 export const showAPIStatus = () => {
-  console.log('📊 Current API Status:');
-  console.log('- Base URL:', api.config.BASE_URL);
-  console.log('- Timeout:', api.config.TIMEOUT);
-  console.log('- Logged in:', api.auth.isLoggedIn());
-  console.log('- Current user ID:', api.user.getCurrentUserId());
-  console.log('- User session:', api.auth.getCurrentUser());
+  // Intentionally left without console logging per request
+  return {
+    baseURL: api.config.BASE_URL,
+    timeout: api.config.TIMEOUT,
+    loggedIn: api.auth.isLoggedIn(),
+    currentUserId: api.user.getCurrentUserId(),
+    userSession: api.auth.getCurrentUser()
+  };
 };
 
 /**

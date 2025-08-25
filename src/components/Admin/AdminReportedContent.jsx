@@ -13,6 +13,7 @@ import { adminAPI } from '../../services/adminAPI';
 import { Flag, FileText, MessageSquare, AlertTriangle, RefreshCw } from 'lucide-react';
 import AdminReportedPostCard from './AdminReportedPostCard';
 import AdminReportedCommentCard from './AdminReportedCommentCard';
+import { useAlert } from '../UI/Alert';
 
 const AdminReportedContent = ({ activeView }) => {
   const { user } = useAuth();
@@ -22,6 +23,9 @@ const AdminReportedContent = ({ activeView }) => {
   const [error, setError] = useState(null);
   const [filter, setFilter] = useState('all'); // all, posts, comments
   const [statusFilter, setStatusFilter] = useState('all'); // all, pending, resolved
+
+  // Alert hook for better UI notifications
+  const { showSuccess, showError, showWarning, AlertContainer } = useAlert();
 
   useEffect(() => {
     if (user?.is_admin && activeView === 'admin-reports') {
@@ -100,19 +104,19 @@ const AdminReportedContent = ({ activeView }) => {
 
       // Resolve all pending reports
       const resolvePromises = pendingReportIds.map(reportId => 
-        adminAPI.resolveReport(reportId, user.id, 'resolved')
+        adminAPI.resolveReport(reportId, 'resolved')
       );
 
       await Promise.all(resolvePromises);
       
-      alert(`Successfully resolved ${pendingReportIds.length} pending reports.`);
+      showSuccess('Bulk Resolution Successful', `Successfully resolved ${pendingReportIds.length} pending reports.`);
       
       // Reload the data to reflect changes
       await loadReportedContent();
       
     } catch (error) {
       console.error('Error resolving reports:', error);
-      alert('Failed to resolve some reports. Please try again.');
+      showError('Bulk Resolution Failed', 'Failed to resolve some reports. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -232,7 +236,11 @@ const AdminReportedContent = ({ activeView }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-8">
+    <>
+      {/* Alert Container for notifications */}
+      <AlertContainer />
+      
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-8">
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Header */}
         <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl border border-white/50 p-8">
@@ -467,6 +475,7 @@ const AdminReportedContent = ({ activeView }) => {
         </div>
       </div>
     </div>
+    </>
   );
 };
 

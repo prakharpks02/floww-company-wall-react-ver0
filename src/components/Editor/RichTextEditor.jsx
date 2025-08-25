@@ -153,11 +153,8 @@ const RichTextEditor = ({
       mentionSpan.className = 'mention bg-purple-100 text-purple-800 px-1 rounded';
       mentionSpan.setAttribute('data-user-id', user.user_id || user.id || user.employee_id);
       
-      // Debug: Log user object to see available properties
-      console.log('🔍 User object for mention:', user);
-      
       const employeeUsername = user.employee_name || user.username || user.name;
-      console.log('🔍 Setting data-employee_name to:', employeeUsername);
+   
       
       mentionSpan.setAttribute('data-employee_name', employeeUsername);
       mentionSpan.setAttribute('contenteditable', 'false');

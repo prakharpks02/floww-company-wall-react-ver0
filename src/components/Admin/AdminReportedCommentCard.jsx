@@ -7,10 +7,14 @@ import {
 } from 'lucide-react';
 import { adminAPI } from '../../services/adminAPI';
 import api from '../../services/api';
+import { useAlert } from '../UI/Alert';
 
 const AdminReportedCommentCard = ({ commentData, onCommentUpdate, onCommentDelete }) => {
   const [processingDelete, setProcessingDelete] = useState(false);
   const [showAllReports, setShowAllReports] = useState(false);
+
+  // Alert hook for better UI notifications
+  const { showSuccess, showError, showWarning, AlertContainer } = useAlert();
 
   const { comment_id, content, author, reports = [] } = commentData;
 
@@ -62,14 +66,14 @@ const AdminReportedCommentCard = ({ commentData, onCommentUpdate, onCommentDelet
       const response = await api.deleteComment(comment_id, user.id);
       
       if (response.status === 'success') {
-        alert('Comment deleted successfully');
+        showSuccess('Comment Deleted', 'Comment has been deleted successfully');
         onCommentDelete?.(comment_id);
       } else {
-        alert(response.message || 'Failed to delete comment');
+        showError('Deletion Failed', response.message || 'Failed to delete comment');
       }
     } catch (error) {
       console.error('Error deleting comment:', error);
-      alert(error.message || 'Failed to delete comment');
+      showError('Deletion Error', error.message || 'Failed to delete comment');
     } finally {
       setProcessingDelete(false);
     }
@@ -81,18 +85,17 @@ const AdminReportedCommentCard = ({ commentData, onCommentUpdate, onCommentDelet
     }
 
     try {
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
-      const response = await adminAPI.resolveReport(reportId, user.id, 'resolved');
+      const response = await adminAPI.resolveReport(reportId, 'resolved');
       
       if (response.status === 'success') {
-        alert('Report resolved successfully');
+        showSuccess('Report Resolved', 'Report has been resolved successfully');
         onCommentUpdate?.(comment_id, 'report_resolved');
       } else {
-        alert(response.message || 'Failed to resolve report');
+        showError('Resolution Failed', response.message || 'Failed to resolve report');
       }
     } catch (error) {
       console.error('Error resolving report:', error);
-      alert(error.message || 'Failed to resolve report');
+      showError('Resolution Error', error.message || 'Failed to resolve report');
     }
   };
 
@@ -100,7 +103,11 @@ const AdminReportedCommentCard = ({ commentData, onCommentUpdate, onCommentDelet
   const displayReports = showAllReports ? reports : reports.slice(0, 2);
 
   return (
-    <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6 mb-6">
+    <>
+      {/* Alert Container for notifications */}
+      <AlertContainer />
+      
+      <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6 mb-6">
       {/* Header */}
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center space-x-3">
@@ -214,6 +221,7 @@ const AdminReportedCommentCard = ({ commentData, onCommentUpdate, onCommentDelet
         </div>
       </div>
     </div>
+    </>
   );
 };
 

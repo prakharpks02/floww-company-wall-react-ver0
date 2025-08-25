@@ -33,6 +33,8 @@ const PostCard = ({
     setShowComments,
     commentText,
     setCommentText,
+    commentMentions,
+    handleCommentMentionsChange,
     showMenu,
     setShowMenu,
     showEditModal,
@@ -383,15 +385,17 @@ const PostCard = ({
           />
         </div>
 
-        {/* Comments Section - Compact height */}
+        {/* Comments Section - Enhanced height for better visibility */}
         {showComments && (
-          <div className="mt-2 max-h-40 overflow-y-auto">
+          <div className="mt-2 max-h-96 overflow-y-auto">
             <CommentsSection
               showComments={showComments}
               isPublicView={isPublicView}
               isAdmin={user?.is_admin}
               commentText={commentText}
               setCommentText={setCommentText}
+              commentMentions={commentMentions}
+              handleCommentMentionsChange={handleCommentMentionsChange}
               handleComment={handleComment}
               normalizedPost={normalizedPost}
               user={user}

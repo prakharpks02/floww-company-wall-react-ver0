@@ -3,6 +3,8 @@ import { Trash2, Heart, MessageCircle, Edit, MoreHorizontal, Flag } from 'lucide
 import { formatDistanceToNow } from 'date-fns';
 import CommentReply from './CommentReply';
 import ReportModal from './ReportModal';
+import MentionInput from '../Editor/MentionInput';
+import { formatTextForDisplay } from '../../utils/htmlUtils';
 
 const CommentItem = ({ 
   comment, 
@@ -94,19 +96,6 @@ const CommentItem = ({
     comment.author.id === user.id ||
     comment.author.id === user.employee_id
   );
-
-  // Debug log to see what's happening
-  console.log('🔍 CommentItem debug:', {
-    user: user,
-    commentAuthor: comment.author,
-    isCommentAuthor,
-    isAdmin,
-    isPublicView
-  });
-
- 
-
-
 
   // Normalize the comment data to ensure consistent structure
   const normalizedComment = {
@@ -275,12 +264,13 @@ const CommentItem = ({
         {isEditing ? (
           /* Edit Mode */
           <div className="space-y-2">
-            <textarea
+            <MentionInput
               value={editContent}
-              onChange={(e) => setEditContent(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none"
-              rows="3"
+              onChange={setEditContent}
               placeholder="Edit your comment..."
+              className="w-full"
+              isAdmin={isAdmin}
+              rows={3}
             />
             <div className="flex items-center gap-2">
               <button
@@ -301,8 +291,6 @@ const CommentItem = ({
           /* Display Mode */
           (() => {
             const content = comment.content;
-            
-        
             
             if (content && content.toString().trim()) {
               return (
@@ -496,12 +484,13 @@ const CommentItem = ({
             </p>
           </div>
           <div className="space-y-2">
-            <textarea
+            <MentionInput
               value={replyContent}
-              onChange={(e) => setReplyContent(e.target.value)}
+              onChange={setReplyContent}
               placeholder="Write a reply..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none"
-              rows="2"
+              className="w-full"
+              isAdmin={isAdmin}
+              rows={2}
             />
             <div className="flex items-center gap-2">
               <button 

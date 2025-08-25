@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from './AuthContext';
 import { postsAPI } from '../services/api';
 import { adminAPI } from '../services/adminAPI';
+import { extractMentionsFromText, processCommentData } from '../utils/htmlUtils';
 
 const PostContext = createContext();
 
@@ -690,7 +691,36 @@ export const PostProvider = ({ children }) => {
         tags: postData.tags || []
       });
       
-      // Create final post object with backend data
+      // Create final post object with backend data - process media array from backend
+      const processMediaFromBackend = (mediaArray) => {
+        const mediaArrays = { images: [], videos: [], documents: [], links: [] };
+        
+        (mediaArray || []).forEach(item => {
+          let actualUrl = item;
+          if (typeof item === 'object' && item.link) {
+            actualUrl = item.link;
+          }
+          
+          // Decode URL to handle encoded characters
+          const decodedUrl = decodeURIComponent(actualUrl);
+          
+          // Categorize by file extension
+          if (decodedUrl.match(/\.(jpeg|jpg|gif|png|webp|bmp|svg)$/i)) {
+            mediaArrays.images.push({ url: actualUrl, name: 'Image' });
+          } else if (decodedUrl.match(/\.(mp4|avi|mov|wmv|flv|webm|mkv)$/i)) {
+            mediaArrays.videos.push({ url: actualUrl, name: 'Video' });
+          } else if (decodedUrl.match(/\.(pdf|doc|docx|xls|xlsx|ppt|pptx|txt)$/i)) {
+            mediaArrays.documents.push({ url: actualUrl, name: 'Document', isPDF: decodedUrl.match(/\.pdf$/i) });
+          } else {
+            mediaArrays.links.push({ url: actualUrl, title: actualUrl });
+          }
+        });
+        
+        return mediaArrays;
+      };
+
+      const processedMedia = processMediaFromBackend(backendResult.media);
+      
       const finalPost = {
         id: backendResult.post_id || backendResult.id || tempId,
         post_id: backendResult.post_id || tempId,
@@ -699,10 +729,10 @@ export const PostProvider = ({ children }) => {
         authorAvatar: authorAvatar,
         authorPosition: user?.position || user?.job_title || (user?.is_admin ? 'Administrator' : 'Employee'),
         content: postData.content,
-        images: postData.images || [],
-        videos: postData.videos || [],
-        documents: postData.documents || [],
-        links: postData.links || [],
+        images: processedMedia.images,
+        videos: processedMedia.videos,
+        documents: processedMedia.documents,
+        links: processedMedia.links,
         tags: postData.tags || [],
         mentions: postData.mentions || [],
         timestamp: backendResult.created_at || new Date().toISOString(),
@@ -822,14 +852,7 @@ export const PostProvider = ({ children }) => {
   // with proper toggle behavior using add/remove reaction API endpoints
 
   const addComment = async (postId, commentData) => {
-    console.log('🔥 PostContext addComment called:', { 
-      postId, 
-      commentData, 
-      user: user,
-      userExists: !!user,
-      userKeys: user ? Object.keys(user) : 'NO_USER'
-    });
-    
+
     if (!user) {
       console.error('❌ No user found for adding comment - user object is:', user);
       // Instead of throwing an error, let's wait for the user to load
@@ -838,11 +861,24 @@ export const PostProvider = ({ children }) => {
     }
 
     try {
-      console.log('📡 Calling API to add comment...');
-      // Call the API to add comment
-      const result = await postsAPI.addComment(postId, commentData);
-      console.log('✅ API response for addComment:', result);
+
       
+      // Process comment data to extract mentions
+      const processedData = typeof commentData === 'string' 
+        ? {
+            content: commentData,
+            mentions: extractMentionsFromText(commentData)
+          }
+        : {
+            ...commentData,
+            mentions: commentData.mentions || extractMentionsFromText(commentData.content || '')
+          };
+      
+  
+      
+      // Call the API to add comment
+      const result = await postsAPI.addComment(postId, processedData);
+
       // Optimistically update the UI
       const newComment = {
         id: result.comment_id || result.id || uuidv4(),
@@ -1057,7 +1093,19 @@ export const PostProvider = ({ children }) => {
         throw new Error('Not authorized to edit this comment');
       }
 
-      const apiResponse = await postsAPI.editComment(commentId, newContent);
+      const processedData = typeof newContent === 'string' 
+        ? {
+            content: newContent,
+            mentions: extractMentionsFromText(newContent)
+          }
+        : {
+            ...newContent,
+            mentions: newContent.mentions || extractMentionsFromText(newContent.content || '')
+          };
+      
+ 
+
+      const apiResponse = await postsAPI.editComment(commentId, processedData);
       
       // First, let's see the current state before updating
       setPosts(prevPosts => {
@@ -1068,7 +1116,7 @@ export const PostProvider = ({ children }) => {
               if (comment.id === commentId || comment.comment_id === commentId) {
                 const updatedComment = {
                   ...comment,
-                  content: newContent,
+                  content: processedData.content || newContent,
                   edited: true,
                   edited_at: new Date().toISOString()
                 };
@@ -1099,13 +1147,26 @@ export const PostProvider = ({ children }) => {
       const backendCommentId = comment?.comment_id || commentId;
       const backendPostId = post?.post_id || postId;
 
-      const response = await postsAPI.addCommentReply(backendPostId, backendCommentId, replyContent);
+      // Process reply content to extract mentions
+      const processedData = typeof replyContent === 'string' 
+        ? {
+            content: replyContent,
+            mentions: extractMentionsFromText(replyContent)
+          }
+        : {
+            ...replyContent,
+            mentions: replyContent.mentions || extractMentionsFromText(replyContent.content || '')
+          };
+      
+
+
+      const response = await postsAPI.addCommentReply(backendPostId, backendCommentId, processedData);
 
       // Create optimistic reply object
       const newReply = {
         id: response?.reply_id || `reply-${Date.now()}`,
         reply_id: response?.reply_id,
-        content: replyContent,
+        content: processedData.content || replyContent,
         author: {
           username: user?.name || user?.username || (user?.is_admin ? 'Admin' : 'Employee User')
         },
@@ -1189,14 +1250,162 @@ export const PostProvider = ({ children }) => {
     const backendCommentId = targetComment.comment_id || commentId;
 
     try {
-      // Add or toggle the reaction
+      // Optimistically update the UI first for immediate feedback
+      setPosts(prevPosts =>
+        prevPosts.map(post => {
+          if (post.id === parentPost?.id || post.post_id === parentPost?.post_id) {
+            return {
+              ...post,
+              comments: post.comments?.map(comment => {
+                // Check if this is the target comment
+                if (comment.id === commentId || comment.comment_id === commentId) {
+                  const currentReactions = comment.reactions || {};
+                  const userId = user.id || user.user_id || user.employee_id;
+                  
+                  // Check if user has this specific reaction
+                  const userHasThisReaction = currentReactions[safeReactionType]?.some?.(
+                    id => id === userId
+                  ) || currentReactions[safeReactionType]?.includes?.(userId);
+
+                  let updatedReactions = { ...currentReactions };
+                  
+                  // First, remove user from ALL existing reactions (to handle switching)
+                  Object.keys(updatedReactions).forEach(reactionKey => {
+                    if (Array.isArray(updatedReactions[reactionKey])) {
+                      updatedReactions[reactionKey] = updatedReactions[reactionKey].filter(
+                        id => id !== userId
+                      );
+                      // Remove empty arrays
+                      if (updatedReactions[reactionKey].length === 0) {
+                        delete updatedReactions[reactionKey];
+                      }
+                    } else if (updatedReactions[reactionKey]?.users) {
+                      updatedReactions[reactionKey].users = updatedReactions[reactionKey].users.filter(
+                        id => id !== userId
+                      );
+                      updatedReactions[reactionKey].count = Math.max(0, (updatedReactions[reactionKey].count || 1) - 1);
+                      // Remove empty reaction objects
+                      if (updatedReactions[reactionKey].count === 0) {
+                        delete updatedReactions[reactionKey];
+                      }
+                    }
+                  });
+                  
+                  // Then, if user didn't have this specific reaction, add it
+                  if (!userHasThisReaction) {
+                    if (!updatedReactions[safeReactionType]) {
+                      updatedReactions[safeReactionType] = {
+                        users: [userId],
+                        count: 1
+                      };
+                    } else if (Array.isArray(updatedReactions[safeReactionType])) {
+                      updatedReactions[safeReactionType] = [
+                        ...updatedReactions[safeReactionType],
+                        userId
+                      ];
+                    } else {
+                      updatedReactions[safeReactionType].users = [
+                        ...(updatedReactions[safeReactionType].users || []),
+                        userId
+                      ];
+                      updatedReactions[safeReactionType].count = (updatedReactions[safeReactionType].count || 0) + 1;
+                    }
+                  }
+
+                  return {
+                    ...comment,
+                    reactions: updatedReactions
+                  };
+                }
+                
+                // Check if this is a reply to this comment
+                if (comment.replies?.length > 0) {
+                  const updatedReplies = comment.replies.map(reply => {
+                    if (reply.id === commentId || reply.comment_id === commentId) {
+                      const currentReactions = reply.reactions || {};
+                      const userId = user.id || user.user_id || user.employee_id;
+                      
+                      // Check if user has this specific reaction
+                      const userHasThisReaction = currentReactions[safeReactionType]?.some?.(
+                        id => id === userId
+                      ) || currentReactions[safeReactionType]?.includes?.(userId);
+
+                      let updatedReactions = { ...currentReactions };
+                      
+                      // First, remove user from ALL existing reactions (to handle switching)
+                      Object.keys(updatedReactions).forEach(reactionKey => {
+                        if (Array.isArray(updatedReactions[reactionKey])) {
+                          updatedReactions[reactionKey] = updatedReactions[reactionKey].filter(
+                            id => id !== userId
+                          );
+                          // Remove empty arrays
+                          if (updatedReactions[reactionKey].length === 0) {
+                            delete updatedReactions[reactionKey];
+                          }
+                        } else if (updatedReactions[reactionKey]?.users) {
+                          updatedReactions[reactionKey].users = updatedReactions[reactionKey].users.filter(
+                            id => id !== userId
+                          );
+                          updatedReactions[reactionKey].count = Math.max(0, (updatedReactions[reactionKey].count || 1) - 1);
+                          // Remove empty reaction objects
+                          if (updatedReactions[reactionKey].count === 0) {
+                            delete updatedReactions[reactionKey];
+                          }
+                        }
+                      });
+                      
+                      // Then, if user didn't have this specific reaction, add it
+                      if (!userHasThisReaction) {
+                        if (!updatedReactions[safeReactionType]) {
+                          updatedReactions[safeReactionType] = {
+                            users: [userId],
+                            count: 1
+                          };
+                        } else if (Array.isArray(updatedReactions[safeReactionType])) {
+                          updatedReactions[safeReactionType] = [
+                            ...updatedReactions[safeReactionType],
+                            userId
+                          ];
+                        } else {
+                          updatedReactions[safeReactionType].users = [
+                            ...(updatedReactions[safeReactionType].users || []),
+                            userId
+                          ];
+                          updatedReactions[safeReactionType].count = (updatedReactions[safeReactionType].count || 0) + 1;
+                        }
+                      }
+
+                      return {
+                        ...reply,
+                        reactions: updatedReactions
+                      };
+                    }
+                    return reply;
+                  });
+
+                  return {
+                    ...comment,
+                    replies: updatedReplies
+                  };
+                }
+                
+                return comment;
+              }) || []
+            };
+          }
+          return post;
+        })
+      );
+
+      // Add or toggle the reaction on the backend
       await postsAPI.addCommentReaction(backendCommentId, safeReactionType, reactionEmoji);
       
-      // Refresh posts to get updated reactions from backend
-      await reloadPosts();
+     
 
     } catch (error) {
       console.error('❌ Comment reaction error:', error);
+      // Revert the optimistic update on error
+      await reloadPosts();
       throw error;
     }
   };

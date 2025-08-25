@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Trash2, Heart, MessageCircle, Flag, Edit, MoreHorizontal } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import ReportModal from './ReportModal';
+import MentionInput from '../Editor/MentionInput';
 
 const CommentReply = ({ 
   reply, 
@@ -214,12 +215,13 @@ const CommentReply = ({
             {isEditing ? (
               /* Edit Mode */
               <div className="space-y-2">
-                <textarea
+                <MentionInput
                   value={editContent}
-                  onChange={(e) => setEditContent(e.target.value)}
-                  className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-purple-500 focus:border-purple-500 resize-none"
-                  rows="2"
+                  onChange={setEditContent}
                   placeholder="Edit your reply..."
+                  className="w-full"
+                  isAdmin={isAdmin}
+                  rows={2}
                 />
                 <div className="flex items-center gap-1">
                   <button

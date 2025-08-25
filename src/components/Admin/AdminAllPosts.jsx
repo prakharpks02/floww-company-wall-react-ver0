@@ -162,11 +162,11 @@ const AdminAllPosts = () => {
         </div>
       )}
 
-      {!isLoading && posts.length === 0 && !error && (
-        <div className="text-center text-gray-500 py-12">
-          <div className="text-6xl mb-4">📝</div>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No posts found</h3>
-          <p className="text-gray-600">There are no posts to display at the moment.</p>
+      {/* Only show loader when loading is completely finished and no posts exist */}
+      {!isLoading && posts.length === 0 && pinnedPosts.length === 0 && !error && (
+        <div className="flex justify-center items-center py-12">
+          <Loader className="animate-spin h-8 w-8 text-purple-600" />
+          <span className="ml-3 text-gray-600">Loading posts...</span>
         </div>
       )}
     </div>

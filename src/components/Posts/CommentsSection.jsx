@@ -1,6 +1,7 @@
 import React from 'react';
 import CommentItem from './CommentItem';
 import CommentReply from './CommentReply';
+import MentionInput from '../Editor/MentionInput';
 
 const CommentsSection = ({ 
   showComments,
@@ -8,6 +9,8 @@ const CommentsSection = ({
   isAdmin = false, // Add admin prop
   commentText,
   setCommentText,
+  commentMentions = [],
+  handleCommentMentionsChange = () => {},
   handleComment,
   normalizedPost,
   user,
@@ -45,29 +48,17 @@ const CommentsSection = ({
         <div className="space-y-3">
           <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
             <div className="flex-1">
-              <textarea
+              <MentionInput
                 value={commentText}
-                onChange={(e) => setCommentText(e.target.value)}
+                onChange={setCommentText}
+                onMentionsChange={handleCommentMentionsChange}
                 placeholder={userBlocked ? "Blocked users cannot comment" : "Add a comment..."}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none transition-all duration-200"
-                rows="2"
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleComment();
-                  }
-                }}
-                disabled={userBlocked}
+                className="w-full"
+                isAdmin={isAdmin}
+                rows={2}
                 maxLength={500}
+                disabled={userBlocked}
               />
-              <div className="flex justify-between items-center mt-1">
-                <span className="text-xs text-gray-400">
-                  {commentText.length}/500 characters
-                </span>
-                <span className="text-xs text-gray-400">
-                  Press Enter to post, Shift+Enter for new line
-                </span>
-              </div>
             </div>
             <div className="flex justify-end sm:self-start">
               <button
@@ -113,7 +104,7 @@ const CommentsSection = ({
       {Array.isArray(normalizedPost.comments) && normalizedPost.comments.length > 0 && (
         <div className="space-y-3">
           {normalizedPost.comments.map((comment, idx) => {
-            console.log('🔍 Rendering comment:', comment);
+      
             return (
               <div key={comment.comment_id || comment.id || idx} className="bg-gray-50 rounded-lg p-3 sm:p-4">
                 <CommentItem

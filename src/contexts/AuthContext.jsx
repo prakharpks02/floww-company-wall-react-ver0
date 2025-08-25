@@ -35,13 +35,13 @@ const getTokenAndUserType = () => {
 
 useEffect(() => {
   const fetchUser = async () => {
-    console.log('🔍 AuthContext: Starting fetchUser...');
+  
     try {
       const { token, isAdmin } = getTokenAndUserType();
-      console.log('🔍 AuthContext: Got token and user type:', { token: token ? 'EXISTS' : 'NULL', isAdmin });
+    
       
       if (!token) {
-        console.log('❌ AuthContext: No token found, redirecting...');
+     
         // Redirect if no token
         window.location.href = "https://dev.gofloww.co";
         return;
@@ -76,7 +76,7 @@ useEffect(() => {
               is_admin: true
             };
             
-            console.log('✅ AuthContext: Setting admin user:', adminUser);
+         
             setUser(adminUser);
           
             return;
@@ -105,7 +105,7 @@ useEffect(() => {
           is_admin: true
         };
         setUser(adminUser);
-        console.log('✅ AuthContext: Fallback admin user set:', adminUser);
+   
         return;
       }
 
@@ -143,7 +143,7 @@ useEffect(() => {
           is_admin: false
         };
 
-        console.log('✅ AuthContext: Employee user set:', authenticatedUser);
+    
         setUser(authenticatedUser);
         
       } catch (apiError) {

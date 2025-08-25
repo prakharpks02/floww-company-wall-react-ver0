@@ -21,6 +21,7 @@ export const usePostCard = (post, activeView = 'home') => {
   // State management
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState('');
+  const [commentMentions, setCommentMentions] = useState([]);
   const [showMenu, setShowMenu] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
@@ -50,23 +51,6 @@ export const usePostCard = (post, activeView = 'home') => {
                             post.author?.id === user?.id ||
                             post.author?.id === user?.employee_id;
 
-  // Debug logging to help identify the issue
-  console.log('🔍 Post ownership check:', {
-    postAuthor: post.author,
-    currentUser: user,
-    isCurrentUserPost,
-    comparisons: {
-      'post.author?.user_id === user?.user_id': post.author?.user_id === user?.user_id,
-      'post.author_id === user?.user_id': post.author_id === user?.user_id,
-      'post.author_id === user?.id': post.author_id === user?.id,
-      'post.user_id === user?.user_id': post.user_id === user?.user_id,
-      'post.user_id === user?.id': post.user_id === user?.id,
-      'post.author?.employee_id === user?.employee_id': post.author?.employee_id === user?.employee_id,
-      'post.author?.employee_id === user?.id': post.author?.employee_id === user?.id,
-      'post.author?.id === user?.id': post.author?.id === user?.id,
-      'post.author?.id === user?.employee_id': post.author?.id === user?.employee_id
-    }
-  });
 
   // Available emoji reactions - using backend-compatible reaction type names
   const emojiReactions = [
@@ -447,17 +431,16 @@ export const usePostCard = (post, activeView = 'home') => {
 
   const handleComment = () => {
     const postId = getPostId();
-    console.log('🚀 handleComment called:', { 
-      postId, 
-      commentText: commentText.trim(),
-      userFromPostContext: user,
-      userExists: !!user
-    });
+
     
     if (commentText.trim() && postId) {
-      console.log('✅ Adding comment for post:', postId);
-      addComment(postId, { content: commentText.trim() });
+ 
+      addComment(postId, { 
+        content: commentText.trim(),
+        mentions: commentMentions
+      });
       setCommentText('');
+      setCommentMentions([]);
     } else {
       console.warn('⚠️ Cannot add comment:', { 
         hasContent: !!commentText.trim(), 
@@ -534,15 +517,14 @@ export const usePostCard = (post, activeView = 'home') => {
         text: shareText,
         url: shareUrl,
       }).catch(err => {
-        console.log('Error sharing via navigator.share:', err);
+       
         copyToClipboard(shareUrl);
       });
     } else {
       copyToClipboard(shareUrl);
     }
     
-    // Show success message
-    console.log('✅ Share link copied:', shareUrl);
+
   };
 
   const copyToClipboard = (text) => {
@@ -587,7 +569,7 @@ export const usePostCard = (post, activeView = 'home') => {
       setShowReportModal(false);
       alert('Report submitted successfully');
     } catch (error) {
-      console.error('Error submitting report:', error);
+
       alert('Failed to submit report. Please try again.');
     }
   };
@@ -773,6 +755,11 @@ export const usePostCard = (post, activeView = 'home') => {
     return total;
   };
 
+  // Handle mentions change
+  const handleCommentMentionsChange = (mentions) => {
+    setCommentMentions(mentions);
+  };
+
   return {
     // State
     normalizedPost,
@@ -780,6 +767,8 @@ export const usePostCard = (post, activeView = 'home') => {
     setShowComments,
     commentText,
     setCommentText,
+    commentMentions,
+    handleCommentMentionsChange,
     showMenu,
     setShowMenu,
     showEditModal,

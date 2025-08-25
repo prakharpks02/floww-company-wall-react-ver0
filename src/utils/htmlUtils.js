@@ -2,7 +2,9 @@
 
 export const sanitizeHtml = (html) => {
   // Basic HTML sanitization - in a real app, use a library like DOMPurify
-  const allowedTags = ['p', 'strong', 'em', 'ul', 'li', 'br'];
+  const allowedTags = ['p', 'strong', 'em', 'ul', 'li', 'br', 'span', 'div'];
+  const allowedAttributes = ['class', 'data-user-id', 'data-employee_name', 'style'];
+  
   const div = document.createElement('div');
   div.innerHTML = html;
 
@@ -10,14 +12,29 @@ export const sanitizeHtml = (html) => {
   const scripts = div.querySelectorAll('script');
   scripts.forEach(script => script.remove());
 
-  // Remove any non-allowed tags
+  // Remove any non-allowed tags but preserve mentions
   const allElements = div.querySelectorAll('*');
   allElements.forEach(element => {
-    if (!allowedTags.includes(element.tagName.toLowerCase())) {
+    const tagName = element.tagName.toLowerCase();
+    
+    // Allow mention spans
+    if (tagName === 'span' && element.classList.contains('mention')) {
+      return;
+    }
+    
+    if (!allowedTags.includes(tagName)) {
       // Replace with span to preserve content
       const span = document.createElement('span');
       span.innerHTML = element.innerHTML;
       element.parentNode.replaceChild(span, element);
+    } else {
+      // Remove non-allowed attributes
+      const attributes = Array.from(element.attributes);
+      attributes.forEach(attr => {
+        if (!allowedAttributes.includes(attr.name.toLowerCase())) {
+          element.removeAttribute(attr.name);
+        }
+      });
     }
   });
 
@@ -43,6 +60,31 @@ export const extractPlainText = (html) => {
   const div = document.createElement('div');
   div.innerHTML = html;
   return div.textContent || div.innerText || '';
+};
+
+export const extractMentionsFromText = (text) => {
+  // Extract @mentions from plain text
+  const mentionRegex = /@(\w+)/g;
+  const mentions = [];
+  let match;
+  
+  while ((match = mentionRegex.exec(text)) !== null) {
+    mentions.push({
+      text: match[0], // @username
+      username: match[1], // username
+      employee_name: match[1]
+    });
+  }
+  
+  return mentions;
+};
+
+export const processCommentData = (content, mentionsData = []) => {
+  // For plain text comments, we'll get mentions from the MentionInput component
+  return {
+    content: content,
+    mentions: mentionsData
+  };
 };
 
 export const truncateText = (text, maxLength = 200) => {
