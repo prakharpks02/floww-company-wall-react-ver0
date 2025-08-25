@@ -2,42 +2,21 @@
 // API CONFIGURATION
 // =============================================================================
 
-import Cookies from "js-cookie";
+import { cookieUtils } from '../utils/cookieUtils';
 
 // Get authentication token based on environment and user type
 const getAuthToken = (userType = 'employee') => {
-  if (typeof window !== 'undefined') {
-    if (window.location.hostname === "localhost") {
-      // Use the correct token based on user type for localhost development
-      if (userType === 'admin') {
-        return import.meta.env.VITE_FLOWW_ADMIN_TOKEN;
-      }
-      return import.meta.env.VITE_FLOWW_EMPLOYEE_TOKEN;
-    } else {
-      // Use token from cookies for production/staging
-      if (userType === 'admin') {
-        return Cookies.get("floww-admin-token");
-      }
-      return Cookies.get("floww-employee-token");
-    }
-  }
-  // Fallback for SSR or Node.js environment
+  const { employeeToken, adminToken } = cookieUtils.getAuthTokens();
+  
   if (userType === 'admin') {
-    return import.meta.env.VITE_FLOWW_ADMIN_TOKEN;
+    return adminToken;
   }
-  return import.meta.env.VITE_FLOWW_EMPLOYEE_TOKEN;
+  return employeeToken;
 };
 
 // Store token in cookies (useful for production environments)
-const storeTokenInCookies = (token, userType = 'employee') => {
-  if (typeof window !== 'undefined') {
-    const cookieName = userType === 'admin' ? "floww-admin-token" : "floww-employee-token";
-    Cookies.set(cookieName, token, {
-      expires: 30, // 30 days
-      secure: window.location.protocol === 'https:',
-      sameSite: 'strict'
-    });
-  }
+const storeTokenInCookies = (employeeToken, adminToken) => {
+  cookieUtils.setAuthTokens(employeeToken, adminToken);
 };
 
 // Get current user type from current URL path
@@ -248,8 +227,12 @@ export const userAPI = {
   },
 
   // Store token in cookies (for production use)
-  storeToken: (token) => {
-    storeTokenInCookies(token);
+  storeToken: (token, userType = 'employee') => {
+    if (userType === 'admin') {
+      storeTokenInCookies(null, token);
+    } else {
+      storeTokenInCookies(token, null);
+    }
   },
 
   // Get current token
@@ -316,9 +299,7 @@ export const userAPI = {
 
   // Clear session (remove token from cookies)
   clearSession: () => {
-    if (typeof window !== 'undefined') {
-      Cookies.remove("floww-employee-token");
-    }
+    cookieUtils.clearAuthTokens();
   },
 
   // Get users for mentions (employee side)
@@ -1416,6 +1397,30 @@ export const utilityAPI = {
       console.error('❌ Get server info error:', error.message);
       throw error;
     }
+  },
+
+  // Cookie management utilities
+  auth: {
+    // Set authentication tokens in cookies
+    setTokens: (employeeToken, adminToken) => {
+      cookieUtils.setAuthTokens(employeeToken, adminToken);
+    },
+    
+    // Get authentication tokens from cookies
+    getTokens: () => {
+      return cookieUtils.getAuthTokens();
+    },
+    
+    // Clear all authentication tokens
+    clearTokens: () => {
+      cookieUtils.clearAuthTokens();
+    },
+    
+    // Check if user is authenticated
+    isAuthenticated: () => {
+      const { employeeToken, adminToken } = cookieUtils.getAuthTokens();
+      return !!(employeeToken || adminToken);
+    }
   }
 };
 
@@ -1522,8 +1527,9 @@ if (typeof window !== 'undefined') {
     const tokenSource = window.location.hostname === "localhost" ? 'hardcoded' : 'cookie';
     
     // Store token in cookies if not already stored (for production)
-    if (environment === 'production' && !Cookies.get("floww-employee-token")) {
-      storeTokenInCookies(currentToken);
+    const { employeeToken, adminToken } = cookieUtils.getAuthTokens();
+    if (environment === 'production' && !employeeToken && !adminToken) {
+      storeTokenInCookies(currentToken, null);
     }
   }
 }

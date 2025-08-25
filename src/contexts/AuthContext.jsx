@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { userAPI } from '../services/api';
+import { cookieUtils } from '../utils/cookieUtils';
 
 // Create the Auth Context
 const AuthContext = createContext();
@@ -21,8 +22,7 @@ export const AuthProvider = ({ children }) => {
 // Get appropriate token and determine user type based on current URL
 const getTokenAndUserType = () => {
   const currentPath = window.location.pathname;
-  const adminToken = import.meta.env.VITE_FLOWW_ADMIN_TOKEN;
-  const employeeToken = import.meta.env.VITE_FLOWW_EMPLOYEE_TOKEN;
+  const { employeeToken, adminToken } = cookieUtils.getAuthTokens();
   
   // If current path contains /crm, use admin token
   if (currentPath.includes('/crm')) {
@@ -33,19 +33,18 @@ const getTokenAndUserType = () => {
   return { token: employeeToken, isAdmin: false };
 };
 
-useEffect(() => {
-  const fetchUser = async () => {
+const fetchUser = async () => {
+  try {
+    const { token, isAdmin } = getTokenAndUserType();
   
-    try {
-      const { token, isAdmin } = getTokenAndUserType();
     
-      
-      if (!token) {
-     
-        // Redirect if no token
-        window.location.href = "https://dev.gofloww.co";
-        return;
-      }
+    if (!token) {
+   
+      // No token found, set user to null so routing can handle it
+      setUser(null);
+      setLoading(false);
+      return;
+    }
 
       // For admin users, try to fetch real data from API first
       if (isAdmin) {
@@ -181,40 +180,41 @@ useEffect(() => {
     }
   };
 
-  // Listen for URL changes to switch tokens
-  const handleLocationChange = () => {
-   
-    setLoading(true);
+  useEffect(() => {
+    // Listen for URL changes to switch tokens
+    const handleLocationChange = () => {
+     
+      setLoading(true);
+      fetchUser();
+    };
+
+    // Initial fetch
     fetchUser();
-  };
 
-  // Initial fetch
-  fetchUser();
+    // Listen for popstate (back/forward navigation)
+    window.addEventListener('popstate', handleLocationChange);
+    
+    // Listen for pushstate/replacestate (programmatic navigation)
+    const originalPushState = history.pushState;
+    const originalReplaceState = history.replaceState;
+    
+    history.pushState = function(...args) {
+      originalPushState.apply(history, args);
+      handleLocationChange();
+    };
+    
+    history.replaceState = function(...args) {
+      originalReplaceState.apply(history, args);
+      handleLocationChange();
+    };
 
-  // Listen for popstate (back/forward navigation)
-  window.addEventListener('popstate', handleLocationChange);
-  
-  // Listen for pushstate/replacestate (programmatic navigation)
-  const originalPushState = history.pushState;
-  const originalReplaceState = history.replaceState;
-  
-  history.pushState = function(...args) {
-    originalPushState.apply(history, args);
-    handleLocationChange();
-  };
-  
-  history.replaceState = function(...args) {
-    originalReplaceState.apply(history, args);
-    handleLocationChange();
-  };
-
-  // Cleanup
-  return () => {
-    window.removeEventListener('popstate', handleLocationChange);
-    history.pushState = originalPushState;
-    history.replaceState = originalReplaceState;
-  };
-}, []);
+    // Cleanup
+    return () => {
+      window.removeEventListener('popstate', handleLocationChange);
+      history.pushState = originalPushState;
+      history.replaceState = originalReplaceState;
+    };
+  }, []);
 
   // Check authentication status
   const isAuthenticated = () => {
@@ -246,9 +246,46 @@ useEffect(() => {
     throw new Error('Registration not required with token authentication');
   };
 
+  // Cookie management methods
+  const setAuthTokens = (employeeToken, adminToken, options = {}) => {
+    cookieUtils.setAuthTokens(employeeToken, adminToken, options);
+  };
+
+  const clearAuthTokens = () => {
+    cookieUtils.clearAuthTokens();
+  };
+
+  const getAuthTokens = () => {
+    return cookieUtils.getAuthTokens();
+  };
+
+  const refreshTokensFromCookies = async () => {
+    const { employeeToken, adminToken } = cookieUtils.getAuthTokens();
+    
+    if (!employeeToken && !adminToken) {
+      // No tokens found, set user to null
+      setUser(null);
+      setLoading(false);
+      return;
+    }
+
+    // Re-fetch user data with current tokens
+    setLoading(true);
+    try {
+      await fetchUser();
+    } catch (error) {
+      console.error('Failed to refresh user data:', error);
+      // Clear invalid tokens
+      clearAuthTokens();
+      setUser(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const logout = () => {
-    // For token auth, we could clear the token or redirect
-  
+    setUser(null);
+    clearAuthTokens(); // Clear cookies instead of just redirecting
     window.location.href = 'https://console.gofloww.co/employee/';
   };
 
@@ -261,7 +298,12 @@ useEffect(() => {
     isAuthenticated,
     getCurrentUserId,
     getCurrentAuthorId,
-    getAllEmployees
+    getAllEmployees,
+    // Cookie management methods
+    setAuthTokens,
+    clearAuthTokens,
+    getAuthTokens,
+    refreshTokensFromCookies
   };
 
   return (

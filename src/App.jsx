@@ -7,6 +7,7 @@ import { NotificationProvider } from './contexts/NotificationContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import Dashboard from './components/Dashboard/Dashboard';
 import SinglePostView from './components/Posts/SinglePostView';
+import LoginPage from './components/Auth/LoginPage';
 
 import './App.css';
 import NotFound from './components/NotFound';
@@ -14,30 +15,27 @@ import NotFound from './components/NotFound';
 function AppRoutes() {
   const { user, isAuthenticated } = useAuth();
 
-  // Check if user is authenticated with token
-  if (!isAuthenticated()) {
-    // Redirect to Floww if not authenticated
-    window.location.href = 'https://dev.gofloww.co';
-    return null;
-  }
-
   return (
     <Routes>
       <Route 
+        path="/login" 
+        element={<LoginPage />} 
+      />
+      <Route 
         path="/employee/dashboard" 
-        element={<Dashboard />} 
+        element={isAuthenticated() ? <Dashboard /> : <LoginPage />} 
       />
       <Route 
         path="/crm/dashboard" 
-        element={<Dashboard />} 
+        element={isAuthenticated() ? <Dashboard /> : <LoginPage />} 
       />
       <Route 
         path="/post/:postId" 
-        element={<SinglePostView />} 
+        element={isAuthenticated() ? <SinglePostView /> : <LoginPage />} 
       />
       <Route 
         path="/" 
-        element={<Navigate to="/employee/dashboard" />} 
+        element={isAuthenticated() ? <Navigate to="/employee/dashboard" /> : <LoginPage />} 
       />
       <Route path="*" element={<NotFound />} />
     </Routes>

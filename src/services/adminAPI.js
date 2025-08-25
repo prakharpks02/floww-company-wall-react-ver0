@@ -2,13 +2,17 @@
 // ADMIN API SERVICE
 // =============================================================================
 
+import { cookieUtils } from '../utils/cookieUtils';
+
 // Get the appropriate admin token based on current URL
 const getAdminToken = () => {
   const currentPath = window.location.pathname;
+  const { employeeToken, adminToken } = cookieUtils.getAuthTokens();
+  
   if (currentPath.includes('/crm')) {
-    return import.meta.env.VITE_FLOWW_ADMIN_TOKEN;
+    return adminToken;
   }
-  return import.meta.env.VITE_FLOWW_EMPLOYEE_TOKEN;
+  return employeeToken;
 };
 
 const API_CONFIG = {
