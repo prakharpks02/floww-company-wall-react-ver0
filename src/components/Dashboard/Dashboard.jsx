@@ -115,7 +115,7 @@ const Dashboard = () => {
   {/* Welcome Message */}
   <div className="bg-white rounded-lg shadow-sm p-4 lg:p-6 border border-gray-200">
     <h1 className="text-xl lg:text-2xl font-bold text-gray-900 mb-2">
-      Welcome to Atom HR Community Wall 👋
+      Welcome to Atom Buzz Community Wall 👋
     </h1>
     <p className="text-sm lg:text-base text-gray-600">
       Share updates, collaborate with colleagues, and stay connected with the HR team.
