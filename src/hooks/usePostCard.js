@@ -432,13 +432,19 @@ export const usePostCard = (post, activeView = 'home') => {
   const handleComment = () => {
     const postId = getPostId();
 
+    console.log('🔍 usePostCard handleComment:', {
+      commentText: commentText.trim(),
+      commentMentions,
+      postId
+    });
     
     if (commentText.trim() && postId) {
- 
-      addComment(postId, { 
+      const commentData = { 
         content: commentText.trim(),
         mentions: commentMentions
-      });
+      };
+      console.log('🔍 Calling addComment with:', commentData);
+      addComment(postId, commentData);
       setCommentText('');
       setCommentMentions([]);
     } else {
@@ -757,6 +763,7 @@ export const usePostCard = (post, activeView = 'home') => {
 
   // Handle mentions change
   const handleCommentMentionsChange = (mentions) => {
+    console.log('🔍 usePostCard handleCommentMentionsChange:', mentions);
     setCommentMentions(mentions);
   };
 

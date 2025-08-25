@@ -714,16 +714,43 @@ export const postsAPI = {
       // Extract mentions from the content if it's HTML
       const mentions = commentData.mentions || [];
       
+      console.log('🔍 Comment mentions being processed:', mentions);
+      
       // The backend expects { content, mentions }
       const requestBody = {
         content: commentData.content || commentData.comment, // always send as 'content'
         ...(mentions.length > 0 && { 
-          mentions: mentions.map(m => ({
-            employee_name: m.employee_name || m.employeeName || m.username,
-            user_id: m.user_id || m.userId
-          }))
+          mentions: mentions.map(m => {
+            let employee_username;
+            
+            // If the mention is a stringified object, parse it
+            if (typeof m === 'string' && m.startsWith("{") && m.includes("employee_username")) {
+              try {
+                const parsed = JSON.parse(m.replace(/'/g, '"'));
+                employee_username = parsed.employee_username;
+              } catch (e) {
+                employee_username = m;
+              }
+            }
+            // If it's an object, extract employee_username
+            else if (typeof m === 'object' && m !== null) {
+              employee_username = m.employee_username || m.username || m.employee_name || m.employeeName;
+            }
+            // If it's a plain string
+            else {
+              employee_username = m;
+            }
+            
+            const processed = {
+              username: employee_username // Send as username to match your desired format
+            };
+            console.log('🔍 Processing mention:', m, '→', processed);
+            return processed;
+          })
         })
       };
+      
+      console.log('🔍 Final comment requestBody:', JSON.stringify(requestBody, null, 2));
       
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
@@ -765,10 +792,31 @@ export const postsAPI = {
       const requestBody = {
         content: replyData.content,
         ...(mentions.length > 0 && { 
-          mentions: mentions.map(m => ({
-            employee_name: m.employee_name || m.employeeName || m.username,
-            user_id: m.user_id || m.userId
-          }))
+          mentions: mentions.map(m => {
+            let employee_username;
+            
+            // If the mention is a stringified object, parse it
+            if (typeof m === 'string' && m.startsWith("{") && m.includes("employee_username")) {
+              try {
+                const parsed = JSON.parse(m.replace(/'/g, '"'));
+                employee_username = parsed.employee_username;
+              } catch (e) {
+                employee_username = m;
+              }
+            }
+            // If it's an object, extract employee_username
+            else if (typeof m === 'object' && m !== null) {
+              employee_username = m.employee_username || m.username || m.employee_name || m.employeeName;
+            }
+            // If it's a plain string
+            else {
+              employee_username = m;
+            }
+            
+            return {
+              username: employee_username // Send as username to match your desired format
+            };
+          })
         })
       };
 
@@ -909,10 +957,31 @@ export const postsAPI = {
       comment: content,        // Fallback field name
       new_content: content,    // Alternative field name
       ...(mentions.length > 0 && { 
-        mentions: mentions.map(m => ({
-          employee_name: m.employee_name || m.employeeName || m.username,
-          user_id: m.user_id || m.userId
-        }))
+        mentions: mentions.map(m => {
+          let employee_username;
+          
+          // If the mention is a stringified object, parse it
+          if (typeof m === 'string' && m.startsWith("{") && m.includes("employee_username")) {
+            try {
+              const parsed = JSON.parse(m.replace(/'/g, '"'));
+              employee_username = parsed.employee_username;
+            } catch (e) {
+              employee_username = m;
+            }
+          }
+          // If it's an object, extract employee_username
+          else if (typeof m === 'object' && m !== null) {
+            employee_username = m.employee_username || m.username || m.employee_name || m.employeeName;
+          }
+          // If it's a plain string
+          else {
+            employee_username = m;
+          }
+          
+          return {
+            username: employee_username // Send as username to match your desired format
+          };
+        })
       })
     };
     
@@ -942,10 +1011,31 @@ export const postsAPI = {
     const requestBody = {
       content: content,
       ...(mentions.length > 0 && { 
-        mentions: mentions.map(m => ({
-          employee_name: m.employee_name || m.employeeName || m.username,
-          user_id: m.user_id || m.userId
-        }))
+        mentions: mentions.map(m => {
+          let employee_username;
+          
+          // If the mention is a stringified object, parse it
+          if (typeof m === 'string' && m.startsWith("{") && m.includes("employee_username")) {
+            try {
+              const parsed = JSON.parse(m.replace(/'/g, '"'));
+              employee_username = parsed.employee_username;
+            } catch (e) {
+              employee_username = m;
+            }
+          }
+          // If it's an object, extract employee_username
+          else if (typeof m === 'object' && m !== null) {
+            employee_username = m.employee_username || m.username || m.employee_name || m.employeeName;
+          }
+          // If it's a plain string
+          else {
+            employee_username = m;
+          }
+          
+          return {
+            username: employee_username // Send as username to match your desired format
+          };
+        })
       })
     };
     

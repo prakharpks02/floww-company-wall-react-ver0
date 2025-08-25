@@ -71,7 +71,8 @@ export const extractMentionsFromText = (text) => {
   while ((match = mentionRegex.exec(text)) !== null) {
     mentions.push({
       text: match[0], // @username
-      username: match[1], // username
+      username: match[1], // username (could be display name or username)
+      employee_username: match[1], // Use the same value for employee_username
       employee_name: match[1]
     });
   }

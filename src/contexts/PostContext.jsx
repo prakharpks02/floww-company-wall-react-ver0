@@ -874,7 +874,8 @@ export const PostProvider = ({ children }) => {
             mentions: commentData.mentions || extractMentionsFromText(commentData.content || '')
           };
       
-  
+      console.log('🔍 PostContext addComment input:', commentData);
+      console.log('🔍 PostContext processedData:', processedData);
       
       // Call the API to add comment
       const result = await postsAPI.addComment(postId, processedData);

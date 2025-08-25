@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { userAPI } from '../../services/api';
 import { adminAPI } from '../../services/adminAPI';
 
@@ -118,15 +118,17 @@ const MentionInput = ({
     if (mentionIndex !== -1) {
       const beforeMention = text.substring(0, mentionIndex);
       const afterMention = text.substring(caretPos);
-      const username = user.employee_name || user.username || user.name;
+      const displayName = user.employee_name || user.name || user.username;
+      const username = user.employee_username || user.username || user.name;
       
-      const newText = beforeMention + `@${username} ` + afterMention;
+      const newText = beforeMention + `@${displayName} ` + afterMention;
       onChange(newText);
       
-      // Update mentions list
+      // Update mentions list - store employee_username for backend
       const newMention = {
         user_id: user.user_id || user.id || user.employee_id,
-        employee_name: username,
+        employee_username: username,
+        employee_name: displayName,
         username: username
       };
       
@@ -136,7 +138,7 @@ const MentionInput = ({
       
       // Set cursor position after mention
       setTimeout(() => {
-        const newCaretPos = mentionIndex + username.length + 2; // +2 for @ and space
+        const newCaretPos = mentionIndex + displayName.length + 2; // +2 for @ and space
         textarea.setSelectionRange(newCaretPos, newCaretPos);
         textarea.focus();
       }, 0);
@@ -173,19 +175,19 @@ const MentionInput = ({
       setCurrentMentions([]);
       onMentionsChange([]);
     }
-  }, [value, onMentionsChange]);
+  }, [value]); // Remove onMentionsChange from dependencies to prevent infinite re-renders
 
   // Extract mentions from the current text
-  const extractMentions = () => {
+  const extractMentions = useCallback(() => {
     return currentMentions;
-  };
+  }, [currentMentions]);
 
   // Expose extractMentions function
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.extractMentions = extractMentions;
     }
-  }, [currentMentions]);
+  }, [extractMentions]);
 
   return (
     <div className={`relative ${className}`}>
