@@ -383,17 +383,19 @@ export const postsAPI = {
           return allMedia.length > 0 ? { media: allMedia } : {};
         })(),
         ...(postData.mentions && postData.mentions.length > 0 && { 
-          // Send mentions as array of objects with employee_name
+          // Send mentions as array of employee names (strings only)
           mentions: postData.mentions.map(m => {
-  
-            if (typeof m === 'string') return { employee_name: m };
-            if (m && typeof m === 'object') {
-              const employee_name = m.employee_name || m.user_id || '';
-     
-              return employee_name ? { employee_name: employee_name } : null;
+            // If it's already a string, use it directly
+            if (typeof m === 'string') {
+              return m;
             }
-            return { employee_name: String(m) };
-          }).filter(Boolean)
+            // If it's an object, extract the name from various possible properties
+            if (m && typeof m === 'object') {
+              return m.username || m.employee_name || m.name || m.user_id || '';
+            }
+            // Fallback for other types
+            return String(m);
+          }).filter(Boolean) // Remove empty strings
         }),
         // Process tags to extract just the tag names, not the nested objects
         ...(postData.tags && postData.tags.length > 0 && { 

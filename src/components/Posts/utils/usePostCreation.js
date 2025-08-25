@@ -35,24 +35,24 @@ export const usePostCreation = (createPost, editPost, editingPost, onClose) => {
   const extractMentionsFromContent = (htmlContent) => {
     if (!htmlContent || typeof htmlContent !== 'string') return [];
     
-
-    
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = htmlContent;
-    const mentionElements = tempDiv.querySelectorAll('span[data-user-id]');
     
+    // Look for mention spans with either data-user-id attribute or mention class
+    const mentionElements = tempDiv.querySelectorAll('span[data-user-id], span.mention');
     
-    // Return array of objects: { employee_name: ... }
+    // Return array of employee names as strings
     const extractedMentions = Array.from(mentionElements).map(element => {
       const employee_name = element.getAttribute('data-employee_name');
-      const textContent = element.textContent.replace('@', '');
+      const textContent = element.textContent.replace('@', '').trim();
 
-      return {
-        employee_name: employee_name   || textContent
-      };
-    });
+      // Use the employee_name from the attribute, or fall back to text content
+      const username = employee_name || textContent;
+      
+      // Return just the name as a string
+      return username || null;
+    }).filter(Boolean); // Remove null entries
     
- 
     return extractedMentions;
   };
 
@@ -65,7 +65,6 @@ export const usePostCreation = (createPost, editPost, editingPost, onClose) => {
     try {
       // Extract mentions from HTML content
       const extractedMentions = extractMentionsFromContent(content);
-     
       
       const postData = {
         content: content.trim(),
@@ -76,8 +75,6 @@ export const usePostCreation = (createPost, editPost, editingPost, onClose) => {
         links: mediaData.links,
         mentions: extractedMentions // Use extracted mentions from content
       };
-
-  
 
       if (editingPost) {
         await editPost(editingPost.post_id, postData);
@@ -91,7 +88,7 @@ export const usePostCreation = (createPost, editPost, editingPost, onClose) => {
       setMentions([]);
       onClose();
     } catch (error) {
-     
+      console.error('❌ Error submitting post:', error);
     } finally {
       setIsSubmitting(false);
     }
