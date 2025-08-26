@@ -40,9 +40,8 @@ const fetchUser = async () => {
     
     if (!token) {
    
-      // No token found, set user to null so routing can handle it
-      setUser(null);
-      setLoading(false);
+      // No token found, redirect to main Floww application
+      window.location.href = "https://dev.gofloww.co";
       return;
     }
 
@@ -263,9 +262,8 @@ const fetchUser = async () => {
     const { employeeToken, adminToken } = cookieUtils.getAuthTokens();
     
     if (!employeeToken && !adminToken) {
-      // No tokens found, set user to null
-      setUser(null);
-      setLoading(false);
+      // No tokens found, redirect to main Floww application
+      window.location.href = 'https://dev.gofloww.co';
       return;
     }
 
@@ -275,9 +273,9 @@ const fetchUser = async () => {
       await fetchUser();
     } catch (error) {
       console.error('Failed to refresh user data:', error);
-      // Clear invalid tokens
+      // Clear invalid tokens and redirect
       clearAuthTokens();
-      setUser(null);
+      window.location.href = 'https://dev.gofloww.co';
     } finally {
       setLoading(false);
     }

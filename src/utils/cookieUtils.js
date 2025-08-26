@@ -58,8 +58,8 @@ export const cookieUtils = {
 
   // Get authentication tokens from cookies
   getAuthTokens: () => {
-    const employeeToken = cookieUtils.getCookie('floww_employee_token');
-    const adminToken = cookieUtils.getCookie('floww_admin_token');
+    const employeeToken = cookieUtils.getCookie('floww-employee-token');
+    const adminToken = cookieUtils.getCookie('floww-admin-token');
     
     return {
       employeeToken,
@@ -76,14 +76,14 @@ export const cookieUtils = {
     };
 
     if (employeeToken) {
-      cookieUtils.setCookie('floww_employee_token', employeeToken, {
+      cookieUtils.setCookie('floww-employee-token', employeeToken, {
         ...defaultOptions,
         ...options
       });
     }
 
     if (adminToken) {
-      cookieUtils.setCookie('floww_admin_token', adminToken, {
+      cookieUtils.setCookie('floww-admin-token', adminToken, {
         ...defaultOptions,
         ...options
       });
@@ -92,7 +92,7 @@ export const cookieUtils = {
 
   // Clear all auth tokens
   clearAuthTokens: () => {
-    cookieUtils.removeCookie('floww_employee_token');
-    cookieUtils.removeCookie('floww_admin_token');
+    cookieUtils.removeCookie('floww-employee-token');
+    cookieUtils.removeCookie('floww-admin-token');
   }
 };
