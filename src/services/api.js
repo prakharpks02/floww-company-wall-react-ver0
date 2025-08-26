@@ -6,17 +6,23 @@ import { cookieUtils } from '../utils/cookieUtils';
 
 // Get authentication token based on environment and user type
 const getAuthToken = (userType = 'employee') => {
-  const { employeeToken, adminToken } = cookieUtils.getAuthTokens();
+  const { employeeToken, employeeId, adminToken } = cookieUtils.getAuthTokens();
   
   if (userType === 'admin') {
     return adminToken;
   }
-  return employeeToken;
+  
+  // For employee, validate both token and ID exist
+  if (employeeToken && employeeId) {
+    return employeeToken;
+  }
+  
+  return null;
 };
 
 // Store token in cookies (useful for production environments)
-const storeTokenInCookies = (employeeToken, adminToken) => {
-  cookieUtils.setAuthTokens(employeeToken, adminToken);
+const storeTokenInCookies = (employeeToken, adminToken, employeeId = null) => {
+  cookieUtils.setAuthTokens(employeeToken, adminToken, employeeId);
 };
 
 // Get current user type from current URL path
@@ -227,11 +233,11 @@ export const userAPI = {
   },
 
   // Store token in cookies (for production use)
-  storeToken: (token, userType = 'employee') => {
+  storeToken: (token, userType = 'employee', employeeId = null) => {
     if (userType === 'admin') {
-      storeTokenInCookies(null, token);
+      storeTokenInCookies(null, token, null);
     } else {
-      storeTokenInCookies(token, null);
+      storeTokenInCookies(token, null, employeeId);
     }
   },
 
@@ -1402,8 +1408,8 @@ export const utilityAPI = {
   // Cookie management utilities
   auth: {
     // Set authentication tokens in cookies
-    setTokens: (employeeToken, adminToken) => {
-      cookieUtils.setAuthTokens(employeeToken, adminToken);
+    setTokens: (employeeToken, adminToken, employeeId = null) => {
+      cookieUtils.setAuthTokens(employeeToken, adminToken, employeeId);
     },
     
     // Get authentication tokens from cookies
@@ -1418,8 +1424,17 @@ export const utilityAPI = {
     
     // Check if user is authenticated
     isAuthenticated: () => {
-      const { employeeToken, adminToken } = cookieUtils.getAuthTokens();
-      return !!(employeeToken || adminToken);
+      return cookieUtils.isAuthenticated();
+    },
+    
+    // Check if employee is authenticated (both token and ID required)
+    isEmployeeAuthenticated: () => {
+      return cookieUtils.isEmployeeAuthenticated();
+    },
+    
+    // Check if admin is authenticated
+    isAdminAuthenticated: () => {
+      return cookieUtils.isAdminAuthenticated();
     }
   }
 };
@@ -1527,9 +1542,9 @@ if (typeof window !== 'undefined') {
     const tokenSource = window.location.hostname === "localhost" ? 'hardcoded' : 'cookie';
     
     // Store token in cookies if not already stored (for production)
-    const { employeeToken, adminToken } = cookieUtils.getAuthTokens();
+    const { employeeToken, employeeId, adminToken } = cookieUtils.getAuthTokens();
     if (environment === 'production' && !employeeToken && !adminToken) {
-      storeTokenInCookies(currentToken, null);
+      storeTokenInCookies(currentToken, null, null);
     }
   }
 }

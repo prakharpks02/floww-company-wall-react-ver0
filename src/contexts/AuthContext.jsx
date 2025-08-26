@@ -22,15 +22,20 @@ export const AuthProvider = ({ children }) => {
 // Get appropriate token and determine user type based on current URL
 const getTokenAndUserType = () => {
   const currentPath = window.location.pathname;
-  const { employeeToken, adminToken } = cookieUtils.getAuthTokens();
+  const { employeeToken, employeeId, adminToken } = cookieUtils.getAuthTokens();
   
   // If current path contains /crm, use admin token
   if (currentPath.includes('/crm')) {
     return { token: adminToken, isAdmin: true };
   }
   
-  // Otherwise use employee token
-  return { token: employeeToken, isAdmin: false };
+  // For employee routes, validate both token and ID
+  if (employeeToken && employeeId) {
+    return { token: employeeToken, isAdmin: false };
+  }
+  
+  // No valid employee authentication
+  return { token: null, isAdmin: false };
 };
 
 const fetchUser = async () => {
@@ -259,10 +264,13 @@ const fetchUser = async () => {
   };
 
   const refreshTokensFromCookies = async () => {
-    const { employeeToken, adminToken } = cookieUtils.getAuthTokens();
+    const { employeeToken, employeeId, adminToken } = cookieUtils.getAuthTokens();
     
-    if (!employeeToken && !adminToken) {
-      // No tokens found, redirect to main Floww application
+    // Check if we have valid authentication (either admin token OR both employee token and ID)
+    const hasValidAuth = adminToken || (employeeToken && employeeId);
+    
+    if (!hasValidAuth) {
+      // No valid authentication found, redirect to main Floww application
       window.location.href = 'https://dev.gofloww.co';
       return;
     }

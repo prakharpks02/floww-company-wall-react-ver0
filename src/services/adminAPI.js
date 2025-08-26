@@ -7,12 +7,18 @@ import { cookieUtils } from '../utils/cookieUtils';
 // Get the appropriate admin token based on current URL
 const getAdminToken = () => {
   const currentPath = window.location.pathname;
-  const { employeeToken, adminToken } = cookieUtils.getAuthTokens();
+  const { employeeToken, employeeId, adminToken } = cookieUtils.getAuthTokens();
   
   if (currentPath.includes('/crm')) {
     return adminToken;
   }
-  return employeeToken;
+  
+  // For employee routes, validate both token and ID exist
+  if (employeeToken && employeeId) {
+    return employeeToken;
+  }
+  
+  return null;
 };
 
 const API_CONFIG = {

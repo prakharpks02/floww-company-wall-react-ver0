@@ -59,16 +59,35 @@ export const cookieUtils = {
   // Get authentication tokens from cookies
   getAuthTokens: () => {
     const employeeToken = cookieUtils.getCookie('floww-employee-token');
+    const employeeId = cookieUtils.getCookie('floww-employee-id');
     const adminToken = cookieUtils.getCookie('floww-admin-token');
     
     return {
       employeeToken,
+      employeeId,
       adminToken
     };
   },
 
+  // Check if employee authentication is valid (both token and ID required)
+  isEmployeeAuthenticated: () => {
+    const { employeeToken, employeeId } = cookieUtils.getAuthTokens();
+    return !!(employeeToken && employeeId);
+  },
+
+  // Check if admin authentication is valid
+  isAdminAuthenticated: () => {
+    const { adminToken } = cookieUtils.getAuthTokens();
+    return !!adminToken;
+  },
+
+  // Check if any valid authentication exists
+  isAuthenticated: () => {
+    return cookieUtils.isEmployeeAuthenticated() || cookieUtils.isAdminAuthenticated();
+  },
+
   // Set authentication tokens in cookies
-  setAuthTokens: (employeeToken, adminToken, options = {}) => {
+  setAuthTokens: (employeeToken, adminToken, employeeId = null, options = {}) => {
     const defaultOptions = {
       maxAge: 7 * 24 * 60 * 60, // 7 days
       secure: window.location.protocol === 'https:',
@@ -77,6 +96,13 @@ export const cookieUtils = {
 
     if (employeeToken) {
       cookieUtils.setCookie('floww-employee-token', employeeToken, {
+        ...defaultOptions,
+        ...options
+      });
+    }
+
+    if (employeeId) {
+      cookieUtils.setCookie('floww-employee-id', employeeId, {
         ...defaultOptions,
         ...options
       });
@@ -93,6 +119,7 @@ export const cookieUtils = {
   // Clear all auth tokens
   clearAuthTokens: () => {
     cookieUtils.removeCookie('floww-employee-token');
+    cookieUtils.removeCookie('floww-employee-id');
     cookieUtils.removeCookie('floww-admin-token');
   }
 };
