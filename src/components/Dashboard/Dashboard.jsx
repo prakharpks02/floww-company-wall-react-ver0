@@ -7,8 +7,11 @@ import MyPosts from './MyPosts';
 import BroadcastView from './BroadcastView';
 import ResponsiveLayout from '../Layout/ResponsiveLayout';
 import ScrollToTop from './ScrollToTop';
+import ChatApp from '../Chat/ChatApp';
+import ChatToggleButton from '../Chat/ChatToggleButton';
 import { usePost } from '../../contexts/PostContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useChat } from '../../contexts/ChatContext';
 
 // Admin Components
 import AdminAllPosts from '../Admin/AdminAllPosts';
@@ -25,6 +28,7 @@ const Dashboard = () => {
   const [activeView, setActiveView] = useState('home'); // 'home', 'broadcast', 'myposts', 'admin-posts', 'admin-users', 'admin-reports', 'admin-broadcast'
   const { posts, getFilteredPosts, loadAllPosts, reloadPosts, loading } = usePost();
   const { user } = useAuth();
+  const { isChatOpen, isChatMinimized, isCompactMode, isFullScreenMobile, totalUnreadMessages, toggleChat, closeChat } = useChat();
 
   // Sort comments and replies so that the latest are on top
   const filteredPosts = getFilteredPosts(filters);
@@ -115,7 +119,7 @@ const Dashboard = () => {
   {/* Welcome Message */}
   <div className="bg-white rounded-lg shadow-sm p-4 lg:p-6 border border-gray-200">
     <h1 className="text-xl lg:text-2xl font-bold text-gray-900 mb-2">
-      Welcome to Atom Buzz Community Wall 👋
+      Welcome to Atom Buzz👋
     </h1>
     <p className="text-sm lg:text-base text-gray-600">
       Share updates, collaborate with colleagues, and stay connected with the HR team.
@@ -173,24 +177,50 @@ const Dashboard = () => {
   };
 
   return (
-    <ResponsiveLayout 
-      header={headerComponent}
-      sidebar={sidebarComponent}
-      activeView={activeView}
-      onViewChange={handleViewChange}
-      onCreatePost={() => setShowCreatePost(true)}
-      user={user}
-    >
-      {/* Create Post Modal - Only show if user is not blocked and not admin */}
-      {showCreatePost && !(user?.is_blocked === true || user?.is_blocked === "true") && !user?.is_admin && (
-        <CreatePost onClose={() => setShowCreatePost(false)} />
+    <>
+      {/* Full Screen Mobile Chat - Render outside ResponsiveLayout */}
+      {isFullScreenMobile && (
+        <ChatApp 
+          isMinimized={isChatMinimized} 
+          onToggleMinimize={toggleChat}
+          onClose={closeChat}
+        />
       )}
 
-      {renderMainContent()}
-      
-      {/* Scroll to Top Button */}
-      <ScrollToTop />
-    </ResponsiveLayout>
+      <ResponsiveLayout 
+        header={headerComponent}
+        sidebar={sidebarComponent}
+        activeView={activeView}
+        onViewChange={handleViewChange}
+        onCreatePost={() => setShowCreatePost(true)}
+        user={user}
+      >
+        {/* Create Post Modal - Only show if user is not blocked and not admin */}
+        {showCreatePost && !(user?.is_blocked === true || user?.is_blocked === "true") && !user?.is_admin && (
+          <CreatePost onClose={() => setShowCreatePost(false)} />
+        )}
+
+        {renderMainContent()}
+        
+        {/* Scroll to Top Button - Hide when chat is taking up layout space */}
+        {!(isChatOpen && !isChatMinimized && !isCompactMode) && <ScrollToTop />}
+
+        {/* Chat Components */}
+        {isChatOpen && !isFullScreenMobile ? (
+          <ChatApp 
+            isMinimized={isChatMinimized} 
+            onToggleMinimize={toggleChat}
+            onClose={closeChat}
+          />
+        ) : !isChatOpen && (
+          <ChatToggleButton 
+            onClick={toggleChat}
+            hasUnreadMessages={totalUnreadMessages > 0}
+            unreadCount={totalUnreadMessages}
+          />
+        )}
+      </ResponsiveLayout>
+    </>
   );
 };
 

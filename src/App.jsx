@@ -4,6 +4,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { PostProvider } from './contexts/PostContext';
 import { NotificationProvider } from './contexts/NotificationContext';
+import { ChatProvider } from './contexts/ChatContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import Dashboard from './components/Dashboard/Dashboard';
 import SinglePostView from './components/Posts/SinglePostView';
@@ -51,9 +52,11 @@ function App() {
         <AuthProvider>
           <PostProvider>
             <NotificationProvider>
-              <div className="min-h-screen bg-gray-50">
-                <AppRoutes />
-              </div>
+              <ChatProvider>
+                <div className="min-h-screen bg-gray-50">
+                  <AppRoutes />
+                </div>
+              </ChatProvider>
             </NotificationProvider>
           </PostProvider>
         </AuthProvider>

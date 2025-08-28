@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Home, Plus, FileText, Megaphone } from 'lucide-react';
+import { useChat } from '../../contexts/ChatContext';
 
 const MobileBottomNav = ({ activeView, onViewChange, onCreatePost, user, isScrolledDown }) => {
   const isAdmin = user?.is_admin;
@@ -88,6 +89,13 @@ const MobileBottomNav = ({ activeView, onViewChange, onCreatePost, user, isScrol
 const ResponsiveLayout = ({ header, sidebar, children, activeView, onViewChange, onCreatePost, user }) => {
   const [isMobile, setIsMobile] = useState(false);
   const [isScrolledDown, setIsScrolledDown] = useState(false);
+  const { isChatOpen, isChatMinimized, isCompactMode, isFullScreenMobile } = useChat();
+
+  // Chat is visible when it's open AND not minimized AND not in compact mode (for layout purposes)
+  const isChatTakingSpace = isChatOpen && !isChatMinimized && !isCompactMode;
+  
+  // Chat is in compact mode (small floating popup, needs some space)
+  const isChatCompact = isChatOpen && !isChatMinimized && isCompactMode;
 
   // Handle responsive behavior
   useEffect(() => {
@@ -116,6 +124,11 @@ const ResponsiveLayout = ({ header, sidebar, children, activeView, onViewChange,
     };
   }, []);
 
+  // Don't render layout components when in full-screen mobile chat mode
+  if (isFullScreenMobile && isMobile) {
+    return null;
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -132,13 +145,28 @@ const ResponsiveLayout = ({ header, sidebar, children, activeView, onViewChange,
         </div>
         
         {/* Main Content */}
-        <main className="flex-1 lg:ml-64 min-h-screen">
+        <main className={`flex-1 lg:ml-64 min-h-screen transition-all duration-300 ${
+          isChatTakingSpace && !isMobile ? 'lg:mr-[800px]' : 
+          isChatCompact && !isMobile ? 'lg:mr-[350px]' : ''
+        }`}>
           <div className="p-3 sm:p-4 lg:p-8 pt-16 pb-24 lg:pb-8">
-            <div className="max-w-4xl mx-auto w-full">
+            <div className={`mx-auto w-full ${
+              isChatTakingSpace && !isMobile ? 'max-w-2xl' : 
+              isChatCompact && !isMobile ? 'max-w-3xl' : 'max-w-4xl'
+            }`}>
               {children}
             </div>
           </div>
         </main>
+
+        {/* Chat Area - Fixed on Desktop when open and in full mode only */}
+        {isChatTakingSpace && !isMobile && (
+          <div className="hidden lg:block lg:fixed lg:inset-y-0 lg:right-0 lg:w-[800px] lg:bg-white lg:border-l lg:border-gray-200 lg:pt-16 lg:shadow-lg">
+            <div className="h-full">
+              {/* Chat content will be rendered by the ChatApp component */}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Mobile Bottom Navigation */}
