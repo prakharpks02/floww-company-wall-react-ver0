@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MessageCircle, X, Minimize2, Maximize2, Send, Phone, Video, Info, ArrowLeft, Search, Users, Plus, Paperclip, Reply, Forward } from 'lucide-react';
+import { MessageCircle, X, Minimize2, Maximize2, Send, Phone, Video, Info, ArrowLeft, Search, Users, Plus, Paperclip, Reply, Forward, Pin, Filter } from 'lucide-react';
 import { dummyEmployees, getEmployeeById, getConversationPartner, formatMessageTime } from './utils/dummyData';
 import { useChat } from '../../contexts/ChatContext';
 import ChatSidebar from './ChatSidebar';
@@ -10,6 +10,7 @@ import AttachmentMenu from './AttachmentMenu';
 import PollCreationModal from './PollCreationModal';
 import PollMessage from './PollMessage';
 import ForwardModal from './ForwardModal';
+import PinModal from './PinModal';
 
 const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
   const [activeConversation, setActiveConversation] = useState(null);
@@ -28,6 +29,13 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
   const [showForwardModal, setShowForwardModal] = useState(false);
   const [messageToForward, setMessageToForward] = useState(null);
   const [contextMenu, setContextMenu] = useState({ show: false, x: 0, y: 0, message: null });
+  const [chatContextMenu, setChatContextMenu] = useState({ show: false, x: 0, y: 0, conversation: null });
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [messageToPinOrChat, setMessageToPinOrChat] = useState(null);
+  const [pinType, setPinType] = useState('message'); // 'message' or 'chat'
+  const [pinnedMessages, setPinnedMessages] = useState({});
+  const [pinnedChats, setPinnedChats] = useState([]);
+  const [chatFilter, setChatFilter] = useState('all'); // 'all', 'direct', 'groups'
   const mobilePlusMenuRef = useRef(null);
   const compactPlusMenuRef = useRef(null);
   const messagesEndRef = useRef(null);
@@ -64,6 +72,10 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
       if (contextMenuRef.current && !contextMenuRef.current.contains(event.target)) {
         setContextMenu({ show: false, x: 0, y: 0, message: null });
       }
+      // Close chat context menu when clicking outside
+      if (!event.target.closest('.chat-context-menu')) {
+        setChatContextMenu({ show: false, x: 0, y: 0, conversation: null });
+      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
@@ -91,10 +103,19 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
     emp.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Filter conversations for search
+  // Filter conversations for search and type
   const filteredConversations = conversations.filter(conv => {
     const partner = getConversationPartner(conv, currentUser.id);
-    return partner?.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = partner?.name.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    // Apply chat filter
+    if (chatFilter === 'direct') {
+      return conv.type === 'direct' && matchesSearch;
+    } else if (chatFilter === 'groups') {
+      return conv.type === 'group' && matchesSearch;
+    }
+    
+    return matchesSearch; // 'all' filter
   });
 
   const handleSendMessage = () => {
@@ -409,6 +430,93 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
 
     setShowForwardModal(false);
     setMessageToForward(null);
+  };
+
+  const handlePin = (message) => {
+    setMessageToPinOrChat(message);
+    setPinType('message');
+    setShowPinModal(true);
+    setContextMenu({ show: false, x: 0, y: 0, message: null });
+  };
+
+  const handlePinChat = (conversation) => {
+    setMessageToPinOrChat(conversation);
+    setPinType('chat');
+    setShowPinModal(true);
+    setChatContextMenu({ show: false, x: 0, y: 0, conversation: null });
+  };
+
+  const handlePinConfirm = (duration) => {
+    const pinExpiry = new Date();
+    switch (duration) {
+      case '24hours':
+        pinExpiry.setHours(pinExpiry.getHours() + 24);
+        break;
+      case '7days':
+        pinExpiry.setDate(pinExpiry.getDate() + 7);
+        break;
+      case '30days':
+        pinExpiry.setDate(pinExpiry.getDate() + 30);
+        break;
+    }
+
+    if (pinType === 'message' && messageToPinOrChat && activeConversation) {
+      setPinnedMessages(prev => ({
+        ...prev,
+        [activeConversation.id]: {
+          message: messageToPinOrChat,
+          expiry: pinExpiry
+        }
+      }));
+    } else if (pinType === 'chat' && messageToPinOrChat) {
+      setPinnedChats(prev => [...prev.filter(p => p.id !== messageToPinOrChat.id), {
+        ...messageToPinOrChat,
+        pinnedAt: new Date(),
+        expiry: pinExpiry
+      }]);
+    }
+
+    setShowPinModal(false);
+    setMessageToPinOrChat(null);
+  };
+
+  const handleUnpin = (type, id) => {
+    if (type === 'message') {
+      setPinnedMessages(prev => {
+        const updated = { ...prev };
+        delete updated[id];
+        return updated;
+      });
+    } else if (type === 'chat') {
+      setPinnedChats(prev => prev.filter(chat => chat.id !== id));
+    }
+  };
+
+  const handleChatContextMenu = (e, conversation) => {
+    e.preventDefault();
+    
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const menuWidth = 150;
+    const menuHeight = 80;
+    
+    let x = e.clientX;
+    let y = e.clientY;
+    
+    if (x + menuWidth > viewportWidth) {
+      x = viewportWidth - menuWidth - 10;
+    }
+    
+    if (y + menuHeight > viewportHeight) {
+      y = viewportHeight - menuHeight - 10;
+    }
+    
+    setChatContextMenu({
+      show: true,
+      x: x,
+      y: y,
+      conversation: conversation
+    });
   };
 
   const getStatusColor = (status) => {
@@ -908,6 +1016,42 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm transition-all duration-200"
                 />
               </div>
+              
+              {/* Filter Buttons for Compact Mode */}
+              {!showUserList && (
+                <div className="flex gap-1 mt-2">
+                  <button
+                    onClick={() => setChatFilter('all')}
+                    className={`px-2 py-1 text-xs rounded-full border transition-colors ${
+                      chatFilter === 'all' 
+                        ? 'bg-purple-500 text-white border-purple-500' 
+                        : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    All
+                  </button>
+                  <button
+                    onClick={() => setChatFilter('direct')}
+                    className={`px-2 py-1 text-xs rounded-full border transition-colors ${
+                      chatFilter === 'direct' 
+                        ? 'bg-purple-500 text-white border-purple-500' 
+                        : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    Direct
+                  </button>
+                  <button
+                    onClick={() => setChatFilter('groups')}
+                    className={`px-2 py-1 text-xs rounded-full border transition-colors ${
+                      chatFilter === 'groups' 
+                        ? 'bg-purple-500 text-white border-purple-500' 
+                        : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    Groups
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Conversations List or User Search Results */}
@@ -938,14 +1082,60 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
                 </div>
               ) : (
                 <div className="p-2">
+                  {/* Pinned Chats Section */}
+                  {pinnedChats.length > 0 && !searchQuery && (
+                    <div className="mb-3">
+                      <div className="px-2 py-1 text-xs font-medium text-gray-500 uppercase tracking-wide flex items-center gap-1">
+                        <Pin className="w-2 h-2" />
+                        Pinned
+                      </div>
+                      <div className="space-y-1">
+                        {pinnedChats.map(conversation => {
+                          const partner = getConversationPartner(conversation, currentUser.id);
+                          return (
+                            <button
+                              key={`pinned-compact-${conversation.id}`}
+                              onClick={() => handleSelectConversation(conversation)}
+                              onContextMenu={(e) => handleChatContextMenu(e, conversation)}
+                              className="w-full flex items-center gap-2 p-2 bg-yellow-50 border-l-2 border-yellow-400 hover:bg-yellow-100 rounded-r-lg transition-all duration-200"
+                            >
+                              <div className="relative">
+                                <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md">
+                                  {partner?.avatar}
+                                </div>
+                                <div className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-500 rounded-full flex items-center justify-center">
+                                  <Pin className="w-1.5 h-1.5 text-white" />
+                                </div>
+                              </div>
+                              <div className="flex-1 text-left min-w-0">
+                                <div className="font-medium text-xs truncate">{partner?.name}</div>
+                                <div className="text-xs text-gray-500 truncate">
+                                  {conversation.lastMessage?.text || 'No messages yet'}
+                                </div>
+                              </div>
+                              {conversation.unreadCount > 0 && (
+                                <div className="bg-green-500 text-white text-xs rounded-full px-1.5 py-0.5 min-w-[1rem] text-center">
+                                  {conversation.unreadCount}
+                                </div>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <div className="border-b border-gray-200 my-2"></div>
+                    </div>
+                  )}
+
+                  {/* Regular Conversations */}
                   {filteredConversations.length > 0 ? (
                     <div className="space-y-1">
-                      {filteredConversations.map(conversation => {
+                      {filteredConversations.filter(conv => !pinnedChats.find(p => p.id === conv.id)).map(conversation => {
                         const partner = getConversationPartner(conversation, currentUser.id);
                         return (
                           <button
                             key={conversation.id}
                             onClick={() => handleSelectConversation(conversation)}
+                            onContextMenu={(e) => handleChatContextMenu(e, conversation)}
                             className="w-full flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg transition-all duration-200 transform hover:scale-[1.02]"
                           >
                             <div className="relative">
@@ -986,6 +1176,29 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
           <div className="flex-1 flex flex-col h-full">
             {/* Messages */}
             <div className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-3 min-h-0" style={{ maxHeight: '320px' }}>
+              {/* Pinned Message */}
+              {activeConversation && pinnedMessages[activeConversation.id] && (
+                <div className="bg-yellow-50 border-l-4 border-yellow-400 p-2 rounded-r-lg shadow-sm">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-1 mb-1">
+                        <Pin className="w-3 h-3 text-yellow-600" />
+                        <span className="text-xs font-medium text-yellow-800">Pinned</span>
+                      </div>
+                      <div className="text-xs text-gray-700 truncate">
+                        {pinnedMessages[activeConversation.id].message.text}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleUnpin('message', activeConversation.id)}
+                      className="text-gray-400 hover:text-gray-600 ml-1"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {(messages[activeConversation.id] || []).map(message => {
                 const isOwnMessage = message.senderId === currentUser.id;
                 const sender = getEmployeeById(message.senderId);
@@ -1157,6 +1370,16 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
           isCompact={true}
         />
 
+        {/* Pin Modal */}
+        <PinModal
+          isOpen={showPinModal}
+          onClose={() => setShowPinModal(false)}
+          onPin={handlePinConfirm}
+          type={pinType}
+          item={messageToPinOrChat}
+          isCompact={true}
+        />
+
         {/* Context Menu */}
         {contextMenu.show && (
           <div
@@ -1181,6 +1404,32 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
               <Forward className="w-4 h-4" />
               Forward
             </button>
+            <button
+              onClick={() => handlePin(contextMenu.message)}
+              className="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 w-full text-left"
+            >
+              <Pin className="w-4 h-4" />
+              Pin
+            </button>
+          </div>
+        )}
+
+        {/* Chat Context Menu for Compact Mode */}
+        {chatContextMenu.show && (
+          <div
+            className="fixed bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-[60] min-w-[120px] chat-context-menu"
+            style={{
+              left: `${chatContextMenu.x}px`,
+              top: `${chatContextMenu.y}px`,
+            }}
+          >
+            <button
+              onClick={() => handlePinChat(chatContextMenu.conversation)}
+              className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+            >
+              <Pin className="h-4 w-4" />
+              Pin Chat
+            </button>
           </div>
         )}
       </>
@@ -1197,6 +1446,10 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
         onStartNewChat={handleStartNewChat}
         onCreateGroup={() => setShowCreateGroup(true)}
         activeConversation={activeConversation}
+        onChatContextMenu={handleChatContextMenu}
+        pinnedChats={pinnedChats}
+        chatFilter={chatFilter}
+        onFilterChange={setChatFilter}
       />
       
       {/* Chat Content */}
@@ -1273,6 +1526,32 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
 
           {/* Messages Area */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
+            {/* Pinned Message */}
+            {activeConversation && pinnedMessages[activeConversation.id] && (
+              <div className="bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded-r-lg shadow-sm">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Pin className="w-4 h-4 text-yellow-600" />
+                      <span className="text-sm font-medium text-yellow-800">Pinned Message</span>
+                    </div>
+                    <div className="text-sm text-gray-700">
+                      {pinnedMessages[activeConversation.id].message.text}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      Pinned by {getEmployeeById(pinnedMessages[activeConversation.id].message.senderId)?.name}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleUnpin('message', activeConversation.id)}
+                    className="text-gray-400 hover:text-gray-600 ml-2"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+
             {(messages[activeConversation.id] || []).map(message => {
               const isOwnMessage = message.senderId === currentUser.id;
               const sender = getEmployeeById(message.senderId);
@@ -1448,6 +1727,15 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
         currentUserId={currentUser.id}
         message={messageToForward}
       />
+
+      {/* Pin Modal */}
+      <PinModal
+        isOpen={showPinModal}
+        onClose={() => setShowPinModal(false)}
+        onPin={handlePinConfirm}
+        type={pinType}
+        item={messageToPinOrChat}
+      />
       </div>
 
       {/* Context Menu */}
@@ -1473,6 +1761,32 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
           >
             <Forward className="h-4 w-4" />
             Forward
+          </button>
+          <button
+            onClick={() => handlePin(contextMenu.message)}
+            className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+          >
+            <Pin className="h-4 w-4" />
+            Pin
+          </button>
+        </div>
+      )}
+
+      {/* Chat Context Menu */}
+      {chatContextMenu.show && (
+        <div
+          className="fixed bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-[60] min-w-[120px] chat-context-menu"
+          style={{
+            left: `${chatContextMenu.x}px`,
+            top: `${chatContextMenu.y}px`,
+          }}
+        >
+          <button
+            onClick={() => handlePinChat(chatContextMenu.conversation)}
+            className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+          >
+            <Pin className="h-4 w-4" />
+            Pin Chat
           </button>
         </div>
       )}

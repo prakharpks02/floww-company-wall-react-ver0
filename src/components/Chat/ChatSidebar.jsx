@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Plus, MoreVertical, Users } from 'lucide-react';
+import { Search, Plus, MoreVertical, Users, Pin, Filter } from 'lucide-react';
 import { dummyEmployees, getConversationPartner, formatMessageTime } from './utils/dummyData';
 import { useChat } from '../../contexts/ChatContext';
 
-const ChatSidebar = ({ onSelectConversation, onStartNewChat, activeConversation, onCreateGroup }) => {
+const ChatSidebar = ({ onSelectConversation, onStartNewChat, activeConversation, onCreateGroup, onChatContextMenu, pinnedChats = [], chatFilter = 'all', onFilterChange }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showUserSearch, setShowUserSearch] = useState(false);
   const [showPlusDropdown, setShowPlusDropdown] = useState(false);
@@ -135,6 +135,42 @@ const ChatSidebar = ({ onSelectConversation, onStartNewChat, activeConversation,
             className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm"
           />
         </div>
+        
+        {/* Filter Buttons */}
+        {!showUserSearch && (
+          <div className="flex gap-1 mt-2">
+            <button
+              onClick={() => onFilterChange && onFilterChange('all')}
+              className={`px-3 py-1 text-xs rounded-full border transition-colors ${
+                chatFilter === 'all' 
+                  ? 'bg-green-500 text-white border-green-500' 
+                  : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              All
+            </button>
+            <button
+              onClick={() => onFilterChange && onFilterChange('direct')}
+              className={`px-3 py-1 text-xs rounded-full border transition-colors ${
+                chatFilter === 'direct' 
+                  ? 'bg-green-500 text-white border-green-500' 
+                  : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              Direct
+            </button>
+            <button
+              onClick={() => onFilterChange && onFilterChange('groups')}
+              className={`px-3 py-1 text-xs rounded-full border transition-colors ${
+                chatFilter === 'groups' 
+                  ? 'bg-green-500 text-white border-green-500' 
+                  : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              Groups
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Chat List */}
@@ -165,8 +201,69 @@ const ChatSidebar = ({ onSelectConversation, onStartNewChat, activeConversation,
           </div>
         ) : (
           <div>
+            {/* Pinned Chats Section */}
+            {pinnedChats.length > 0 && !searchQuery && (
+              <div className="mb-4">
+                <div className="px-3 py-2 text-xs font-medium text-gray-500 uppercase tracking-wide flex items-center gap-2">
+                  <Pin className="w-3 h-3" />
+                  Pinned
+                </div>
+                {pinnedChats.map(conversation => {
+                  const partner = getConversationPartner(conversation, currentUser.id);
+                  const isActive = activeConversation?.id === conversation.id;
+                  
+                  return (
+                    <button
+                      key={`pinned-${conversation.id}`}
+                      onClick={() => onSelectConversation(conversation)}
+                      onContextMenu={(e) => onChatContextMenu && onChatContextMenu(e, conversation)}
+                      className={`w-full flex items-center gap-3 p-3 transition-colors bg-yellow-50 border-l-4 border-yellow-400 ${
+                        isActive 
+                          ? 'bg-yellow-100 border-r-4 border-green-500' 
+                          : 'hover:bg-yellow-100'
+                      }`}
+                    >
+                      <div className="relative flex-shrink-0">
+                        <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-md">
+                          {partner?.avatar}
+                        </div>
+                        <div className={`absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-white ${getStatusColor(partner?.status)}`}></div>
+                        <div className="absolute -top-1 -right-1 w-4 h-4 bg-yellow-500 rounded-full flex items-center justify-center">
+                          <Pin className="w-2 h-2 text-white" />
+                        </div>
+                      </div>
+                      <div className="flex-1 text-left min-w-0">
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="font-medium text-gray-900 truncate">{partner?.name}</div>
+                          <div className="flex items-center gap-1">
+                            {conversation.lastMessage && (
+                              <div className="text-xs text-gray-500">
+                                {formatMessageTime(conversation.lastMessage.timestamp)}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <div className="text-sm text-gray-500 truncate">
+                            {conversation.lastMessage?.text || 'No messages yet'}
+                          </div>
+                          {conversation.unreadCount > 0 && (
+                            <div className="bg-green-500 text-white text-xs rounded-full px-2 py-1 min-w-[1.25rem] text-center">
+                              {conversation.unreadCount}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+                <div className="border-b border-gray-200 my-2"></div>
+              </div>
+            )}
+
+            {/* Regular Conversations */}
             {filteredConversations.length > 0 ? (
-              filteredConversations.map(conversation => {
+              filteredConversations.filter(conv => !pinnedChats.find(p => p.id === conv.id)).map(conversation => {
                 const partner = getConversationPartner(conversation, currentUser.id);
                 const isActive = activeConversation?.id === conversation.id;
                 
@@ -174,6 +271,7 @@ const ChatSidebar = ({ onSelectConversation, onStartNewChat, activeConversation,
                   <button
                     key={conversation.id}
                     onClick={() => onSelectConversation(conversation)}
+                    onContextMenu={(e) => onChatContextMenu && onChatContextMenu(e, conversation)}
                     className={`w-full flex items-center gap-3 p-3 transition-colors ${
                       isActive 
                         ? 'bg-gray-100 border-r-4 border-green-500' 

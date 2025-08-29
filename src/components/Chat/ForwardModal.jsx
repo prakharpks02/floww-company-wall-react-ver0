@@ -24,8 +24,8 @@ const ForwardModal = ({ isOpen, onClose, onForward, conversations, currentUserId
   // Different styling for compact mode
   if (isCompact) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-2">
-        <div className="bg-white rounded-lg shadow-xl w-full max-w-[280px] max-h-[400px] flex flex-col">
+      <div className="fixed bottom-4 right-4 w-80 h-[500px] flex items-center justify-center z-[60]">
+        <div className="bg-white rounded-lg shadow-xl w-full max-w-[280px] max-h-[400px] flex flex-col border border-gray-200">
           {/* Header */}
           <div className="flex items-center justify-between p-3 border-b">
             <h3 className="text-sm font-semibold">Forward Message</h3>
@@ -107,7 +107,7 @@ const ForwardModal = ({ isOpen, onClose, onForward, conversations, currentUserId
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b">
