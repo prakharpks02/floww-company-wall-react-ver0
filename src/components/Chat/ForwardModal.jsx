@@ -22,8 +22,8 @@ const ForwardModal = ({ isOpen, onClose, onForward, conversations, currentUserId
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl w-96 max-h-[80vh] flex flex-col">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b">
           <h3 className="text-lg font-semibold">Forward Message</h3>
@@ -38,7 +38,7 @@ const ForwardModal = ({ isOpen, onClose, onForward, conversations, currentUserId
         {/* Message Preview */}
         <div className="p-4 border-b bg-gray-50">
           <div className="text-xs text-gray-500 mb-1">Message to forward:</div>
-          <div className="bg-white p-2 rounded border text-sm">
+          <div className="bg-white p-2 rounded border text-sm max-h-20 overflow-y-auto">
             {message?.text}
           </div>
         </div>

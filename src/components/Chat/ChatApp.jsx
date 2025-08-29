@@ -27,9 +27,11 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
   const [replyToMessage, setReplyToMessage] = useState(null);
   const [showForwardModal, setShowForwardModal] = useState(false);
   const [messageToForward, setMessageToForward] = useState(null);
+  const [contextMenu, setContextMenu] = useState({ show: false, x: 0, y: 0, message: null });
   const mobilePlusMenuRef = useRef(null);
   const compactPlusMenuRef = useRef(null);
   const messagesEndRef = useRef(null);
+  const contextMenuRef = useRef(null);
   
   const {
     conversations,
@@ -58,6 +60,9 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
       }
       if (compactPlusMenuRef.current && !compactPlusMenuRef.current.contains(event.target)) {
         setShowCompactPlusMenu(false);
+      }
+      if (contextMenuRef.current && !contextMenuRef.current.contains(event.target)) {
+        setContextMenu({ show: false, x: 0, y: 0, message: null });
       }
     };
 
@@ -333,6 +338,46 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
   const handleForward = (message) => {
     setMessageToForward(message);
     setShowForwardModal(true);
+    setContextMenu({ show: false, x: 0, y: 0, message: null });
+  };
+
+  const handleContextMenu = (e, message) => {
+    e.preventDefault();
+    
+    // Calculate position to ensure menu stays within viewport
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const menuWidth = 150; // Approximate menu width
+    const menuHeight = 80; // Approximate menu height
+    
+    let x = e.clientX;
+    let y = e.clientY;
+    
+    // Adjust x position if menu would go off right edge
+    if (x + menuWidth > viewportWidth) {
+      x = viewportWidth - menuWidth - 10;
+    }
+    
+    // Adjust y position if menu would go off bottom edge
+    if (y + menuHeight > viewportHeight) {
+      y = y - menuHeight;
+    }
+    
+    setContextMenu({
+      show: true,
+      x: x,
+      y: y,
+      message: message
+    });
+  };
+
+  const handleContextMenuReply = () => {
+    handleReply(contextMenu.message);
+    setContextMenu({ show: false, x: 0, y: 0, message: null });
+  };
+
+  const handleContextMenuForward = () => {
+    handleForward(contextMenu.message);
   };
 
   const handleForwardMessage = (selectedConversations) => {
@@ -963,10 +1008,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
                             ? 'bg-purple-600 text-white rounded-br-sm message-bubble-own'
                             : 'bg-gray-100 text-gray-800 rounded-bl-sm message-bubble'
                         }`}
-                        onContextMenu={(e) => {
-                          e.preventDefault();
-                          // Simple click handlers for compact mode
-                        }}
+                        onContextMenu={(e) => handleContextMenu(e, message)}
                       >
                         {/* Reply indicator */}
                         {message.replyTo && (
@@ -998,24 +1040,6 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
                         ) : (
                           message.text
                         )}
-                        
-                        {/* Quick action buttons on hover */}
-                        <div className={`absolute top-0 ${isOwnMessage ? 'left-0 -translate-x-full' : 'right-0 translate-x-full'} opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex gap-1 bg-white shadow-lg rounded-lg p-1`}>
-                          <button
-                            onClick={() => handleReply(message)}
-                            className="p-1 text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded text-xs"
-                         
-                          >
-                            <Reply className="h-3 w-3" />
-                          </button>
-                          <button
-                            onClick={() => handleForward(message)}
-                            className="p-1 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded text-xs"
-                            
-                          >
-                            <Forward className="h-3 w-3" />
-                          </button>
-                        </div>
                       </div>
                       <div className={`text-xs text-gray-500 mt-1 ${isOwnMessage ? 'text-right' : 'text-left'}`}>
                         {formatMessageTime(message.timestamp)}
@@ -1127,7 +1151,8 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
 
   // Full desktop layout with sidebar
   return (
-    <div className="fixed top-16 right-0 w-[800px] h-[calc(100vh-4rem)] bg-white border-l border-gray-200 shadow-2xl z-40 flex transform transition-all duration-700 ease-in-out scale-100">
+    <>
+      <div className="fixed top-16 right-0 w-[800px] h-[calc(100vh-4rem)] bg-white border-l border-gray-200 shadow-2xl z-40 flex transform transition-all duration-700 ease-in-out scale-100">
       {/* Chat Sidebar */}
       <ChatSidebar 
         onSelectConversation={handleSelectConversation}
@@ -1232,6 +1257,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
                           ? 'bg-purple-600 text-white rounded-br-md shadow-lg'
                           : 'bg-white text-gray-800 border border-gray-200 rounded-bl-md shadow-sm'
                       }`}
+                      onContextMenu={(e) => handleContextMenu(e, message)}
                     >
                       {/* Reply indicator */}
                       {message.replyTo && (
@@ -1263,26 +1289,6 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
                       ) : (
                         message.text
                       )}
-                      
-                      {/* Quick action buttons on hover - Desktop */}
-                      <div className={`absolute top-2 ${isOwnMessage ? 'left-2 -translate-x-full' : 'right-2 translate-x-full'} opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex gap-2 bg-white shadow-lg rounded-lg p-2`}>
-                        <button
-                          onClick={() => handleReply(message)}
-                          className="p-2 text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded-lg text-sm transition-all duration-200 flex items-center gap-1"
-                          title="Reply"
-                        >
-                          <Reply className="h-4 w-4" />
-                          Reply
-                        </button>
-                        <button
-                          onClick={() => handleForward(message)}
-                          className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg text-sm transition-all duration-200 flex items-center gap-1"
-                          title="Forward"
-                        >
-                          <Forward className="h-4 w-4" />
-                          Forward
-                        </button>
-                      </div>
                     </div>
                     <div className={`text-xs text-gray-500 mt-1 ${isOwnMessage ? 'text-right mr-1' : 'text-left ml-1'}`}>
                       {formatMessageTime(message.timestamp)}
@@ -1404,7 +1410,35 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
         currentUserId={currentUser.id}
         message={messageToForward}
       />
-    </div>
+      </div>
+
+      {/* Context Menu */}
+      {contextMenu.show && (
+        <div
+          ref={contextMenuRef}
+          className="fixed bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-[60] min-w-[120px]"
+          style={{
+            left: `${contextMenu.x}px`,
+            top: `${contextMenu.y}px`,
+          }}
+        >
+          <button
+            onClick={handleContextMenuReply}
+            className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+          >
+            <Reply className="h-4 w-4" />
+            Reply
+          </button>
+          <button
+            onClick={handleContextMenuForward}
+            className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+          >
+            <Forward className="h-4 w-4" />
+            Forward
+          </button>
+        </div>
+      )}
+    </>
   );
 };
 
