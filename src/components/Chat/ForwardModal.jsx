@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { X, Check } from 'lucide-react';
 import { getConversationPartner } from './utils/dummyData';
 
-const ForwardModal = ({ isOpen, onClose, onForward, conversations, currentUserId, message }) => {
+const ForwardModal = ({ isOpen, onClose, onForward, conversations, currentUserId, message, isCompact = false }) => {
   const [selectedConversations, setSelectedConversations] = useState([]);
 
   if (!isOpen) return null;
@@ -20,6 +20,91 @@ const ForwardModal = ({ isOpen, onClose, onForward, conversations, currentUserId
     setSelectedConversations([]);
     onClose();
   };
+
+  // Different styling for compact mode
+  if (isCompact) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-2">
+        <div className="bg-white rounded-lg shadow-xl w-full max-w-[280px] max-h-[400px] flex flex-col">
+          {/* Header */}
+          <div className="flex items-center justify-between p-3 border-b">
+            <h3 className="text-sm font-semibold">Forward Message</h3>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          {/* Message Preview */}
+          <div className="p-3 border-b bg-gray-50">
+            <div className="text-xs text-gray-500 mb-1">Message to forward:</div>
+            <div className="bg-white p-2 rounded border text-xs max-h-12 overflow-y-auto">
+              {message?.text}
+            </div>
+          </div>
+
+          {/* Conversations List */}
+          <div className="flex-1 overflow-y-auto p-3">
+            <div className="text-xs font-medium mb-2">Select conversations:</div>
+            <div className="space-y-1">
+              {conversations.map(conversation => {
+                const partner = getConversationPartner(conversation, currentUserId);
+                const isSelected = selectedConversations.includes(conversation.id);
+                
+                return (
+                  <button
+                    key={conversation.id}
+                    onClick={() => handleToggleConversation(conversation.id)}
+                    className={`w-full flex items-center gap-2 p-2 rounded-lg border transition-all ${
+                      isSelected 
+                        ? 'border-purple-500 bg-purple-50' 
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="relative">
+                      <div className="w-6 h-6 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                        {partner?.avatar}
+                      </div>
+                      {isSelected && (
+                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-purple-600 rounded-full flex items-center justify-center">
+                          <Check className="h-2 w-2 text-white" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 text-left">
+                      <div className="font-medium text-xs truncate">{partner?.name}</div>
+                      <div className="text-xs text-gray-500">
+                        {conversation.type === 'group' ? 'Group' : 'Direct'}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="p-3 border-t flex justify-end gap-2">
+            <button
+              onClick={onClose}
+              className="px-3 py-1 text-xs text-gray-600 hover:text-gray-800"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleForward}
+              disabled={selectedConversations.length === 0}
+              className="px-3 py-1 text-xs bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Forward ({selectedConversations.length})
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">

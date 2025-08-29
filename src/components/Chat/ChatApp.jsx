@@ -1145,6 +1145,44 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
           onClose={() => setShowPollModal(false)}
           onCreatePoll={handleCreatePoll}
         />
+
+        {/* Forward Modal */}
+        <ForwardModal
+          isOpen={showForwardModal}
+          onClose={() => setShowForwardModal(false)}
+          onForward={handleForwardMessage}
+          conversations={conversations.filter(conv => conv.id !== activeConversation?.id)}
+          currentUserId={currentUser.id}
+          message={messageToForward}
+          isCompact={true}
+        />
+
+        {/* Context Menu */}
+        {contextMenu.show && (
+          <div
+            className="fixed bg-white border border-gray-200 rounded-lg shadow-lg py-2 z-50"
+            style={{
+              left: contextMenu.x,
+              top: contextMenu.y,
+            }}
+            onContextMenu={(e) => e.preventDefault()}
+          >
+            <button
+              onClick={() => handleReply(contextMenu.message)}
+              className="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 w-full text-left"
+            >
+              <Reply className="w-4 h-4" />
+              Reply
+            </button>
+            <button
+              onClick={() => handleForward(contextMenu.message)}
+              className="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 w-full text-left"
+            >
+              <Forward className="w-4 h-4" />
+              Forward
+            </button>
+          </div>
+        )}
       </>
     );
   }
