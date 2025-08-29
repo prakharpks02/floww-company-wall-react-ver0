@@ -33,15 +33,13 @@ export const ChatProvider = ({ children }) => {
   };
 
   // Send message
-  const sendMessage = (conversationId, senderId, text, messageData = null) => {
+  const sendMessage = (conversationId, senderId, text) => {
     const newMessage = {
       id: Date.now(),
       senderId,
       text: text.trim(),
       timestamp: new Date(),
-      read: true,
-      ...(messageData?.attachments && { attachments: messageData.attachments }),
-      ...(messageData?.poll && { poll: messageData.poll })
+      read: true
     };
 
     // Add message to the conversation
@@ -89,40 +87,6 @@ export const ChatProvider = ({ children }) => {
       'group',
       { name, description, avatar, createdBy }
     );
-  };
-
-  // Update poll vote
-  const updatePollVote = (messageId, selectedOptions, userId) => {
-    setMessages(prev => {
-      const updatedMessages = { ...prev };
-      
-      // Find the message with the poll across all conversations
-      for (const conversationId in updatedMessages) {
-        const messageIndex = updatedMessages[conversationId].findIndex(msg => msg.id === messageId);
-        if (messageIndex !== -1) {
-          const message = updatedMessages[conversationId][messageIndex];
-          if (message.poll) {
-            const updatedPoll = { ...message.poll };
-            
-            // Initialize votes object if it doesn't exist
-            if (!updatedPoll.votes) {
-              updatedPoll.votes = {};
-            }
-            
-            // Store the user's votes
-            updatedPoll.votes[userId] = selectedOptions;
-            
-            updatedMessages[conversationId][messageIndex] = {
-              ...message,
-              poll: updatedPoll
-            };
-          }
-          break;
-        }
-      }
-      
-      return updatedMessages;
-    });
   };
 
   // Chat controls
@@ -196,7 +160,6 @@ export const ChatProvider = ({ children }) => {
     sendMessage,
     createConversation,
     createGroup,
-    updatePollVote,
 
     // Chat controls
     openChat,

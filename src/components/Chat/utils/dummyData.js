@@ -245,7 +245,8 @@ export const dummyMessages = {
       text: "Great work! I'll start testing it now.",
       timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000),
       read: true
-    }
+    },
+    // Poll removed as requested
   ],
   3: [ // Conversation between Shreyansh and Samrat
     {
@@ -291,7 +292,8 @@ export const dummyMessages = {
       text: "The UI updates are ready for review!",
       timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
       read: false
-    }
+    },
+    // Poll removed as requested
   ],
   5: [ // Project Alpha Group
     {
@@ -313,6 +315,14 @@ export const dummyMessages = {
       senderId: 8,
       text: "The deadline has been moved to next week",
       timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000),
+      read: false
+    },
+    // Poll removed as requested
+    {
+      id: 16,
+      senderId: 1,
+      text: "Great poll! I think UI improvements will have the most impact.",
+      timestamp: new Date(Date.now() - 1.5 * 60 * 60 * 1000),
       read: false
     }
   ]
@@ -375,5 +385,14 @@ export const formatMessageTime = (timestamp) => {
     } else {
       return messageDate.toLocaleDateString([], { month: 'short', day: 'numeric' });
     }
+  }
+};
+
+export const getStatusColor = (status) => {
+  switch (status) {
+    case 'online': return 'bg-green-500';
+    case 'away': return 'bg-yellow-500';
+    case 'busy': return 'bg-red-500';
+    default: return 'bg-gray-400';
   }
 };
