@@ -527,7 +527,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
                     key={message.id}
                     className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
                   >
-                    <div className={`${message.type === 'poll' ? 'max-w-xl lg:max-w-2xl' : 'max-w-xs lg:max-w-md'} ${isOwnMessage ? 'order-2' : 'order-1'}`}>
+                    <div className={`${message.type === 'poll' ? 'max-w-2xl lg:max-w-4xl' : 'max-w-xs lg:max-w-md'} ${isOwnMessage ? 'order-2' : 'order-1'}`}>
                       {!isOwnMessage && activeConversation.type === 'group' && (
                         <div className="text-xs text-purple-600 mb-1 ml-1 font-medium">{sender?.name}</div>
                       )}
@@ -642,7 +642,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
   if (isCompactMode || (isMobile && !isFullScreenMobile)) {
     return (
       <>
-        <div className="fixed bottom-4 right-4 w-[450px] h-[580px] bg-white rounded-xl shadow-2xl border border-gray-200 z-50 flex flex-col transform transition-all duration-500 ease-out animate-slideUp chat-window-glass">
+        <div className="fixed bottom-4 right-4 w-[450px] h-[520px] bg-white rounded-xl shadow-2xl border border-gray-200 z-50 flex flex-col transform transition-all duration-500 ease-out animate-slideUp chat-window-glass">
         {/* Header - Mac-like with traffic light buttons */}
         <div className="flex items-center justify-between p-3 border-b border-gray-200 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-t-xl flex-shrink-0">
           <div className="flex items-center gap-2">
@@ -853,7 +853,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
         ) : (
           <div className="flex-1 flex flex-col">
             {/* Messages - Scrollable area between header and input */}
-            <div className="overflow-y-auto overflow-x-hidden custom-scrollbar p-1.5 pb-3 space-y-1" style={{ height: '400px' }}>
+            <div className="overflow-y-auto overflow-x-hidden custom-scrollbar p-1.5 pb-3 space-y-1" style={{ height: '420px' }}>
               {(messages[activeConversation.id] || []).map(message => {
                 const isOwnMessage = message.senderId === currentUser.id;
                 const sender = getEmployeeById(message.senderId);
@@ -1068,7 +1068,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
                   key={message.id}
                   className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'} animate-fadeIn`}
                 >
-                  <div className={`${message.type === 'poll' ? 'max-w-xl' : 'max-w-md'} ${isOwnMessage ? 'order-2' : 'order-1'}`}>
+                  <div className={`${message.type === 'poll' ? 'max-w-2xl' : 'max-w-md'} ${isOwnMessage ? 'order-2' : 'order-1'}`}>
                     {!isOwnMessage && activeConversation.type === 'group' && (
                       <div className="text-xs text-purple-600 mb-1 ml-1 font-medium">{sender?.name}</div>
                     )}
