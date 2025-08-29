@@ -642,9 +642,9 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
   if (isCompactMode || (isMobile && !isFullScreenMobile)) {
     return (
       <>
-        <div className="fixed bottom-4 right-4 w-[420px] h-[500px] bg-white rounded-xl shadow-2xl border border-gray-200 z-50 flex flex-col transform transition-all duration-500 ease-out animate-slideUp chat-window-glass">
+        <div className="fixed bottom-4 right-4 w-[450px] h-[580px] bg-white rounded-xl shadow-2xl border border-gray-200 z-50 flex flex-col transform transition-all duration-500 ease-out animate-slideUp chat-window-glass">
         {/* Header - Mac-like with traffic light buttons */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-t-xl">
+        <div className="flex items-center justify-between p-3 border-b border-gray-200 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-t-xl flex-shrink-0">
           <div className="flex items-center gap-2">
             {activeConversation && (
               <button
@@ -852,8 +852,8 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
           </div>
         ) : (
           <div className="flex-1 flex flex-col">
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-2" style={{ maxHeight: 'calc(100% - 120px)' }}>
+            {/* Messages - Scrollable area between header and input */}
+            <div className="overflow-y-auto overflow-x-hidden custom-scrollbar p-1.5 pb-3 space-y-1" style={{ height: '400px' }}>
               {(messages[activeConversation.id] || []).map(message => {
                 const isOwnMessage = message.senderId === currentUser.id;
                 const sender = getEmployeeById(message.senderId);
@@ -863,7 +863,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
                     key={message.id}
                     className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'} animate-fadeIn`}
                   >
-                    <div className={`${message.type === 'poll' ? 'w-full max-w-[380px]' : 'max-w-xs'} ${isOwnMessage ? 'order-2' : 'order-1'}`}>
+                    <div className={`${message.type === 'poll' ? 'w-full max-w-[280px]' : 'max-w-xs'} ${isOwnMessage ? 'order-2' : 'order-1'}`}>
                       {!isOwnMessage && activeConversation.type === 'group' && (
                         <div className="text-xs text-purple-600 mb-1 font-medium">{sender?.name}</div>
                       )}
@@ -871,7 +871,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
                         <div className="text-xs text-gray-500 mb-1">{sender?.name}</div>
                       )}
                       <div
-                        className={`${message.type === 'poll' ? 'p-0.5' : 'px-3 py-2'} rounded-lg text-sm transition-all duration-200 ${
+                        className={`${message.type === 'poll' ? 'p-0.5 overflow-hidden' : 'px-3 py-2'} rounded-lg text-sm transition-all duration-200 ${
                           isOwnMessage
                             ? 'bg-purple-600 text-white rounded-br-sm message-bubble-own'
                             : 'bg-gray-100 text-gray-800 rounded-bl-sm message-bubble'
@@ -898,12 +898,12 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
               })}
             </div>
 
-            {/* Message Input */}
-            <div className="relative p-3 border-t border-gray-200">
-              <div className="flex items-center gap-2">
+            {/* Message Input - Fixed at bottom */}
+            <div className="relative p-2 border-t border-gray-200 bg-white rounded-b-xl" style={{ minHeight: '60px' }}>
+              <div className="flex items-center gap-1.5">
                 <button
                   onClick={() => setShowAttachmentMenu(true)}
-                  className="p-2 text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-all duration-200"
+                  className="p-1.5 text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-all duration-200"
                 >
                   <Paperclip className="h-4 w-4" />
                 </button>
@@ -913,12 +913,12 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
                   onKeyPress={handleKeyPress}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm transition-all duration-200"
+                  className="flex-1 px-2.5 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm transition-all duration-200"
                 />
                 <button
                   onClick={handleSendMessage}
                   disabled={!newMessage.trim()}
-                  className="p-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105"
+                  className="p-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105"
                 >
                   <Send className="h-4 w-4" />
                 </button>

@@ -54,7 +54,7 @@ const PollMessage = ({ poll, currentUserId, onVote, isOwnMessage = false, isComp
   const totalVotes = getTotalVotes();
 
   return (
-    <div className={`rounded-lg ${isOwnMessage ? 'p-0' : 'p-0'} ${isCompact ? 'w-full max-w-full' : 'max-w-xl'} w-full`}>
+    <div className={`rounded-lg ${isOwnMessage ? 'p-0' : 'p-0'} ${isCompact ? 'w-full max-w-[260px]' : 'max-w-xl'} w-full`}>
       {/* Poll Header */}
       <div className={`flex items-center gap-1 ${isCompact ? 'mb-1' : 'mb-3'}`}>
         <div className={`${isCompact ? 'w-4 h-4' : 'w-8 h-8'} ${isOwnMessage ? 'bg-white/20' : 'bg-yellow-500'} rounded-full flex items-center justify-center`}>
@@ -69,7 +69,7 @@ const PollMessage = ({ poll, currentUserId, onVote, isOwnMessage = false, isComp
       </h3>
 
       {/* Options */}
-      <div className={`${isCompact ? 'space-y-0.5 mb-1' : 'space-y-2 mb-4'}`}>
+      <div className={`${isCompact ? 'space-y-0.5 mb-0.5' : 'space-y-2 mb-4'}`}>
         {poll.options.map((option, index) => {
           const votes = poll.votes[index] || [];
           const percentage = getOptionPercentage(index);
@@ -150,7 +150,7 @@ const PollMessage = ({ poll, currentUserId, onVote, isOwnMessage = false, isComp
       )}
 
       {/* Poll Stats */}
-      <div className={`flex items-center justify-between ${isCompact ? 'text-xs text-[10px]' : 'text-xs'} ${isOwnMessage ? 'text-white/70' : 'text-gray-500'} ${isCompact ? 'mt-1 pt-1' : 'mt-4 pt-3'} border-t ${isOwnMessage ? 'border-white/20' : 'border-gray-100'}`}>
+      <div className={`flex items-center justify-between ${isCompact ? 'text-xs text-[9px]' : 'text-xs'} ${isOwnMessage ? 'text-white/70' : 'text-gray-500'} ${isCompact ? 'mt-0.5 pt-0.5' : 'mt-4 pt-3'} border-t ${isOwnMessage ? 'border-white/20' : 'border-gray-100'}`}>
         <div className="flex items-center gap-1">
           <Users className={`${isCompact ? 'h-2 w-2' : 'h-3 w-3'}`} />
           <span>{totalVotes} votes</span>
