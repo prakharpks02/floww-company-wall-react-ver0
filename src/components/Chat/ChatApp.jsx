@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MessageCircle, X, Minimize2, Maximize2, Send, Phone, Video, Info, ArrowLeft, Search, Users, Plus, Paperclip } from 'lucide-react';
+import { MessageCircle, X, Minimize2, Maximize2, Send, Phone, Video, Info, ArrowLeft, Search, Users, Plus, Paperclip, Reply, Forward } from 'lucide-react';
 import { dummyEmployees, getEmployeeById, getConversationPartner, formatMessageTime } from './utils/dummyData';
 import { useChat } from '../../contexts/ChatContext';
 import ChatSidebar from './ChatSidebar';
@@ -9,6 +9,7 @@ import UserProfileModal from './UserProfileModal';
 import AttachmentMenu from './AttachmentMenu';
 import PollCreationModal from './PollCreationModal';
 import PollMessage from './PollMessage';
+import ForwardModal from './ForwardModal';
 
 const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
   const [activeConversation, setActiveConversation] = useState(null);
@@ -23,8 +24,12 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
   const [showCompactPlusMenu, setShowCompactPlusMenu] = useState(false);
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
   const [showPollModal, setShowPollModal] = useState(false);
+  const [replyToMessage, setReplyToMessage] = useState(null);
+  const [showForwardModal, setShowForwardModal] = useState(false);
+  const [messageToForward, setMessageToForward] = useState(null);
   const mobilePlusMenuRef = useRef(null);
   const compactPlusMenuRef = useRef(null);
+  const messagesEndRef = useRef(null);
   
   const {
     conversations,
@@ -62,6 +67,19 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
     };
   }, []);
 
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    const scrollToBottom = () => {
+      if (messagesEndRef.current) {
+        messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+      }
+    };
+    
+    if (activeConversation && messages[activeConversation.id]) {
+      scrollToBottom();
+    }
+  }, [messages, activeConversation]);
+
   // Filter employees for search
   const filteredEmployees = dummyEmployees.filter(emp => 
     emp.id !== currentUser.id && 
@@ -76,7 +94,37 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
 
   const handleSendMessage = () => {
     if (!newMessage.trim() || !activeConversation) return;
-    sendMessage(activeConversation.id, currentUser.id, newMessage.trim());
+    
+    let messageData = {
+      id: Date.now(),
+      senderId: currentUser.id,
+      text: newMessage.trim(),
+      timestamp: new Date(),
+      read: true
+    };
+    
+    if (replyToMessage) {
+      messageData.replyTo = {
+        id: replyToMessage.id,
+        text: replyToMessage.text,
+        senderName: getEmployeeById(replyToMessage.senderId)?.name
+      };
+      setReplyToMessage(null);
+    }
+    
+    // Add message directly to state like we do for polls
+    setMessages(prev => ({
+      ...prev,
+      [activeConversation.id]: [...(prev[activeConversation.id] || []), messageData]
+    }));
+
+    // Update conversation last message
+    setConversations(prev => prev.map(conv => 
+      conv.id === activeConversation.id 
+        ? { ...conv, lastMessage: { text: messageData.text, timestamp: new Date() } }
+        : conv
+    ));
+    
     setNewMessage('');
   };
 
@@ -272,6 +320,50 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
         return message;
       })
     }));
+  };
+
+  const handleReply = (message) => {
+    setReplyToMessage(message);
+  };
+
+  const handleCancelReply = () => {
+    setReplyToMessage(null);
+  };
+
+  const handleForward = (message) => {
+    setMessageToForward(message);
+    setShowForwardModal(true);
+  };
+
+  const handleForwardMessage = (selectedConversations) => {
+    if (!messageToForward || !selectedConversations.length) return;
+
+    selectedConversations.forEach(convId => {
+      const forwardedMessage = {
+        id: Date.now() + Math.random(),
+        senderId: currentUser.id,
+        text: `Forwarded: ${messageToForward.text}`,
+        timestamp: new Date(),
+        read: true,
+        isForwarded: true,
+        originalSender: getEmployeeById(messageToForward.senderId)?.name
+      };
+
+      setMessages(prev => ({
+        ...prev,
+        [convId]: [...(prev[convId] || []), forwardedMessage]
+      }));
+
+      // Update conversation last message
+      setConversations(prev => prev.map(conv => 
+        conv.id === convId 
+          ? { ...conv, lastMessage: { text: forwardedMessage.text, timestamp: new Date() } }
+          : conv
+      ));
+    });
+
+    setShowForwardModal(false);
+    setMessageToForward(null);
   };
 
   const getStatusColor = (status) => {
@@ -774,7 +866,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
             </div>
 
             {/* Conversations List or User Search Results */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar" style={{ maxHeight: 'calc(100% - 60px)' }}>
+            <div className="flex-1 overflow-y-auto custom-scrollbar" style={{ maxHeight: '380px' }}>
               {showUserList ? (
                 <div className="p-2">
                   <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Start New Chat</h4>
@@ -846,9 +938,9 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
             </div>
           </div>
         ) : (
-          <div className="flex-1 flex flex-col">
+          <div className="flex-1 flex flex-col h-full">
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-3" style={{ maxHeight: 'calc(100% - 120px)' }}>
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-3 min-h-0" style={{ maxHeight: '320px' }}>
               {(messages[activeConversation.id] || []).map(message => {
                 const isOwnMessage = message.senderId === currentUser.id;
                 const sender = getEmployeeById(message.senderId);
@@ -866,12 +958,35 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
                         <div className="text-xs text-gray-500 mb-1">{sender?.name}</div>
                       )}
                       <div
-                        className={`${message.type === 'poll' ? 'p-2' : 'px-3 py-2'} rounded-lg text-sm transition-all duration-200 ${
+                        className={`relative group ${message.type === 'poll' ? 'p-2' : 'px-3 py-2'} rounded-lg text-sm transition-all duration-200 ${
                           isOwnMessage
                             ? 'bg-purple-600 text-white rounded-br-sm message-bubble-own'
                             : 'bg-gray-100 text-gray-800 rounded-bl-sm message-bubble'
                         }`}
+                        onContextMenu={(e) => {
+                          e.preventDefault();
+                          // Simple click handlers for compact mode
+                        }}
                       >
+                        {/* Reply indicator */}
+                        {message.replyTo && (
+                          <div className={`text-xs mb-2 p-2 rounded-md ${isOwnMessage ? 'bg-purple-700/30' : 'bg-gray-200'} border-l-4 ${isOwnMessage ? 'border-purple-300' : 'border-purple-500'}`}>
+                            <div className={`font-medium text-xs ${isOwnMessage ? 'text-purple-200' : 'text-purple-600'}`}>
+                              {message.replyTo.senderName}
+                            </div>
+                            <div className={`text-xs mt-1 ${isOwnMessage ? 'text-purple-100' : 'text-gray-700'} line-clamp-2`}>
+                              {message.replyTo.text.length > 50 ? `${message.replyTo.text.substring(0, 50)}...` : message.replyTo.text}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Forward indicator */}
+                        {message.isForwarded && (
+                          <div className={`text-xs mb-2 ${isOwnMessage ? 'text-purple-200' : 'text-gray-600'}`}>
+                            <span className="italic">Forwarded from {message.originalSender}</span>
+                          </div>
+                        )}
+                        
                         {message.type === 'poll' ? (
                           <PollMessage
                             poll={message.poll}
@@ -883,6 +998,24 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
                         ) : (
                           message.text
                         )}
+                        
+                        {/* Quick action buttons on hover */}
+                        <div className={`absolute top-0 ${isOwnMessage ? 'left-0 -translate-x-full' : 'right-0 translate-x-full'} opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex gap-1 bg-white shadow-lg rounded-lg p-1`}>
+                          <button
+                            onClick={() => handleReply(message)}
+                            className="p-1 text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded text-xs"
+                         
+                          >
+                            <Reply className="h-3 w-3" />
+                          </button>
+                          <button
+                            onClick={() => handleForward(message)}
+                            className="p-1 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded text-xs"
+                            
+                          >
+                            <Forward className="h-3 w-3" />
+                          </button>
+                        </div>
                       </div>
                       <div className={`text-xs text-gray-500 mt-1 ${isOwnMessage ? 'text-right' : 'text-left'}`}>
                         {formatMessageTime(message.timestamp)}
@@ -891,10 +1024,33 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
                   </div>
                 );
               })}
+              <div ref={messagesEndRef} />
             </div>
 
             {/* Message Input */}
-            <div className="relative p-3 border-t border-gray-200">
+            <div className="relative px-3 pt-3 pb-2 border-t border-gray-200">
+              {/* Reply UI */}
+              {replyToMessage && (
+                <div className="mb-3 bg-gray-50 border-l-4 border-purple-500 p-2 rounded">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="text-xs font-medium text-purple-600">
+                        Replying to {getEmployeeById(replyToMessage.senderId)?.name}
+                      </div>
+                      <div className="text-xs text-gray-600 truncate">
+                        {replyToMessage.text}
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleCancelReply}
+                      className="text-gray-400 hover:text-gray-600 ml-2"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+              
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setShowAttachmentMenu(true)}
@@ -1071,12 +1227,31 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
                       <div className="text-xs text-gray-500 mb-1 ml-1">{sender?.name}</div>
                     )}
                     <div
-                      className={`${message.type === 'poll' ? 'p-3' : 'px-4 py-3'} rounded-2xl text-sm transition-all duration-200 transform hover:scale-[1.02] ${
+                      className={`relative group ${message.type === 'poll' ? 'p-3' : 'px-4 py-3'} rounded-2xl text-sm transition-all duration-200 transform hover:scale-[1.02] ${
                         isOwnMessage
                           ? 'bg-purple-600 text-white rounded-br-md shadow-lg'
                           : 'bg-white text-gray-800 border border-gray-200 rounded-bl-md shadow-sm'
                       }`}
                     >
+                      {/* Reply indicator */}
+                      {message.replyTo && (
+                        <div className={`text-sm mb-3 p-3 rounded-md ${isOwnMessage ? 'bg-purple-700/30' : 'bg-gray-100'} border-l-4 ${isOwnMessage ? 'border-purple-300' : 'border-purple-500'}`}>
+                          <div className={`font-medium text-sm ${isOwnMessage ? 'text-purple-200' : 'text-purple-600'}`}>
+                            {message.replyTo.senderName}
+                          </div>
+                          <div className={`text-sm mt-1 ${isOwnMessage ? 'text-purple-100' : 'text-gray-700'} line-clamp-3`}>
+                            {message.replyTo.text.length > 80 ? `${message.replyTo.text.substring(0, 80)}...` : message.replyTo.text}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Forward indicator */}
+                      {message.isForwarded && (
+                        <div className={`text-xs mb-2 ${isOwnMessage ? 'text-purple-200' : 'text-gray-600'}`}>
+                          <span className="italic">Forwarded from {message.originalSender}</span>
+                        </div>
+                      )}
+                      
                       {message.type === 'poll' ? (
                         <PollMessage
                           poll={message.poll}
@@ -1088,6 +1263,26 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
                       ) : (
                         message.text
                       )}
+                      
+                      {/* Quick action buttons on hover - Desktop */}
+                      <div className={`absolute top-2 ${isOwnMessage ? 'left-2 -translate-x-full' : 'right-2 translate-x-full'} opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex gap-2 bg-white shadow-lg rounded-lg p-2`}>
+                        <button
+                          onClick={() => handleReply(message)}
+                          className="p-2 text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded-lg text-sm transition-all duration-200 flex items-center gap-1"
+                          title="Reply"
+                        >
+                          <Reply className="h-4 w-4" />
+                          Reply
+                        </button>
+                        <button
+                          onClick={() => handleForward(message)}
+                          className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg text-sm transition-all duration-200 flex items-center gap-1"
+                          title="Forward"
+                        >
+                          <Forward className="h-4 w-4" />
+                          Forward
+                        </button>
+                      </div>
                     </div>
                     <div className={`text-xs text-gray-500 mt-1 ${isOwnMessage ? 'text-right mr-1' : 'text-left ml-1'}`}>
                       {formatMessageTime(message.timestamp)}
@@ -1100,6 +1295,28 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
 
           {/* Message Input */}
           <div className="relative p-4 border-t border-gray-200 bg-white">
+            {/* Reply UI - Desktop */}
+            {replyToMessage && (
+              <div className="mb-4 bg-gray-50 border-l-4 border-purple-500 p-3 rounded">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="text-sm font-medium text-purple-600">
+                      Replying to {getEmployeeById(replyToMessage.senderId)?.name}
+                    </div>
+                    <div className="text-sm text-gray-600 truncate">
+                      {replyToMessage.text}
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleCancelReply}
+                    className="text-gray-400 hover:text-gray-600 ml-3"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+              </div>
+            )}
+            
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setShowAttachmentMenu(true)}
@@ -1176,6 +1393,16 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
         isOpen={showPollModal}
         onClose={() => setShowPollModal(false)}
         onCreatePoll={handleCreatePoll}
+      />
+
+      {/* Forward Modal */}
+      <ForwardModal
+        isOpen={showForwardModal}
+        onClose={() => setShowForwardModal(false)}
+        onForward={handleForwardMessage}
+        conversations={conversations.filter(conv => conv.id !== activeConversation?.id)}
+        currentUserId={currentUser.id}
+        message={messageToForward}
       />
     </div>
   );
