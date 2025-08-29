@@ -1024,7 +1024,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
                     onClick={() => setChatFilter('all')}
                     className={`px-2 py-1 text-xs rounded-full border transition-colors ${
                       chatFilter === 'all' 
-                        ? 'bg-purple-500 text-white border-purple-500' 
+                        ? 'bg-[#FFAD46] text-white border-[#FFAD46]' 
                         : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
                     }`}
                   >
@@ -1034,7 +1034,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
                     onClick={() => setChatFilter('direct')}
                     className={`px-2 py-1 text-xs rounded-full border transition-colors ${
                       chatFilter === 'direct' 
-                        ? 'bg-purple-500 text-white border-purple-500' 
+                        ? 'bg-[#FFAD46] text-white border-[#FFAD46]' 
                         : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
                     }`}
                   >
@@ -1044,7 +1044,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
                     onClick={() => setChatFilter('groups')}
                     className={`px-2 py-1 text-xs rounded-full border transition-colors ${
                       chatFilter === 'groups' 
-                        ? 'bg-purple-500 text-white border-purple-500' 
+                        ? 'bg-[#FFAD46] text-white border-[#FFAD46]' 
                         : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
                     }`}
                   >
@@ -1097,13 +1097,13 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
                               key={`pinned-compact-${conversation.id}`}
                               onClick={() => handleSelectConversation(conversation)}
                               onContextMenu={(e) => handleChatContextMenu(e, conversation)}
-                              className="w-full flex items-center gap-2 p-2 bg-yellow-50 border-l-2 border-yellow-400 hover:bg-yellow-100 rounded-r-lg transition-all duration-200"
+                              className="w-full flex items-center gap-2 p-2 bg-orange-50 border-l-2 border-[#FFAD46] hover:bg-orange-100 rounded-r-lg transition-all duration-200"
                             >
                               <div className="relative">
                                 <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md">
                                   {partner?.avatar}
                                 </div>
-                                <div className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-500 rounded-full flex items-center justify-center">
+                                <div className="absolute -top-1 -right-1 w-3 h-3 bg-[#FFAD46] rounded-full flex items-center justify-center">
                                   <Pin className="w-1.5 h-1.5 text-white" />
                                 </div>
                               </div>
@@ -1178,12 +1178,12 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
             <div className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-3 min-h-0" style={{ maxHeight: '320px' }}>
               {/* Pinned Message */}
               {activeConversation && pinnedMessages[activeConversation.id] && (
-                <div className="bg-yellow-50 border-l-4 border-yellow-400 p-2 rounded-r-lg shadow-sm">
+                <div className="bg-orange-50 border-l-4 border-[#FFAD46] p-2 rounded-r-lg shadow-sm">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-1 mb-1">
-                        <Pin className="w-3 h-3 text-yellow-600" />
-                        <span className="text-xs font-medium text-yellow-800">Pinned</span>
+                        <Pin className="w-3 h-3 text-[#FFAD46]" />
+                        <span className="text-xs font-medium text-[#FFAD46]">Pinned</span>
                       </div>
                       <div className="text-xs text-gray-700 truncate">
                         {pinnedMessages[activeConversation.id].message.text}
@@ -1528,18 +1528,15 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
           <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
             {/* Pinned Message */}
             {activeConversation && pinnedMessages[activeConversation.id] && (
-              <div className="bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded-r-lg shadow-sm">
+              <div className="bg-orange-50 border-l-4 border-[#FFAD46] p-3 rounded-r-lg shadow-sm">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      <Pin className="w-4 h-4 text-yellow-600" />
-                      <span className="text-sm font-medium text-yellow-800">Pinned Message</span>
+                      <Pin className="w-4 h-4 text-[#FFAD46]" />
+                      <span className="text-sm font-medium text-[#FFAD46]">Pinned Message</span>
                     </div>
                     <div className="text-sm text-gray-700">
                       {pinnedMessages[activeConversation.id].message.text}
-                    </div>
-                    <div className="text-xs text-gray-500 mt-1">
-                      Pinned by {getEmployeeById(pinnedMessages[activeConversation.id].message.senderId)?.name}
                     </div>
                   </div>
                   <button

@@ -52,7 +52,7 @@ const PinModal = ({ isOpen, onClose, onPin, type, item, isCompact = false }) => 
                   />
                   <div className={`w-4 h-4 rounded-full border-2 ${
                     selectedDuration === duration.value 
-                      ? 'border-green-500 bg-green-500' 
+                      ? 'border-[#FFAD46] bg-[#FFAD46]' 
                       : 'border-gray-400'
                   }`}>
                     {selectedDuration === duration.value && (
@@ -75,7 +75,7 @@ const PinModal = ({ isOpen, onClose, onPin, type, item, isCompact = false }) => 
             </button>
             <button
               onClick={handlePin}
-              className="flex-1 px-3 py-2 text-xs bg-green-600 text-white rounded hover:bg-green-700"
+              className="flex-1 px-3 py-2 text-xs bg-[#FFAD46] text-white rounded hover:bg-[#E8860E]"
             >
               Pin
             </button>
@@ -118,7 +118,7 @@ const PinModal = ({ isOpen, onClose, onPin, type, item, isCompact = false }) => 
                 />
                 <div className={`w-5 h-5 rounded-full border-2 ${
                   selectedDuration === duration.value 
-                    ? 'border-green-500 bg-green-500' 
+                    ? 'border-[#FFAD46] bg-[#FFAD46]' 
                     : 'border-gray-400'
                 }`}>
                   {selectedDuration === duration.value && (
@@ -141,7 +141,7 @@ const PinModal = ({ isOpen, onClose, onPin, type, item, isCompact = false }) => 
           </button>
           <button
             onClick={handlePin}
-            className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+            className="px-6 py-2 bg-[#FFAD46] text-white rounded hover:bg-[#E8860E]"
           >
             Pin
           </button>

@@ -32,10 +32,19 @@ const ChatSidebar = ({ onSelectConversation, onStartNewChat, activeConversation,
     emp.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Filter conversations for search
+  // Filter conversations for search and type
   const filteredConversations = conversations.filter(conv => {
     const partner = getConversationPartner(conv, currentUser.id);
-    return partner?.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = partner?.name.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    // Apply chat filter
+    if (chatFilter === 'direct') {
+      return conv.type === 'direct' && matchesSearch;
+    } else if (chatFilter === 'groups') {
+      return conv.type === 'group' && matchesSearch;
+    }
+    
+    return matchesSearch; // 'all' filter
   });
 
   const getStatusColor = (status) => {
@@ -143,7 +152,7 @@ const ChatSidebar = ({ onSelectConversation, onStartNewChat, activeConversation,
               onClick={() => onFilterChange && onFilterChange('all')}
               className={`px-3 py-1 text-xs rounded-full border transition-colors ${
                 chatFilter === 'all' 
-                  ? 'bg-green-500 text-white border-green-500' 
+                  ? 'bg-[#FFAD46] text-white border-[#FFAD46]' 
                   : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
               }`}
             >
@@ -153,7 +162,7 @@ const ChatSidebar = ({ onSelectConversation, onStartNewChat, activeConversation,
               onClick={() => onFilterChange && onFilterChange('direct')}
               className={`px-3 py-1 text-xs rounded-full border transition-colors ${
                 chatFilter === 'direct' 
-                  ? 'bg-green-500 text-white border-green-500' 
+                  ? 'bg-[#FFAD46] text-white border-[#FFAD46]' 
                   : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
               }`}
             >
@@ -163,7 +172,7 @@ const ChatSidebar = ({ onSelectConversation, onStartNewChat, activeConversation,
               onClick={() => onFilterChange && onFilterChange('groups')}
               className={`px-3 py-1 text-xs rounded-full border transition-colors ${
                 chatFilter === 'groups' 
-                  ? 'bg-green-500 text-white border-green-500' 
+                  ? 'bg-[#FFAD46] text-white border-[#FFAD46]' 
                   : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
               }`}
             >
@@ -217,10 +226,10 @@ const ChatSidebar = ({ onSelectConversation, onStartNewChat, activeConversation,
                       key={`pinned-${conversation.id}`}
                       onClick={() => onSelectConversation(conversation)}
                       onContextMenu={(e) => onChatContextMenu && onChatContextMenu(e, conversation)}
-                      className={`w-full flex items-center gap-3 p-3 transition-colors bg-yellow-50 border-l-4 border-yellow-400 ${
+                      className={`w-full flex items-center gap-3 p-3 transition-colors bg-orange-50 border-l-4 border-[#FFAD46] ${
                         isActive 
-                          ? 'bg-yellow-100 border-r-4 border-green-500' 
-                          : 'hover:bg-yellow-100'
+                          ? 'bg-orange-100 border-r-4 border-green-500' 
+                          : 'hover:bg-orange-100'
                       }`}
                     >
                       <div className="relative flex-shrink-0">
@@ -228,7 +237,7 @@ const ChatSidebar = ({ onSelectConversation, onStartNewChat, activeConversation,
                           {partner?.avatar}
                         </div>
                         <div className={`absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-white ${getStatusColor(partner?.status)}`}></div>
-                        <div className="absolute -top-1 -right-1 w-4 h-4 bg-yellow-500 rounded-full flex items-center justify-center">
+                        <div className="absolute -top-1 -right-1 w-4 h-4 bg-[#FFAD46] rounded-full flex items-center justify-center">
                           <Pin className="w-2 h-2 text-white" />
                         </div>
                       </div>
