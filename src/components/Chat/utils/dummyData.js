@@ -246,7 +246,29 @@ export const dummyMessages = {
       timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000),
       read: true
     },
-    // Poll removed as requested
+    {
+      id: 18,
+      senderId: 3,
+      type: "poll",
+      timestamp: new Date(Date.now() - 30 * 60 * 1000),
+      read: false,
+      poll: {
+        id: "poll_3",
+        question: "When should we schedule the code review?",
+        options: [
+          "Tomorrow morning",
+          "Tomorrow afternoon",
+          "Day after tomorrow"
+        ],
+        allowMultipleAnswers: false,
+        createdAt: new Date(Date.now() - 30 * 60 * 1000),
+        votes: {
+          0: [1], // Tomorrow morning - voted by Shreyansh
+          1: [], // Tomorrow afternoon - no votes
+          2: [3] // Day after tomorrow - voted by Aman
+        }
+      }
+    }
   ],
   3: [ // Conversation between Shreyansh and Samrat
     {
@@ -293,7 +315,31 @@ export const dummyMessages = {
       timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
       read: false
     },
-    // Poll removed as requested
+    {
+      id: 17,
+      senderId: 3,
+      type: "poll",
+      timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000),
+      read: false,
+      poll: {
+        id: "poll_2",
+        question: "Which technology stack should we use for the new microservice?",
+        options: [
+          "Node.js + Express",
+          "Python + Django",
+          "Go + Gin",
+          "Java + Spring Boot"
+        ],
+        allowMultipleAnswers: true,
+        createdAt: new Date(Date.now() - 1 * 60 * 60 * 1000),
+        votes: {
+          0: [2, 5], // Node.js - voted by Sakshi and Samrat
+          1: [1], // Python - voted by Shreyansh
+          2: [3], // Go - voted by Aman
+          3: [] // Java - no votes yet
+        }
+      }
+    }
   ],
   5: [ // Project Alpha Group
     {
@@ -317,7 +363,31 @@ export const dummyMessages = {
       timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000),
       read: false
     },
-    // Poll removed as requested
+    {
+      id: 15,
+      senderId: 4,
+      type: "poll",
+      timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
+      read: false,
+      poll: {
+        id: "poll_1",
+        question: "What should be our priority for next sprint?",
+        options: [
+          "User Interface improvements",
+          "Backend optimization",
+          "Bug fixes and testing",
+          "New feature development"
+        ],
+        allowMultipleAnswers: false,
+        createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
+        votes: {
+          0: [1, 3], // User Interface improvements - voted by Shreyansh and Aman
+          1: [8], // Backend optimization - voted by David
+          2: [4], // Bug fixes and testing - voted by John
+          3: [] // New feature development - no votes yet
+        }
+      }
+    },
     {
       id: 16,
       senderId: 1,
@@ -385,14 +455,5 @@ export const formatMessageTime = (timestamp) => {
     } else {
       return messageDate.toLocaleDateString([], { month: 'short', day: 'numeric' });
     }
-  }
-};
-
-export const getStatusColor = (status) => {
-  switch (status) {
-    case 'online': return 'bg-green-500';
-    case 'away': return 'bg-yellow-500';
-    case 'busy': return 'bg-red-500';
-    default: return 'bg-gray-400';
   }
 };

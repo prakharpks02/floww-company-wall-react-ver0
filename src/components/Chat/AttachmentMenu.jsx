@@ -50,32 +50,30 @@ const AttachmentMenu = ({ isOpen, onClose, onSelect, isGroup = false, isCompact 
       {/* Menu positioned above input */}
       <div className={`absolute z-50 ${
         isCompact 
-          ? 'bottom-full mb-2 left-0 right-0' 
-          : 'bottom-full mb-3 left-0 right-0'
+          ? 'bottom-full mb-2 left-2 right-2' 
+          : 'bottom-full mb-3 left-4 right-4'
       }`}>
         {/* Options */}
-        <div className={`bg-white rounded-2xl shadow-xl border border-gray-200 ${
-          isCompact ? 'p-3' : 'p-4'
-        } ${isCompact ? 'w-72' : 'w-80'} mx-auto`}>
-          <div className={`grid ${isCompact ? 'grid-cols-1 gap-2' : 'grid-cols-2 gap-3'}`}>
+        <div className={`bg-white rounded-2xl shadow-2xl border border-gray-200 p-4 w-full ${
+          isCompact ? 'max-w-xs mx-auto' : 'max-w-sm mx-auto'
+        }`}>
+          <div className={`grid ${isCompact ? 'grid-cols-1 gap-2' : 'grid-cols-2 gap-4'}`}>
             {attachmentOptions.map((option) => {
               const IconComponent = option.icon;
               return (
                 <button
                   key={option.id}
                   onClick={option.action}
-                  className={`flex ${isCompact ? 'flex-row items-center' : 'flex-col items-center'} ${
+                  className={`flex ${isCompact ? 'flex-row' : 'flex-col'} items-center ${
                     isCompact ? 'p-3' : 'p-4'
-                  } rounded-xl hover:bg-gray-50 transition-all duration-200 transform hover:scale-105 group`}
+                  } rounded-xl hover:bg-gray-50 transition-all duration-200 transform hover:scale-105`}
                 >
-                  <div className={`${isCompact ? 'w-10 h-10' : 'w-12 h-12'} ${option.color} rounded-full flex items-center justify-center ${
-                    isCompact ? 'mr-3' : 'mb-3'
-                  } shadow-lg group-hover:shadow-xl transition-all duration-200`}>
-                    <IconComponent className={`${isCompact ? 'h-5 w-5' : 'h-6 w-6'} text-white`} />
+                  <div className={`${isCompact ? 'w-8 h-8' : 'w-12 h-12'} ${option.color} rounded-full flex items-center justify-center ${
+                    isCompact ? 'mr-3' : 'mb-2'
+                  } shadow-lg`}>
+                    <IconComponent className={`${isCompact ? 'h-4 w-4' : 'h-6 w-6'} text-white`} />
                   </div>
-                  <span className={`${isCompact ? 'text-sm' : 'text-sm'} font-medium text-gray-700 group-hover:text-gray-900 transition-colors`}>
-                    {option.label}
-                  </span>
+                  <span className={`${isCompact ? 'text-xs' : 'text-sm'} font-medium text-gray-700`}>{option.label}</span>
                 </button>
               );
             })}

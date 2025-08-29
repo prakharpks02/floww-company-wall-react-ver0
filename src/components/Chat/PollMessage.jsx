@@ -54,22 +54,22 @@ const PollMessage = ({ poll, currentUserId, onVote, isOwnMessage = false, isComp
   const totalVotes = getTotalVotes();
 
   return (
-    <div className={`rounded-lg ${isOwnMessage ? 'p-0' : 'p-0'} ${isCompact ? 'w-full max-w-[260px]' : 'max-w-xl'} w-full`}>
+    <div className={`rounded-lg ${isOwnMessage ? 'p-0' : 'p-1'} ${isCompact ? 'max-w-xs' : 'max-w-sm'} w-full`}>
       {/* Poll Header */}
-      <div className={`flex items-center gap-1 ${isCompact ? 'mb-1' : 'mb-3'}`}>
-        <div className={`${isCompact ? 'w-4 h-4' : 'w-8 h-8'} ${isOwnMessage ? 'bg-white/20' : 'bg-yellow-500'} rounded-full flex items-center justify-center`}>
-          <BarChart3 className={`${isCompact ? 'h-2 w-2' : 'h-4 w-4'} text-white`} />
+      <div className={`flex items-center gap-2 ${isCompact ? 'mb-2' : 'mb-3'}`}>
+        <div className={`${isCompact ? 'w-6 h-6' : 'w-8 h-8'} ${isOwnMessage ? 'bg-white/20' : 'bg-yellow-500'} rounded-full flex items-center justify-center`}>
+          <BarChart3 className={`${isCompact ? 'h-3 w-3' : 'h-4 w-4'} text-white`} />
         </div>
         <span className={`font-medium ${isOwnMessage ? 'text-white' : 'text-gray-900'} ${isCompact ? 'text-xs' : 'text-sm'}`}>Poll</span>
       </div>
 
       {/* Question */}
-      <h3 className={`font-semibold ${isOwnMessage ? 'text-white' : 'text-gray-900'} ${isCompact ? 'mb-1 text-xs' : 'mb-4 text-sm'} leading-relaxed break-words`}>
+      <h3 className={`font-semibold ${isOwnMessage ? 'text-white' : 'text-gray-900'} ${isCompact ? 'mb-2 text-xs' : 'mb-4 text-sm'} leading-relaxed`}>
         {poll.question}
       </h3>
 
       {/* Options */}
-      <div className={`${isCompact ? 'space-y-0.5 mb-0.5' : 'space-y-2 mb-4'}`}>
+      <div className={`space-y-2 ${isCompact ? 'mb-2' : 'mb-4'}`}>
         {poll.options.map((option, index) => {
           const votes = poll.votes[index] || [];
           const percentage = getOptionPercentage(index);
@@ -81,7 +81,7 @@ const PollMessage = ({ poll, currentUserId, onVote, isOwnMessage = false, isComp
               <button
                 onClick={() => !hasVoted && handleOptionSelect(index)}
                 disabled={hasVoted}
-                className={`w-full text-left ${isCompact ? 'p-1 px-1.5' : 'p-3'} rounded-lg border transition-all duration-200 ${
+                className={`w-full text-left ${isCompact ? 'p-2' : 'p-3'} rounded-lg border transition-all duration-200 ${
                   hasVoted
                     ? 'cursor-default'
                     : 'hover:bg-black/5 cursor-pointer'
@@ -94,7 +94,7 @@ const PollMessage = ({ poll, currentUserId, onVote, isOwnMessage = false, isComp
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <div className="flex items-center gap-3">
                     {!hasVoted && (
                       <div className={`${isCompact ? 'w-3 h-3' : 'w-4 h-4'} rounded-full border-2 transition-colors ${
                         isSelected
@@ -109,7 +109,7 @@ const PollMessage = ({ poll, currentUserId, onVote, isOwnMessage = false, isComp
                     {hasVoted && isUserVote && (
                       <Check className={`${isCompact ? 'h-3 w-3' : 'h-4 w-4'} text-yellow-400`} />
                     )}
-                    <span className={`${isCompact ? 'text-xs' : 'text-sm'} font-medium ${isOwnMessage ? 'text-white' : 'text-gray-900'} break-words flex-1 min-w-0`}>
+                    <span className={`${isCompact ? 'text-xs' : 'text-sm'} font-medium ${isOwnMessage ? 'text-white' : 'text-gray-900'}`}>
                       {option}
                     </span>
                   </div>
@@ -143,26 +143,21 @@ const PollMessage = ({ poll, currentUserId, onVote, isOwnMessage = false, isComp
       {!hasVoted && selectedOptions.length > 0 && (
         <button
           onClick={handleVote}
-          className={`w-full ${isOwnMessage ? 'bg-white/20 hover:bg-white/30 text-white' : 'bg-yellow-500 hover:bg-yellow-600 text-white'} ${isCompact ? 'py-1 px-2 text-xs' : 'py-2 px-4 text-sm'} rounded-lg font-medium transition-colors`}
+          className={`w-full ${isOwnMessage ? 'bg-white/20 hover:bg-white/30 text-white' : 'bg-yellow-500 hover:bg-yellow-600 text-white'} ${isCompact ? 'py-1.5 px-3 text-xs' : 'py-2 px-4 text-sm'} rounded-lg font-medium transition-colors`}
         >
           Vote
         </button>
       )}
 
       {/* Poll Stats */}
-      <div className={`flex items-center justify-between ${isCompact ? 'text-xs text-[9px]' : 'text-xs'} ${isOwnMessage ? 'text-white/70' : 'text-gray-500'} ${isCompact ? 'mt-0.5 pt-0.5' : 'mt-4 pt-3'} border-t ${isOwnMessage ? 'border-white/20' : 'border-gray-100'}`}>
+      <div className={`flex items-center justify-between ${isCompact ? 'text-xs' : 'text-xs'} ${isOwnMessage ? 'text-white/70' : 'text-gray-500'} ${isCompact ? 'mt-2 pt-2' : 'mt-3 pt-3'} border-t ${isOwnMessage ? 'border-white/20' : 'border-gray-100'}`}>
         <div className="flex items-center gap-1">
-          <Users className={`${isCompact ? 'h-2 w-2' : 'h-3 w-3'}`} />
+          <Users className={`${isCompact ? 'h-2.5 w-2.5' : 'h-3 w-3'}`} />
           <span>{totalVotes} votes</span>
         </div>
-        <div className="flex items-center gap-1">
-          {poll.allowMultipleAnswers && isCompact && (
-            <span className={`${isOwnMessage ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'} px-1 py-0.5 text-[10px] rounded`}>
-              Multi
-            </span>
-          )}
-          {poll.allowMultipleAnswers && !isCompact && (
-            <span className={`${isOwnMessage ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'} px-2 py-1 text-xs rounded`}>
+        <div className="flex items-center gap-2">
+          {poll.allowMultipleAnswers && (
+            <span className={`${isOwnMessage ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'} ${isCompact ? 'px-1.5 py-0.5 text-xs' : 'px-2 py-1 text-xs'} rounded`}>
               Multiple answers
             </span>
           )}
