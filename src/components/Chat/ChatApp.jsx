@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MessageCircle, X, Minimize2, Maximize2, Send, Phone, Video, Info, ArrowLeft, Search, Users, Plus, Paperclip, Reply, Forward, Pin, Filter } from 'lucide-react';
+import { MessageCircle, X, Minimize2, Maximize2, Send, Phone, Video, Info, ArrowLeft, Search, Users, Plus, Paperclip, Reply, Forward, Pin, Filter, Edit2, Check } from 'lucide-react';
 import { dummyEmployees, getEmployeeById, getConversationPartner, formatMessageTime } from './utils/dummyData';
 import { useChat } from '../../contexts/ChatContext';
 import ChatSidebar from './ChatSidebar';
@@ -33,6 +33,8 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
   const [pinType, setPinType] = useState('message'); // 'message' or 'chat'
   const [pinnedMessages, setPinnedMessages] = useState({});
   const [pinnedChats, setPinnedChats] = useState([]);
+  const [editingMessage, setEditingMessage] = useState(null);
+  const [editMessageText, setEditMessageText] = useState('');
   const [chatFilter, setChatFilter] = useState('all'); // 'all', 'direct', 'groups'
   const mobilePlusMenuRef = useRef(null);
   const compactPlusMenuRef = useRef(null);
@@ -117,6 +119,12 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
   });
 
   const handleSendMessage = () => {
+    // If editing a message, save the edit instead
+    if (editingMessage) {
+      handleSaveEdit();
+      return;
+    }
+    
     if (!newMessage.trim() || !activeConversation) return;
     
     let messageData = {
@@ -155,7 +163,11 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
   const handleKeyPress = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSendMessage();
+      if (editingMessage) {
+        handleSaveEdit();
+      } else {
+        handleSendMessage();
+      }
     }
   };
 
@@ -212,6 +224,57 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
 
   const handleStartChatFromProfile = (user) => {
     handleStartNewChat(user);
+  };
+
+  // Helper function to check if a message can be edited (within 5 minutes)
+  const canEditMessage = (message) => {
+    if (!message || message.senderId !== currentUser.id) return false;
+    const messageTime = new Date(message.timestamp);
+    const currentTime = new Date();
+    const timeDifference = currentTime - messageTime;
+    const fiveMinutesInMs = 5 * 60 * 1000; // 5 minutes in milliseconds
+    return timeDifference <= fiveMinutesInMs;
+  };
+
+  // Handle starting message edit
+  const handleStartEdit = (message) => {
+    setEditingMessage(message);
+    setEditMessageText(message.text || '');
+    setContextMenu({ show: false, x: 0, y: 0, message: null });
+  };
+
+  // Handle saving edited message
+  const handleSaveEdit = () => {
+    console.log('handleSaveEdit called', { editingMessage, editMessageText });
+    if (!editingMessage || !editMessageText.trim()) return;
+
+    const updatedMessages = { ...messages };
+    const conversationMessages = updatedMessages[activeConversation.id] || [];
+    
+    const messageIndex = conversationMessages.findIndex(msg => msg.id === editingMessage.id);
+    console.log('Found message at index:', messageIndex, 'updating with text:', editMessageText.trim());
+    if (messageIndex !== -1) {
+      const oldMessage = conversationMessages[messageIndex];
+      conversationMessages[messageIndex] = {
+        ...conversationMessages[messageIndex],
+        text: editMessageText.trim(),
+        edited: true,
+        editedAt: new Date().toISOString()
+      };
+      console.log('Updated message:', conversationMessages[messageIndex]);
+      setMessages(updatedMessages);
+    }
+
+    // Clear editing state
+    setEditingMessage(null);
+    setEditMessageText('');
+  };
+
+  // Handle canceling edit
+  const handleCancelEdit = () => {
+    setEditingMessage(null);
+    setEditMessageText('');
+    setNewMessage('');
   };
 
   const handleAttachmentSelect = (type) => {
@@ -782,11 +845,31 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
                             isCompact={false}
                           />
                         ) : (
-                          message.text
+                          <>
+                            {message.replyTo && (
+                              <div className="mb-2 p-2 bg-gray-100 rounded-lg border-l-4 border-purple-400">
+                                <div className="text-xs text-purple-600 font-medium mb-1">
+                                  {message.replyTo.senderName}
+                                </div>
+                                <div className="text-xs text-gray-600 truncate">
+                                  {message.replyTo.text}
+                                </div>
+                              </div>
+                            )}
+                            <div 
+                              onContextMenu={(e) => handleContextMenu(e, message)}
+                              className="cursor-pointer"
+                            >
+                              {message.text}
+                            </div>
+                          </>
                         )}
                       </div>
                       <div className={`text-xs text-gray-500 mt-1 ${isOwnMessage ? 'text-right mr-1' : 'text-left ml-1'}`}>
                         {formatMessageTime(message.timestamp)}
+                        {message.edited && (
+                          <span className="ml-1 text-gray-400 italic">edited</span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -796,28 +879,74 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
 
             {/* Message Input */}
             <div className="relative p-4 bg-white border-t border-gray-200 safe-area-inset-bottom">
+              {/* Edit UI */}
+              {editingMessage && (
+                <div className="mb-3 bg-yellow-50 border-l-4 border-yellow-500 p-2 rounded">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="text-xs font-medium text-yellow-600">
+                        Editing message
+                      </div>
+                      <div className="text-xs text-gray-600 truncate">
+                        {editingMessage.text}
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleCancelEdit}
+                      className="text-gray-400 hover:text-gray-600 ml-2"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+              
               <div className="flex items-center gap-3">
-                <button
-                  onClick={() => setShowAttachmentMenu(true)}
-                  className="p-3 text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded-full transition-all duration-200"
-                >
-                  <Paperclip className="h-5 w-5" />
-                </button>
-                <input
-                  type="text"
-                  placeholder="Type a message..."
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  className="flex-1 px-4 py-3 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-base transition-all duration-200"
-                />
-                <button
-                  onClick={handleSendMessage}
-                  disabled={!newMessage.trim()}
-                  className="p-3 bg-purple-600 text-white rounded-full hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-                >
-                  <Send className="h-5 w-5" />
-                </button>
+                {!editingMessage && (
+                  <button
+                    onClick={() => setShowAttachmentMenu(true)}
+                    className="p-3 text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded-full transition-all duration-200"
+                  >
+                    <Paperclip className="h-5 w-5" />
+                  </button>
+                )}
+                <div className="flex-1">
+                  <input
+                    type="text"
+                    placeholder={editingMessage ? "Edit message..." : "Type a message..."}
+                    value={editingMessage ? editMessageText : newMessage}
+                    onChange={(e) => editingMessage ? setEditMessageText(e.target.value) : setNewMessage(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-base transition-all duration-200"
+                  />
+                </div>
+                {editingMessage ? (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleCancelEdit}
+                      className="p-3 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-full transition-all duration-200"
+                      title="Cancel edit"
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
+                    <button
+                      onClick={handleSaveEdit}
+                      disabled={!editMessageText.trim()}
+                      className="p-3 bg-green-600 text-white rounded-full hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                      title="Save changes"
+                    >
+                      <Check className="h-5 w-5" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleSendMessage}
+                    disabled={!newMessage.trim()}
+                    className="p-3 bg-purple-600 text-white rounded-full hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                  >
+                    <Send className="h-5 w-5" />
+                  </button>
+                )}
               </div>
               
               {/* Attachment Menu positioned relative to this container */}
@@ -1248,6 +1377,9 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
                       </div>
                       <div className={`text-xs text-gray-500 mt-1 ${isOwnMessage ? 'text-right' : 'text-left'}`}>
                         {formatMessageTime(message.timestamp)}
+                        {message.edited && (
+                          <span className="ml-1 text-gray-400 italic">edited</span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1258,8 +1390,30 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
 
             {/* Message Input */}
             <div className="relative px-3 pt-3 pb-2 border-t border-gray-200">
+              {/* Edit UI */}
+              {editingMessage && (
+                <div className="mb-3 bg-yellow-50 border-l-4 border-yellow-500 p-2 rounded">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="text-xs font-medium text-yellow-600">
+                        Editing message
+                      </div>
+                      <div className="text-xs text-gray-600 truncate">
+                        {editingMessage.text}
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleCancelEdit}
+                      className="text-gray-400 hover:text-gray-600 ml-2"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+              
               {/* Reply UI */}
-              {replyToMessage && (
+              {replyToMessage && !editingMessage && (
                 <div className="mb-3 bg-gray-50 border-l-4 border-purple-500 p-2 rounded">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
@@ -1281,27 +1435,47 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
               )}
               
               <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setShowAttachmentMenu(true)}
-                  className="p-2 text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-all duration-200"
-                >
-                  <Paperclip className="h-4 w-4" />
-                </button>
+                {!editingMessage && (
+                  <button
+                    onClick={() => setShowAttachmentMenu(true)}
+                    className="p-2 text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-all duration-200"
+                  >
+                    <Paperclip className="h-4 w-4" />
+                  </button>
+                )}
                 <input
                   type="text"
-                  placeholder="Type a message..."
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
+                  placeholder={editingMessage ? "Edit message..." : "Type a message..."}
+                  value={editingMessage ? editMessageText : newMessage}
+                  onChange={(e) => editingMessage ? setEditMessageText(e.target.value) : setNewMessage(e.target.value)}
                   onKeyPress={handleKeyPress}
                   className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm transition-all duration-200"
                 />
-                <button
-                  onClick={handleSendMessage}
-                  disabled={!newMessage.trim()}
-                  className="p-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105"
-                >
-                  <Send className="h-4 w-4" />
-                </button>
+                {editingMessage ? (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleCancelEdit}
+                      className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={handleSaveEdit}
+                      disabled={!editMessageText.trim()}
+                      className="p-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                    >
+                      <Check className="h-4 w-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleSendMessage}
+                    disabled={!newMessage.trim()}
+                    className="p-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105"
+                  >
+                    <Send className="h-4 w-4" />
+                  </button>
+                )}
               </div>
               
               {/* Attachment Menu positioned relative to this container */}
@@ -1380,6 +1554,15 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
             }}
             onContextMenu={(e) => e.preventDefault()}
           >
+            {canEditMessage(contextMenu.message) && (
+              <button
+                onClick={() => handleStartEdit(contextMenu.message)}
+                className="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 w-full text-left"
+              >
+                <Edit2 className="w-4 h-4" />
+                Edit
+              </button>
+            )}
             <button
               onClick={() => handleReply(contextMenu.message)}
               className="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 w-full text-left"
@@ -1598,6 +1781,9 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
                     </div>
                     <div className={`text-xs text-gray-500 mt-1 ${isOwnMessage ? 'text-right mr-1' : 'text-left ml-1'}`}>
                       {formatMessageTime(message.timestamp)}
+                      {message.edited && (
+                        <span className="ml-1 text-gray-400 italic">edited</span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1638,19 +1824,37 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
               </button>
               <input
                 type="text"
-                placeholder="Type a message..."
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
+                placeholder={editingMessage ? "Edit message..." : "Type a message..."}
+                value={editingMessage ? editMessageText : newMessage}
+                onChange={(e) => editingMessage ? setEditMessageText(e.target.value) : setNewMessage(e.target.value)}
                 onKeyPress={handleKeyPress}
                 className="flex-1 px-4 py-3 border border-gray-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm transition-all duration-200 shadow-sm focus:shadow-md"
               />
-              <button
-                onClick={handleSendMessage}
-                disabled={!newMessage.trim()}
-                className="p-3 bg-purple-600 text-white rounded-full hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 shadow-lg"
-              >
-                <Send className="h-5 w-5" />
-              </button>
+              {editingMessage ? (
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleCancelEdit}
+                    className="p-3 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-full transition-all duration-200"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                  <button
+                    onClick={handleSaveEdit}
+                    disabled={!editMessageText.trim()}
+                    className="p-3 bg-green-600 text-white rounded-full hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                  >
+                    <Check className="h-5 w-5" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={handleSendMessage}
+                  disabled={!newMessage.trim()}
+                  className="p-3 bg-purple-600 text-white rounded-full hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 shadow-lg"
+                >
+                  <Send className="h-5 w-5" />
+                </button>
+              )}
             </div>
             
             {/* Attachment Menu positioned relative to this container */}
@@ -1735,6 +1939,15 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
             top: `${contextMenu.y}px`,
           }}
         >
+          {canEditMessage(contextMenu.message) && (
+            <button
+              onClick={() => handleStartEdit(contextMenu.message)}
+              className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+            >
+              <Edit2 className="h-4 w-4" />
+              Edit
+            </button>
+          )}
           <button
             onClick={handleContextMenuReply}
             className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
