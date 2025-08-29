@@ -4,8 +4,7 @@ import { dummyEmployees, getEmployeeById, getConversationPartner, formatMessageT
 import { useChat } from '../../contexts/ChatContext';
 import ChatSidebar from './ChatSidebar';
 import CreateGroupModal from './CreateGroupModal';
-import GroupDetailsModal from './GroupDetailsModal';
-import UserProfileModal from './UserProfileModal';
+import ChatInfo from './ChatInfo';
 import AttachmentMenu from './AttachmentMenu';
 import PollCreationModal from './PollCreationModal';
 import PollMessage from './PollMessage';
@@ -18,8 +17,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showUserList, setShowUserList] = useState(false);
   const [showCreateGroup, setShowCreateGroup] = useState(false);
-  const [showGroupDetails, setShowGroupDetails] = useState(false);
-  const [showUserProfile, setShowUserProfile] = useState(false);
+  const [showChatInfo, setShowChatInfo] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [showMobilePlusMenu, setShowMobilePlusMenu] = useState(false);
   const [showCompactPlusMenu, setShowCompactPlusMenu] = useState(false);
@@ -192,15 +190,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
   };
 
   const handleShowInfo = () => {
-    if (activeConversation.type === 'group') {
-      setShowGroupDetails(true);
-    } else {
-      const partner = getConversationPartner(activeConversation, currentUserId);
-      if (partner) {
-        setSelectedUserId(partner.id);
-        setShowUserProfile(true);
-      }
-    }
+    setShowChatInfo(true);
   };
 
   const handleUpdateGroup = (groupId, updates) => {
@@ -211,7 +201,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
   const handleLeaveGroup = (groupId) => {
     // Leave group logic would go here
     console.log('Leave group:', groupId);
-    setShowGroupDetails(false);
+    setShowChatInfo(false);
     setActiveConversation(null);
   };
 
@@ -756,8 +746,10 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
           </div>
         ) : (
           <div className="flex-1 flex flex-col bg-gray-50">
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            {!showChatInfo ? (
+              <>
+                {/* Messages */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-4">
               {(messages[activeConversation.id] || []).map(message => {
                 const isOwnMessage = message.senderId === currentUser.id;
                 const sender = getEmployeeById(message.senderId);
@@ -837,6 +829,23 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
                 isCompact={false}
               />
             </div>
+          </>
+        ) : (
+          /* Chat Info inline for desktop mode */
+          <div className="flex-1 overflow-y-auto">
+            <ChatInfo
+              isOpen={true}
+              onClose={() => setShowChatInfo(false)}
+              conversation={activeConversation}
+              currentUserId={currentUser.id}
+              onUpdateGroup={handleUpdateGroup}
+              onLeaveGroup={handleLeaveGroup}
+              onRemoveMember={handleRemoveMember}
+              isCompact={false}
+              isInline={true}
+            />
+          </div>
+        )}
           </div>
         )}
         </div>
@@ -847,25 +856,6 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
           onClose={() => setShowCreateGroup(false)}
           onCreateGroup={handleCreateGroup}
           currentUserId={currentUser.id}
-        />
-        
-        {/* Group Details Modal */}
-        <GroupDetailsModal
-          isOpen={showGroupDetails}
-          onClose={() => setShowGroupDetails(false)}
-          conversation={activeConversation}
-          currentUserId={currentUser.id}
-          onUpdateGroup={handleUpdateGroup}
-          onLeaveGroup={handleLeaveGroup}
-          onRemoveMember={handleRemoveMember}
-        />
-        
-        {/* User Profile Modal */}
-        <UserProfileModal
-          isOpen={showUserProfile}
-          onClose={() => setShowUserProfile(false)}
-          userId={selectedUserId}
-          onStartChat={handleStartChatFromProfile}
         />
 
         {/* Poll Creation Modal */}
@@ -1174,30 +1164,32 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
           </div>
         ) : (
           <div className="flex-1 flex flex-col h-full">
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-3 min-h-0" style={{ maxHeight: '320px' }}>
-              {/* Pinned Message */}
-              {activeConversation && pinnedMessages[activeConversation.id] && (
-                <div className="bg-orange-50 border-l-4 border-[#FFAD46] p-2 rounded-r-lg shadow-sm">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-1 mb-1">
-                        <Pin className="w-3 h-3 text-[#FFAD46]" />
-                        <span className="text-xs font-medium text-[#FFAD46]">Pinned</span>
-                      </div>
-                      <div className="text-xs text-gray-700 truncate">
-                        {pinnedMessages[activeConversation.id].message.text}
+            {!showChatInfo ? (
+              <>
+                {/* Messages */}
+                <div className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-3 min-h-0" style={{ maxHeight: '320px' }}>
+                  {/* Pinned Message */}
+                  {activeConversation && pinnedMessages[activeConversation.id] && (
+                    <div className="bg-orange-50 border-l-4 border-[#FFAD46] p-2 rounded-r-lg shadow-sm">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-1 mb-1">
+                            <Pin className="w-3 h-3 text-[#FFAD46]" />
+                            <span className="text-xs font-medium text-[#FFAD46]">Pinned</span>
+                          </div>
+                          <div className="text-xs text-gray-700 truncate">
+                            {pinnedMessages[activeConversation.id].message.text}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleUnpin('message', activeConversation.id)}
+                          className="text-gray-400 hover:text-gray-600 ml-1"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
                       </div>
                     </div>
-                    <button
-                      onClick={() => handleUnpin('message', activeConversation.id)}
-                      className="text-gray-400 hover:text-gray-600 ml-1"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                </div>
-              )}
+                  )}
 
               {(messages[activeConversation.id] || []).map(message => {
                 const isOwnMessage = message.senderId === currentUser.id;
@@ -1321,6 +1313,23 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
                 isCompact={true}
               />
             </div>
+          </>
+        ) : (
+          /* Chat Info inline for compact mode */
+          <div className="flex-1 overflow-y-auto">
+            <ChatInfo
+              isOpen={true}
+              onClose={() => setShowChatInfo(false)}
+              conversation={activeConversation}
+              currentUserId={currentUser.id}
+              onUpdateGroup={handleUpdateGroup}
+              onLeaveGroup={handleLeaveGroup}
+              onRemoveMember={handleRemoveMember}
+              isCompact={true}
+              isInline={true}
+            />
+          </div>
+        )}
           </div>
         )}
         </div>
@@ -1331,25 +1340,6 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
           onClose={() => setShowCreateGroup(false)}
           onCreateGroup={handleCreateGroup}
           currentUserId={currentUser.id}
-        />
-        
-        {/* Group Details Modal */}
-        <GroupDetailsModal
-          isOpen={showGroupDetails}
-          onClose={() => setShowGroupDetails(false)}
-          conversation={activeConversation}
-          currentUserId={currentUser.id}
-          onUpdateGroup={handleUpdateGroup}
-          onLeaveGroup={handleLeaveGroup}
-          onRemoveMember={handleRemoveMember}
-        />
-        
-        {/* User Profile Modal */}
-        <UserProfileModal
-          isOpen={showUserProfile}
-          onClose={() => setShowUserProfile(false)}
-          userId={selectedUserId}
-          onStartChat={handleStartChatFromProfile}
         />
 
         {/* Poll Creation Modal */}
@@ -1525,9 +1515,11 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
           </div>
 
           {/* Messages Area */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
-            {/* Pinned Message */}
-            {activeConversation && pinnedMessages[activeConversation.id] && (
+          {!showChatInfo ? (
+            <>
+              <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
+                {/* Pinned Message */}
+                {activeConversation && pinnedMessages[activeConversation.id] && (
               <div className="bg-orange-50 border-l-4 border-[#FFAD46] p-3 rounded-r-lg shadow-sm">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
@@ -1670,6 +1662,23 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
               isCompact={false}
             />
           </div>
+        </>
+      ) : (
+        /* Chat Info inline for mobile mode */
+        <div className="flex-1 overflow-y-auto bg-gray-50">
+          <ChatInfo
+            isOpen={true}
+            onClose={() => setShowChatInfo(false)}
+            conversation={activeConversation}
+            currentUserId={currentUser.id}
+            onUpdateGroup={handleUpdateGroup}
+            onLeaveGroup={handleLeaveGroup}
+            onRemoveMember={handleRemoveMember}
+            isCompact={false}
+            isInline={true}
+          />
+        </div>
+      )}
         </div>
       ) : (
         <div className="flex-1 flex items-center justify-center bg-gray-50">
@@ -1687,25 +1696,6 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
         onClose={() => setShowCreateGroup(false)}
         onCreateGroup={handleCreateGroup}
         currentUserId={currentUser.id}
-      />
-      
-      {/* Group Details Modal */}
-      <GroupDetailsModal
-        isOpen={showGroupDetails}
-        onClose={() => setShowGroupDetails(false)}
-        conversation={activeConversation}
-        currentUserId={currentUser.id}
-        onUpdateGroup={handleUpdateGroup}
-        onLeaveGroup={handleLeaveGroup}
-        onRemoveMember={handleRemoveMember}
-      />
-      
-      {/* User Profile Modal */}
-      <UserProfileModal
-        isOpen={showUserProfile}
-        onClose={() => setShowUserProfile(false)}
-        userId={selectedUserId}
-        onStartChat={handleStartChatFromProfile}
       />
 
       {/* Poll Creation Modal */}
