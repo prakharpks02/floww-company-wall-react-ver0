@@ -63,6 +63,16 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
   // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
+      // Skip if the target is within the pin chat button (including text/icons)
+      const pinChatButton = event.target.closest('[data-pin-chat="true"]');
+      if (pinChatButton) {
+        console.log('Click on pin chat button or its content - ignoring outside click handler');
+        return;
+      }
+      
+      console.log('handleClickOutside called, target:', event.target);
+      console.log('closest chat-context-menu:', event.target.closest('.chat-context-menu'));
+      
       if (mobilePlusMenuRef.current && !mobilePlusMenuRef.current.contains(event.target)) {
         setShowMobilePlusMenu(false);
       }
@@ -72,9 +82,14 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
       if (contextMenuRef.current && !contextMenuRef.current.contains(event.target)) {
         setContextMenu({ show: false, x: 0, y: 0, message: null });
       }
+      
       // Close chat context menu when clicking outside
-      if (!event.target.closest('.chat-context-menu')) {
+      const chatContextMenuElement = event.target.closest('.chat-context-menu');
+      if (!chatContextMenuElement) {
+        console.log('Closing chat context menu - clicked outside');
         setChatContextMenu({ show: false, x: 0, y: 0, conversation: null });
+      } else {
+        console.log('Not closing chat context menu - clicked inside');
       }
     };
 
@@ -82,7 +97,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, []);
+  }, [chatContextMenu.show, showMobilePlusMenu, showCompactPlusMenu, contextMenu.show]);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -96,6 +111,53 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
       scrollToBottom();
     }
   }, [messages, activeConversation]);
+
+  // Clean up expired pinned items
+  useEffect(() => {
+    const cleanupExpiredPins = () => {
+      const now = new Date();
+      
+      // Clean up expired pinned messages
+      setPinnedMessages(prev => {
+        const updated = { ...prev };
+        Object.keys(updated).forEach(conversationId => {
+          if (updated[conversationId]?.expiry && new Date(updated[conversationId].expiry) <= now) {
+            delete updated[conversationId];
+          }
+        });
+        return updated;
+      });
+      
+      // Clean up expired pinned chats
+      setPinnedChats(prev => 
+        prev.filter(chat => !chat.expiry || new Date(chat.expiry) > now)
+      );
+    };
+    
+    // Run cleanup every minute
+    const interval = setInterval(cleanupExpiredPins, 60000);
+    
+    // Run cleanup on mount
+    cleanupExpiredPins();
+    
+    return () => clearInterval(interval);
+  }, []);
+
+  // Debug: Track when pinnedChats state changes
+  useEffect(() => {
+    console.log('=== PINNED CHATS STATE CHANGED ===');
+    console.log('New pinnedChats count:', pinnedChats.length);
+    console.log('Pinned chat IDs:', pinnedChats.map(c => c.id));
+    console.log('Full pinnedChats:', pinnedChats);
+  }, [pinnedChats]);
+
+  // Debug: Track pin modal state changes
+  useEffect(() => {
+    console.log('=== PIN MODAL STATE CHANGED ===');
+    console.log('showPinModal:', showPinModal);
+    console.log('pinType:', pinType);
+    console.log('messageToPinOrChat:', messageToPinOrChat);
+  }, [showPinModal, pinType, messageToPinOrChat]);
 
   // Filter employees for search
   const filteredEmployees = dummyEmployees.filter(emp => 
@@ -493,13 +555,55 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
   };
 
   const handlePinChat = (conversation) => {
+    console.log('=== HANDLE PIN CHAT START ===');
+    console.log('HANDLE PIN CHAT - conversation object:', conversation);
+    console.log('HANDLE PIN CHAT - has participants?', !!conversation?.participants);
+    console.log('HANDLE PIN CHAT - has senderId?', !!conversation?.senderId);
+    console.log('HANDLE PIN CHAT - conversation ID:', conversation?.id);
+    console.log('HANDLE PIN CHAT - conversation type:', conversation?.type);
+    
+    if (!conversation || !conversation.id) {
+      console.error('HANDLE PIN CHAT - Invalid conversation object:', conversation);
+      return;
+    }
+    
+    // Close context menu first
+    setChatContextMenu({ show: false, x: 0, y: 0, conversation: null });
+    
+    // Set the data and show modal
     setMessageToPinOrChat(conversation);
     setPinType('chat');
-    setShowPinModal(true);
-    setChatContextMenu({ show: false, x: 0, y: 0, conversation: null });
+    
+    // Use a small delay to ensure state updates are processed
+    setTimeout(() => {
+      console.log('HANDLE PIN CHAT - About to show modal');
+      console.log('HANDLE PIN CHAT - messageToPinOrChat should be set to:', conversation);
+      setShowPinModal(true);
+    }, 50);
+    
+    console.log('=== HANDLE PIN CHAT END ===');
   };
 
   const handlePinConfirm = (duration) => {
+    console.log('=== PIN CONFIRM START ===');
+    console.log('PIN CONFIRM - Type:', pinType, 'Duration:', duration, 'Item ID:', messageToPinOrChat?.id);
+    console.log('PIN CONFIRM - messageToPinOrChat full object:', messageToPinOrChat);
+    console.log('PIN CONFIRM - has participants?', !!messageToPinOrChat?.participants);
+    console.log('PIN CONFIRM - has senderId?', !!messageToPinOrChat?.senderId);
+    console.log('PIN CONFIRM - has text?', !!messageToPinOrChat?.text);
+    console.log('PIN CONFIRM - has type property?', !!messageToPinOrChat?.type);
+    
+    if (!messageToPinOrChat || !messageToPinOrChat.id) {
+      console.error('PIN CONFIRM - No valid item to pin:', messageToPinOrChat);
+      setShowPinModal(false);
+      setMessageToPinOrChat(null);
+      return;
+    }
+    
+    // Force the type to be 'chat' if we're pinning a conversation object
+    const actualPinType = messageToPinOrChat?.participants || messageToPinOrChat?.type ? 'chat' : pinType;
+    console.log('PIN CONFIRM - Determined pin type:', actualPinType);
+    
     const pinExpiry = new Date();
     switch (duration) {
       case '24hours':
@@ -513,7 +617,8 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
         break;
     }
 
-    if (pinType === 'message' && messageToPinOrChat && activeConversation) {
+    if (actualPinType === 'message' && messageToPinOrChat && activeConversation) {
+      console.log('PIN CONFIRM - Pinning message...');
       setPinnedMessages(prev => ({
         ...prev,
         [activeConversation.id]: {
@@ -521,16 +626,38 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
           expiry: pinExpiry
         }
       }));
-    } else if (pinType === 'chat' && messageToPinOrChat) {
-      setPinnedChats(prev => [...prev.filter(p => p.id !== messageToPinOrChat.id), {
-        ...messageToPinOrChat,
-        pinnedAt: new Date(),
-        expiry: pinExpiry
-      }]);
+    } else if (actualPinType === 'chat' && messageToPinOrChat) {
+      console.log('PIN CONFIRM - Pinning chat:', messageToPinOrChat.id);
+      console.log('PIN CONFIRM - Previous pinned chats count:', pinnedChats.length);
+      console.log('PIN CONFIRM - Current pinnedChats state:', pinnedChats.map(c => c.id));
+      
+      // Remove if already pinned, then add to beginning
+      setPinnedChats(prev => {
+        console.log('PIN CONFIRM - setPinnedChats called, prev:', prev.map(c => c.id));
+        const filtered = prev.filter(p => p.id !== messageToPinOrChat.id);
+        const newPinned = [{
+          ...messageToPinOrChat,
+          pinnedAt: new Date(),
+          expiry: pinExpiry
+        }, ...filtered];
+        console.log('PIN CONFIRM - New pinned chats will be:', newPinned.map(c => c.id));
+        console.log('PIN CONFIRM - New pinned chats count will be:', newPinned.length);
+        return newPinned;
+      });
+    } else {
+      console.log('PIN CONFIRM - PIN FAILED - Conditions not met', { 
+        actualPinType, 
+        hasMessageToPinOrChat: !!messageToPinOrChat, 
+        hasActiveConversation: !!activeConversation,
+        messageToPinOrChatId: messageToPinOrChat?.id
+      });
     }
+    console.log('=== PIN CONFIRM END ===');
 
+    // Clean up state
     setShowPinModal(false);
     setMessageToPinOrChat(null);
+    setPinType('message');
   };
 
   const handleUnpin = (type, id) => {
@@ -548,6 +675,19 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
   const handleChatContextMenu = (e, conversation) => {
     e.preventDefault();
     
+    console.log('=== CHAT CONTEXT MENU START ===');
+    console.log('CHAT CONTEXT MENU - conversation object:', conversation);
+    console.log('CHAT CONTEXT MENU - conversation ID:', conversation?.id);
+    console.log('CHAT CONTEXT MENU - has participants?', !!conversation?.participants);
+    console.log('CHAT CONTEXT MENU - has senderId?', !!conversation?.senderId);
+    console.log('CHAT CONTEXT MENU - conversation type:', conversation?.type);
+    console.log('CHAT CONTEXT MENU - conversation lastMessage:', conversation?.lastMessage);
+    
+    if (!conversation || !conversation.id) {
+      console.error('CHAT CONTEXT MENU - Invalid conversation object:', conversation);
+      return;
+    }
+    
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
     const menuWidth = 150;
@@ -564,12 +704,14 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
       y = viewportHeight - menuHeight - 10;
     }
     
+    console.log('CHAT CONTEXT MENU - Setting context menu with conversation:', conversation.id);
     setChatContextMenu({
       show: true,
       x: x,
       y: y,
       conversation: conversation
     });
+    console.log('=== CHAT CONTEXT MENU END ===');
   };
 
   const getStatusColor = (status) => {
@@ -756,15 +898,181 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
                 </div>
               ) : (
                 <div className="p-4">
+                
+
+                  {/* Pinned Conversations */}
+                  {pinnedChats.length > 0 && !searchQuery && (
+                    <div className="mb-4">
+                      <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 px-1">
+                        Pinned Chats
+                      </h4>
+                      <div className="space-y-2">
+                        {pinnedChats
+                          .sort((a, b) => new Date(b.pinnedAt || 0) - new Date(a.pinnedAt || 0))
+                          .map(conversation => {
+                          const partner = getConversationPartner(conversation, currentUser.id);
+                          return (
+                            <button
+                              key={conversation.id}
+                              onClick={() => handleSelectConversation(conversation)}
+                              onTouchStart={(e) => {
+                                const touch = e.touches[0];
+                                const target = e.currentTarget;
+                                target.touchStartTime = Date.now();
+                                target.touchStartX = touch.clientX;
+                                target.touchStartY = touch.clientY;
+                                
+                                // Add visual feedback after 500ms
+                                target.feedbackTimer = setTimeout(() => {
+                                  target.style.backgroundColor = 'rgba(147, 51, 234, 0.1)';
+                                  // Haptic feedback if available
+                                  if (navigator.vibrate) {
+                                    navigator.vibrate(50);
+                                  }
+                                }, 500);
+                                
+                                // Long press after 1000ms
+                                target.touchTimer = setTimeout(() => {
+                                  e.preventDefault();
+                                  handleChatContextMenu(e, conversation);
+                                  target.style.backgroundColor = '';
+                                }, 1000);
+                              }}
+                              onTouchEnd={(e) => {
+                                const target = e.currentTarget;
+                                if (target.touchTimer) {
+                                  clearTimeout(target.touchTimer);
+                                }
+                                if (target.feedbackTimer) {
+                                  clearTimeout(target.feedbackTimer);
+                                }
+                                target.style.backgroundColor = '';
+                              }}
+                              onTouchMove={(e) => {
+                                const touch = e.touches[0];
+                                const target = e.currentTarget;
+                                const moveThreshold = 10;
+                                
+                                if (target.touchStartX && target.touchStartY) {
+                                  const deltaX = Math.abs(touch.clientX - target.touchStartX);
+                                  const deltaY = Math.abs(touch.clientY - target.touchStartY);
+                                  
+                                  if (deltaX > moveThreshold || deltaY > moveThreshold) {
+                                    if (target.touchTimer) {
+                                      clearTimeout(target.touchTimer);
+                                    }
+                                    if (target.feedbackTimer) {
+                                      clearTimeout(target.feedbackTimer);
+                                    }
+                                    target.style.backgroundColor = '';
+                                  }
+                                }
+                              }}
+                              onContextMenu={(e) => handleChatContextMenu(e, conversation)}
+                              className="w-full flex items-center gap-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg transition-all duration-200 select-none"
+                            >
+                              <div className="relative">
+                                <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white text-lg font-bold shadow-md">
+                                  {partner?.avatar}
+                                </div>
+                                <div className="absolute -top-1 -right-1">
+                                  <Pin className="h-4 w-4 text-yellow-600" />
+                                </div>
+                                <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${getStatusColor(partner?.status)}`}></div>
+                              </div>
+                              <div className="flex-1 text-left min-w-0">
+                                <div className="flex items-center justify-between mb-1">
+                                  <div className="font-medium text-base truncate">{partner?.name}</div>
+                                  <div className="flex items-center gap-2">
+                                    {conversation.lastMessage && (
+                                      <span className="text-xs text-gray-500">
+                                        {formatMessageTime(conversation.lastMessage.timestamp)}
+                                      </span>
+                                    )}
+                                    {conversation.unreadCount > 0 && (
+                                      <span className="bg-purple-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                                        {conversation.unreadCount}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="text-sm text-gray-500 truncate">
+                                  {conversation.lastMessage?.text || 'No messages yet'}
+                                </div>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <div className="border-b border-gray-200 my-4"></div>
+                    </div>
+                  )}
+
+                  
+
                   {filteredConversations.length > 0 ? (
                     <div className="space-y-3">
-                      {filteredConversations.map(conversation => {
+                      {filteredConversations.filter(conv => !pinnedChats.find(p => p.id === conv.id)).map(conversation => {
                         const partner = getConversationPartner(conversation, currentUser.id);
                         return (
                           <button
                             key={conversation.id}
                             onClick={() => handleSelectConversation(conversation)}
-                            className="w-full flex items-center gap-4 p-3 hover:bg-white rounded-lg transition-all duration-200"
+                            onTouchStart={(e) => {
+                              const touch = e.touches[0];
+                              const target = e.currentTarget;
+                              target.touchStartTime = Date.now();
+                              target.touchStartX = touch.clientX;
+                              target.touchStartY = touch.clientY;
+                              
+                              // Add visual feedback after 500ms
+                              target.feedbackTimer = setTimeout(() => {
+                                target.style.backgroundColor = 'rgba(147, 51, 234, 0.1)';
+                                // Haptic feedback if available
+                                if (navigator.vibrate) {
+                                  navigator.vibrate(50);
+                                }
+                              }, 500);
+                              
+                              // Long press after 1000ms
+                              target.touchTimer = setTimeout(() => {
+                                e.preventDefault();
+                                handleChatContextMenu(e, conversation);
+                                target.style.backgroundColor = '';
+                              }, 1000);
+                            }}
+                            onTouchEnd={(e) => {
+                              const target = e.currentTarget;
+                              if (target.touchTimer) {
+                                clearTimeout(target.touchTimer);
+                              }
+                              if (target.feedbackTimer) {
+                                clearTimeout(target.feedbackTimer);
+                              }
+                              target.style.backgroundColor = '';
+                            }}
+                            onTouchMove={(e) => {
+                              const touch = e.touches[0];
+                              const target = e.currentTarget;
+                              const moveThreshold = 10;
+                              
+                              if (target.touchStartX && target.touchStartY) {
+                                const deltaX = Math.abs(touch.clientX - target.touchStartX);
+                                const deltaY = Math.abs(touch.clientY - target.touchStartY);
+                                
+                                if (deltaX > moveThreshold || deltaY > moveThreshold) {
+                                  if (target.touchTimer) {
+                                    clearTimeout(target.touchTimer);
+                                  }
+                                  if (target.feedbackTimer) {
+                                    clearTimeout(target.feedbackTimer);
+                                  }
+                                  target.style.backgroundColor = '';
+                                }
+                              }
+                            }}
+                            onContextMenu={(e) => handleChatContextMenu(e, conversation)}
+                            className="w-full flex items-center gap-4 p-3 hover:bg-white rounded-lg transition-all duration-200 select-none"
                           >
                             <div className="relative">
                               <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white text-lg font-bold shadow-md">
@@ -811,6 +1119,30 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
           <div className="flex-1 flex flex-col bg-gray-50">
             {!showChatInfo ? (
               <>
+                {/* Pinned Message */}
+                {activeConversation && pinnedMessages[activeConversation.id] && (
+                  <div className="mx-4 mt-4 bg-yellow-50 border-l-4 border-yellow-500 p-3 rounded-lg shadow-sm">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Pin className="h-4 w-4 text-yellow-600" />
+                          <span className="text-sm font-medium text-yellow-700">Pinned Message</span>
+                        </div>
+                        <div className="text-sm text-gray-700 bg-white p-2 rounded">
+                          {pinnedMessages[activeConversation.id].message.text}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleUnpinMessage(activeConversation.id)}
+                        className="text-gray-400 hover:text-gray-600 ml-2 p-1"
+                        title="Unpin message"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+                
                 {/* Messages */}
                 <div className="flex-1 overflow-y-auto p-4 space-y-4">
               {(messages[activeConversation.id] || []).map(message => {
@@ -857,10 +1189,67 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
                               </div>
                             )}
                             <div 
+                              onTouchStart={(e) => {
+                                const touch = e.touches[0];
+                                const target = e.currentTarget;
+                                target.touchStartTime = Date.now();
+                                target.touchStartX = touch.clientX;
+                                target.touchStartY = touch.clientY;
+                                
+                                // Add visual feedback after 500ms
+                                target.feedbackTimer = setTimeout(() => {
+                                  target.style.backgroundColor = 'rgba(147, 51, 234, 0.1)';
+                                  // Haptic feedback if available
+                                  if (navigator.vibrate) {
+                                    navigator.vibrate(50);
+                                  }
+                                }, 500);
+                                
+                                // Long press after 1000ms
+                                target.touchTimer = setTimeout(() => {
+                                  e.preventDefault();
+                                  handleContextMenu(e, message);
+                                  target.style.backgroundColor = '';
+                                }, 1000);
+                              }}
+                              onTouchEnd={(e) => {
+                                const target = e.currentTarget;
+                                if (target.touchTimer) {
+                                  clearTimeout(target.touchTimer);
+                                }
+                                if (target.feedbackTimer) {
+                                  clearTimeout(target.feedbackTimer);
+                                }
+                                target.style.backgroundColor = '';
+                              }}
+                              onTouchMove={(e) => {
+                                const touch = e.touches[0];
+                                const target = e.currentTarget;
+                                const moveThreshold = 10;
+                                
+                                if (target.touchStartX && target.touchStartY) {
+                                  const deltaX = Math.abs(touch.clientX - target.touchStartX);
+                                  const deltaY = Math.abs(touch.clientY - target.touchStartY);
+                                  
+                                  if (deltaX > moveThreshold || deltaY > moveThreshold) {
+                                    if (target.touchTimer) {
+                                      clearTimeout(target.touchTimer);
+                                    }
+                                    if (target.feedbackTimer) {
+                                      clearTimeout(target.feedbackTimer);
+                                    }
+                                    target.style.backgroundColor = '';
+                                  }
+                                }
+                              }}
                               onContextMenu={(e) => handleContextMenu(e, message)}
-                              className="cursor-pointer"
+                              className="cursor-pointer select-none transition-colors duration-200"
                             >
-                              {message.text}
+                              {editingMessage && editingMessage.id === message.id ? (
+                                editMessageText
+                              ) : (
+                                message.text
+                              )}
                             </div>
                           </>
                         )}
@@ -875,6 +1264,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
                   </div>
                 );
               })}
+              <div ref={messagesEndRef} />
             </div>
 
             {/* Message Input */}
@@ -893,6 +1283,28 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
                     </div>
                     <button
                       onClick={handleCancelEdit}
+                      className="text-gray-400 hover:text-gray-600 ml-2"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Reply UI */}
+              {replyToMessage && !editingMessage && (
+                <div className="mb-3 bg-gray-50 border-l-4 border-purple-500 p-2 rounded">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="text-xs font-medium text-purple-600">
+                        Replying to {getEmployeeById(replyToMessage.senderId)?.name}
+                      </div>
+                      <div className="text-xs text-gray-600 truncate">
+                        {replyToMessage.text}
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleCancelReply}
                       className="text-gray-400 hover:text-gray-600 ml-2"
                     >
                       <X className="h-4 w-4" />
@@ -979,6 +1391,89 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
         )}
         </div>
         
+        {/* Context Menu for Mobile */}
+        {contextMenu.show && (
+          <div
+            ref={contextMenuRef}
+            className="fixed bg-white border border-gray-200 rounded-lg shadow-lg z-[60] py-2 min-w-[150px]"
+            style={{
+              left: Math.min(contextMenu.x, window.innerWidth - 200),
+              top: Math.min(contextMenu.y, window.innerHeight - 250)
+            }}
+          >
+            <button
+              onClick={handleContextMenuReply}
+              className="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-3 text-sm text-gray-700"
+            >
+              <Reply className="h-4 w-4" />
+              <span>Reply</span>
+            </button>
+            
+            <button
+              onClick={handleContextMenuForward}
+              className="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-3 text-sm text-gray-700"
+            >
+              <Forward className="h-4 w-4" />
+              <span>Forward</span>
+            </button>
+
+            <button
+              onClick={() => {
+                handlePin(contextMenu.message);
+                setContextMenu({ show: false, x: 0, y: 0, message: null });
+              }}
+              className="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-3 text-sm text-gray-700"
+            >
+              <Pin className="h-4 w-4" />
+              <span>Pin</span>
+            </button>
+
+            {contextMenu.message && canEditMessage(contextMenu.message) && (
+              <button
+                onClick={() => {
+                  handleStartEdit(contextMenu.message);
+                  setContextMenu({ show: false, x: 0, y: 0, message: null });
+                }}
+                className="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-3 text-sm text-gray-700"
+              >
+                <Edit2 className="h-4 w-4" />
+                <span>Edit</span>
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Chat Context Menu for Mobile */}
+        {chatContextMenu.show && (
+          <div
+            className="fixed bg-white border border-gray-200 rounded-lg shadow-lg z-[60] py-2 min-w-[150px] chat-context-menu"
+            style={{
+              left: Math.min(chatContextMenu.x, window.innerWidth - 200),
+              top: Math.min(chatContextMenu.y, window.innerHeight - 150)
+            }}
+          >
+            <button
+              onClick={(e) => {
+                console.log('=== MOBILE CONTEXT MENU BUTTON CLICKED ===');
+                console.log('Mobile pin button clicked with conversation:', chatContextMenu.conversation);
+                e.preventDefault();
+                e.stopPropagation();
+                
+                if (chatContextMenu.conversation) {
+                  handlePinChat(chatContextMenu.conversation);
+                } else {
+                  console.error('No conversation found in chatContextMenu for mobile');
+                }
+              }}
+              className="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-3 text-sm text-gray-700"
+              data-pin-chat="true"
+            >
+              <Pin className="h-4 w-4" />
+              <span>Pin Chat</span>
+            </button>
+          </div>
+        )}
+
         {/* Create Group Modal */}
         <CreateGroupModal
           isOpen={showCreateGroup}
@@ -992,6 +1487,26 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
           isOpen={showPollModal}
           onClose={() => setShowPollModal(false)}
           onCreatePoll={handleCreatePoll}
+        />
+
+        {/* Forward Modal */}
+        <ForwardModal
+          isOpen={showForwardModal}
+          onClose={() => setShowForwardModal(false)}
+          onForward={handleForwardMessage}
+          message={messageToForward}
+          conversations={conversations.filter(conv => conv.id !== activeConversation?.id)}
+          currentUserId={currentUser.id}
+        />
+
+        {/* Pin Modal */}
+        <PinModal
+          isOpen={showPinModal}
+          onClose={() => setShowPinModal(false)}
+          onPin={handlePinConfirm}
+          type={pinType}
+          item={messageToPinOrChat}
+          isCompact={true}
         />
       </>
     );
@@ -1201,6 +1716,11 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
                 </div>
               ) : (
                 <div className="p-2">
+                  {/* Temporary Debug for Compact Mode */}
+                  <div className="bg-blue-100 p-2 mb-2 text-xs">
+                    Debug COMPACT: {pinnedChats.length} pinned chats, Search: "{searchQuery}"
+                  </div>
+                  
                   {/* Pinned Chats Section */}
                   {pinnedChats.length > 0 && !searchQuery && (
                     <div className="mb-3">
@@ -1597,8 +2117,20 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
             }}
           >
             <button
-              onClick={() => handlePinChat(chatContextMenu.conversation)}
+              onClick={(e) => {
+                console.log('=== COMPACT CONTEXT MENU BUTTON CLICKED ===');
+                console.log('Compact pin button clicked with conversation:', chatContextMenu.conversation);
+                e.preventDefault();
+                e.stopPropagation();
+                
+                if (chatContextMenu.conversation) {
+                  handlePinChat(chatContextMenu.conversation);
+                } else {
+                  console.error('No conversation found in chatContextMenu for compact');
+                }
+              }}
               className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+              data-pin-chat="true"
             >
               <Pin className="h-4 w-4" />
               Pin Chat
@@ -1972,7 +2504,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
         </div>
       )}
 
-      {/* Chat Context Menu */}
+      {/* Chat Context Menu for Desktop */}
       {chatContextMenu.show && (
         <div
           className="fixed bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-[60] min-w-[120px] chat-context-menu"
@@ -1982,8 +2514,20 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
           }}
         >
           <button
-            onClick={() => handlePinChat(chatContextMenu.conversation)}
+            onClick={(e) => {
+              console.log('=== DESKTOP CONTEXT MENU BUTTON CLICKED ===');
+              console.log('Desktop pin button clicked with conversation:', chatContextMenu.conversation);
+              e.preventDefault();
+              e.stopPropagation();
+              
+              if (chatContextMenu.conversation) {
+                handlePinChat(chatContextMenu.conversation);
+              } else {
+                console.error('No conversation found in chatContextMenu for desktop');
+              }
+            }}
             className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+            data-pin-chat="true"
           >
             <Pin className="h-4 w-4" />
             Pin Chat

@@ -4,6 +4,8 @@ import { X } from 'lucide-react';
 const PinModal = ({ isOpen, onClose, onPin, type, item, isCompact = false }) => {
   const [selectedDuration, setSelectedDuration] = useState('7days');
 
+  console.log('PinModal render - isOpen:', isOpen, 'type:', type, 'item:', item);
+
   if (!isOpen) return null;
 
   const durations = [
@@ -13,8 +15,25 @@ const PinModal = ({ isOpen, onClose, onPin, type, item, isCompact = false }) => 
   ];
 
   const handlePin = () => {
-    onPin(selectedDuration);
+    console.log('=== PinModal - handlePin START ===');
+    console.log('PinModal - handlePin called with duration:', selectedDuration);
+    console.log('PinModal - onPin prop type:', typeof onPin);
+    console.log('PinModal - type prop:', type);
+    console.log('PinModal - item prop:', item);
+    console.log('PinModal - item ID:', item?.id);
+    console.log('PinModal - item participants:', !!item?.participants);
+    console.log('PinModal - item type property:', item?.type);
+    
+    if (typeof onPin === 'function') {
+      console.log('PinModal - Calling onPin with duration:', selectedDuration);
+      onPin(selectedDuration);
+    } else {
+      console.error('PinModal - onPin is not a function:', onPin);
+    }
+    
+    console.log('PinModal - About to close modal');
     onClose();
+    console.log('=== PinModal - handlePin END ===');
   };
 
   // Different styling for compact mode
