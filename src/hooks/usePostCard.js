@@ -491,9 +491,23 @@ export const usePostCard = (post, activeView = 'home') => {
     }
   };
 
-  const handleEditComment = (commentId, newContent) => {
-    if (newContent.trim()) {
-      editComment(commentId, newContent.trim());
+  const handleEditComment = (commentId, contentOrData) => {
+    console.log('🔍 usePostCard handleEditComment - commentId:', commentId);
+    console.log('🔍 usePostCard handleEditComment - contentOrData:', contentOrData);
+    
+    // Handle both string content and object data
+    if (typeof contentOrData === 'string') {
+      // Legacy: just content string
+      console.log('🔍 usePostCard handleEditComment - processing as string');
+      if (contentOrData.trim()) {
+        editComment(commentId, contentOrData.trim());
+      }
+    } else if (typeof contentOrData === 'object' && contentOrData.content) {
+      // New: object with content and mentions
+      console.log('🔍 usePostCard handleEditComment - processing as object with mentions');
+      if (contentOrData.content.trim()) {
+        editComment(commentId, contentOrData);
+      }
     }
   };
 

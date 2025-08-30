@@ -370,19 +370,46 @@ export const postsAPI = {
           return allMedia.length > 0 ? { media: allMedia } : {};
         })(),
         ...(postData.mentions && postData.mentions.length > 0 && { 
-          // Send mentions as array of employee usernames (strings only)
+          // Send mentions as array of employee_id strings (like comments)
           mentions: postData.mentions.map(m => {
-            // If it's already a string, use it directly
-            if (typeof m === 'string') {
-              return m;
+            console.log('🔍 Post createPost - processing mention:', m);
+            
+            // Extract clean employee_id value
+            let employeeId = null;
+            
+            if (typeof m === 'object' && m !== null) {
+              // Handle case where employee_id itself is a stringified object
+              let rawEmployeeId = m.employee_id || m.user_id || m.id || '';
+              if (typeof rawEmployeeId === 'string' && rawEmployeeId.startsWith("{")) {
+                try {
+                  const parsed = JSON.parse(rawEmployeeId.replace(/'/g, '"'));
+                  employeeId = String(parsed.employee_id || parsed.employeeId || '').trim();
+                } catch (e) {
+                  employeeId = String(rawEmployeeId).trim();
+                }
+              } else {
+                employeeId = String(rawEmployeeId).trim();
+              }
+            } else if (typeof m === 'string') {
+              // If it's a stringified object, parse it
+              if (m.startsWith("{") && (m.includes("employee_id") || m.includes("employeeId"))) {
+                try {
+                  const parsed = JSON.parse(m.replace(/'/g, '"'));
+                  employeeId = String(parsed.employee_id || parsed.employeeId || '').trim();
+                } catch (e) {
+                  console.warn('Failed to parse mention string:', m);
+                  employeeId = String(m).trim();
+                }
+              } else {
+                employeeId = String(m).trim();
+              }
             }
-            // If it's an object, extract the username from various possible properties
-            if (m && typeof m === 'object') {
-              return m.employee_username || m.username || m.employee_name || m.name || m.user_id || '';
-            }
-            // Fallback for other types
-            return String(m);
-          }).filter(Boolean) // Remove empty strings
+            
+            console.log('🔍 Post createPost - extracted employee_id:', employeeId);
+            
+            // Return just the employee_id string, or null if invalid
+            return employeeId || null;
+          }).filter(Boolean) // Remove null values
         }),
         // Process tags to extract just the tag names, not the nested objects
         ...(postData.tags && postData.tags.length > 0 && { 
@@ -559,17 +586,42 @@ export const postsAPI = {
         // Always send media array, even if empty (to clear existing media)
         return { media: allMedia };
       })(),
-      ...(updateData.mentions && { 
-        // Send mentions as array of objects with employee_name
-        mentions: (Array.isArray(updateData.mentions) ? updateData.mentions : [updateData.mentions]).map(m => {
-          if (typeof m === 'string') return { employee_name: m };
-          if (m && typeof m === 'object') {
-            const employee_name = m.employee_name || m.user_id || '';
-            return employee_name ? { employee_name: employee_name } : null;
+      // Always include mentions (even if empty) to handle mention removal
+      mentions: updateData.mentions ? updateData.mentions.map(m => {
+        // Extract clean employee_id value
+        let employeeId = null;
+        
+        if (typeof m === 'object' && m !== null) {
+          // Handle case where employee_id itself is a stringified object
+          let rawEmployeeId = m.employee_id || m.user_id || m.id || '';
+          if (typeof rawEmployeeId === 'string' && rawEmployeeId.startsWith("{")) {
+            try {
+              const parsed = JSON.parse(rawEmployeeId.replace(/'/g, '"'));
+              employeeId = String(parsed.employee_id || parsed.employeeId || '').trim();
+            } catch (e) {
+              employeeId = String(rawEmployeeId).trim();
+            }
+          } else {
+            employeeId = String(rawEmployeeId).trim();
           }
-          return { employee_name: String(m) };
-        }).filter(Boolean)
-      })
+        } else if (typeof m === 'string') {
+          // If it's a stringified object, parse it
+          if (m.startsWith("{") && (m.includes("employee_id") || m.includes("employeeId"))) {
+            try {
+              const parsed = JSON.parse(m.replace(/'/g, '"'));
+              employeeId = String(parsed.employee_id || parsed.employeeId || '').trim();
+            } catch (e) {
+              console.warn('Failed to parse mention string:', m);
+              employeeId = String(m).trim();
+            }
+          } else {
+            employeeId = String(m).trim();
+          }
+        }
+        
+        // Return just the employee_id string, or null if invalid
+        return employeeId || null;
+      }).filter(Boolean) : [] // Always send mentions array, empty if no mentions
     };
     
     logApiCall('POST', endpoint, backendData);
@@ -697,6 +749,7 @@ export const postsAPI = {
   addComment: async (postId, commentData) => {
     const endpoint = `${API_CONFIG.BASE_URL}/posts/${postId}/comments`;
     logApiCall('POST', endpoint, commentData);
+    
     try {
       // Extract mentions from the content if it's HTML
       const mentions = commentData.mentions || [];
@@ -706,35 +759,73 @@ export const postsAPI = {
       // The backend expects { content, mentions }
       const requestBody = {
         content: commentData.content || commentData.comment, // always send as 'content'
-        ...(mentions.length > 0 && { 
-          mentions: mentions.map(m => {
-            let employee_username;
+        // Always include mentions (even if empty) to handle mention removal
+        mentions: mentions.length > 0 ? mentions.map(m => {
+          // Extract clean employee_id value
+          let employeeId = null;
+          
+          if (typeof m === 'object' && m !== null) {
+            // From object, get employee_id as string
+            let rawId = m.employee_id || m.user_id || m.id;
             
-            // If the mention is a stringified object, parse it
-            if (typeof m === 'string' && m.startsWith("{") && m.includes("employee_username")) {
-              try {
-                const parsed = JSON.parse(m.replace(/'/g, '"'));
-                employee_username = parsed.employee_username;
-              } catch (e) {
-                employee_username = m;
+            console.log('🔍 Processing mention object:', m);
+            console.log('🔍 Raw employee_id:', rawId);
+              
+              // Handle case where employee_id is a stringified object
+              if (typeof rawId === 'string' && (rawId.includes("'employee_id':") || rawId.includes("'employeeId':") || rawId.includes('"employee_id":') || rawId.includes('"employeeId":'))) {
+                try {
+                  // Extract the actual ID from the stringified object - handle both single and double quotes
+                  let match = rawId.match(/['"](?:employee_id|employeeId)['"]:\s*['"]([^'"]+)['"]/);
+                  if (match && match[1]) {
+                    employeeId = String(match[1]).trim();
+                    console.log('🔍 Extracted employee_id from stringified object:', employeeId);
+                  } else {
+                    // Try alternative parsing
+                    try {
+                      const cleanedJson = rawId.replace(/'/g, '"');
+                      const parsed = JSON.parse(cleanedJson);
+                      employeeId = String(parsed.employee_id || parsed.employeeId || '').trim();
+                      console.log('🔍 Extracted via JSON parsing:', employeeId);
+                    } catch (jsonError) {
+                      console.warn('Could not parse stringified object:', rawId);
+                    }
+                  }
+                } catch (e) {
+                  console.warn('Failed to extract employee_id from stringified object:', rawId, e);
+                }
+              } else {
+                employeeId = String(rawId || '').trim();
+                console.log('🔍 Direct employee_id:', employeeId);
+              }
+            } else if (typeof m === 'string') {
+              // If it's a stringified object, parse it
+              if (m.startsWith("{") && m.includes("employee_id")) {
+                try {
+                  const parsed = JSON.parse(m.replace(/'/g, '"'));
+                  employeeId = String(parsed.employee_id || '').trim();
+                } catch (e) {
+                  console.warn('Failed to parse mention string:', m);
+                  employeeId = null;
+                }
+              } else if (m.includes("'employee_id':")) {
+                // Handle stringified object with single quotes
+                try {
+                  const match = m.match(/'employee_id':\s*'([^']+)'/);
+                  if (match && match[1]) {
+                    employeeId = String(match[1]).trim();
+                  }
+                } catch (e) {
+                  console.warn('Failed to extract employee_id from string:', m);
+                }
+              } else {
+                // If it's just a plain string, treat it as employee_id
+                employeeId = String(m).trim();
               }
             }
-            // If it's an object, extract employee_username
-            else if (typeof m === 'object' && m !== null) {
-              employee_username = m.employee_username || m.username || m.employee_name || m.employeeName;
-            }
-            // If it's a plain string
-            else {
-              employee_username = m;
-            }
             
-            const processed = {
-              username: employee_username // Send as username to match your desired format
-            };
-            console.log('🔍 Processing mention:', m, '→', processed);
-            return processed;
-          })
-        })
+            // Return just the employee_id string (like posts do), or null if invalid
+            return employeeId || null;
+          }).filter(Boolean) : [] // Always send mentions array, empty if no mentions
       };
       
       console.log('🔍 Final comment requestBody:', JSON.stringify(requestBody, null, 2));
@@ -778,33 +869,42 @@ export const postsAPI = {
       
       const requestBody = {
         content: replyData.content,
-        ...(mentions.length > 0 && { 
-          mentions: mentions.map(m => {
-            let employee_username;
-            
-            // If the mention is a stringified object, parse it
-            if (typeof m === 'string' && m.startsWith("{") && m.includes("employee_username")) {
+        // Always include mentions (even if empty) to handle mention removal
+        mentions: mentions.length > 0 ? mentions.map(m => {
+          // Extract clean employee_id value
+          let employeeId = null;
+          
+          if (typeof m === 'object' && m !== null) {
+            // Handle case where employee_id itself is a stringified object
+            let rawEmployeeId = m.employee_id || m.user_id || m.id || '';
+            if (typeof rawEmployeeId === 'string' && rawEmployeeId.startsWith("{")) {
+              try {
+                const parsed = JSON.parse(rawEmployeeId.replace(/'/g, '"'));
+                employeeId = String(parsed.employee_id || parsed.employeeId || '').trim();
+              } catch (e) {
+                employeeId = String(rawEmployeeId).trim();
+              }
+            } else {
+              employeeId = String(rawEmployeeId).trim();
+            }
+          } else if (typeof m === 'string') {
+            // If it's a stringified object, parse it
+            if (m.startsWith("{") && (m.includes("employee_id") || m.includes("employeeId"))) {
               try {
                 const parsed = JSON.parse(m.replace(/'/g, '"'));
-                employee_username = parsed.employee_username;
+                employeeId = String(parsed.employee_id || parsed.employeeId || '').trim();
               } catch (e) {
-                employee_username = m;
+                console.warn('Failed to parse mention string:', m);
+                employeeId = String(m).trim();
               }
+            } else {
+              employeeId = String(m).trim();
             }
-            // If it's an object, extract employee_username
-            else if (typeof m === 'object' && m !== null) {
-              employee_username = m.employee_username || m.username || m.employee_name || m.employeeName;
-            }
-            // If it's a plain string
-            else {
-              employee_username = m;
-            }
-            
-            return {
-              username: employee_username // Send as username to match your desired format
-            };
-          })
-        })
+          }
+          
+          // Return just the employee_id string (like posts do), not an object
+          return employeeId || null;
+        }).filter(Boolean) : [] // Always send mentions array, empty if no mentions
       };
 
       const response = await fetchWithTimeout(endpoint, {
@@ -934,42 +1034,57 @@ export const postsAPI = {
   editComment: async (commentId, contentOrData) => {
     const endpoint = `${API_CONFIG.BASE_URL}/comments/${commentId}/edit`;
     
+    console.log('🔍 API editComment - commentId:', commentId);
+    console.log('🔍 API editComment - contentOrData:', contentOrData);
+    
     // Handle both string content and object data
     const content = typeof contentOrData === 'string' ? contentOrData : contentOrData.content;
     const mentions = typeof contentOrData === 'object' ? contentOrData.mentions || [] : [];
+    
+    console.log('🔍 API editComment - extracted content:', content);
+    console.log('🔍 API editComment - extracted mentions:', mentions);
     
     // Try multiple field names to match backend expectations
     const requestBody = {
       content: content,        // Primary field name
       comment: content,        // Fallback field name
       new_content: content,    // Alternative field name
-      ...(mentions.length > 0 && { 
-        mentions: mentions.map(m => {
-          let employee_username;
-          
-          // If the mention is a stringified object, parse it
-          if (typeof m === 'string' && m.startsWith("{") && m.includes("employee_username")) {
+      // Always include mentions (even if empty) to handle mention removal
+      mentions: mentions.length > 0 ? mentions.map(m => {
+        // Extract clean employee_id value
+        let employeeId = null;
+        
+        if (typeof m === 'object' && m !== null) {
+          // Handle case where employee_id itself is a stringified object
+          let rawEmployeeId = m.employee_id || m.user_id || m.id || '';
+          if (typeof rawEmployeeId === 'string' && rawEmployeeId.startsWith("{")) {
+            try {
+              const parsed = JSON.parse(rawEmployeeId.replace(/'/g, '"'));
+              employeeId = String(parsed.employee_id || parsed.employeeId || '').trim();
+            } catch (e) {
+              employeeId = String(rawEmployeeId).trim();
+            }
+          } else {
+            employeeId = String(rawEmployeeId).trim();
+          }
+        } else if (typeof m === 'string') {
+          // If it's a stringified object, parse it
+          if (m.startsWith("{") && (m.includes("employee_id") || m.includes("employeeId"))) {
             try {
               const parsed = JSON.parse(m.replace(/'/g, '"'));
-              employee_username = parsed.employee_username;
+              employeeId = String(parsed.employee_id || parsed.employeeId || '').trim();
             } catch (e) {
-              employee_username = m;
+              console.warn('Failed to parse mention string:', m);
+              employeeId = String(m).trim();
             }
+          } else {
+            employeeId = String(m).trim();
           }
-          // If it's an object, extract employee_username
-          else if (typeof m === 'object' && m !== null) {
-            employee_username = m.employee_username || m.username || m.employee_name || m.employeeName;
-          }
-          // If it's a plain string
-          else {
-            employee_username = m;
-          }
-          
-          return {
-            username: employee_username // Send as username to match your desired format
-          };
-        })
-      })
+        }
+        
+        // Return just the employee_id string (like posts do), not an object
+        return employeeId || null;
+      }).filter(Boolean) : [] // Always send mentions array, empty if no mentions
     };
     
     logApiCall('POST', endpoint, requestBody);
@@ -997,33 +1112,42 @@ export const postsAPI = {
     
     const requestBody = {
       content: content,
-      ...(mentions.length > 0 && { 
-        mentions: mentions.map(m => {
-          let employee_username;
-          
-          // If the mention is a stringified object, parse it
-          if (typeof m === 'string' && m.startsWith("{") && m.includes("employee_username")) {
+      // Always include mentions (even if empty) to handle mention removal
+      mentions: mentions.length > 0 ? mentions.map(m => {
+        // Extract clean employee_id value
+        let employeeId = null;
+        
+        if (typeof m === 'object' && m !== null) {
+          // Handle case where employee_id itself is a stringified object
+          let rawEmployeeId = m.employee_id || m.user_id || m.id || '';
+          if (typeof rawEmployeeId === 'string' && rawEmployeeId.startsWith("{")) {
+            try {
+              const parsed = JSON.parse(rawEmployeeId.replace(/'/g, '"'));
+              employeeId = String(parsed.employee_id || parsed.employeeId || '').trim();
+            } catch (e) {
+              employeeId = String(rawEmployeeId).trim();
+            }
+          } else {
+            employeeId = String(rawEmployeeId).trim();
+          }
+        } else if (typeof m === 'string') {
+          // If it's a stringified object, parse it
+          if (m.startsWith("{") && (m.includes("employee_id") || m.includes("employeeId"))) {
             try {
               const parsed = JSON.parse(m.replace(/'/g, '"'));
-              employee_username = parsed.employee_username;
+              employeeId = String(parsed.employee_id || parsed.employeeId || '').trim();
             } catch (e) {
-              employee_username = m;
+              console.warn('Failed to parse mention string:', m);
+              employeeId = String(m).trim();
             }
+          } else {
+            employeeId = String(m).trim();
           }
-          // If it's an object, extract employee_username
-          else if (typeof m === 'object' && m !== null) {
-            employee_username = m.employee_username || m.username || m.employee_name || m.employeeName;
-          }
-          // If it's a plain string
-          else {
-            employee_username = m;
-          }
-          
-          return {
-            username: employee_username // Send as username to match your desired format
-          };
-        })
-      })
+        }
+        
+        // Return just the employee_id string (like posts do), not an object
+        return employeeId || null;
+      }).filter(Boolean) : [] // Always send mentions array, empty if no mentions
     };
     
     logApiCall('POST', endpoint, requestBody);

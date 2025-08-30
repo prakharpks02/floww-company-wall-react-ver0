@@ -4,7 +4,7 @@ import { formatDistanceToNow } from 'date-fns';
 import CommentReply from './CommentReply';
 import ReportModal from './ReportModal';
 import MentionInput from '../Editor/MentionInput';
-import { formatTextForDisplay } from '../../utils/htmlUtils';
+import { formatTextForDisplay, highlightMentions } from '../../utils/htmlUtils';
 
 const CommentItem = ({ 
   comment, 
@@ -28,6 +28,7 @@ const CommentItem = ({
   // Local state for editing and replying
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(comment.content || '');
+  const [editMentions, setEditMentions] = useState([]);
   const [replyContent, setReplyContent] = useState('');
   const [showMenu, setShowMenu] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
@@ -153,10 +154,17 @@ const CommentItem = ({
   };
 
   const handleSaveEdit = () => {
-  
+    console.log('🔍 CommentItem handleSaveEdit - editContent:', editContent);
+    console.log('🔍 CommentItem handleSaveEdit - editMentions:', editMentions);
     
     if (editContent.trim() && editContent !== comment.content) {
-      handleEditComment(comment.comment_id || comment.id, editContent.trim());
+      // Pass both content and mentions to the edit handler
+      const editData = {
+        content: editContent.trim(),
+        mentions: editMentions
+      };
+      console.log('🔍 CommentItem handleSaveEdit - sending editData:', editData);
+      handleEditComment(comment.comment_id || comment.id, editData);
     }
     setIsEditing(false);
   };
@@ -164,6 +172,7 @@ const CommentItem = ({
   const handleCancelEdit = () => {
     setIsEditing(false);
     setEditContent(comment.content || '');
+    setEditMentions([]);
   };
 
   const handleSubmitReply = () => {
@@ -267,6 +276,7 @@ const CommentItem = ({
             <MentionInput
               value={editContent}
               onChange={setEditContent}
+              onMentionsChange={setEditMentions}
               placeholder="Edit your comment..."
               className="w-full"
               isAdmin={isAdmin}
@@ -293,11 +303,14 @@ const CommentItem = ({
             const content = comment.content;
             
             if (content && content.toString().trim()) {
+              const highlightedContent = highlightMentions(content.toString().trim());
+              
               return (
                 <div>
-                  <p className="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap">
-                    {content.toString().trim()}
-                  </p>
+                  <div 
+                    className="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap"
+                    dangerouslySetInnerHTML={{ __html: highlightedContent }}
+                  />
                   {comment.edited && (
                     <p className="text-xs text-gray-400 mt-1 italic">
                       (edited)

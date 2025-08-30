@@ -3,6 +3,7 @@ import { Trash2, Heart, MessageCircle, Flag, Edit, MoreHorizontal } from 'lucide
 import { formatDistanceToNow } from 'date-fns';
 import ReportModal from './ReportModal';
 import MentionInput from '../Editor/MentionInput';
+import { highlightMentions } from '../../utils/htmlUtils';
 
 const CommentReply = ({ 
   reply, 
@@ -241,7 +242,10 @@ const CommentReply = ({
             ) : (
               /* Display Mode */
               <div>
-                <p className="text-xs text-gray-700">{normalizedReply.content}</p>
+                <div 
+                  className="text-xs text-gray-700"
+                  dangerouslySetInnerHTML={{ __html: highlightMentions(normalizedReply.content || '') }}
+                />
                 {reply.edited && (
                   <p className="text-xs text-gray-400 mt-1 italic">
                     (edited)
