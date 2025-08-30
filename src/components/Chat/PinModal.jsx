@@ -11,7 +11,8 @@ const PinModal = ({ isOpen, onClose, onPin, type, item, isCompact = false }) => 
   const durations = [
     { value: '24hours', label: '24 hours' },
     { value: '7days', label: '7 days' },
-    { value: '30days', label: '30 days' }
+    { value: '30days', label: '30 days' },
+    { value: 'forever', label: 'Forever' }
   ];
 
   const handlePin = () => {

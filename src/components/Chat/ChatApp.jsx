@@ -2710,13 +2710,48 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose }) => {
                   <h2 className="text-base font-bold text-[#1f2937]">Atom Link</h2>
                   <p className="text-xs text-[#6b7280]">Stay connected with your team</p>
                 </div>
-                <button 
-                  onClick={() => setShowCreateGroup(true)}
-                  className="p-2 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-2xl shadow-[0_8px_32px_rgba(192,132,252,0.3)] hover:shadow-[0_12px_40px_rgba(192,132,252,0.4)] transition-all duration-300 hover:scale-105"
-                  title="Create Group"
-                >
-                  <Plus className="h-4 w-4 text-white" />
-                </button>
+                <div className="relative" ref={compactPlusMenuRef}>
+                  <button 
+                    onClick={() => setShowCompactPlusMenu(!showCompactPlusMenu)}
+                    className="p-2 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-2xl shadow-[0_8px_32px_rgba(192,132,252,0.3)] hover:shadow-[0_12px_40px_rgba(192,132,252,0.4)] transition-all duration-300 hover:scale-105"
+                    title="New chat options"
+                  >
+                    <Plus className="h-4 w-4 text-white" />
+                  </button>
+                  
+                  {/* Desktop Plus Menu */}
+                  {showCompactPlusMenu && (
+                    <div className="absolute right-0 top-full mt-2 w-40 bg-white/90 backdrop-blur-xl border border-white/30 rounded-2xl shadow-[0_16px_64px_rgba(109,40,217,0.2)] z-50 overflow-hidden">
+                      <div className="py-1">
+                        <button
+                          onClick={() => {
+                            setSearchQuery('');
+                            setShowUserList(true);
+                            setShowCompactPlusMenu(false);
+                          }}
+                          className="w-full text-left px-3 py-3 hover:bg-[#6d28d9]/10 flex items-center gap-2 text-xs text-[#1f2937] transition-colors"
+                        >
+                          <div className="w-6 h-6 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-xl flex items-center justify-center">
+                            <Plus className="h-3 w-3 text-white" />
+                          </div>
+                          <span>New Chat</span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            setShowCreateGroup(true);
+                            setShowCompactPlusMenu(false);
+                          }}
+                          className="w-full text-left px-3 py-3 hover:bg-[#6d28d9]/10 flex items-center gap-2 text-xs text-[#1f2937] transition-colors"
+                        >
+                          <div className="w-6 h-6 bg-gradient-to-br from-[#6d28d9] to-[#7c3aed] rounded-xl flex items-center justify-center">
+                            <Users className="h-3 w-3 text-white" />
+                          </div>
+                          <span>Create Group</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
               
               {/* Search Bar */}
