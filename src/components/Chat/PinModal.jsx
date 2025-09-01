@@ -44,7 +44,7 @@ const PinModal = ({ isOpen, onClose, onPin, type, item, isCompact = false }) => 
         <div className="bg-white/90 backdrop-blur-xl rounded-3xl shadow-[0_25px_80px_rgba(109,40,217,0.25)] w-full max-w-[280px] p-4 border border-white/40">
           {/* Header */}
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-semibold text-[#1f2937]">
+            <h3 className="text-sm text-[#1f2937]">
               Pin Duration
             </h3>
             <button
@@ -80,7 +80,7 @@ const PinModal = ({ isOpen, onClose, onPin, type, item, isCompact = false }) => 
                     )}
                   </div>
                 </div>
-                <span className="text-sm text-[#1f2937] font-medium">{duration.label}</span>
+                <span className="text-sm text-[#1f2937]">{duration.label}</span>
               </label>
             ))}
           </div>
@@ -110,7 +110,7 @@ const PinModal = ({ isOpen, onClose, onPin, type, item, isCompact = false }) => 
       <div className="bg-white/90 backdrop-blur-xl rounded-3xl shadow-[0_25px_80px_rgba(109,40,217,0.25)] w-full max-w-md p-6 border border-white/40">
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-[#1f2937]">
+          <h3 className="text-lg text-[#1f2937]">
             Pin Duration
           </h3>
           <button
@@ -146,7 +146,7 @@ const PinModal = ({ isOpen, onClose, onPin, type, item, isCompact = false }) => 
                   )}
                 </div>
               </div>
-              <span className="text-base text-[#1f2937] font-medium">{duration.label}</span>
+              <span className="text-base text-[#1f2937]">{duration.label}</span>
             </label>
           ))}
         </div>

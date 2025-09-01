@@ -86,7 +86,7 @@ const MobileBottomNav = ({ activeView, onViewChange, onCreatePost, user, isScrol
   );
 };
 
-const ResponsiveLayout = ({ header, sidebar, children, activeView, onViewChange, onCreatePost, user }) => {
+const ResponsiveLayout = ({ header, sidebar, children, activeView, onViewChange, onCreatePost, user, chatContent }) => {
   const [isMobile, setIsMobile] = useState(false);
   const [isScrolledDown, setIsScrolledDown] = useState(false);
   const { isChatOpen, isChatMinimized, isCompactMode, isFullScreenMobile } = useChat();
@@ -146,12 +146,12 @@ const ResponsiveLayout = ({ header, sidebar, children, activeView, onViewChange,
         
         {/* Main Content */}
         <main className={`flex-1 lg:ml-64 min-h-screen transition-all duration-300 ${
-          isChatTakingSpace && !isMobile ? 'lg:mr-[800px]' : 
+          isChatTakingSpace && !isMobile ? 'lg:mr-[750px]' : 
           isChatCompact && !isMobile ? 'lg:mr-[350px]' : ''
         }`}>
           <div className="p-3 sm:p-4 lg:p-8 pt-16 pb-24 lg:pb-8">
             <div className={`mx-auto w-full ${
-              isChatTakingSpace && !isMobile ? 'max-w-2xl' : 
+              isChatTakingSpace && !isMobile ? 'max-w-4xl mr-auto ml-0' : 
               isChatCompact && !isMobile ? 'max-w-3xl' : 'max-w-4xl'
             }`}>
               {children}
@@ -161,9 +161,9 @@ const ResponsiveLayout = ({ header, sidebar, children, activeView, onViewChange,
 
         {/* Chat Area - Fixed on Desktop when open and in full mode only */}
         {isChatTakingSpace && !isMobile && (
-          <div className="hidden lg:block lg:fixed lg:inset-y-0 lg:right-0 lg:w-[800px] lg:bg-white lg:border-l lg:border-gray-200 lg:pt-16 lg:shadow-lg">
-            <div className="h-full">
-              {/* Chat content will be rendered by the ChatApp component */}
+          <div className="hidden lg:block lg:fixed lg:top-18 lg:bottom-0 lg:right-4 lg:w-[730px] lg:bg-white lg:border lg:border-gray-200 lg:shadow-lg lg:rounded-xl">
+            <div className="h-full pt-6">
+              {chatContent}
             </div>
           </div>
         )}

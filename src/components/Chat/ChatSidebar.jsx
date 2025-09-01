@@ -217,7 +217,11 @@ const ChatSidebar = ({ onSelectConversation, onStartNewChat, activeConversation,
                   <Pin className="w-3 h-3" />
                   Pinned
                 </div>
-                {pinnedChats.map(conversation => {
+                {pinnedChats.map(pinnedChat => {
+                  // Find the actual conversation object from the conversations array
+                  const conversation = conversations.find(conv => conv.id === pinnedChat.id);
+                  if (!conversation) return null; // Skip if conversation not found
+                  
                   const partner = getConversationPartner(conversation, currentUser.id);
                   const isActive = activeConversation?.id === conversation.id;
                   

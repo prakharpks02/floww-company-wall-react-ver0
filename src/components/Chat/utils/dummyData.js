@@ -330,13 +330,28 @@ export const getEmployeeById = (id) => {
 };
 
 export const getConversationPartner = (conversation, currentUserId) => {
+  // Add comprehensive null and undefined checks
+  if (!conversation || typeof conversation !== 'object') {
+    return null;
+  }
+  
+  // Check if conversation has the required properties
+  if (conversation.type === undefined) {
+    return null;
+  }
+  
   if (conversation.type === 'group') {
     return {
-      name: conversation.name,
-      avatar: conversation.avatar,
+      name: conversation.name || 'Group Chat',
+      avatar: conversation.avatar || '👥',
       status: 'group',
       id: conversation.id
     };
+  }
+  
+  // Check if participants array exists
+  if (!conversation.participants || !Array.isArray(conversation.participants)) {
+    return null;
   }
   
   const partnerId = conversation.participants.find(id => id !== currentUserId);

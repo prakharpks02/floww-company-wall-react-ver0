@@ -32,7 +32,7 @@ const ForwardModal = ({ isOpen, onClose, onForward, conversations, currentUserId
               <div className="w-8 h-8 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center shadow-[inset_0_0_15px_rgba(255,255,255,0.3)]">
                 <Send className="h-4 w-4 text-white" />
               </div>
-              <h3 className="text-sm font-semibold drop-shadow-sm">Forward Message</h3>
+              <h3 className="text-sm drop-shadow-sm">Forward Message</h3>
             </div>
             <button
               onClick={onClose}

@@ -30,6 +30,16 @@ const Dashboard = () => {
   const { user } = useAuth();
   const { isChatOpen, isChatMinimized, isCompactMode, isFullScreenMobile, totalUnreadMessages, toggleChat, closeChat } = useChat();
 
+  // Create chat content for desktop integration
+  const chatContent = isChatOpen && !isChatMinimized && !isCompactMode && !isFullScreenMobile ? (
+    <ChatApp 
+      isMinimized={isChatMinimized} 
+      onToggleMinimize={toggleChat}
+      onClose={closeChat}
+      isIntegratedMode={true}
+    />
+  ) : null;
+
   // Sort comments and replies so that the latest are on top
   const filteredPosts = getFilteredPosts(filters);
   
@@ -194,6 +204,7 @@ const Dashboard = () => {
         onViewChange={handleViewChange}
         onCreatePost={() => setShowCreatePost(true)}
         user={user}
+        chatContent={chatContent}
       >
         {/* Create Post Modal - Only show if user is not blocked and not admin */}
         {showCreatePost && !(user?.is_blocked === true || user?.is_blocked === "true") && !user?.is_admin && (
@@ -205,8 +216,8 @@ const Dashboard = () => {
         {/* Scroll to Top Button - Hide when chat is taking up layout space */}
         {!(isChatOpen && !isChatMinimized && !isCompactMode) && <ScrollToTop />}
 
-        {/* Chat Components */}
-        {isChatOpen && !isFullScreenMobile ? (
+        {/* Chat Components - Only render compact mode and mobile toggle */}
+        {isChatOpen && !isFullScreenMobile && (isCompactMode || isChatMinimized) ? (
           <ChatApp 
             isMinimized={isChatMinimized} 
             onToggleMinimize={toggleChat}

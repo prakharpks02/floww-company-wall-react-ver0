@@ -33,9 +33,11 @@ const MediaUploadSection = ({
           type="button"
           onClick={() => videoInputRef.current?.click()}
           className="flex items-center space-x-2 px-3 py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-md hover:bg-blue-100 text-sm"
+          title="Upload videos (max 50MB each)"
         >
           <Video size={16} />
           <span>Videos</span>
+          <span className="text-xs text-blue-600">(50MB max)</span>
         </button>
         
         <button

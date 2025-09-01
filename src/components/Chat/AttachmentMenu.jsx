@@ -51,33 +51,33 @@ const AttachmentMenu = ({ isOpen, onClose, onSelect, isGroup = false, isCompact 
     <>
       {/* Glassmorphism backdrop */}
       <div 
-        className="fixed inset-0 z-30 bg-black/10 backdrop-blur-sm"
+        className="fixed inset-0 z-30 bg-black/20 backdrop-blur-sm"
         onClick={onClose}
       />
       
       {/* Neumorphic Menu */}
       <div className={`absolute z-50 ${
         isCompact 
-          ? 'bottom-full mb-3 left-2 right-2' 
+          ? 'bottom-full mb-2 left-0 right-0' 
           : 'bottom-full mb-4 left-4 right-4'
       }`}>
         <div className={`
           bg-white/90 backdrop-blur-lg rounded-2xl 
           shadow-[0_15px_30px_rgba(0,0,0,0.1)] 
           border border-white/40
-          p-4 w-full
-          ${isCompact ? 'max-w-xs mx-auto' : 'max-w-xs mx-auto'}
+          w-full
+          ${isCompact ? 'p-2 max-w-sm mx-auto' : 'p-4 max-w-xs mx-auto'}
           neo-glassmorphism
           animate-in slide-in-from-bottom-2 duration-300
         `}>
           {/* Title */}
-          <div className="mb-4">
-            <h3 className="text-base font-semibold text-[#6d28d9] text-center">Share Content</h3>
-            <p className="text-xs text-gray-500 text-center mt-1">Choose what you'd like to share</p>
+          <div className={isCompact ? "mb-2" : "mb-4"}>
+            <h3 className={`text-[#6d28d9] text-center ${isCompact ? 'text-sm' : 'text-base'}`}>Share Content</h3>
+            <p className={`text-gray-500 text-center mt-1 ${isCompact ? 'text-xs' : 'text-xs'}`}>Choose what you'd like to share</p>
           </div>
           
           {/* Options Grid */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className={`grid ${isCompact ? 'grid-cols-3 gap-1' : 'grid-cols-2 gap-3'}`}>
             {attachmentOptions.map((option) => {
               const IconComponent = option.icon;
               return (
@@ -86,7 +86,7 @@ const AttachmentMenu = ({ isOpen, onClose, onSelect, isGroup = false, isCompact 
                   onClick={option.action}
                   className={`
                     group flex flex-col items-center 
-                    p-3 
+                    ${isCompact ? 'p-1.5' : 'p-2'} 
                     rounded-xl 
                     bg-white/70 backdrop-blur-sm
                     shadow-[inset_0_0_15px_rgba(255,255,255,0.8)] 
@@ -100,7 +100,7 @@ const AttachmentMenu = ({ isOpen, onClose, onSelect, isGroup = false, isCompact 
                   `}
                 >
                   <div className={`
-                    w-10 h-10 mb-2 
+                    ${isCompact ? 'w-6 h-6 mb-1' : 'w-8 h-8 mb-1'} 
                     ${option.color} ${option.hoverColor}
                     rounded-xl flex items-center justify-center 
                     shadow-[0_6px_15px_${option.shadowColor}]
@@ -108,27 +108,16 @@ const AttachmentMenu = ({ isOpen, onClose, onSelect, isGroup = false, isCompact 
                     transition-all duration-300 
                     group-hover:scale-110
                   `}>
-                    <IconComponent className="h-5 w-5 text-white drop-shadow-sm" />
+                    <IconComponent className={`${isCompact ? 'h-3 w-3' : 'h-4 w-4'} text-white drop-shadow-sm`} />
                   </div>
                   <div className="text-center">
-                    <span className="text-xs font-semibold text-[#6d28d9] group-hover:text-[#7c3aed] transition-colors duration-200">
-                      {option.label}
+                    <span className={`text-[#6d28d9] group-hover:text-[#7c3aed] transition-colors duration-200 ${isCompact ? 'text-xs' : 'text-xs'}`}>
+                      {isCompact ? option.label.split(' ')[0] : option.label}
                     </span>
-                    <p className="text-xs text-gray-500 mt-1 group-hover:text-gray-600 transition-colors duration-200">
-                      {option.id === 'photos-videos'}
-                      {option.id === 'camera'}
-                      {option.id === 'document'}
-                      {option.id === 'poll'}
-                    </p>
                   </div>
                 </button>
               );
             })}
-          </div>
-          
-          {/* Decorative element */}
-          <div className="flex justify-center mt-3">
-            <div className="w-8 h-0.5 bg-gradient-to-r from-[#c084fc] to-[#86efac] rounded-full opacity-60"></div>
           </div>
         </div>
       </div>
