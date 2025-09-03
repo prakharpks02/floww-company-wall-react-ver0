@@ -9,7 +9,7 @@ const nbspStyle = {
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { adminAPI } from '../../services/adminAPI';
+import { adminAPI } from '../../services/adminAPI.jsx';
 import { Flag, FileText, MessageSquare, AlertTriangle, RefreshCw } from 'lucide-react';
 import AdminReportedPostCard from './AdminReportedPostCard';
 import AdminReportedCommentCard from './AdminReportedCommentCard';

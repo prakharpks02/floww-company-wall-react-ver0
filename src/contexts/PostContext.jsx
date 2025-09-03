@@ -1,8 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from './AuthContext';
-import { postsAPI } from '../services/api';
-import { adminAPI } from '../services/adminAPI';
+import { postsAPI } from '../services/api.jsx';
+import { adminAPI } from '../services/adminAPI.jsx';
 import { extractMentionsFromText, processCommentData } from '../utils/htmlUtils';
 
 const PostContext = createContext();
@@ -22,8 +22,11 @@ export const PostProvider = ({ children }) => {
   const [nextCursor, setNextCursor] = useState(null);
   const [hasMorePosts, setHasMorePosts] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
+  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(false); // Disabled by default
   const [lastRefreshTime, setLastRefreshTime] = useState(Date.now());
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [lastLoadUser, setLastLoadUser] = useState(null);
+  const [isDashboardManaged, setIsDashboardManaged] = useState(false); // Track if Dashboard is managing posts
   const [userReactions, setUserReactions] = useState(() => {
     // Load user reactions from localStorage on initialization
     try {
@@ -353,11 +356,18 @@ export const PostProvider = ({ children }) => {
   // Load posts from backend API on mount
   useEffect(() => {
     const loadPosts = async () => {
+      // Prevent multiple loads for the same user or if already loading
+      // Also prevent if Dashboard is managing posts
+      if (!user || loading || isDashboardManaged || (isInitialized && lastLoadUser === user?.employee_id)) {
+        return;
+      }
+
       if (!user) {
         setPosts([]);
         setNextCursor(null);
         setHasMorePosts(true);
         setLoading(false);
+        setIsInitialized(true);
         return;
       }
       
@@ -367,6 +377,8 @@ export const PostProvider = ({ children }) => {
         setNextCursor(null);
         setHasMorePosts(true);
         setLoading(false);
+        setIsInitialized(true);
+        setLastLoadUser(user?.employee_id);
         return;
       }
       
@@ -397,30 +409,36 @@ export const PostProvider = ({ children }) => {
         // Reset pagination state
         setNextCursor(null);
         setHasMorePosts(true);
+        setIsInitialized(true);
+        setLastLoadUser(user?.employee_id);
       } catch (error) {
         console.error('❌ PostContext - Failed to load user posts from backend:', error.message);
         setPosts([]);
         setNextCursor(null);
         setHasMorePosts(false);
+        setIsInitialized(true);
+        setLastLoadUser(user?.employee_id);
       } finally {
         setLoading(false);
       }
     };
 
     // Call the loadPosts function
-    loadPosts();
-  }, [user]);
+    if (!isInitialized || lastLoadUser !== user?.employee_id) {
+      loadPosts();
+    }
+  }, [user?.employee_id, isInitialized, lastLoadUser, isDashboardManaged]);
 
-  // Auto-refresh reactions every 30 seconds
+  // Auto-refresh reactions every 60 seconds (reduced frequency)
   useEffect(() => {
-    if (!autoRefreshEnabled || !user) return;
+    if (!autoRefreshEnabled || !user || posts.length === 0) return;
 
     const intervalId = setInterval(() => {
       refreshReactions();
-    }, 30000); // 30 seconds
+    }, 60000); // 60 seconds instead of 30
 
     return () => clearInterval(intervalId);
-  }, [autoRefreshEnabled, user, posts.length]);
+  }, [autoRefreshEnabled, user?.employee_id]); // Removed posts.length dependency
 
   // Standalone function to reload posts (can be called after edit/delete)
   const reloadPosts = async () => {
@@ -428,6 +446,11 @@ export const PostProvider = ({ children }) => {
     if (user?.is_admin) {
       setPosts([]);
       return;
+    }
+    
+    // If Dashboard is managing posts, use loadAllPosts instead
+    if (isDashboardManaged) {
+      return loadAllPosts(true);
     }
     
     try {
@@ -457,6 +480,7 @@ export const PostProvider = ({ children }) => {
   const loadAllPosts = async (resetPagination = false) => {
     try {
       setLoading(true);
+      setIsDashboardManaged(true); // Mark as being managed by Dashboard
       const cursor = resetPagination ? null : nextCursor;
     
       let pinnedPosts = [];
@@ -1552,6 +1576,7 @@ export const PostProvider = ({ children }) => {
     getFilteredPosts,
     reloadPosts,
     loadAllPosts,
+    setIsDashboardManaged, // Expose dashboard management control
     loadMorePosts,
     addReaction,
     hasUserReacted,

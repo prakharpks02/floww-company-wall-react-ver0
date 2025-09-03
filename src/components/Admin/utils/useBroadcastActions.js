@@ -1,6 +1,6 @@
 // Custom hooks for broadcast message functionality
 import { useState } from 'react';
-import { adminAPI } from '../../../services/adminAPI';
+import { adminAPI } from '../../../services/adminAPI.jsx';
 
 export const useBroadcastActions = (showSuccess, showError, showWarning) => {
   const [loading, setLoading] = useState(false);

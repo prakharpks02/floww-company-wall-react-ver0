@@ -4,6 +4,10 @@
 
 import { cookieUtils } from '../utils/cookieUtils';
 
+// Request cache for admin API deduplication
+const adminRequestCache = new Map();
+const ADMIN_CACHE_DURATION = 2000; // 2 seconds cache for admin requests
+
 // Get the appropriate admin token based on current URL
 const getAdminToken = () => {
   const currentPath = window.location.pathname;
@@ -60,6 +64,18 @@ const fetchWithTimeout = async (url, options = {}) => {
   // Get fresh token for each request
   const currentToken = getAdminToken();
   
+  // Create cache key for admin request deduplication
+  const cacheKey = `admin-${options.method || 'GET'}-${url}-${JSON.stringify(options.body || {})}`;
+  
+  // Check if there's a cached request in progress
+  if (adminRequestCache.has(cacheKey)) {
+    const cached = adminRequestCache.get(cacheKey);
+    if (Date.now() - cached.timestamp < ADMIN_CACHE_DURATION) {
+      console.log('🔄 Returning cached admin request for:', url);
+      return cached.promise;
+    }
+  }
+  
   // Prepare headers
   let headers = {
     'Authorization': currentToken,
@@ -71,22 +87,40 @@ const fetchWithTimeout = async (url, options = {}) => {
     headers['Content-Type'] = 'application/json';
   }
   
-  try {
-    const response = await fetch(url, {
-      ...options,
-      signal: controller.signal,
-      headers
-    });
-    
-    clearTimeout(timeoutId);
-    return response;
-  } catch (error) {
-    clearTimeout(timeoutId);
-    if (error.name === 'AbortError') {
-      throw new Error('Request timeout');
+  const requestPromise = (async () => {
+    try {
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+        headers
+      });
+      
+      clearTimeout(timeoutId);
+      
+      // Clean up cache after request completes
+      setTimeout(() => {
+        adminRequestCache.delete(cacheKey);
+      }, ADMIN_CACHE_DURATION);
+      
+      return response;
+    } catch (error) {
+      clearTimeout(timeoutId);
+      adminRequestCache.delete(cacheKey);
+      
+      if (error.name === 'AbortError') {
+        throw new Error('Request timeout');
+      }
+      throw error;
     }
-    throw error;
-  }
+  })();
+  
+  // Cache the request promise
+  adminRequestCache.set(cacheKey, {
+    promise: requestPromise,
+    timestamp: Date.now()
+  });
+  
+  return requestPromise;
 };
 
 // Log API calls for debugging
@@ -372,8 +406,6 @@ export const adminAPI = {
       throw error;
     }
   },
-
-
 
   // ========================================
   // BROADCAST MESSAGES

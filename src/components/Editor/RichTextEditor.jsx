@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Bold, Italic, List, Underline, AlignLeft, AlignCenter, AlignRight,PaintBucket  } from 'lucide-react';
-import { userAPI } from '../../services/api';
-import { adminAPI } from '../../services/adminAPI';
+import { userAPI } from '../../services/api.jsx';
+import { adminAPI } from '../../services/adminAPI.jsx';
 
 const RichTextEditor = ({ 
   value, 

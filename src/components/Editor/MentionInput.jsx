@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { userAPI } from '../../services/api';
-import { adminAPI } from '../../services/adminAPI';
+import { userAPI } from '../../services/api.jsx';
+import { adminAPI } from '../../services/adminAPI.jsx';
 import { highlightMentions } from '../../utils/htmlUtils';
 
 const MentionInput = ({ 

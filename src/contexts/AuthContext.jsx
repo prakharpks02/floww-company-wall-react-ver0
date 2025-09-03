@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { userAPI } from '../services/api';
+import { userAPI } from '../services/api.jsx';
 import { cookieUtils } from '../utils/cookieUtils';
 
 // Create the Auth Context
@@ -46,7 +46,7 @@ const fetchUser = async () => {
     if (!token) {
    
       // No token found, redirect to main Floww application
-      window.location.href = "https://dev.gofloww.co";
+      window.location.href = "https://employee.gofloww.co";
       return;
     }
 

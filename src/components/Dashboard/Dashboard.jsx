@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Header from './Header';
 import Sidebar from './Sidebar';
 import PostFeed from '../Posts/PostFeed';
@@ -26,9 +26,22 @@ const Dashboard = () => {
   });
   const [showCreatePost, setShowCreatePost] = useState(false);
   const [activeView, setActiveView] = useState('home'); // 'home', 'broadcast', 'myposts', 'admin-posts', 'admin-users', 'admin-reports', 'admin-broadcast'
-  const { posts, getFilteredPosts, loadAllPosts, reloadPosts, loading } = usePost();
+  const { posts, getFilteredPosts, loadAllPosts, reloadPosts, loading, setIsDashboardManaged } = usePost();
   const { user } = useAuth();
   const { isChatOpen, isChatMinimized, isCompactMode, isFullScreenMobile, totalUnreadMessages, toggleChat, closeChat } = useChat();
+  
+  // Add refs to prevent multiple API calls
+  const lastActiveView = useRef(activeView);
+  const isInitialized = useRef(false);
+  const isLoadingRef = useRef(false);
+
+  // Set Dashboard as the posts manager on mount
+  useEffect(() => {
+    setIsDashboardManaged(true);
+    return () => {
+      setIsDashboardManaged(false); // Clean up on unmount
+    };
+  }, [setIsDashboardManaged]);
 
   // Create chat content for desktop integration
   const chatContent = isChatOpen && !isChatMinimized && !isCompactMode && !isFullScreenMobile ? (
@@ -57,22 +70,43 @@ const Dashboard = () => {
       : post.comments
   }));
 
-  // Load appropriate posts based on active view
+  // Load appropriate posts based on active view (with throttling)
   useEffect(() => {
-    if (activeView === 'home') {
-      loadAllPosts(true); // Reset pagination and load fresh posts for home feed
-    } else if (activeView === 'myposts') {
-      reloadPosts(); // Load user's posts only
-    }
-    // For broadcast view, data is fetched by BroadcastView component
-  }, [activeView]);
+    const loadData = async () => {
+      // Prevent loading if already loading or same view
+      if (isLoadingRef.current || lastActiveView.current === activeView) {
+        return;
+      }
+      
+      isLoadingRef.current = true;
+      lastActiveView.current = activeView;
+      
+      try {
+        if (activeView === 'home') {
+          // Only load all posts for home feed - this manages the posts globally
+          await loadAllPosts(true); // Reset pagination and load fresh posts for home feed
+        } else if (activeView === 'myposts') {
+          // This will now check if Dashboard is managing posts and delegate appropriately
+          await reloadPosts(); // Load user's posts only
+        }
+        // For broadcast view, data is fetched by BroadcastView component
+      } catch (error) {
+        console.error('Error loading data for view:', activeView, error);
+      } finally {
+        isLoadingRef.current = false;
+      }
+    };
 
-  // Set default view for admin users
+    loadData();
+  }, [activeView, loadAllPosts, reloadPosts]);
+
+  // Set default view for admin users (only once)
   useEffect(() => {
-    if (user?.is_admin && activeView === 'home') {
+    if (user?.is_admin && activeView === 'home' && !isInitialized.current) {
       setActiveView('admin-posts');
+      isInitialized.current = true;
     }
-  }, [user]);
+  }, [user?.is_admin]);
 
   const handleSearchChange = (searchValue) => {
     setFilters(prev => ({ ...prev, search: searchValue }));

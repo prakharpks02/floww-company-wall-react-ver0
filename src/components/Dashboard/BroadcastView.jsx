@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Megaphone, Calendar, Users, ExternalLink, RefreshCw, Hash, User } from 'lucide-react';
-import { postsAPI } from '../../services/api';
-import { adminAPI } from '../../services/adminAPI';
+import { postsAPI } from '../../services/api.jsx';
+import { adminAPI } from '../../services/adminAPI.jsx';
 import { useAuth } from '../../contexts/AuthContext';
 import PostCard from '../Posts/PostCard';
 import CreatePost from '../Posts/CreatePost';
@@ -340,12 +340,7 @@ const BroadcastView = () => {
             <Megaphone className="h-12 w-12 text-gray-300 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-gray-900 mb-2">No Broadcast Messages</h3>
             <p className="text-gray-600 mb-4">There are no broadcast messages to display at the moment.</p>
-            <button 
-              onClick={fetchBroadcasts} 
-              className="text-purple-600 hover:underline font-medium text-sm"
-            >
-              Check for updates
-            </button>
+           
           </div>
         </div>
       ) : (

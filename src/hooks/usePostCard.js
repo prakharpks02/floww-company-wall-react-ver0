@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from './../contexts/AuthContext';
 import { usePost } from './../contexts/PostContext';
-import { postsAPI } from '../services/api';
+import { postsAPI } from '../services/api.jsx';
+import { debounce } from '../utils/requestUtils.jsx';
 
 export const usePostCard = (post, activeView = 'home') => {
   const { user } = useAuth();

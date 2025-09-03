@@ -4,6 +4,11 @@
 
 import { cookieUtils } from '../utils/cookieUtils';
 
+// Request deduplication cache
+const requestCache = new Map();
+const CACHE_DURATION = 2000; // 2 second cache for deduplication
+const activeRequests = new Set(); // Track currently active requests
+
 // Get authentication token based on environment and user type
 const getAuthToken = (userType = 'employee') => {
   const { employeeToken, employeeId, adminToken } = cookieUtils.getAuthTokens();
@@ -97,6 +102,25 @@ const fetchWithTimeout = async (url, options = {}) => {
   const userType = options.userType || getCurrentUserType();
   const currentToken = checkAuthToken(userType);
   
+  // Create cache key for request deduplication
+  const cacheKey = `${options.method || 'GET'}-${url}-${JSON.stringify(options.body || {})}-${Date.now() - (Date.now() % CACHE_DURATION)}`;
+  const simpleKey = `${options.method || 'GET'}-${url.split('?')[0]}`; // For active request tracking
+  
+  // Check if the same request is already in progress
+  if (activeRequests.has(simpleKey)) {
+    console.log('🚫 Blocking duplicate request for:', url.split('/').pop());
+    throw new Error('Duplicate request blocked');
+  }
+  
+  // Check if there's a cached request in progress
+  if (requestCache.has(cacheKey)) {
+    const cached = requestCache.get(cacheKey);
+    if (Date.now() - cached.timestamp < CACHE_DURATION) {
+      console.log('🔄 Returning cached request for:', url.split('/').pop());
+      return cached.promise;
+    }
+  }
+  
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT);
   
@@ -118,28 +142,52 @@ const fetchWithTimeout = async (url, options = {}) => {
   // Remove userType from options before passing to fetch
   const { userType: _, ...fetchOptions } = options;
   
-  try {
-    const response = await fetch(url, {
-      ...fetchOptions,
-      signal: controller.signal,
-      headers
-    });
+  const requestPromise = (async () => {
+    // Mark request as active
+    activeRequests.add(simpleKey);
     
-    clearTimeout(timeoutId);
-    return response;
-  } catch (error) {
-    clearTimeout(timeoutId);
-    if (error.name === 'AbortError') {
-      throw new Error('Request timeout - please check your connection');
+    try {
+      const response = await fetch(url, {
+        ...fetchOptions,
+        signal: controller.signal,
+        headers
+      });
+      
+      clearTimeout(timeoutId);
+      
+      // Clean up cache after request completes
+      setTimeout(() => {
+        requestCache.delete(cacheKey);
+      }, CACHE_DURATION);
+      
+      return response;
+    } catch (error) {
+      clearTimeout(timeoutId);
+      requestCache.delete(cacheKey);
+      
+      if (error.name === 'AbortError') {
+        throw new Error('Request timeout');
+      }
+      throw error;
+    } finally {
+      // Remove from active requests
+      activeRequests.delete(simpleKey);
     }
-    throw error;
-  }
+  })();
+  
+  // Cache the request promise
+  requestCache.set(cacheKey, {
+    promise: requestPromise,
+    timestamp: Date.now()
+  });
+  
+  return requestPromise;
 };
 
 // Helper function to log API calls (for debugging)
 const logApiCall = (method, endpoint, data = null) => {
   if (process.env.NODE_ENV === 'development') {
-
+    console.log(`🌐 API ${method} ${endpoint}`, data ? { data } : '');
   }
 };
 
@@ -163,7 +211,7 @@ const StorageManager = {
       const item = localStorage.getItem(key);
       return item ? JSON.parse(item) : null;
     } catch (error) {
-      console.error(`Error reading from localStorage (${key}):`, error);
+      console.error(`Storage error getting ${key}:`, error);
       return null;
     }
   },
@@ -174,7 +222,7 @@ const StorageManager = {
       localStorage.setItem(key, JSON.stringify(value));
       return true;
     } catch (error) {
-      console.error(`Error writing to localStorage (${key}):`, error);
+      console.error(`Storage error setting ${key}:`, error);
       return false;
     }
   },
@@ -185,7 +233,7 @@ const StorageManager = {
       localStorage.removeItem(key);
       return true;
     } catch (error) {
-      console.error(`Error removing from localStorage (${key}):`, error);
+      console.error(`Storage error removing ${key}:`, error);
       return false;
     }
   },
@@ -256,9 +304,10 @@ export const userAPI = {
         method: 'GET'
       });
       
-      return await handleResponse(response);
+      const result = await handleResponse(response);
+      return result;
     } catch (error) {
-      console.error('❌ Get user error:', error.message);
+      console.error('❌ Get user by ID error:', error.message);
       throw error;
     }
   },
@@ -271,31 +320,10 @@ export const userAPI = {
     try {
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...getAuthHeaders()
-        }
+        body: JSON.stringify({})
       });
       
       const result = await handleResponse(response);
-      
-      // Transform the response to match expected user structure
-      if (result.status === 'success' && result.data) {
-        const userData = result.data;
-        return {
-          status: 'success',
-          data: {
-            ...userData,
-            username: userData.employee_username, // Map employee_username to username
-            name: userData.employee_name,
-            profile_picture: userData.profile_picture_link,
-            title: userData.job_title, // Use job_title instead of employee
-            is_blocked: userData.is_blocked || false
-          },
-          message: result.message
-        };
-      }
-      
       return result;
     } catch (error) {
       console.error('❌ Get current user error:', error.message);
@@ -315,26 +343,14 @@ export const userAPI = {
     
     try {
       const response = await fetchWithTimeout(endpoint, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          ...getAuthHeaders()
-        }
+        method: 'GET'
       });
-      
-      // Check if response is actually JSON
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        console.warn('Mention API endpoint not available yet, returning empty array');
-        return { data: [] };
-      }
       
       const result = await handleResponse(response);
       return result;
     } catch (error) {
-      console.warn('Mention API not available yet:', error.message);
-      // Return empty array as fallback when API is not available
-      return { data: [] };
+      console.error('❌ Get users for mentions error:', error.message);
+      throw error;
     }
   }
 };
@@ -349,94 +365,12 @@ export const postsAPI = {
     const endpoint = `${API_CONFIG.BASE_URL}/posts/create_post`;
     
     try {
-      const requestBody = {
-        content: postData.content,
-        // Combine all media into a single array of URLs
-        ...(postData.media && postData.media.length > 0 && { 
-          media: postData.media.map(item => {
-            if (typeof item === 'string') return item;
-            return item.url || item.link || item;
-          }).filter(Boolean)
-        }),
-        // Also handle individual media arrays and convert to single media array
-        ...(() => {
-          const allMedia = [
-            ...(postData.images || []).map(img => typeof img === 'string' ? img : img.url || img.link),
-            ...(postData.videos || []).map(vid => typeof vid === 'string' ? vid : vid.url || vid.link),
-            ...(postData.documents || []).map(doc => typeof doc === 'string' ? doc : doc.url || doc.link),
-            ...(postData.links || []).map(link => typeof link === 'string' ? link : link.url || link.link)
-          ].filter(Boolean);
-          
-          return allMedia.length > 0 ? { media: allMedia } : {};
-        })(),
-        ...(postData.mentions && postData.mentions.length > 0 && { 
-          // Send mentions as array of employee_id strings (like comments)
-          mentions: postData.mentions.map(m => {
-            console.log('🔍 Post createPost - processing mention:', m);
-            
-            // Extract clean employee_id value
-            let employeeId = null;
-            
-            if (typeof m === 'object' && m !== null) {
-              // Handle case where employee_id itself is a stringified object
-              let rawEmployeeId = m.employee_id || m.user_id || m.id || '';
-              if (typeof rawEmployeeId === 'string' && rawEmployeeId.startsWith("{")) {
-                try {
-                  const parsed = JSON.parse(rawEmployeeId.replace(/'/g, '"'));
-                  employeeId = String(parsed.employee_id || parsed.employeeId || '').trim();
-                } catch (e) {
-                  employeeId = String(rawEmployeeId).trim();
-                }
-              } else {
-                employeeId = String(rawEmployeeId).trim();
-              }
-            } else if (typeof m === 'string') {
-              // If it's a stringified object, parse it
-              if (m.startsWith("{") && (m.includes("employee_id") || m.includes("employeeId"))) {
-                try {
-                  const parsed = JSON.parse(m.replace(/'/g, '"'));
-                  employeeId = String(parsed.employee_id || parsed.employeeId || '').trim();
-                } catch (e) {
-                  console.warn('Failed to parse mention string:', m);
-                  employeeId = String(m).trim();
-                }
-              } else {
-                employeeId = String(m).trim();
-              }
-            }
-            
-            console.log('🔍 Post createPost - extracted employee_id:', employeeId);
-            
-            // Return just the employee_id string, or null if invalid
-            return employeeId || null;
-          }).filter(Boolean) // Remove null values
-        }),
-        // Process tags to extract just the tag names, not the nested objects
-        ...(postData.tags && postData.tags.length > 0 && { 
-          tags: postData.tags.map(tag => {
-            // If tag is an object with tag_name, extract just the name
-            if (typeof tag === 'object' && tag.tag_name) {
-              return tag.tag_name;
-            }
-            // If tag is already a string, use it as is  
-            return tag;
-          })
-        }),
-        // If no tags are provided, explicitly send empty array
-        ...((!postData.tags || postData.tags.length === 0) && { tags: [] })
-      };
-
-      console.log('🔍 Final requestBody before sending:', JSON.stringify(requestBody, null, 2));
-      
-      logApiCall('POST', endpoint, requestBody);
-
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify(postData)
       });
       
       const result = await handleResponse(response);
-      
       return result;
     } catch (error) {
       console.error('❌ Create post error:', error.message);
@@ -448,11 +382,9 @@ export const postsAPI = {
   getPosts: async (page = 1, limit = 10, lastPostId = null) => {
     let endpoint;
     if (lastPostId) {
-      // Use cursor-based pagination
       endpoint = `${API_CONFIG.BASE_URL}/posts?lastPostId=${lastPostId}&limit=${limit}`;
     } else {
-      // Initial request or fallback to page-based pagination
-      endpoint = `${API_CONFIG.BASE_URL}/posts?limit=${limit}`;
+      endpoint = `${API_CONFIG.BASE_URL}/posts?page=${page}&limit=${limit}`;
     }
     
     logApiCall('GET', endpoint);
@@ -464,7 +396,17 @@ export const postsAPI = {
       
       const result = await handleResponse(response);
       
-      return result;
+      // Handle different response structures
+      const posts = result?.data?.posts || result?.posts || result?.data || [];
+      const nextCursor = result?.data?.nextCursor || result?.nextCursor || null;
+      const hasMore = result?.data?.hasMore || result?.hasMore || false;
+      
+      return {
+        posts,
+        nextCursor,
+        hasMore,
+        raw: result
+      };
     } catch (error) {
       console.error('❌ Get posts error:', error.message);
       throw error;
@@ -480,25 +422,14 @@ export const postsAPI = {
       : `${API_CONFIG.BASE_URL}/posts`;
     
     try {
-      logApiCall('GET', endpoint);
-
       const response = await fetchWithTimeout(endpoint, {
-        method: 'GET',
-        userType: currentUserType // Pass user type to ensure correct token is used
+        method: 'GET'
       });
       
       const result = await handleResponse(response);
-      
-      // Extract posts from the response
-      const posts = result?.data?.posts || result?.posts || result?.data || [];
-      
-      return {
-        ...result,
-        data: posts
-      };
+      return result;
     } catch (error) {
       console.error('❌ Get my posts error:', error.message);
-      console.error('❌ Full error details:', error);
       throw error;
     }
   },
@@ -514,7 +445,6 @@ export const postsAPI = {
       });
       
       const result = await handleResponse(response);
-      
       return result;
     } catch (error) {
       console.error('❌ Get user posts error:', error.message);
@@ -532,9 +462,10 @@ export const postsAPI = {
         method: 'GET'
       });
       
-      return await handleResponse(response);
+      const result = await handleResponse(response);
+      return result;
     } catch (error) {
-      console.error('❌ Get post error:', error.message);
+      console.error('❌ Get post by ID error:', error.message);
       throw error;
     }
   },
@@ -548,80 +479,25 @@ export const postsAPI = {
     // Transform the data to match backend expectations
     const backendData = {
       content: updateData.content,
-      post_content: updateData.content, // Fallback field name
-      // Process tags to extract just the tag names, not the nested objects
+      post_content: updateData.content,
       ...(updateData.tags && updateData.tags.length > 0 && { 
         tags: updateData.tags.map(tag => {
-          // If tag is an object with tag_name, extract just the name
-          if (typeof tag === 'object' && tag.tag_name) {
-            return tag.tag_name;
+          if (typeof tag === 'string') {
+            return { name: tag, color: '#3B82F6' };
           }
-          // If tag is already a string, use it as is  
           return tag;
         })
       }),
-      // If no tags are provided, explicitly send empty array to clear existing tags
       ...((!updateData.tags || updateData.tags.length === 0) && { tags: [] }),
-      // Combine all media into single media array as URLs
       ...(() => {
-        const allMedia = [
-          // Images as URLs
-          ...(updateData.images || []).filter(img => img && (typeof img === 'string' || img.url)).map(img => 
-            typeof img === 'string' ? img : img.url
-          ),
-          // Videos as URLs  
-          ...(updateData.videos || []).filter(vid => vid && (typeof vid === 'string' || vid.url)).map(vid => 
-            typeof vid === 'string' ? vid : vid.url
-          ),
-          // Documents as URLs
-          ...(updateData.documents || []).filter(doc => doc && (typeof doc === 'string' || doc.url)).map(doc => 
-            typeof doc === 'string' ? doc : doc.url
-          ),
-          // Links as URLs
-          ...(updateData.links || []).filter(link => link && (typeof link === 'string' || link.url)).map(link => 
-            typeof link === 'string' ? link : link.url
-          )
-        ];
-        
-        // Always send media array, even if empty (to clear existing media)
-        return { media: allMedia };
-      })(),
-      // Always include mentions (even if empty) to handle mention removal
-      mentions: updateData.mentions ? updateData.mentions.map(m => {
-        // Extract clean employee_id value
-        let employeeId = null;
-        
-        if (typeof m === 'object' && m !== null) {
-          // Handle case where employee_id itself is a stringified object
-          let rawEmployeeId = m.employee_id || m.user_id || m.id || '';
-          if (typeof rawEmployeeId === 'string' && rawEmployeeId.startsWith("{")) {
-            try {
-              const parsed = JSON.parse(rawEmployeeId.replace(/'/g, '"'));
-              employeeId = String(parsed.employee_id || parsed.employeeId || '').trim();
-            } catch (e) {
-              employeeId = String(rawEmployeeId).trim();
-            }
-          } else {
-            employeeId = String(rawEmployeeId).trim();
-          }
-        } else if (typeof m === 'string') {
-          // If it's a stringified object, parse it
-          if (m.startsWith("{") && (m.includes("employee_id") || m.includes("employeeId"))) {
-            try {
-              const parsed = JSON.parse(m.replace(/'/g, '"'));
-              employeeId = String(parsed.employee_id || parsed.employeeId || '').trim();
-            } catch (e) {
-              console.warn('Failed to parse mention string:', m);
-              employeeId = String(m).trim();
-            }
-          } else {
-            employeeId = String(m).trim();
-          }
+        if (updateData.media && updateData.media.length > 0) {
+          return { media: updateData.media };
         }
-        
-        // Return just the employee_id string, or null if invalid
-        return employeeId || null;
-      }).filter(Boolean) : [] // Always send mentions array, empty if no mentions
+        return {};
+      })(),
+      mentions: updateData.mentions ? updateData.mentions.map(m => {
+        return typeof m === 'object' && m.employee_id ? m.employee_id : m;
+      }).filter(Boolean) : []
     };
     
     logApiCall('POST', endpoint, backendData);
@@ -633,7 +509,6 @@ export const postsAPI = {
       });
       
       const result = await handleResponse(response);
-      
       return result;
     } catch (error) {
       console.error('❌ Update post error:', error.message);
@@ -656,7 +531,6 @@ export const postsAPI = {
       });
       
       const result = await handleResponse(response);
-      
       return result;
     } catch (error) {
       console.error('❌ Delete post error:', error.message);
@@ -675,15 +549,13 @@ export const postsAPI = {
     try {
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
-        body: JSON.stringify({})
+        body: JSON.stringify({ reactionType: 'like' })
       });
       
       const result = await handleResponse(response);
-      
       return result;
     } catch (error) {
       console.error('❌ Toggle like error:', error.message);
-      console.error('❌ Full error details:', error);
       throw error;
     }
   },
@@ -695,24 +567,15 @@ export const postsAPI = {
     const endpoint = `${API_CONFIG.BASE_URL}/posts/${actualPostId}/reactions`;
     
     try {
-      const requestBody = {
-        reaction_type: reactionType,
-        emoji: emoji
-      };
-
-      logApiCall('POST', endpoint, requestBody);
-
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify({ reactionType, emoji })
       });
       
       const result = await handleResponse(response);
-      
       return result;
     } catch (error) {
       console.error('❌ Add reaction error:', error.message);
-      console.error('❌ Full error details:', error);
       throw error;
     }
   },
@@ -724,23 +587,15 @@ export const postsAPI = {
     const endpoint = `${API_CONFIG.BASE_URL}/posts/${actualPostId}/reactions/delete`;
     
     try {
-      const requestBody = {
-        reaction_type: reactionType
-      };
-
-      logApiCall('POST', endpoint, requestBody);
-
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify({ reactionType })
       });
       
       const result = await handleResponse(response);
-      
       return result;
     } catch (error) {
       console.error('❌ Remove reaction error:', error.message);
-      console.error('❌ Full error details:', error);
       throw error;
     }
   },
@@ -751,90 +606,13 @@ export const postsAPI = {
     logApiCall('POST', endpoint, commentData);
     
     try {
-      // Extract mentions from the content if it's HTML
-      const mentions = commentData.mentions || [];
-      
-      console.log('🔍 Comment mentions being processed:', mentions);
-      
-      // The backend expects { content, mentions }
-      const requestBody = {
-        content: commentData.content || commentData.comment, // always send as 'content'
-        // Always include mentions (even if empty) to handle mention removal
-        mentions: mentions.length > 0 ? mentions.map(m => {
-          // Extract clean employee_id value
-          let employeeId = null;
-          
-          if (typeof m === 'object' && m !== null) {
-            // From object, get employee_id as string
-            let rawId = m.employee_id || m.user_id || m.id;
-            
-            console.log('🔍 Processing mention object:', m);
-            console.log('🔍 Raw employee_id:', rawId);
-              
-              // Handle case where employee_id is a stringified object
-              if (typeof rawId === 'string' && (rawId.includes("'employee_id':") || rawId.includes("'employeeId':") || rawId.includes('"employee_id":') || rawId.includes('"employeeId":'))) {
-                try {
-                  // Extract the actual ID from the stringified object - handle both single and double quotes
-                  let match = rawId.match(/['"](?:employee_id|employeeId)['"]:\s*['"]([^'"]+)['"]/);
-                  if (match && match[1]) {
-                    employeeId = String(match[1]).trim();
-                    console.log('🔍 Extracted employee_id from stringified object:', employeeId);
-                  } else {
-                    // Try alternative parsing
-                    try {
-                      const cleanedJson = rawId.replace(/'/g, '"');
-                      const parsed = JSON.parse(cleanedJson);
-                      employeeId = String(parsed.employee_id || parsed.employeeId || '').trim();
-                      console.log('🔍 Extracted via JSON parsing:', employeeId);
-                    } catch (jsonError) {
-                      console.warn('Could not parse stringified object:', rawId);
-                    }
-                  }
-                } catch (e) {
-                  console.warn('Failed to extract employee_id from stringified object:', rawId, e);
-                }
-              } else {
-                employeeId = String(rawId || '').trim();
-                console.log('🔍 Direct employee_id:', employeeId);
-              }
-            } else if (typeof m === 'string') {
-              // If it's a stringified object, parse it
-              if (m.startsWith("{") && m.includes("employee_id")) {
-                try {
-                  const parsed = JSON.parse(m.replace(/'/g, '"'));
-                  employeeId = String(parsed.employee_id || '').trim();
-                } catch (e) {
-                  console.warn('Failed to parse mention string:', m);
-                  employeeId = null;
-                }
-              } else if (m.includes("'employee_id':")) {
-                // Handle stringified object with single quotes
-                try {
-                  const match = m.match(/'employee_id':\s*'([^']+)'/);
-                  if (match && match[1]) {
-                    employeeId = String(match[1]).trim();
-                  }
-                } catch (e) {
-                  console.warn('Failed to extract employee_id from string:', m);
-                }
-              } else {
-                // If it's just a plain string, treat it as employee_id
-                employeeId = String(m).trim();
-              }
-            }
-            
-            // Return just the employee_id string (like posts do), or null if invalid
-            return employeeId || null;
-          }).filter(Boolean) : [] // Always send mentions array, empty if no mentions
-      };
-      
-      console.log('🔍 Final comment requestBody:', JSON.stringify(requestBody, null, 2));
-      
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify(commentData)
       });
-      return await handleResponse(response);
+      
+      const result = await handleResponse(response);
+      return result;
     } catch (error) {
       console.error('❌ Add comment error:', error.message);
       throw error;
@@ -851,7 +629,8 @@ export const postsAPI = {
         method: 'GET'
       });
       
-      return await handleResponse(response);
+      const result = await handleResponse(response);
+      return result;
     } catch (error) {
       console.error('❌ Get comments error:', error.message);
       throw error;
@@ -864,55 +643,13 @@ export const postsAPI = {
     logApiCall('POST', endpoint, replyData);
     
     try {
-      // Extract mentions from the content if it's HTML
-      const mentions = replyData.mentions || [];
-      
-      const requestBody = {
-        content: replyData.content,
-        // Always include mentions (even if empty) to handle mention removal
-        mentions: mentions.length > 0 ? mentions.map(m => {
-          // Extract clean employee_id value
-          let employeeId = null;
-          
-          if (typeof m === 'object' && m !== null) {
-            // Handle case where employee_id itself is a stringified object
-            let rawEmployeeId = m.employee_id || m.user_id || m.id || '';
-            if (typeof rawEmployeeId === 'string' && rawEmployeeId.startsWith("{")) {
-              try {
-                const parsed = JSON.parse(rawEmployeeId.replace(/'/g, '"'));
-                employeeId = String(parsed.employee_id || parsed.employeeId || '').trim();
-              } catch (e) {
-                employeeId = String(rawEmployeeId).trim();
-              }
-            } else {
-              employeeId = String(rawEmployeeId).trim();
-            }
-          } else if (typeof m === 'string') {
-            // If it's a stringified object, parse it
-            if (m.startsWith("{") && (m.includes("employee_id") || m.includes("employeeId"))) {
-              try {
-                const parsed = JSON.parse(m.replace(/'/g, '"'));
-                employeeId = String(parsed.employee_id || parsed.employeeId || '').trim();
-              } catch (e) {
-                console.warn('Failed to parse mention string:', m);
-                employeeId = String(m).trim();
-              }
-            } else {
-              employeeId = String(m).trim();
-            }
-          }
-          
-          // Return just the employee_id string (like posts do), not an object
-          return employeeId || null;
-        }).filter(Boolean) : [] // Always send mentions array, empty if no mentions
-      };
-
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify(replyData)
       });
       
-      return await handleResponse(response);
+      const result = await handleResponse(response);
+      return result;
     } catch (error) {
       console.error('❌ Add reply error:', error.message);
       throw error;
@@ -926,10 +663,12 @@ export const postsAPI = {
     
     try {
       const response = await fetchWithTimeout(endpoint, {
-        method: 'POST'
+        method: 'POST',
+        body: JSON.stringify({})
       });
       
-      return await handleResponse(response);
+      const result = await handleResponse(response);
+      return result;
     } catch (error) {
       console.error('❌ Get replies error:', error.message);
       throw error;
@@ -947,9 +686,10 @@ export const postsAPI = {
         method: 'DELETE'
       });
       
-      return await handleResponse(response);
+      const result = await handleResponse(response);
+      return result;
     } catch (error) {
-      console.error('❌ Delete comment error:', error.message);
+      console.error('❌ Delete comment (legacy) error:', error.message);
       throw error;
     }
   },
@@ -964,7 +704,8 @@ export const postsAPI = {
         method: 'DELETE'
       });
       
-      return await handleResponse(response);
+      const result = await handleResponse(response);
+      return result;
     } catch (error) {
       console.error('❌ Delete reply error:', error.message);
       throw error;
@@ -977,16 +718,13 @@ export const postsAPI = {
     logApiCall('POST', endpoint, { reactionType, emoji });
     
     try {
-      const requestBody = {
-        reaction_type: reactionType
-      };
-
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify({ reactionType, emoji })
       });
       
-      return await handleResponse(response);
+      const result = await handleResponse(response);
+      return result;
     } catch (error) {
       console.error('❌ Add comment reaction error:', error.message);
       throw error;
@@ -999,21 +737,19 @@ export const postsAPI = {
     logApiCall('POST', endpoint, { reactionType });
     
     try {
-      const requestBody = {
-        reaction_type: reactionType
-      };
-
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify({ reactionType })
       });
       
-      return await handleResponse(response);
+      const result = await handleResponse(response);
+      return result;
     } catch (error) {
       console.error('❌ Delete comment reaction error:', error.message);
       throw error;
     }
   },
+
   // Delete comment by comment_id (POST) - Current API endpoint
   deleteComment: async (commentId) => {
     const endpoint = `${API_CONFIG.BASE_URL}/comments/${commentId}/delete`;
@@ -1022,8 +758,10 @@ export const postsAPI = {
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
         body: JSON.stringify({})
-    });
-      return await handleResponse(response);
+      });
+      
+      const result = await handleResponse(response);
+      return result;
     } catch (error) {
       console.error('❌ Delete comment error:', error.message);
       throw error;
@@ -1046,45 +784,12 @@ export const postsAPI = {
     
     // Try multiple field names to match backend expectations
     const requestBody = {
-      content: content,        // Primary field name
-      comment: content,        // Fallback field name
-      new_content: content,    // Alternative field name
-      // Always include mentions (even if empty) to handle mention removal
+      content: content,
+      comment: content,
+      new_content: content,
       mentions: mentions.length > 0 ? mentions.map(m => {
-        // Extract clean employee_id value
-        let employeeId = null;
-        
-        if (typeof m === 'object' && m !== null) {
-          // Handle case where employee_id itself is a stringified object
-          let rawEmployeeId = m.employee_id || m.user_id || m.id || '';
-          if (typeof rawEmployeeId === 'string' && rawEmployeeId.startsWith("{")) {
-            try {
-              const parsed = JSON.parse(rawEmployeeId.replace(/'/g, '"'));
-              employeeId = String(parsed.employee_id || parsed.employeeId || '').trim();
-            } catch (e) {
-              employeeId = String(rawEmployeeId).trim();
-            }
-          } else {
-            employeeId = String(rawEmployeeId).trim();
-          }
-        } else if (typeof m === 'string') {
-          // If it's a stringified object, parse it
-          if (m.startsWith("{") && (m.includes("employee_id") || m.includes("employeeId"))) {
-            try {
-              const parsed = JSON.parse(m.replace(/'/g, '"'));
-              employeeId = String(parsed.employee_id || parsed.employeeId || '').trim();
-            } catch (e) {
-              console.warn('Failed to parse mention string:', m);
-              employeeId = String(m).trim();
-            }
-          } else {
-            employeeId = String(m).trim();
-          }
-        }
-        
-        // Return just the employee_id string (like posts do), not an object
-        return employeeId || null;
-      }).filter(Boolean) : [] // Always send mentions array, empty if no mentions
+        return typeof m === 'object' && m.employee_id ? m.employee_id : m;
+      }).filter(Boolean) : []
     };
     
     logApiCall('POST', endpoint, requestBody);
@@ -1112,42 +817,9 @@ export const postsAPI = {
     
     const requestBody = {
       content: content,
-      // Always include mentions (even if empty) to handle mention removal
       mentions: mentions.length > 0 ? mentions.map(m => {
-        // Extract clean employee_id value
-        let employeeId = null;
-        
-        if (typeof m === 'object' && m !== null) {
-          // Handle case where employee_id itself is a stringified object
-          let rawEmployeeId = m.employee_id || m.user_id || m.id || '';
-          if (typeof rawEmployeeId === 'string' && rawEmployeeId.startsWith("{")) {
-            try {
-              const parsed = JSON.parse(rawEmployeeId.replace(/'/g, '"'));
-              employeeId = String(parsed.employee_id || parsed.employeeId || '').trim();
-            } catch (e) {
-              employeeId = String(rawEmployeeId).trim();
-            }
-          } else {
-            employeeId = String(rawEmployeeId).trim();
-          }
-        } else if (typeof m === 'string') {
-          // If it's a stringified object, parse it
-          if (m.startsWith("{") && (m.includes("employee_id") || m.includes("employeeId"))) {
-            try {
-              const parsed = JSON.parse(m.replace(/'/g, '"'));
-              employeeId = String(parsed.employee_id || parsed.employeeId || '').trim();
-            } catch (e) {
-              console.warn('Failed to parse mention string:', m);
-              employeeId = String(m).trim();
-            }
-          } else {
-            employeeId = String(m).trim();
-          }
-        }
-        
-        // Return just the employee_id string (like posts do), not an object
-        return employeeId || null;
-      }).filter(Boolean) : [] // Always send mentions array, empty if no mentions
+        return typeof m === 'object' && m.employee_id ? m.employee_id : m;
+      }).filter(Boolean) : []
     };
     
     logApiCall('POST', endpoint, requestBody);
@@ -1156,7 +828,9 @@ export const postsAPI = {
         method: 'POST',
         body: JSON.stringify(requestBody)
       });
-      return await handleResponse(response);
+      
+      const result = await handleResponse(response);
+      return result;
     } catch (error) {
       console.error('❌ Add comment reply error:', error.message);
       throw error;
@@ -1169,17 +843,11 @@ export const postsAPI = {
     const endpoint = `${API_CONFIG.BASE_URL}/posts/${actualPostId}/report`;
     
     try {
-      const requestBody = {
-        reason: reason
-      };
-
-      logApiCall('POST', endpoint, requestBody);
-
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify({ reason })
       });
-
+      
       const result = await handleResponse(response);
       return result;
     } catch (error) {
@@ -1193,17 +861,11 @@ export const postsAPI = {
     const endpoint = `${API_CONFIG.BASE_URL}/comments/${commentId}/report`;
     
     try {
-      const requestBody = {
-        reason: reason
-      };
-
-      logApiCall('POST', endpoint, requestBody);
-
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify({ reason })
       });
-
+      
       const result = await handleResponse(response);
       return result;
     } catch (error) {
@@ -1217,12 +879,10 @@ export const postsAPI = {
     const endpoint = `${API_CONFIG.BASE_URL}/posts/broadcast`;
     
     try {
-      logApiCall('GET', endpoint);
-
       const response = await fetchWithTimeout(endpoint, {
         method: 'GET'
       });
-
+      
       const result = await handleResponse(response);
       return result;
     } catch (error) {
@@ -1236,16 +896,10 @@ export const postsAPI = {
     const endpoint = `${API_CONFIG.BASE_URL}/posts/pinned`;
     
     try {
-      logApiCall('GET', endpoint);
-
       const response = await fetchWithTimeout(endpoint, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          ...getAuthHeaders()
-        }
+        method: 'GET'
       });
-
+      
       const result = await handleResponse(response);
       return result;
     } catch (error) {
@@ -1269,26 +923,13 @@ export const mediaAPI = {
       formData.append('file', file);
       formData.append('type', type);
       
-      logApiCall('POST', endpoint, { fileName: file.name, fileSize: file.size });
-
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
         body: formData
-        // fetchWithTimeout will automatically handle headers for FormData
       });
       
       const result = await handleResponse(response);
-      
-      // Extract file URL from the nested response structure
-      // Expected format: { status: "success", message: "...", data: { file_url: "..." } }
-      const fileUrl = result.data?.file_url || result.url || result.link || result.file_url;
-      
-      // Normalize response to ensure 'url' field is available for compatibility
-      return {
-        ...result,
-        url: fileUrl,
-        file_url: fileUrl
-      };
+      return result;
     } catch (error) {
       console.error('❌ Upload file error:', error.message);
       throw error;
@@ -1298,13 +939,11 @@ export const mediaAPI = {
   // Upload multiple files
   uploadFiles: async (files, type = 'image') => {
     try {
-      // Upload files individually since the endpoint expects single file uploads
-      const uploadPromises = files.map(file => mediaAPI.uploadFile(file, type));
+      const uploadPromises = files.map(file => this.uploadFile(file, type));
       const results = await Promise.all(uploadPromises);
-      
       return results;
     } catch (error) {
-      console.error('❌ Upload files error:', error.message);
+      console.error('❌ Upload multiple files error:', error.message);
       throw error;
     }
   },
@@ -1317,10 +956,11 @@ export const mediaAPI = {
     try {
       const response = await fetchWithTimeout(endpoint, {
         method: 'DELETE',
-        body: JSON.stringify({ url: fileUrl })
+        body: JSON.stringify({ fileUrl })
       });
       
-      return await handleResponse(response);
+      const result = await handleResponse(response);
+      return result;
     } catch (error) {
       console.error('❌ Delete file error:', error.message);
       throw error;
@@ -1339,16 +979,12 @@ export const notificationsAPI = {
     logApiCall('GET', endpoint);
     
     try {
-      const userId = userAPI.getCurrentUserId();
-      if (!userId) {
-        throw new Error('User not logged in');
-      }
-
       const response = await fetchWithTimeout(endpoint, {
         method: 'GET'
       });
       
-      return await handleResponse(response);
+      const result = await handleResponse(response);
+      return result;
     } catch (error) {
       console.error('❌ Get notifications error:', error.message);
       throw error;
@@ -1358,14 +994,16 @@ export const notificationsAPI = {
   // Mark notification as read
   markAsRead: async (notificationId) => {
     const endpoint = `${API_CONFIG.BASE_URL}/notifications/${notificationId}/read`;
-    logApiCall('PUT', endpoint);
+    logApiCall('POST', endpoint);
     
     try {
       const response = await fetchWithTimeout(endpoint, {
-        method: 'PUT'
+        method: 'POST',
+        body: JSON.stringify({})
       });
       
-      return await handleResponse(response);
+      const result = await handleResponse(response);
+      return result;
     } catch (error) {
       console.error('❌ Mark notification as read error:', error.message);
       throw error;
@@ -1375,14 +1013,16 @@ export const notificationsAPI = {
   // Mark all notifications as read
   markAllAsRead: async () => {
     const endpoint = `${API_CONFIG.BASE_URL}/notifications/read-all`;
-    logApiCall('PUT', endpoint);
+    logApiCall('POST', endpoint);
     
     try {
       const response = await fetchWithTimeout(endpoint, {
-        method: 'PUT'
+        method: 'POST',
+        body: JSON.stringify({})
       });
       
-      return await handleResponse(response);
+      const result = await handleResponse(response);
+      return result;
     } catch (error) {
       console.error('❌ Mark all notifications as read error:', error.message);
       throw error;
@@ -1395,69 +1035,77 @@ export const notificationsAPI = {
 // =============================================================================
 
 export const adminAPI = {
-  // Get all users (admin only)
+  // Get all users
   getAllUsers: async (page = 1, limit = 50) => {
     const endpoint = `${API_CONFIG.BASE_URL}/admin/users?page=${page}&limit=${limit}`;
     logApiCall('GET', endpoint);
     
     try {
       const response = await fetchWithTimeout(endpoint, {
-        method: 'GET'
+        method: 'GET',
+        userType: 'admin'
       });
       
-      return await handleResponse(response);
+      const result = await handleResponse(response);
+      return result;
     } catch (error) {
       console.error('❌ Get all users error:', error.message);
       throw error;
     }
   },
 
-  // Block/Unblock user
+  // Toggle user block status
   toggleUserBlock: async (userId, block = true) => {
-    const endpoint = `${API_CONFIG.BASE_URL}/admin/users/${userId}/${block ? 'block' : 'unblock'}`;
-    logApiCall('PUT', endpoint);
+    const endpoint = `${API_CONFIG.BASE_URL}/admin/users/${userId}/block`;
+    logApiCall('POST', endpoint, { block });
     
     try {
       const response = await fetchWithTimeout(endpoint, {
-        method: 'PUT'
+        method: 'POST',
+        body: JSON.stringify({ block }),
+        userType: 'admin'
       });
       
-      return await handleResponse(response);
+      const result = await handleResponse(response);
+      return result;
     } catch (error) {
       console.error('❌ Toggle user block error:', error.message);
       throw error;
     }
   },
 
-  // Delete post (admin)
+  // Delete post as admin
   deletePostAdmin: async (postId) => {
-    const endpoint = `${API_CONFIG.BASE_URL}/admin/posts/${postId}`;
-    logApiCall('DELETE', endpoint);
+    const actualPostId = (typeof postId === 'object' && postId.post_id) ? postId.post_id : postId;
+    const endpoint = `${API_CONFIG.BASE_URL}/admin/posts/${actualPostId}/delete`;
+    logApiCall('POST', endpoint);
     
     try {
       const response = await fetchWithTimeout(endpoint, {
-        method: 'DELETE'
+        method: 'POST',
+        body: JSON.stringify({}),
+        userType: 'admin'
       });
       
-      return await handleResponse(response);
+      const result = await handleResponse(response);
+      return result;
     } catch (error) {
       console.error('❌ Admin delete post error:', error.message);
       throw error;
     }
   },
 
-  // Get blocked users (admin only)
+  // Get blocked users
   getBlockedUsers: async () => {
-    const endpoint = `${API_CONFIG.BASE_URL}/admin/get_blocked_users`;
+    const endpoint = `${API_CONFIG.BASE_URL}/admin/blocked-users`;
+    logApiCall('GET', endpoint);
     
     try {
-      logApiCall('POST', endpoint);
-
       const response = await fetchWithTimeout(endpoint, {
-        method: 'POST',
-        body: JSON.stringify({})
+        method: 'GET',
+        userType: 'admin'
       });
-
+      
       const result = await handleResponse(response);
       return result;
     } catch (error) {
@@ -1466,16 +1114,16 @@ export const adminAPI = {
     }
   },
 
-  // Admin delete comment (admin can delete any comment)
+  // Admin delete comment
   adminDeleteComment: async (commentId) => {
     const endpoint = `${API_CONFIG.BASE_URL}/admin/comments/${commentId}/delete`;
+    logApiCall('POST', endpoint);
     
     try {
-      logApiCall('POST', endpoint);
-      
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
-        body: JSON.stringify({})
+        body: JSON.stringify({}),
+        userType: 'admin'
       });
       
       const result = await handleResponse(response);
@@ -1486,16 +1134,16 @@ export const adminAPI = {
     }
   },
 
-  // Admin delete reply (admin can delete any reply)
+  // Admin delete reply
   adminDeleteReply: async (postId, commentId, replyId) => {
     const endpoint = `${API_CONFIG.BASE_URL}/admin/posts/${postId}/comments/${commentId}/replies/${replyId}/delete`;
+    logApiCall('POST', endpoint);
     
     try {
-      logApiCall('POST', endpoint);
-      
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
-        body: JSON.stringify({})
+        body: JSON.stringify({}),
+        userType: 'admin'
       });
       
       const result = await handleResponse(response);
@@ -1512,53 +1160,43 @@ export const adminAPI = {
 // =============================================================================
 
 export const utilityAPI = {
-
-  // Get server info
+  // Get server information
   getServerInfo: async () => {
     const endpoint = `${API_CONFIG.BASE_URL}/info`;
+    logApiCall('GET', endpoint);
     
     try {
       const response = await fetchWithTimeout(endpoint, {
         method: 'GET'
       });
       
-      return await handleResponse(response);
+      const result = await handleResponse(response);
+      return result;
     } catch (error) {
       console.error('❌ Get server info error:', error.message);
       throw error;
     }
   },
 
-  // Cookie management utilities
+  // Authentication utilities
   auth: {
-    // Set authentication tokens in cookies
     setTokens: (employeeToken, adminToken, employeeId = null) => {
-      cookieUtils.setAuthTokens(employeeToken, adminToken, employeeId);
+      storeTokenInCookies(employeeToken, adminToken, employeeId);
     },
-    
-    // Get authentication tokens from cookies
     getTokens: () => {
       return cookieUtils.getAuthTokens();
     },
-    
-    // Clear all authentication tokens
     clearTokens: () => {
       cookieUtils.clearAuthTokens();
     },
-    
-    // Check if user is authenticated
     isAuthenticated: () => {
-      return cookieUtils.isAuthenticated();
+      return !!getAuthToken();
     },
-    
-    // Check if employee is authenticated (both token and ID required)
     isEmployeeAuthenticated: () => {
-      return cookieUtils.isEmployeeAuthenticated();
+      return !!getAuthToken('employee');
     },
-    
-    // Check if admin is authenticated
     isAdminAuthenticated: () => {
-      return cookieUtils.isAdminAuthenticated();
+      return !!getAuthToken('admin');
     }
   }
 };
@@ -1567,62 +1205,42 @@ export const utilityAPI = {
 // MAIN API OBJECT - CENTRALIZED ACCESS POINT
 // =============================================================================
 const api = {
-  // Configuration
   config: API_CONFIG,
-  
-  // Core APIs
   user: userAPI,
   posts: postsAPI,
   media: mediaAPI,
   notifications: notificationsAPI,
   admin: adminAPI,
   utility: utilityAPI,
-  
-  // Utility functions
   utils: {
     handleResponse,
     fetchWithTimeout,
     logApiCall,
     checkAuthToken
   },
-  
-  // Convenience methods for common operations
   auth: {
     isLoggedIn: () => userAPI.isAuthenticated(),
     getCurrentUser: () => userAPI.getUserSession(),
     getCurrentToken: () => userAPI.getCurrentToken(),
     storeToken: (token) => userAPI.storeToken(token),
     clearToken: () => userAPI.clearSession(),
-    // Token-based authentication with environment detection
     checkAuth: () => {
-      const currentToken = getAuthToken();
-      if (!currentToken) {
-        if (typeof window !== 'undefined' && window.location.hostname !== "localhost") {
-          window.location.href = 'https://dev.gofloww.co';
-          return false;
-        }
+      try {
+        return checkAuthToken();
+      } catch (error) {
+        console.error('❌ Auth check failed:', error.message);
         return false;
       }
-      return true;
     }
   },
-  
-  // Quick access methods
   quick: {
-    // Quick post creation
     post: (content, options = {}) => postsAPI.createPost({
       content,
       ...options
     }),
-    
-    // Quick user lookup
     getUser: (userId) => userAPI.getUserById(userId),
-    
-    // Quick posts fetch
     getFeed: (page = 1) => postsAPI.getPosts(page),
   },
-  
-  // Error constants
   errors: {
     NETWORK_ERROR: 'NETWORK_ERROR',
     TIMEOUT_ERROR: 'TIMEOUT_ERROR',
@@ -1630,7 +1248,9 @@ const api = {
     NOT_FOUND: 'NOT_FOUND',
     SERVER_ERROR: 'SERVER_ERROR'
   }
-};// =============================================================================
+};
+
+// =============================================================================
 // EXPORTS
 // =============================================================================
 
@@ -1651,24 +1271,13 @@ export default api;
 
 // Initialize API on load
 if (typeof window !== 'undefined') {
-  // Browser environment - check authentication token
-  const currentToken = getAuthToken();
-  
-  if (!currentToken) {
-    if (window.location.hostname === "localhost") {
-      console.error('❌ No authentication token found for localhost development');
-    } else {
-      console.warn('⚠️ No authentication token found, redirecting to Floww');
-      window.location.href = 'https://dev.gofloww.co';
-    }
-  } else {
-    const environment = window.location.hostname === "localhost" ? 'development' : 'production';
-    const tokenSource = window.location.hostname === "localhost" ? 'hardcoded' : 'cookie';
-    
-    // Store token in cookies if not already stored (for production)
-    const { employeeToken, employeeId, adminToken } = cookieUtils.getAuthTokens();
-    if (environment === 'production' && !employeeToken && !adminToken) {
-      storeTokenInCookies(currentToken, null, null);
-    }
+  // Check if we're in development mode and log initialization
+  if (process.env.NODE_ENV === 'development') {
+    console.log('🚀 API initialized', {
+      baseUrl: API_CONFIG.BASE_URL,
+      timeout: API_CONFIG.TIMEOUT,
+      authenticated: userAPI.isAuthenticated(),
+      userType: getCurrentUserType()
+    });
   }
 }

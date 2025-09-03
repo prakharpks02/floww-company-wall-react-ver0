@@ -1,6 +1,6 @@
 // Custom hook for mentions handling
 import { useState } from 'react';
-import { userAPI } from '../../../services/api';
+import { userAPI } from '../../../services/api.jsx';
 
 export const useMentionsHandling = () => {
   const [showMentions, setShowMentions] = useState(false);

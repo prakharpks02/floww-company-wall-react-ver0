@@ -1,5 +1,5 @@
 // Custom hook for user management (blocking/unblocking users)
-import { adminAPI } from '../../../services/adminAPI';
+import { adminAPI } from '../../../services/adminAPI.jsx';
 
 export const useUserActions = (posts, setPosts, pinnedPosts, setPinnedPosts, setError) => {
   

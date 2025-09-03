@@ -1,6 +1,6 @@
 // Custom hooks for tags and mentions handling
 import { useState } from 'react';
-import { adminAPI } from '../../../services/adminAPI';
+import { adminAPI } from '../../../services/adminAPI.jsx';
 
 export const useTagsAndMentions = (tags, getAllEmployees, showError) => {
   const [selectedTags, setSelectedTags] = useState([]);

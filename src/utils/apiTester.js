@@ -1,7 +1,7 @@
 // API Testing Utility for Backend Integration
 // This file demonstrates how to use the centralized API service
 
-import api from '../services/api';
+import api from '../services/api.jsx';
 
 /**
  * Test user creation functionality

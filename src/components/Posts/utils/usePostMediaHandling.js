@@ -1,6 +1,6 @@
 // Custom hook for media handling in posts
 import { useState, useRef } from 'react';
-import { mediaAPI } from '../../../services/api';
+import { mediaAPI } from '../../../services/api.jsx';
 import { formatFileSize } from '../../../utils/helpers';
 
 export const usePostMediaHandling = () => {

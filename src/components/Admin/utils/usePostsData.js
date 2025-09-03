@@ -1,6 +1,6 @@
 // Custom hook for loading posts data
 import { useState } from 'react';
-import { adminAPI } from '../../../services/adminAPI';
+import { adminAPI } from '../../../services/adminAPI.jsx';
 import { transformPostMedia, fetchPinnedPosts, filterNonBroadcastPosts } from './postTransformUtils';
 
 export const usePostsData = () => {
