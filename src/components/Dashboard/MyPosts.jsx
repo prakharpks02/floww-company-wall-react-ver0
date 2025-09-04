@@ -13,18 +13,50 @@ import {
   Eye,
   MessageCircle,
   Heart,
-  Share2
+  Share2,
+  Filter,
+  ChevronDown
 } from 'lucide-react';
 
 const MyPosts = () => {
   const { user } = useAuth();
-  const { deletePost, posts, loading, reloadPosts } = usePost();
+  const { deletePost, posts, loading, reloadPosts, tags } = usePost();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [error, setError] = useState(null);
+  const [selectedTag, setSelectedTag] = useState('All');
+  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
 
-  // Since /api/wall/posts/me already returns filtered posts for current user,
-  // we can use them directly without additional filtering
-  const myPosts = posts || [];
+  // Filter posts by selected tag
+  const myPosts = posts?.filter(post => {
+    if (selectedTag === 'All') return true;
+    if (!post.tags || post.tags.length === 0) return selectedTag === 'Uncategorized';
+    
+    return post.tags.some(tag => {
+      const tagName = typeof tag === 'string' ? tag : (tag.tag_name || tag.name || '');
+      return tagName === selectedTag;
+    });
+  }) || [];
+
+  // Create filter options including 'All' and 'Uncategorized'
+  const filterOptions = [
+    'All',
+    ...tags,
+    'Uncategorized'
+  ];
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showFilterDropdown && !event.target.closest('.filter-dropdown')) {
+        setShowFilterDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showFilterDropdown]);
 
   const handleCreatePost = async () => {
     // The CreatePost component will handle the post creation
@@ -90,15 +122,52 @@ const MyPosts = () => {
     <div className="max-w-4xl mx-auto">
       {/* Header */}
      <div className="flex items-center justify-between mb-4 sm:mb-6">
-  {/* Left Section - Heading and Subtext */}
-  <div>
-    <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center">
-      <FileText className="h-5 w-5 sm:h-6 sm:w-6 mr-2" style={{ color: '#9f7aea' }} />
-      My Posts
-    </h1>
-    <p className="text-sm sm:text-base text-gray-600 mt-1">
-      Manage and view all your posts in one place.
-    </p>
+  {/* Left Section - Heading and Filter */}
+  <div className="flex items-center space-x-4">
+    <div>
+      <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center">
+        <FileText className="h-5 w-5 sm:h-6 sm:w-6 mr-2" style={{ color: '#9f7aea' }} />
+        My Posts
+      </h1>
+      <p className="text-sm sm:text-base text-gray-600 mt-1">
+        Manage and view all your posts in one place.
+      </p>
+    </div>
+    
+    {/* Category Filter */}
+    <div className="relative filter-dropdown">
+      <button
+        onClick={() => setShowFilterDropdown(!showFilterDropdown)}
+        className="flex items-center space-x-2 px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm"
+      >
+        <Filter className="h-4 w-4 text-gray-500" />
+        <span className="text-gray-700">{selectedTag}</span>
+        <ChevronDown className="h-4 w-4 text-gray-500" />
+      </button>
+      
+      {showFilterDropdown && (
+        <div className="absolute top-full left-0 mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+          <div className="py-1">
+            {filterOptions.map((option) => (
+              <button
+                key={option}
+                onClick={() => {
+                  setSelectedTag(option);
+                  setShowFilterDropdown(false);
+                }}
+                className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors ${
+                  selectedTag === option 
+                    ? 'bg-purple-50 text-purple-700 font-medium' 
+                    : 'text-gray-700'
+                }`}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   </div>
 
   {/* Right Section - New Post Button */}

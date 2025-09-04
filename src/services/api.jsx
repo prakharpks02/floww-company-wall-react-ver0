@@ -106,8 +106,13 @@ const fetchWithTimeout = async (url, options = {}) => {
   const cacheKey = `${options.method || 'GET'}-${url}-${JSON.stringify(options.body || {})}-${Date.now() - (Date.now() % CACHE_DURATION)}`;
   const simpleKey = `${options.method || 'GET'}-${url.split('?')[0]}`; // For active request tracking
   
-  // Check if the same request is already in progress
-  if (activeRequests.has(simpleKey)) {
+  // Check if this endpoint should allow multiple simultaneous requests
+  const allowConcurrentRequests = url.includes('/current_user') || 
+                                 url.includes('/get_single_post') ||
+                                 url.includes('/reactions');
+  
+  // Check if the same request is already in progress (but allow certain endpoints)
+  if (!allowConcurrentRequests && activeRequests.has(simpleKey)) {
     console.log('🚫 Blocking duplicate request for:', url.split('/').pop());
     throw new Error('Duplicate request blocked');
   }
@@ -143,8 +148,10 @@ const fetchWithTimeout = async (url, options = {}) => {
   const { userType: _, ...fetchOptions } = options;
   
   const requestPromise = (async () => {
-    // Mark request as active
-    activeRequests.add(simpleKey);
+    // Mark request as active (only if we're tracking duplicates for this endpoint)
+    if (!allowConcurrentRequests) {
+      activeRequests.add(simpleKey);
+    }
     
     try {
       const response = await fetch(url, {
@@ -170,8 +177,10 @@ const fetchWithTimeout = async (url, options = {}) => {
       }
       throw error;
     } finally {
-      // Remove from active requests
-      activeRequests.delete(simpleKey);
+      // Remove from active requests (only if we were tracking)
+      if (!allowConcurrentRequests) {
+        activeRequests.delete(simpleKey);
+      }
     }
   })();
   
@@ -549,7 +558,10 @@ export const postsAPI = {
     try {
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
-        body: JSON.stringify({ reactionType: 'like' })
+        body: JSON.stringify({ 
+          reactionType: 'like',
+          reaction_type: 'like' // Add both formats for compatibility
+        })
       });
       
       const result = await handleResponse(response);
@@ -566,16 +578,30 @@ export const postsAPI = {
     const actualPostId = (typeof postId === 'object' && postId.post_id) ? postId.post_id : postId;
     const endpoint = `${API_CONFIG.BASE_URL}/posts/${actualPostId}/reactions`;
     
+    // Prepare request body with multiple formats for compatibility
+    const requestBody = {
+      reactionType: reactionType,
+      reaction_type: reactionType // Some backends expect snake_case
+    };
+    
+    // Only add emoji if it's provided and not undefined
+    if (emoji !== undefined && emoji !== null) {
+      requestBody.emoji = emoji;
+    }
+    
+    logApiCall('POST', endpoint, requestBody);
+    
     try {
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
-        body: JSON.stringify({ reactionType, emoji })
+        body: JSON.stringify(requestBody)
       });
       
       const result = await handleResponse(response);
       return result;
     } catch (error) {
       console.error('❌ Add reaction error:', error.message);
+      console.error('❌ Request body was:', requestBody);
       throw error;
     }
   },
@@ -586,16 +612,24 @@ export const postsAPI = {
     const actualPostId = (typeof postId === 'object' && postId.post_id) ? postId.post_id : postId;
     const endpoint = `${API_CONFIG.BASE_URL}/posts/${actualPostId}/reactions/delete`;
     
+    const requestBody = {
+      reactionType: reactionType,
+      reaction_type: reactionType // Add both formats for compatibility
+    };
+    
+    logApiCall('POST', endpoint, requestBody);
+    
     try {
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
-        body: JSON.stringify({ reactionType })
+        body: JSON.stringify(requestBody)
       });
       
       const result = await handleResponse(response);
       return result;
     } catch (error) {
       console.error('❌ Remove reaction error:', error.message);
+      console.error('❌ Request body was:', requestBody);
       throw error;
     }
   },
@@ -715,18 +749,31 @@ export const postsAPI = {
   // Add reaction to comment
   addCommentReaction: async (commentId, reactionType, emoji = null) => {
     const endpoint = `${API_CONFIG.BASE_URL}/comments/${commentId}/reactions`;
-    logApiCall('POST', endpoint, { reactionType, emoji });
+    
+    // Prepare request body with multiple formats for compatibility
+    const requestBody = {
+      reactionType: reactionType,
+      reaction_type: reactionType // Some backends expect snake_case
+    };
+    
+    // Only add emoji if it's provided and not null/undefined
+    if (emoji !== null && emoji !== undefined) {
+      requestBody.emoji = emoji;
+    }
+    
+    logApiCall('POST', endpoint, requestBody);
     
     try {
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
-        body: JSON.stringify({ reactionType, emoji })
+        body: JSON.stringify(requestBody)
       });
       
       const result = await handleResponse(response);
       return result;
     } catch (error) {
       console.error('❌ Add comment reaction error:', error.message);
+      console.error('❌ Request body was:', requestBody);
       throw error;
     }
   },
@@ -734,18 +781,25 @@ export const postsAPI = {
   // Delete reaction from comment
   deleteCommentReaction: async (commentId, reactionType) => {
     const endpoint = `${API_CONFIG.BASE_URL}/comments/${commentId}/reactions/delete`;
-    logApiCall('POST', endpoint, { reactionType });
+    
+    const requestBody = {
+      reactionType: reactionType,
+      reaction_type: reactionType // Add both formats for compatibility
+    };
+    
+    logApiCall('POST', endpoint, requestBody);
     
     try {
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
-        body: JSON.stringify({ reactionType })
+        body: JSON.stringify(requestBody)
       });
       
       const result = await handleResponse(response);
       return result;
     } catch (error) {
       console.error('❌ Delete comment reaction error:', error.message);
+      console.error('❌ Request body was:', requestBody);
       throw error;
     }
   },

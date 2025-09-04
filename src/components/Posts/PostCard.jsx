@@ -61,6 +61,7 @@ const PostCard = ({
 
     // Computed values
     isLiked,
+    hasAnyReaction,
     isAuthor,
     isBlocked,
     emojiReactions,
@@ -90,6 +91,7 @@ const PostCard = ({
     getTotalLikes,
     getTotalReactions,
     getTopReactions,
+    getAllReactions,
     getCommentTopReactions,
     getCommentTotalReactions,
     getTotalComments,
@@ -360,6 +362,7 @@ const PostCard = ({
             totalComments={getTotalComments()}
             // shareCount={shareCount}
             getTopReactions={getTopReactions}
+            getAllReactions={getAllReactions}
           />
         </div>
 
@@ -367,11 +370,13 @@ const PostCard = ({
         <div className="flex items-center justify-between">
           <PostActions
             isLiked={isLiked}
+            hasAnyReaction={hasAnyReaction}
             isPublicView={isPublicView}
             isBlocked={isBlocked}
             isAdmin={user?.is_admin}
             handleLike={handleLike}
             totalLikes={getTotalLikes()}
+            getAllReactions={getAllReactions}
             getUserReaction={getUserReaction}
             emojiReactions={emojiReactions}
             showReactions={showReactions}

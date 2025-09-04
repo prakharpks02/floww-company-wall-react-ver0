@@ -108,9 +108,14 @@ const CommentItem = ({
         comment.reactions.forEach(reaction => {
           const reactionType = reaction.reaction_type;
           if (!reactionsObj[reactionType]) {
-            reactionsObj[reactionType] = [];
+            reactionsObj[reactionType] = { users: [], count: 0 };
           }
-          reactionsObj[reactionType].push({ user_id: reaction.user_id });
+          // Handle both user_id and employee_id from API
+          const userId = reaction.user_id || reaction.employee_id;
+          if (userId && !reactionsObj[reactionType].users.includes(userId)) {
+            reactionsObj[reactionType].users.push(userId);
+            reactionsObj[reactionType].count++;
+          }
         });
         return reactionsObj;
       }
@@ -364,7 +369,7 @@ const CommentItem = ({
               {(() => {
                 const userReaction = getCommentUserReaction(normalizedComment);
          
-                if (userReaction && userReaction !== 'like') {
+                if (userReaction && userReaction !== 'like' && userReaction !== 'love') {
                   // Show the emoji for the user's reaction
                   const reaction = emojiReactions.find(r => r.name === userReaction);
                   return (
@@ -373,40 +378,33 @@ const CommentItem = ({
                     </span>
                   );
                 } else {
-                  // Show heart for like or default state
+                  // Show heart for love/like or default state
          
                   return (
                     <Heart className={`h-4 w-4 ${
-                      userReaction === 'like' 
+                      (userReaction === 'like' || userReaction === 'love')
                         ? 'fill-current text-red-600' 
                         : ''
                     }`} />
                   );
                 }
               })()}
-              <span>
-                {(() => {
-                  const userReaction = getCommentUserReaction(normalizedComment);
-                  if (userReaction && userReaction !== 'like') {
-                    // Show the reaction name
-                    const reaction = emojiReactions.find(r => r.name === userReaction);
-                    return reaction?.label || 'React';
-                  }
-                  return 'Like';
-                })()}
-              </span>
+              {/* Removed reaction name text - just show emoji */}
               
               {/* Reaction Count */}
               {(() => {
                 const reactions = normalizedComment.reactions || {};
-                const totalCount = Object.values(reactions).reduce((total, users) => {
-                  if (Array.isArray(users)) {
-                    return total + users.length;
+                const totalCount = Object.values(reactions).reduce((total, reaction) => {
+                  if (Array.isArray(reaction)) {
+                    // Handle old array format
+                    return total + reaction.length;
+                  } else if (reaction && typeof reaction === 'object' && reaction.count) {
+                    // Handle new object format {users: [], count: 0}
+                    return total + reaction.count;
                   }
                   return total;
                 }, 0);
                 
-              
                 return totalCount > 0 ? (
                   <span className="text-xs bg-gray-100 px-2 py-1 rounded-full">
                     {totalCount}

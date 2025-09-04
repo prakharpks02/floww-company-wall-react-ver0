@@ -425,3 +425,34 @@ body {
 .neomorphic-scroll::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(135deg, rgba(109, 40, 217, 0.5), rgba(192, 132, 252, 0.5));
 }
+
+/* Mobile reaction modal animations */
+@keyframes slide-up {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out;
+}
+
+@keyframes scale-in {
+  from {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-scale-in {
+  animation: scale-in 0.2s ease-out;
+}

@@ -9,10 +9,12 @@ const PostTags = ({ tags }) => {
       {tags.map((tag, index) => {
         // Handle both string tags and object tags from backend
         const tagName = typeof tag === 'string' ? tag : tag.tag_name || tag.name || 'tag';
-        const tagKey = typeof tag === 'string' ? tag : tag.tag_name || tag.name || `tag-${index}`;
+        // Use index to ensure unique keys even with duplicate tag names
+        const tagKey = `${tagName}-${index}`;
+        
         return (
           <span
-            key={tagKey || index}
+            key={tagKey}
             className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium text-white"
             style={{ backgroundColor: '#9f7aea' }}
           >

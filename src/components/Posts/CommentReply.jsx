@@ -73,14 +73,17 @@ const CommentReply = ({
         reply.reactions.forEach(reaction => {
           const reactionType = reaction.reaction_type;
           if (!reactionsObj[reactionType]) {
-            reactionsObj[reactionType] = [];
+            reactionsObj[reactionType] = { users: [], count: 0 };
           }
-          reactionsObj[reactionType].push({ user_id: reaction.user_id });
+          // Handle both user_id and employee_id from API
+          const userId = reaction.user_id || reaction.employee_id;
+          if (userId && !reactionsObj[reactionType].users.includes(userId)) {
+            reactionsObj[reactionType].users.push(userId);
+            reactionsObj[reactionType].count++;
+          }
         });
-     
         return reactionsObj;
       }
-     
       return reply.reactions || {};
     })(),
     content: reply.content || reply.comment || reply.text || reply.reply_content || '',
@@ -310,7 +313,7 @@ const CommentReply = ({
                   }
                   
                   // For logged-in users, show their specific reaction
-                  if (userReaction && userReaction !== 'like') {
+                  if (userReaction && userReaction !== 'like' && userReaction !== 'love') {
                     // Show the emoji for the user's reaction
                     const reaction = emojiReactions.find(r => r.name === userReaction);
                     return (
@@ -319,37 +322,28 @@ const CommentReply = ({
                       </span>
                     );
                   } else {
-                    // Show heart for like or default state
+                    // Show heart for love/like or default state
                     return (
                       <Heart className={`h-3 w-3 ${
-                        userReaction === 'like' 
+                        (userReaction === 'like' || userReaction === 'love')
                           ? 'fill-current text-red-600' 
                           : ''
                       }`} />
                     );
                   }
                 })()}
-                <span>
-                  {(() => {
-                    if (isPublicView) {
-                      return 'Like';
-                    }
-                    const userReaction = getCommentUserReaction(normalizedReply);
-                    if (userReaction && userReaction !== 'like') {
-                      // Show the reaction name
-                      const reaction = emojiReactions.find(r => r.name === userReaction);
-                      return reaction?.label || 'React';
-                    }
-                    return 'Like';
-                  })()}
-                </span>
+                {/* Removed reaction name text - just show emoji */}
                 
                 {/* Reaction Count - Always show if there are reactions */}
                 {(() => {
                   const reactions = normalizedReply.reactions || {};
-                  const totalCount = Object.values(reactions).reduce((total, users) => {
-                    if (Array.isArray(users)) {
-                      return total + users.length;
+                  const totalCount = Object.values(reactions).reduce((total, reaction) => {
+                    if (Array.isArray(reaction)) {
+                      // Handle old array format
+                      return total + reaction.length;
+                    } else if (reaction && typeof reaction === 'object' && reaction.count) {
+                      // Handle new object format {users: [], count: 0}
+                      return total + reaction.count;
                     }
                     return total;
                   }, 0);
@@ -388,47 +382,7 @@ const CommentReply = ({
           </div>
         </div>
         
-        {/* Show Reaction Count Summary - Always show if reactions exist */}
-        {(() => {
-          const reactions = normalizedReply.reactions || {};
-          const totalCount = Object.values(reactions).reduce((total, users) => {
-            if (Array.isArray(users)) {
-              return total + users.length;
-            }
-            return total;
-          }, 0);
-          
-          if (totalCount > 0) {
-            // Show reaction summary with emojis
-            const reactionSummary = Object.entries(reactions)
-              .filter(([_, users]) => Array.isArray(users) && users.length > 0)
-              // .map(([reactionType, users]) => {
-              //   const reactionInfo = emojiReactions.find(r => r.name === reactionType);
-              //   return {
-              //     // emoji: reactionInfo?.emoji || '👍',
-              //     // count: users.length
-              //   };
-              // });
-            
-            return (
-              <div className="mt-1 flex items-center space-x-2 text-xs text-gray-500">
-                <div className="flex items-center space-x-1">
-                  {reactionSummary.map((reaction, index) => (
-                    <span key={index} className="flex items-center">
-                      <span className="text-sm">{reaction.emoji}</span>
-                      <span className="ml-1">{reaction.count}</span>
-                    </span>
-                  ))}
-                </div>
-                {totalCount > 1 && (
-                  <span>• {totalCount} reactions</span>
-                )}
-              </div>
-            );
-          }
-          
-          return null;
-        })()}
+        {/* Removed duplicate reaction summary - reactions already shown in button */}
       </div>
       
       {/* Report Modal */}

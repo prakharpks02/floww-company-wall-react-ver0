@@ -48,85 +48,119 @@ export const PostProvider = ({ children }) => {
 
   // Helper function to normalize reactions from various backend formats to frontend object format
   const normalizeReactions = (reactionsArray) => {
+    try {
+      if (!Array.isArray(reactionsArray)) {
+        // If it's already an object, validate and return
+        if (reactionsArray && typeof reactionsArray === 'object') {
+          const validatedReactions = {};
+          Object.entries(reactionsArray).forEach(([type, reaction]) => {
+            if (reaction && typeof reaction === 'object') {
+              validatedReactions[type] = {
+                users: Array.isArray(reaction.users) ? reaction.users : [],
+                count: typeof reaction.count === 'number' ? reaction.count : 0
+              };
+            }
+          });
+          return validatedReactions;
+        }
+        return {};
+      }
+      
+      if (reactionsArray.length === 0) {
+        return {};
+      }
+      
+      const reactionsObject = {};
+      
+      // Group reactions by type
+      reactionsArray.forEach((reaction, index) => {
+        try {
+          const reactionType = reaction.reaction_type;
+          const userId = reaction.user_id;
+          
+          if (!reactionType || !userId) {
+            console.warn(`⚠️ Invalid reaction at index ${index}:`, reaction);
+            return;
+          }
 
-    
-    if (!Array.isArray(reactionsArray)) {
-      // If it's already an object, return as is
-      return reactionsArray || {};
-    }
-    
-    if (reactionsArray.length === 0) {
-    
+          if (!reactionsObject[reactionType]) {
+            reactionsObject[reactionType] = {
+              users: [],
+              count: 0
+            };
+          }
+          
+          // Add user if not already in the list
+          if (!reactionsObject[reactionType].users.includes(userId)) {
+            reactionsObject[reactionType].users.push(userId);
+            reactionsObject[reactionType].count++;
+          }
+        } catch (error) {
+          console.warn(`⚠️ Error processing reaction at index ${index}:`, error);
+        }
+      });
+
+      return reactionsObject;
+    } catch (error) {
+      console.warn('⚠️ Error in normalizeReactions:', error);
       return {};
     }
-    
-    const reactionsObject = {};
-    
-    // Group reactions by type
-    reactionsArray.forEach((reaction, index) => {
-  
-      const reactionType = reaction.reaction_type;
-      const userId = reaction.user_id;
-      
-
-      if (!reactionsObject[reactionType]) {
-        reactionsObject[reactionType] = {
-          users: [],
-          count: 0
-        };
-      }
-      
-      // Add user if not already in the list
-      if (!reactionsObject[reactionType].users.includes(userId)) {
-        reactionsObject[reactionType].users.push(userId);
-        reactionsObject[reactionType].count++;
-        
-      } else {
-       
-      }
-    });
-    
-
-    return reactionsObject;
   };
 
   // Helper function to normalize reaction_counts format to frontend object format
   const normalizeReactionCounts = (reactionCounts) => {
- 
-    
-    if (!reactionCounts || typeof reactionCounts !== 'object') {
-   
+    try {
+      if (!reactionCounts || typeof reactionCounts !== 'object') {
+        return {};
+      }
+      
+      const reactionsObject = {};
+      
+      // Convert reaction_counts format (e.g., {like: 1, love: 2}) to frontend format
+      Object.entries(reactionCounts).forEach(([reactionType, count]) => {
+        if (typeof count === 'number' && count > 0) {
+          reactionsObject[reactionType] = {
+            users: [], // We don't have user list in reaction_counts format, will be populated from other sources
+            count: count
+          };
+        }
+      });
+      
+      return reactionsObject;
+    } catch (error) {
+      console.warn('⚠️ Error in normalizeReactionCounts:', error);
       return {};
     }
-    
-    const reactionsObject = {};
-    
-    // Convert reaction_counts format (e.g., {like: 1, love: 2}) to frontend format
-    Object.entries(reactionCounts).forEach(([reactionType, count]) => {
-      if (count > 0) {
-        reactionsObject[reactionType] = {
-          users: [], // We don't have user list in reaction_counts format, will be populated from other sources
-          count: count
-        };
-      
-      }
-    });
-    
-   
-    return reactionsObject;
   };
 
   // Normalize post data to ensure consistent format
   const normalizePost = (rawPost) => {
     let normalizedReactions = {};
     
-    // Handle new reaction_counts format first (takes priority)
-    if (rawPost.reaction_counts) {
-      normalizedReactions = normalizeReactionCounts(rawPost.reaction_counts);
-    } 
-    // Fallback to old reactions array format
-    else if (rawPost.reactions) {
-      normalizedReactions = normalizeReactions(rawPost.reactions);
+    try {
+      // Handle new reaction_counts format first (takes priority)
+      if (rawPost.reaction_counts && typeof rawPost.reaction_counts === 'object') {
+        normalizedReactions = normalizeReactionCounts(rawPost.reaction_counts);
+      } 
+      // Fallback to old reactions array format
+      else if (rawPost.reactions) {
+        if (Array.isArray(rawPost.reactions)) {
+          normalizedReactions = normalizeReactions(rawPost.reactions);
+        } else if (typeof rawPost.reactions === 'object') {
+          // Validate existing object format
+          Object.entries(rawPost.reactions).forEach(([type, reaction]) => {
+            if (reaction && typeof reaction === 'object') {
+              normalizedReactions[type] = {
+                users: Array.isArray(reaction.users) ? reaction.users : [],
+                count: typeof reaction.count === 'number' ? reaction.count : 0
+              };
+            }
+          });
+        }
+      }
+    } catch (error) {
+      console.warn('⚠️ Error normalizing post reactions:', error);
+      normalizedReactions = {};
     }
     
     // Extract author information from backend format with better fallbacks
@@ -159,29 +193,88 @@ export const PostProvider = ({ children }) => {
         timestamp: comment.created_at || comment.timestamp,
         content: comment.content,
         reactions: (() => {
-          // Normalize comment reactions from array to object format
-          if (Array.isArray(comment.reactions)) {
-            const reactionsObj = {};
-            comment.reactions.forEach(reaction => {
-              const type = reaction.reaction_type || reaction.type;
-              const userId = reaction.user_id || reaction.userId;
-              
-              if (!reactionsObj[type]) {
-                reactionsObj[type] = { users: [], count: 0 };
-              }
-              if (!reactionsObj[type].users.includes(userId)) {
-                reactionsObj[type].users.push(userId);
-                reactionsObj[type].count++;
-              }
-            });
-            return reactionsObj;
-          } else if (comment.reactions && typeof comment.reactions === 'object') {
-            return comment.reactions;
-          } else {
+          // Normalize comment reactions from array to object format with better error handling
+          try {
+            if (Array.isArray(comment.reactions)) {
+              const reactionsObj = {};
+              comment.reactions.forEach(reaction => {
+                const type = reaction.reaction_type || reaction.type;
+                const userId = reaction.user_id || reaction.userId || reaction.employee_id;
+                
+                if (type && userId) {
+                  if (!reactionsObj[type]) {
+                    reactionsObj[type] = { users: [], count: 0 };
+                  }
+                  if (!reactionsObj[type].users.includes(userId)) {
+                    reactionsObj[type].users.push(userId);
+                    reactionsObj[type].count++;
+                  }
+                }
+              });
+              return reactionsObj;
+            } else if (comment.reactions && typeof comment.reactions === 'object' && comment.reactions !== null) {
+              // Validate object format reactions
+              const validatedReactions = {};
+              Object.entries(comment.reactions).forEach(([type, reaction]) => {
+                if (reaction && typeof reaction === 'object') {
+                  validatedReactions[type] = {
+                    users: Array.isArray(reaction.users) ? reaction.users : [],
+                    count: typeof reaction.count === 'number' ? reaction.count : 0
+                  };
+                }
+              });
+              return validatedReactions;
+            } else {
+              return {};
+            }
+          } catch (error) {
+            console.warn('⚠️ Error normalizing comment reactions:', error);
             return {};
           }
         })(),
-        replies: comment.replies || []
+        replies: (comment.replies || []).map(reply => ({
+          ...reply,
+          // Normalize reply reactions the same way as comment reactions
+          reactions: (() => {
+            try {
+              if (Array.isArray(reply.reactions)) {
+                const reactionsObj = {};
+                reply.reactions.forEach(reaction => {
+                  const type = reaction.reaction_type || reaction.type;
+                  const userId = reaction.user_id || reaction.userId || reaction.employee_id;
+                  
+                  if (type && userId) {
+                    if (!reactionsObj[type]) {
+                      reactionsObj[type] = { users: [], count: 0 };
+                    }
+                    if (!reactionsObj[type].users.includes(userId)) {
+                      reactionsObj[type].users.push(userId);
+                      reactionsObj[type].count++;
+                    }
+                  }
+                });
+                return reactionsObj;
+              } else if (reply.reactions && typeof reply.reactions === 'object' && reply.reactions !== null) {
+                // Validate object format reactions
+                const validatedReactions = {};
+                Object.entries(reply.reactions).forEach(([type, reaction]) => {
+                  if (reaction && typeof reaction === 'object') {
+                    validatedReactions[type] = {
+                      users: Array.isArray(reaction.users) ? reaction.users : [],
+                      count: typeof reaction.count === 'number' ? reaction.count : 0
+                    };
+                  }
+                });
+                return validatedReactions;
+              } else {
+                return {};
+              }
+            } catch (error) {
+              console.warn('⚠️ Error normalizing reply reactions:', error);
+              return {};
+            }
+          })()
+        }))
       };
     }) || [];
 
@@ -326,6 +419,61 @@ export const PostProvider = ({ children }) => {
         // Clean up empty post entry
         if (Object.keys(updated[postId]).length === 0) {
           delete updated[postId];
+        }
+      }
+      
+      // Persist to localStorage
+      try {
+        localStorage.setItem('userReactions', JSON.stringify(updated));
+      } catch (error) {
+        console.error('Failed to save user reactions to localStorage:', error);
+      }
+      
+      return updated;
+    });
+  };
+
+  // Helper functions for comment reactions
+  const hasUserReactedToComment = (commentId, reactionType) => {
+    const commentKey = `comment_${commentId}`;
+    const commentReactions = userReactions[commentKey];
+    if (commentReactions && commentReactions[reactionType]) {
+      return true;
+    }
+    return false;
+  };
+
+  const addUserCommentReaction = (commentId, reactionType) => {
+    const commentKey = `comment_${commentId}`;
+    setUserReactions(prev => {
+      const updated = {
+        ...prev,
+        [commentKey]: {
+          ...prev[commentKey],
+          [reactionType]: true
+        }
+      };
+      
+      // Persist to localStorage
+      try {
+        localStorage.setItem('userReactions', JSON.stringify(updated));
+      } catch (error) {
+        console.error('Failed to save user reactions to localStorage:', error);
+      }
+      
+      return updated;
+    });
+  };
+
+  const removeUserCommentReaction = (commentId, reactionType) => {
+    const commentKey = `comment_${commentId}`;
+    setUserReactions(prev => {
+      const updated = { ...prev };
+      if (updated[commentKey]) {
+        delete updated[commentKey][reactionType];
+        // Clean up empty comment entry
+        if (Object.keys(updated[commentKey]).length === 0) {
+          delete updated[commentKey];
         }
       }
       
@@ -644,6 +792,40 @@ export const PostProvider = ({ children }) => {
       setLastRefreshTime(Date.now());
     } catch (error) {
       console.error('❌ Failed to refresh reactions:', error.message);
+    }
+  };
+
+  // Function to refresh reactions for a specific post only
+  const refreshSpecificPostReactions = async (postId) => {
+    try {
+      // Get the specific post data
+      const postData = await postsAPI.getPostById(postId);
+      
+      if (postData && postData.data) {
+        const updatedPost = postData.data;
+        
+        // Update only the specific post
+        setPosts(prevPosts => {
+          return prevPosts.map(prevPost => {
+            if ((prevPost.post_id || prevPost.id) === postId) {
+              // Normalize the updated post data properly
+              const normalizedUpdatedPost = normalizePost(updatedPost);
+              
+              return {
+                ...prevPost,
+                reactions: normalizedUpdatedPost.reaction_counts || normalizedUpdatedPost.reactions || prevPost.reactions,
+                reaction_counts: normalizedUpdatedPost.reaction_counts || prevPost.reaction_counts,
+                comments: normalizedUpdatedPost.comments || prevPost.comments
+              };
+            }
+            return prevPost;
+          });
+        });
+      }
+    } catch (error) {
+      console.error('❌ Failed to refresh specific post reactions:', error.message);
+      // Fallback to full refresh if specific post fetch fails
+      await refreshReactions();
     }
   };
 
@@ -1228,7 +1410,7 @@ export const PostProvider = ({ children }) => {
   };
 
   // Add reaction to comment - handles both emoji reactions and likes
-  const addCommentReaction = async (commentId, reactionType, emoji = null) => {
+  const addCommentReaction = async (commentId, reactionType, emoji = null, getUserReactionFn = null) => {
     if (!user) return;
     
     // Admin users cannot react to comments
@@ -1236,10 +1418,10 @@ export const PostProvider = ({ children }) => {
       return;
     }
 
-    // Always use 'like' as the reactionType for likes, never the emoji
-    const safeReactionType = reactionType === '❤️' ? 'like' : reactionType;
-    // Define reactionEmoji properly based on the reaction type
-    const reactionEmoji = safeReactionType === 'like' ? undefined : (emoji || '👍');
+    // Use reactionType as-is since it comes from the emojiReactions mapping
+    const safeReactionType = reactionType === 'love' ? 'like' : reactionType;
+    // Send the emoji to the backend for all reaction types
+    const reactionEmoji = emoji || '👍';
 
     // Find the comment or reply to get the backend comment_id
     let targetComment = null;
@@ -1273,6 +1455,32 @@ export const PostProvider = ({ children }) => {
     }
 
     const backendCommentId = targetComment.comment_id || commentId;
+    const currentUserId = user?.id || user?.user_id || user?.employee_id;
+
+    // Check if user already has this reaction BEFORE optimistic update
+    let hasExistingReaction = false;
+    if (getUserReactionFn) {
+      const userCurrentReaction = getUserReactionFn();
+      hasExistingReaction = userCurrentReaction === safeReactionType;
+    } else {
+      // Fallback logic for comment reactions
+      if (targetComment.reactions?.[safeReactionType]) {
+        const reactionData = targetComment.reactions[safeReactionType];
+        if (Array.isArray(reactionData)) {
+          hasExistingReaction = reactionData.includes(currentUserId);
+        } else if (reactionData.users && Array.isArray(reactionData.users)) {
+          hasExistingReaction = reactionData.users.includes(currentUserId);
+        }
+      }
+    }
+
+    console.log('🔍 Comment reaction check:', {
+      commentId,
+      safeReactionType,
+      hasExistingReaction,
+      currentUserId,
+      isReply
+    });
 
     try {
       // Optimistically update the UI first for immediate feedback
@@ -1284,57 +1492,26 @@ export const PostProvider = ({ children }) => {
               comments: post.comments?.map(comment => {
                 // Check if this is the target comment
                 if (comment.id === commentId || comment.comment_id === commentId) {
-                  const currentReactions = comment.reactions || {};
-                  const userId = user.id || user.user_id || user.employee_id;
+                  const updatedReactions = { ...comment.reactions || {} };
                   
-                  // Check if user has this specific reaction
-                  const userHasThisReaction = currentReactions[safeReactionType]?.some?.(
-                    id => id === userId
-                  ) || currentReactions[safeReactionType]?.includes?.(userId);
-
-                  let updatedReactions = { ...currentReactions };
-                  
-                  // First, remove user from ALL existing reactions (to handle switching)
+                  // Remove user from ALL reactions first (one reaction at a time rule)
                   Object.keys(updatedReactions).forEach(reactionKey => {
                     if (Array.isArray(updatedReactions[reactionKey])) {
                       updatedReactions[reactionKey] = updatedReactions[reactionKey].filter(
-                        id => id !== userId
+                        id => id !== currentUserId
                       );
-                      // Remove empty arrays
                       if (updatedReactions[reactionKey].length === 0) {
-                        delete updatedReactions[reactionKey];
-                      }
-                    } else if (updatedReactions[reactionKey]?.users) {
-                      updatedReactions[reactionKey].users = updatedReactions[reactionKey].users.filter(
-                        id => id !== userId
-                      );
-                      updatedReactions[reactionKey].count = Math.max(0, (updatedReactions[reactionKey].count || 1) - 1);
-                      // Remove empty reaction objects
-                      if (updatedReactions[reactionKey].count === 0) {
                         delete updatedReactions[reactionKey];
                       }
                     }
                   });
                   
-                  // Then, if user didn't have this specific reaction, add it
-                  if (!userHasThisReaction) {
+                  // If user didn't have this specific reaction, add it
+                  if (!hasExistingReaction) {
                     if (!updatedReactions[safeReactionType]) {
-                      updatedReactions[safeReactionType] = {
-                        users: [userId],
-                        count: 1
-                      };
-                    } else if (Array.isArray(updatedReactions[safeReactionType])) {
-                      updatedReactions[safeReactionType] = [
-                        ...updatedReactions[safeReactionType],
-                        userId
-                      ];
-                    } else {
-                      updatedReactions[safeReactionType].users = [
-                        ...(updatedReactions[safeReactionType].users || []),
-                        userId
-                      ];
-                      updatedReactions[safeReactionType].count = (updatedReactions[safeReactionType].count || 0) + 1;
+                      updatedReactions[safeReactionType] = [];
                     }
+                    updatedReactions[safeReactionType] = [...updatedReactions[safeReactionType], currentUserId];
                   }
 
                   return {
@@ -1343,61 +1520,30 @@ export const PostProvider = ({ children }) => {
                   };
                 }
                 
-                // Check if this is a reply to this comment
-                if (comment.replies?.length > 0) {
+                // Check if this is a reply within this comment
+                if (comment.replies) {
                   const updatedReplies = comment.replies.map(reply => {
                     if (reply.id === commentId || reply.comment_id === commentId) {
-                      const currentReactions = reply.reactions || {};
-                      const userId = user.id || user.user_id || user.employee_id;
+                      const updatedReactions = { ...reply.reactions || {} };
                       
-                      // Check if user has this specific reaction
-                      const userHasThisReaction = currentReactions[safeReactionType]?.some?.(
-                        id => id === userId
-                      ) || currentReactions[safeReactionType]?.includes?.(userId);
-
-                      let updatedReactions = { ...currentReactions };
-                      
-                      // First, remove user from ALL existing reactions (to handle switching)
+                      // Remove user from ALL reactions first (one reaction at a time rule)
                       Object.keys(updatedReactions).forEach(reactionKey => {
                         if (Array.isArray(updatedReactions[reactionKey])) {
                           updatedReactions[reactionKey] = updatedReactions[reactionKey].filter(
-                            id => id !== userId
+                            id => id !== currentUserId
                           );
-                          // Remove empty arrays
                           if (updatedReactions[reactionKey].length === 0) {
-                            delete updatedReactions[reactionKey];
-                          }
-                        } else if (updatedReactions[reactionKey]?.users) {
-                          updatedReactions[reactionKey].users = updatedReactions[reactionKey].users.filter(
-                            id => id !== userId
-                          );
-                          updatedReactions[reactionKey].count = Math.max(0, (updatedReactions[reactionKey].count || 1) - 1);
-                          // Remove empty reaction objects
-                          if (updatedReactions[reactionKey].count === 0) {
                             delete updatedReactions[reactionKey];
                           }
                         }
                       });
                       
-                      // Then, if user didn't have this specific reaction, add it
-                      if (!userHasThisReaction) {
+                      // If user didn't have this specific reaction, add it
+                      if (!hasExistingReaction) {
                         if (!updatedReactions[safeReactionType]) {
-                          updatedReactions[safeReactionType] = {
-                            users: [userId],
-                            count: 1
-                          };
-                        } else if (Array.isArray(updatedReactions[safeReactionType])) {
-                          updatedReactions[safeReactionType] = [
-                            ...updatedReactions[safeReactionType],
-                            userId
-                          ];
-                        } else {
-                          updatedReactions[safeReactionType].users = [
-                            ...(updatedReactions[safeReactionType].users || []),
-                            userId
-                          ];
-                          updatedReactions[safeReactionType].count = (updatedReactions[safeReactionType].count || 0) + 1;
+                          updatedReactions[safeReactionType] = [];
                         }
+                        updatedReactions[safeReactionType] = [...updatedReactions[safeReactionType], currentUserId];
                       }
 
                       return {
@@ -1422,10 +1568,24 @@ export const PostProvider = ({ children }) => {
         })
       );
 
-      // Add or toggle the reaction on the backend
-      await postsAPI.addCommentReaction(backendCommentId, safeReactionType, reactionEmoji);
+      // Call appropriate backend API based on whether we're adding or removing
+      if (hasExistingReaction) {
+        console.log('🗑️ Removing comment reaction via API:', safeReactionType);
+        await postsAPI.deleteCommentReaction(backendCommentId, safeReactionType);
+        // Remove from local user reactions state
+        removeUserCommentReaction(commentId, safeReactionType);
+      } else {
+        console.log('➕ Adding comment reaction via API:', safeReactionType);
+        await postsAPI.addCommentReaction(backendCommentId, safeReactionType, reactionEmoji);
+        // Add to local user reactions state
+        addUserCommentReaction(commentId, safeReactionType);
+      }
       
-     
+      // Refresh the post data to get updated reactions
+      const postId = parentPost?.post_id || parentPost?.id;
+      if (postId) {
+        await refreshSpecificPostReactions(postId);
+      }
 
     } catch (error) {
       console.error('❌ Comment reaction error:', error);
@@ -1436,7 +1596,7 @@ export const PostProvider = ({ children }) => {
   };
 
   // Add reaction function - handles both emoji reactions and likes
-  const addReaction = async (postId, reactionType, emoji = null, activeView = 'home') => {
+  const addReaction = async (postId, reactionType, emoji = null, activeView = 'home', getUserReactionFn = null) => {
     if (!user) return;
     
     // Admin users cannot react to posts
@@ -1444,28 +1604,190 @@ export const PostProvider = ({ children }) => {
       return;
     }
 
-    // Always use 'like' as the reactionType for likes, never the emoji
-    const safeReactionType = reactionType === '❤️' ? 'like' : reactionType;
-    // For likes, do NOT send the emoji to the backend if it doesn't expect it
-    const reactionEmoji = safeReactionType === 'like' ? undefined : (emoji || '👍');
+    // Use reactionType as-is since it comes from the emojiReactions mapping
+    const safeReactionType = reactionType;
+    // Send the emoji to the backend for all reaction types
+    const reactionEmoji = emoji || '👍';
+
+    // Optimistic update first
+    const currentUserId = user?.user_id || user?.id || user?.employee_id;
+    
+    // Check if user already has this reaction BEFORE optimistic update
+    let hasExistingReaction = false;
+    if (getUserReactionFn) {
+      const userCurrentReaction = getUserReactionFn();
+      hasExistingReaction = userCurrentReaction === safeReactionType;
+    } else {
+      // Fallback logic
+      const currentPost = posts.find(p => (p.post_id || p.id) === postId);
+      if (currentPost?.reactions?.[safeReactionType]) {
+        const reactionData = currentPost.reactions[safeReactionType];
+        if (reactionData.users && Array.isArray(reactionData.users)) {
+          hasExistingReaction = reactionData.users.includes(currentUserId);
+        } else if (typeof reactionData === 'number' && reactionData > 0) {
+          // For count-only format, we can't reliably determine if user has it
+          // This should be handled by the getUserReactionFn parameter instead
+          hasExistingReaction = false;
+        }
+      }
+    }
+
+    // Optimistic update first
+    setPosts(prevPosts => {
+      return prevPosts.map(post => {
+        if ((post.post_id || post.id) === postId) {
+          const updatedPost = { ...post };
+          
+          // Initialize reactions if they don't exist
+          if (!updatedPost.reactions) {
+            updatedPost.reactions = {};
+          }
+          if (!updatedPost.reaction_counts) {
+            updatedPost.reaction_counts = {};
+          }
+
+          // Ensure reaction is in proper object format
+          if (updatedPost.reactions[safeReactionType] && typeof updatedPost.reactions[safeReactionType] !== 'object') {
+            // If it's not an object, reset it
+            updatedPost.reactions[safeReactionType] = { users: [], count: 0 };
+          }
+
+          // Check if user already has this reaction (with safe checking)
+          const hasReaction = updatedPost.reactions[safeReactionType] && 
+                             Array.isArray(updatedPost.reactions[safeReactionType].users) &&
+                             updatedPost.reactions[safeReactionType].users.includes(currentUserId);
+          
+          if (hasReaction) {
+            // Remove reaction (toggle off)
+            if (updatedPost.reactions[safeReactionType] && 
+                typeof updatedPost.reactions[safeReactionType] === 'object') {
+              updatedPost.reactions[safeReactionType].users = 
+                (updatedPost.reactions[safeReactionType].users || []).filter(id => id !== currentUserId);
+              updatedPost.reactions[safeReactionType].count = Math.max(0, 
+                (updatedPost.reactions[safeReactionType].count || 1) - 1);
+              
+              // Remove reaction type if count is 0
+              if (updatedPost.reactions[safeReactionType].count === 0) {
+                delete updatedPost.reactions[safeReactionType];
+              }
+            }
+            updatedPost.reaction_counts[safeReactionType] = Math.max(0, 
+              (updatedPost.reaction_counts[safeReactionType] || 1) - 1);
+            
+            if (updatedPost.reaction_counts[safeReactionType] === 0) {
+              delete updatedPost.reaction_counts[safeReactionType];
+            }
+          } else {
+            // Add reaction - ensure proper object structure
+            if (!updatedPost.reactions[safeReactionType] || 
+                typeof updatedPost.reactions[safeReactionType] !== 'object') {
+              updatedPost.reactions[safeReactionType] = { users: [], count: 0 };
+            }
+            
+            // Make sure users is an array
+            if (!Array.isArray(updatedPost.reactions[safeReactionType].users)) {
+              updatedPost.reactions[safeReactionType].users = [];
+            }
+            
+            if (!updatedPost.reactions[safeReactionType].users.includes(currentUserId)) {
+              updatedPost.reactions[safeReactionType].users = 
+                [...updatedPost.reactions[safeReactionType].users, currentUserId];
+              updatedPost.reactions[safeReactionType].count = 
+                (updatedPost.reactions[safeReactionType].count || 0) + 1;
+            }
+            updatedPost.reaction_counts[safeReactionType] = 
+              (updatedPost.reaction_counts[safeReactionType] || 0) + 1;
+          }
+
+          return updatedPost;
+        }
+        return post;
+      });
+    });
 
     try {
-      // Add or toggle the reaction
-      await postsAPI.addReaction(postId, safeReactionType, reactionEmoji);
-      
-      // Immediately refresh reactions for real-time updates
-      await refreshReactions();
-      
-      // Reload the appropriate feed based on the active view
-      if (activeView === 'myposts') {
-        await reloadPosts();
+      // Call appropriate backend API based on whether we're adding or removing
+      if (hasExistingReaction) {
+        await postsAPI.removeReaction(postId, safeReactionType);
+        // Remove from local user reactions state
+        removeUserReaction(postId, safeReactionType);
       } else {
-        // Default to home feed
-        await loadAllPosts();
+        await postsAPI.addReaction(postId, safeReactionType, reactionEmoji);
+        // Add to local user reactions state
+        addUserReaction(postId, safeReactionType);
       }
+      
+      // Only refresh the specific post's data, not the entire feed
+      await refreshSpecificPostReactions(postId);
 
     } catch (error) {
       console.error('❌ Failed to add/remove reaction:', error.message);
+      // Revert optimistic update on error by reloading that specific post
+      await refreshSpecificPostReactions(postId);
+      throw error;
+    }
+  };
+
+  // Remove reaction function - for explicit reaction removal
+  const removeReaction = async (postId, reactionType, activeView = 'home') => {
+    if (!user) return;
+    
+    // Admin users cannot react to posts
+    if (user?.is_admin) {
+      return;
+    }
+
+    const safeReactionType = reactionType === '❤️' ? 'like' : reactionType;
+    const currentUserId = user?.user_id || user?.id || user?.employee_id;
+
+    // Optimistic update first
+    setPosts(prevPosts => {
+      return prevPosts.map(post => {
+        if ((post.post_id || post.id) === postId) {
+          const updatedPost = { ...post };
+          
+          if (updatedPost.reactions && updatedPost.reactions[safeReactionType] && 
+              typeof updatedPost.reactions[safeReactionType] === 'object') {
+            // Remove user from reaction - ensure users is an array
+            if (Array.isArray(updatedPost.reactions[safeReactionType].users)) {
+              updatedPost.reactions[safeReactionType].users = 
+                updatedPost.reactions[safeReactionType].users.filter(id => id !== currentUserId);
+            }
+            updatedPost.reactions[safeReactionType].count = Math.max(0, 
+              (updatedPost.reactions[safeReactionType].count || 1) - 1);
+            
+            // Remove reaction type if count is 0
+            if (updatedPost.reactions[safeReactionType].count === 0) {
+              delete updatedPost.reactions[safeReactionType];
+            }
+          }
+
+          if (updatedPost.reaction_counts && updatedPost.reaction_counts[safeReactionType]) {
+            updatedPost.reaction_counts[safeReactionType] = Math.max(0, 
+              (updatedPost.reaction_counts[safeReactionType] || 1) - 1);
+            
+            if (updatedPost.reaction_counts[safeReactionType] === 0) {
+              delete updatedPost.reaction_counts[safeReactionType];
+            }
+          }
+
+          return updatedPost;
+        }
+        return post;
+      });
+    });
+
+    try {
+      // Call backend API
+      await postsAPI.removeReaction(postId, safeReactionType);
+      
+      // Only refresh the specific post's data
+      await refreshSpecificPostReactions(postId);
+
+    } catch (error) {
+      console.error('❌ Failed to remove reaction:', error.message);
+      // Revert optimistic update on error
+      await refreshSpecificPostReactions(postId);
       throw error;
     }
   };
@@ -1579,7 +1901,9 @@ export const PostProvider = ({ children }) => {
     setIsDashboardManaged, // Expose dashboard management control
     loadMorePosts,
     addReaction,
+    removeReaction,
     hasUserReacted,
+    hasUserReactedToComment,
     userReactions,
     // Pagination state
     nextCursor,
