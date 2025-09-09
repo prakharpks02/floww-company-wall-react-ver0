@@ -23,22 +23,14 @@ export const usePostsData = () => {
       
       do {
         const response = await adminAPI.getAllPosts(nextId);
-        console.log('AdminAllPosts response:', response);
+
         
         if (response?.posts && Array.isArray(response.posts)) {
           // Transform posts and filter out broadcast posts (they should only appear in broadcast view)
           const transformedPosts = response.posts.map(transformPostMedia);
           
-          // Debug logging to see post properties
-          console.log('🔍 All posts before filtering:', transformedPosts.map(p => ({
-            id: p.post_id,
-            is_broadcast: p.is_broadcast,
-            isBroadcast: p.isBroadcast,
-            type: p.type,
-            post_type: p.post_type,
-            is_pinned: p.is_pinned,
-            content_preview: p.content?.substring(0, 50)
-          })));
+ s
+        
           
           const nonBroadcastPosts = filterNonBroadcastPosts(transformedPosts);
           
@@ -57,12 +49,12 @@ export const usePostsData = () => {
             nextId = null;
           }
         } else {
-          console.log('No posts found in response or invalid format');
+        
           nextId = null;
         }
       } while (nextId);
       
-      console.log('Final allPosts array:', allPosts);
+
       setPosts(allPosts);
       setNextCursor(null);
       setHasMore(false);
@@ -77,22 +69,17 @@ export const usePostsData = () => {
   // Load pinned posts - always ensure they are loaded first
   const loadPinnedPosts = async () => {
     try {
-      console.log('🔄 Loading pinned posts...');
+
       setError(null);
       
       // Always try to load pinned posts first
       const pins = await fetchPinnedPosts(adminAPI);
-      console.log('📌 Pinned posts loaded:', pins);
-      console.log('📌 Number of pinned posts:', pins.length);
+   
       
       // Set pinned posts immediately
       setPinnedPosts(pins);
       
-      if (pins.length === 0) {
-        console.log('⚠️ No pinned posts found');
-      } else {
-        console.log('✅ Pinned posts successfully loaded and set');
-      }
+ 
       
       return pins; // Return for sequential loading
     } catch (error) {

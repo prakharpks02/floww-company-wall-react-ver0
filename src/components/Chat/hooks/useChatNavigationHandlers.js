@@ -57,7 +57,7 @@ export const useChatNavigationHandlers = ({
         photoInput.multiple = true;
         photoInput.onchange = (e) => {
           const files = Array.from(e.target.files);
-          console.log('Photos/videos selected:', files);
+   
           // TODO: Handle file upload
         };
         photoInput.click();
@@ -71,7 +71,7 @@ export const useChatNavigationHandlers = ({
         cameraInput.capture = 'environment';
         cameraInput.onchange = (e) => {
           const files = Array.from(e.target.files);
-          console.log('Camera photo taken:', files);
+   
           // TODO: Handle camera capture
         };
         cameraInput.click();
@@ -85,7 +85,7 @@ export const useChatNavigationHandlers = ({
         docInput.multiple = true;
         docInput.onchange = (e) => {
           const files = Array.from(e.target.files);
-          console.log('Documents selected:', files);
+     
           // TODO: Handle document upload
         };
         docInput.click();
@@ -93,7 +93,7 @@ export const useChatNavigationHandlers = ({
         
       case 'poll':
         // Open poll creation modal
-        console.log('Opening poll creation modal');
+     
         if (setShowPollModal) {
           setShowPollModal(true);
         }

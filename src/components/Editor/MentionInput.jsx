@@ -113,22 +113,21 @@ const MentionInput = ({
     const highlighted = highlightMentions(newValue);
     setHighlightedText(highlighted);
     
-    console.log('🔍 MentionInput handleInput - newValue:', newValue);
-    console.log('🔍 MentionInput handleInput - currentMentions before:', currentMentions);
+ 
     
     // Sync mentions with text content - remove mentions that are no longer in the text
     const updatedMentions = currentMentions.filter(mention => {
       const mentionText = `@${mention.employee_name}`;
       const isStillInText = newValue.includes(mentionText);
-      console.log(`🔍 Checking mention "${mentionText}" - still in text: ${isStillInText}`);
+
       return isStillInText;
     });
     
-    console.log('🔍 MentionInput handleInput - updatedMentions after filter:', updatedMentions);
+
     
     // Update mentions if any were removed
     if (updatedMentions.length !== currentMentions.length) {
-      console.log('🔍 MentionInput - mentions changed, updating...');
+
       setCurrentMentions(updatedMentions);
       onMentionsChange(updatedMentions);
     }
@@ -193,8 +192,7 @@ const MentionInput = ({
       // Update mentions list - store employee_id for backend as clean string
       const employeeId = String(user.employee_id || user.user_id || user.id || '').trim();
       
-      console.log('🔍 MentionInput - User object:', user);
-      console.log('🔍 MentionInput - Extracted employee_id:', employeeId);
+    
       
       if (employeeId) {
         const newMention = {
@@ -203,13 +201,13 @@ const MentionInput = ({
           username: username
         };
         
-        console.log('🔍 MentionInput - Created mention object:', newMention);
+   
         
         const updatedMentions = [...currentMentions, newMention];
         setCurrentMentions(updatedMentions);
         onMentionsChange(updatedMentions);
         
-        console.log('🔍 MentionInput - Final mentions array:', updatedMentions);
+      
       }
       
       // Set cursor position after mention

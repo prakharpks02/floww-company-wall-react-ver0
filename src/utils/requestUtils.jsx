@@ -45,7 +45,7 @@ class RequestDeduplicator {
     if (this.cache.has(cacheKey)) {
       const cached = this.cache.get(cacheKey);
       if (Date.now() - cached.timestamp < this.cacheDuration) {
-        console.log('🔄 Returning cached request for:', url);
+     
         return cached.promise;
       }
     }
@@ -158,9 +158,7 @@ export const rateLimiter = new RateLimiter();
 
 // Utility to add request logging
 export const logRequest = (method, url, data = null) => {
-  if (process.env.NODE_ENV === 'development') {
-    console.log(`🌐 API ${method} ${url}`, data ? { data } : '');
-  }
+
 };
 
 // Utility to handle API errors consistently

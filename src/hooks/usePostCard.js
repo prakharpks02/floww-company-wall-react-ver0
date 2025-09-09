@@ -150,7 +150,6 @@ export const usePostCard = (post, activeView = 'home') => {
                 const parsed = JSON.parse(fixedJson);
                 actualUrl = parsed.link;
               } catch (e) {
-                console.warn('Failed to parse media link:', item.link);
                 return false;
               }
             } else {
@@ -212,7 +211,6 @@ export const usePostCard = (post, activeView = 'home') => {
               const parsed = JSON.parse(fixedJson);
               actualUrl = parsed.link;
             } catch (e) {
-              console.warn('Failed to parse media link:', item.link);
               return false;
             }
           }
@@ -264,7 +262,6 @@ export const usePostCard = (post, activeView = 'home') => {
               const parsed = JSON.parse(fixedJson);
               actualUrl = parsed.link;
             } catch (e) {
-              console.warn('Failed to parse media link:', item.link);
               return false;
             }
           }
@@ -322,7 +319,6 @@ export const usePostCard = (post, activeView = 'home') => {
               const parsed = JSON.parse(fixedJson);
               actualUrl = parsed.link;
             } catch (e) {
-              console.warn('Failed to parse media link:', item.link);
               return false;
             }
           }
@@ -471,29 +467,15 @@ export const usePostCard = (post, activeView = 'home') => {
 
   const handleComment = () => {
     const postId = getPostId();
-
-    console.log('🔍 usePostCard handleComment:', {
-      commentText: commentText.trim(),
-      commentMentions,
-      postId
-    });
     
     if (commentText.trim() && postId) {
       const commentData = { 
         content: commentText.trim(),
         mentions: commentMentions
       };
-      console.log('🔍 Calling addComment with:', commentData);
       addComment(postId, commentData);
       setCommentText('');
       setCommentMentions([]);
-    } else {
-      console.warn('⚠️ Cannot add comment:', { 
-        hasContent: !!commentText.trim(), 
-        hasPostId: !!postId,
-        postId,
-        commentText 
-      });
     }
   };
 
@@ -582,19 +564,14 @@ export const usePostCard = (post, activeView = 'home') => {
   };
 
   const handleEditComment = (commentId, contentOrData) => {
-    console.log('🔍 usePostCard handleEditComment - commentId:', commentId);
-    console.log('🔍 usePostCard handleEditComment - contentOrData:', contentOrData);
-    
     // Handle both string content and object data
     if (typeof contentOrData === 'string') {
       // Legacy: just content string
-      console.log('🔍 usePostCard handleEditComment - processing as string');
       if (contentOrData.trim()) {
         editComment(commentId, contentOrData.trim());
       }
     } else if (typeof contentOrData === 'object' && contentOrData.content) {
       // New: object with content and mentions
-      console.log('🔍 usePostCard handleEditComment - processing as object with mentions');
       if (contentOrData.content.trim()) {
         editComment(commentId, contentOrData);
       }
@@ -625,9 +602,7 @@ export const usePostCard = (post, activeView = 'home') => {
         url: shareUrl,
       }).then(() => {
         setShareCount(prev => prev + 1);
-        console.log('✅ Shared successfully via native share');
       }).catch(err => {
-        console.log('📋 Native share cancelled, falling back to clipboard');
         copyToClipboard(shareUrl);
       });
     } else {
@@ -641,7 +616,6 @@ export const usePostCard = (post, activeView = 'home') => {
       setShareCount(prev => prev + 1);
       setShowShareAlert(true);
       setTimeout(() => setShowShareAlert(false), 3000);
-      console.log('✅ Share link copied to clipboard');
     }).catch(() => {
       // Fallback for older browsers
       const textArea = document.createElement('textarea');
@@ -652,7 +626,6 @@ export const usePostCard = (post, activeView = 'home') => {
       document.body.removeChild(textArea);
       setShowShareAlert(true);
       setTimeout(() => setShowShareAlert(false), 3000);
- 
     });
   };
 
@@ -732,12 +705,6 @@ export const usePostCard = (post, activeView = 'home') => {
   const getUserReaction = () => {
     if (!normalizedPost.reactions) return null;
     
-    console.log('🔍 getUserReaction debug:', {
-      postId: getPostId(),
-      reactions: normalizedPost.reactions,
-      user: { id: user?.id, user_id: user?.user_id, employee_id: user?.employee_id }
-    });
-    
     const postId = getPostId();
     for (const [reactionType, reaction] of Object.entries(normalizedPost.reactions)) {
       // Exclude 'love' and 'like' since they're handled by the heart button
@@ -747,22 +714,13 @@ export const usePostCard = (post, activeView = 'home') => {
                                  reaction.users?.includes(user?.user_id) ||
                                  reaction.users?.includes(user?.employee_id);
         
-        console.log(`🔍 Checking reaction ${reactionType}:`, {
-          hasReactedLocally,
-          isInReactionUsers,
-          reactionData: reaction,
-          users: reaction.users
-        });
-        
         const userHasReaction = hasReactedLocally || isInReactionUsers;
         
         if (userHasReaction) {
-          console.log(`✅ User has reaction: ${reactionType}`);
           return reactionType;
         }
       }
     }
-    console.log('❌ No user reaction found');
     return null;
   };
 
@@ -890,7 +848,6 @@ export const usePostCard = (post, activeView = 'home') => {
 
   // Handle mentions change
   const handleCommentMentionsChange = (mentions) => {
-    console.log('🔍 usePostCard handleCommentMentionsChange:', mentions);
     setCommentMentions(mentions);
   };
 

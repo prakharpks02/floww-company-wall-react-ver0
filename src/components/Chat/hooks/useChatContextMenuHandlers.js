@@ -11,7 +11,7 @@ export const useChatContextMenuHandlers = ({
   // Handle context menu for messages
   const handleContextMenu = (e, message) => {
     e.preventDefault();
-    console.log('🔥 Context menu triggered for message:', message?.text || 'no text');
+
     
     // Calculate position to ensure menu stays within viewport
     const viewportWidth = window.innerWidth;

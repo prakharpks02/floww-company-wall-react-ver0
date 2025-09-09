@@ -110,19 +110,15 @@ const fetchWithTimeout = async (url, options = {}) => {
   const allowConcurrentRequests = url.includes('/current_user') || 
                                  url.includes('/get_single_post') ||
                                  url.includes('/reactions') ||
+                                 url.includes('/get_user') ||
                                  (url.includes('/posts') && options.method === 'GET');
   
-  // Check if the same request is already in progress (but allow certain endpoints)
-  if (!allowConcurrentRequests && activeRequests.has(simpleKey)) {
-    console.log('🚫 Blocking duplicate request for:', url.split('/').pop());
-    throw new Error('Duplicate request blocked');
-  }
+ 
   
   // Check if there's a cached request in progress
   if (requestCache.has(cacheKey)) {
     const cached = requestCache.get(cacheKey);
     if (Date.now() - cached.timestamp < CACHE_DURATION) {
-      console.log('🔄 Returning cached request for:', url.split('/').pop());
       return cached.promise;
     }
   }
@@ -194,12 +190,6 @@ const fetchWithTimeout = async (url, options = {}) => {
   return requestPromise;
 };
 
-// Helper function to log API calls (for debugging)
-const logApiCall = (method, endpoint, data = null) => {
-  if (process.env.NODE_ENV === 'development') {
-    console.log(`🌐 API ${method} ${endpoint}`, data ? { data } : '');
-  }
-};
 
 // =============================================================================
 // LOCAL STORAGE MANAGEMENT
@@ -828,16 +818,13 @@ export const postsAPI = {
   editComment: async (commentId, contentOrData) => {
     const endpoint = `${API_CONFIG.BASE_URL}/comments/${commentId}/edit`;
     
-    console.log('🔍 API editComment - commentId:', commentId);
-    console.log('🔍 API editComment - contentOrData:', contentOrData);
+   
     
     // Handle both string content and object data
     const content = typeof contentOrData === 'string' ? contentOrData : contentOrData.content;
     const mentions = typeof contentOrData === 'object' ? contentOrData.mentions || [] : [];
     
-    console.log('🔍 API editComment - extracted content:', content);
-    console.log('🔍 API editComment - extracted mentions:', mentions);
-    
+ 
     // Try multiple field names to match backend expectations
     const requestBody = {
       content: content,
@@ -1328,12 +1315,5 @@ export default api;
 // Initialize API on load
 if (typeof window !== 'undefined') {
   // Check if we're in development mode and log initialization
-  if (process.env.NODE_ENV === 'development') {
-    console.log('🚀 API initialized', {
-      baseUrl: API_CONFIG.BASE_URL,
-      timeout: API_CONFIG.TIMEOUT,
-      authenticated: userAPI.isAuthenticated(),
-      userType: getCurrentUserType()
-    });
-  }
+
 }

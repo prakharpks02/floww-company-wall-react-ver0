@@ -34,10 +34,6 @@ const API_CONFIG = {
   }
 };
 
-// Debug: Log the token being used
-console.log('🔑 Admin API Token:', API_CONFIG.HEADERS.Authorization ? 'Token loaded' : 'No token found');
-console.log('🔑 Current path:', window.location.pathname);
-console.log('🔑 Using token type:', window.location.pathname.includes('/crm') ? 'Admin' : 'Employee');
 
 // Helper function to handle API responses
 const handleResponse = async (response) => {
@@ -71,7 +67,7 @@ const fetchWithTimeout = async (url, options = {}) => {
   if (adminRequestCache.has(cacheKey)) {
     const cached = adminRequestCache.get(cacheKey);
     if (Date.now() - cached.timestamp < ADMIN_CACHE_DURATION) {
-      console.log('🔄 Returning cached admin request for:', url);
+
       return cached.promise;
     }
   }
@@ -123,10 +119,7 @@ const fetchWithTimeout = async (url, options = {}) => {
   return requestPromise;
 };
 
-// Log API calls for debugging
-const logApiCall = (method, url, data = null) => {
-  console.log(`🌐 ${method} ${url}`, data ? { data } : '');
-};
+
 
 // =============================================================================
 // ADMIN API FUNCTIONS

@@ -1079,10 +1079,7 @@ export const PostProvider = ({ children }) => {
             ...commentData,
             mentions: commentData.mentions || extractMentionsFromText(commentData.content || '')
           };
-      
-      console.log('🔍 PostContext addComment input:', commentData);
-      console.log('🔍 PostContext processedData:', processedData);
-      
+     
       // Call the API to add comment
       const result = await postsAPI.addComment(postId, processedData);
 
@@ -1103,7 +1100,6 @@ export const PostProvider = ({ children }) => {
         reactions: []
       };
 
-      console.log('💾 Adding comment to UI:', newComment);
 
     setPosts(prevPosts =>
       prevPosts.map(post =>
@@ -1113,7 +1109,7 @@ export const PostProvider = ({ children }) => {
       )
     );
     } catch (error) {
-      console.error('❌ Add comment error:', error);
+   
       throw error;
     }
   };
@@ -1474,13 +1470,6 @@ export const PostProvider = ({ children }) => {
       }
     }
 
-    console.log('🔍 Comment reaction check:', {
-      commentId,
-      safeReactionType,
-      hasExistingReaction,
-      currentUserId,
-      isReply
-    });
 
     try {
       // Optimistically update the UI first for immediate feedback
@@ -1570,12 +1559,12 @@ export const PostProvider = ({ children }) => {
 
       // Call appropriate backend API based on whether we're adding or removing
       if (hasExistingReaction) {
-        console.log('🗑️ Removing comment reaction via API:', safeReactionType);
+      
         await postsAPI.deleteCommentReaction(backendCommentId, safeReactionType);
         // Remove from local user reactions state
         removeUserCommentReaction(commentId, safeReactionType);
       } else {
-        console.log('➕ Adding comment reaction via API:', safeReactionType);
+       
         await postsAPI.addCommentReaction(backendCommentId, safeReactionType, reactionEmoji);
         // Add to local user reactions state
         addUserCommentReaction(commentId, safeReactionType);
@@ -1588,7 +1577,7 @@ export const PostProvider = ({ children }) => {
       }
 
     } catch (error) {
-      console.error('❌ Comment reaction error:', error);
+   
       // Revert the optimistic update on error
       await reloadPosts();
       throw error;

@@ -65,7 +65,7 @@ const MyPosts = ({ filters = { tag: 'all', search: '' }, onPostsChange }) => {
     const loadUserPosts = async () => {
       // Prevent duplicate requests
       if (isLoadingRef) {
-        console.log('Request already in progress, skipping...');
+    
         return;
       }
       
@@ -95,8 +95,7 @@ const MyPosts = ({ filters = { tag: 'all', search: '' }, onPostsChange }) => {
         
         // Filter posts to show only current user's posts
         const currentUserId = user?.employee_id || user?.id;
-        console.log('🔍 Current user ID for filtering:', currentUserId);
-        console.log('🔍 Current user object:', user);
+
         
         const userFilteredPosts = normalizedPosts.filter(post => {
           // Check various possible author ID fields
@@ -116,15 +115,7 @@ const MyPosts = ({ filters = { tag: 'all', search: '' }, onPostsChange }) => {
           
           // Debug first few posts
           if (normalizedPosts.indexOf(post) < 3) {
-            console.log(`🔍 Post ${normalizedPosts.indexOf(post)} author data:`, {
-              post_id: post.id,
-              author: post.author,
-              authorId,
-              authorName,
-              author_id: post.author_id,
-              user_id: post.user_id,
-              employee_id: post.employee_id
-            });
+ 
           }
           
           const isMatch = authorId === currentUserId || 
@@ -133,7 +124,7 @@ const MyPosts = ({ filters = { tag: 'all', search: '' }, onPostsChange }) => {
           return isMatch;
         });
         
-        console.log(`🔍 Filtered ${userFilteredPosts.length} posts out of ${normalizedPosts.length} total posts`);
+   
         
         setUserPosts(userFilteredPosts);
         
@@ -163,7 +154,7 @@ const MyPosts = ({ filters = { tag: 'all', search: '' }, onPostsChange }) => {
   const handlePostCreated = async () => {
     // Reload user posts after creating a new post
     if (isLoadingRef) {
-      console.log('Request already in progress, skipping refresh...');
+
       return;
     }
     
@@ -188,7 +179,7 @@ const MyPosts = ({ filters = { tag: 'all', search: '' }, onPostsChange }) => {
       
       // Filter posts to show only current user's posts
       const currentUserId = user?.employee_id || user?.id;
-      console.log('🔍 Current user ID for filtering (handlePostCreated):', currentUserId);
+ 
       
       const userFilteredPosts = normalizedPosts.filter(post => {
         // Check various possible author ID fields
@@ -212,7 +203,7 @@ const MyPosts = ({ filters = { tag: 'all', search: '' }, onPostsChange }) => {
         return isMatch;
       });
       
-      console.log(`🔍 Filtered ${userFilteredPosts.length} posts out of ${normalizedPosts.length} total posts (handlePostCreated)`);
+    
       
       setUserPosts(userFilteredPosts);
       

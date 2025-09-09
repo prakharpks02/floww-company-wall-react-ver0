@@ -44,15 +44,13 @@ export const usePostCreation = (createPost, editPost, editingPost, onClose) => {
     // Return array of employee_ids as strings
     const extractedMentions = Array.from(mentionElements).map(element => {
       const employee_id = element.getAttribute('data-user-id') || element.getAttribute('data-employee_id');
-      
-      console.log('🔍 extractMentionsFromContent - element:', element);
-      console.log('🔍 extractMentionsFromContent - extracted employee_id:', employee_id);
+
       
       // Return just the employee_id as a string
       return employee_id || null;
     }).filter(Boolean); // Remove null entries
     
-    console.log('🔍 extractMentionsFromContent - final mentions:', extractedMentions);
+
     return extractedMentions;
   };
 

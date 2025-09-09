@@ -159,16 +159,14 @@ const CommentItem = ({
   };
 
   const handleSaveEdit = () => {
-    console.log('🔍 CommentItem handleSaveEdit - editContent:', editContent);
-    console.log('🔍 CommentItem handleSaveEdit - editMentions:', editMentions);
-    
+
     if (editContent.trim() && editContent !== comment.content) {
       // Pass both content and mentions to the edit handler
       const editData = {
         content: editContent.trim(),
         mentions: editMentions
       };
-      console.log('🔍 CommentItem handleSaveEdit - sending editData:', editData);
+
       handleEditComment(comment.comment_id || comment.id, editData);
     }
     setIsEditing(false);

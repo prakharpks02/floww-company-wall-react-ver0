@@ -33,7 +33,7 @@ const DesktopContextMenu = ({
           {canEditMessage(contextMenu.message) && (
             <button
               onClick={() => {
-                console.log('🔥 Edit clicked');
+           
                 messageHandlers.handleStartEdit(contextMenu.message);
                 contextMenuHandlers.setContextMenu({ show: false, x: 0, y: 0, message: null });
               }}
