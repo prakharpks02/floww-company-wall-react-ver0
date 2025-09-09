@@ -18,7 +18,7 @@ function AppRoutes() {
   // Check if user is authenticated with token
   if (!isAuthenticated()) {
     // Redirect to main Floww application if not authenticated
-    window.location.href = 'https://dev.gofloww.co';
+    window.location.href = import.meta.env.VITE_APP_BASE_URL;
     return null;
   }
 

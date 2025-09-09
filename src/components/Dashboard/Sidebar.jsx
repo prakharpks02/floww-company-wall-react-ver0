@@ -3,7 +3,7 @@ import { usePost } from "../../contexts/PostContext"
 import { useAuth } from "../../contexts/AuthContext"
 import { Home, Plus, Hash, Filter, FileText, Shield, Users, Flag, Megaphone, Ban, ChevronDown, MessageCircle, Bell, Bookmark, MoreHorizontal } from "lucide-react"
 
-const Sidebar = ({ filters, setFilters, onCreatePost, activeView, onViewChange }) => {
+const Sidebar = ({ filters, setFilters, onCreatePost, activeView, onViewChange, userPosts = [] }) => {
   const { tags, posts } = usePost()
   const { user } = useAuth()
 
@@ -12,8 +12,16 @@ const Sidebar = ({ filters, setFilters, onCreatePost, activeView, onViewChange }
   }
 
   const getTagCount = (tag) => {
-    if (tag === "all") return posts.length
-    return posts.filter((post) => {
+    let postsToCount = posts;
+    
+    // If we're on the "My Posts" view, use the userPosts data passed from MyPosts component
+    if (activeView === 'myposts') {
+      postsToCount = userPosts;
+    }
+    
+    if (tag === "all") return postsToCount.length;
+    
+    return postsToCount.filter((post) => {
       if (!post.tags || !Array.isArray(post.tags)) return false
       return post.tags.some((postTag) => {
         const tagName = typeof postTag === "string" ? postTag : postTag.tag_name || postTag.name

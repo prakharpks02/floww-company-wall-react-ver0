@@ -1880,6 +1880,7 @@ export const PostProvider = ({ children }) => {
     posts,
     loading,
     tags,
+    normalizePost, // Export normalizePost function
     createPost,
     editPost,
     deletePost,

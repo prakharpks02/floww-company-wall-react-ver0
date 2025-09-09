@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePost } from '../../contexts/PostContext';
+import { postsAPI } from '../../services/api.jsx';
 import PostCard from '../Posts/PostCard';
 import PostFeed from '../Posts/PostFeed';
 import CreatePost from '../Posts/CreatePost';
@@ -13,66 +14,223 @@ import {
   Eye,
   MessageCircle,
   Heart,
-  Share2,
-  Filter,
-  ChevronDown
+  Share2
 } from 'lucide-react';
 
-const MyPosts = () => {
+const MyPosts = ({ filters = { tag: 'all', search: '' }, onPostsChange }) => {
   const { user } = useAuth();
-  const { deletePost, posts, loading, reloadPosts, tags } = usePost();
+  const { deletePost, tags, normalizePost } = usePost(); // Now includes normalizePost
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [error, setError] = useState(null);
-  const [selectedTag, setSelectedTag] = useState('All');
-  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+  const [userPosts, setUserPosts] = useState([]); // Local state for user posts
+  const [loading, setLoading] = useState(false); // Local loading state
+  const [isLoadingRef, setIsLoadingRef] = useState(false); // Ref to prevent duplicate requests
 
-  // Filter posts by selected tag
-  const myPosts = posts?.filter(post => {
-    if (selectedTag === 'All') return true;
-    if (!post.tags || post.tags.length === 0) return selectedTag === 'Uncategorized';
-    
-    return post.tags.some(tag => {
-      const tagName = typeof tag === 'string' ? tag : (tag.tag_name || tag.name || '');
-      return tagName === selectedTag;
-    });
-  }) || [];
-
-  // Create filter options including 'All' and 'Uncategorized'
-  const filterOptions = [
-    'All',
-    ...tags,
-    'Uncategorized'
-  ];
-
-  // Close dropdown when clicking outside
+  // Track filter changes for debugging (can be removed in production)
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (showFilterDropdown && !event.target.closest('.filter-dropdown')) {
-        setShowFilterDropdown(false);
+    // Only log if not initial render
+    if (userPosts.length > 0) {
+      console.log('MyPosts filters changed:', filters);
+    }
+  }, [filters, userPosts.length]);
+
+  // Apply tag filter from sidebar (matching sidebar logic exactly)
+  const tagFilteredPosts = userPosts.filter(post => {
+    if (filters.tag === 'all') return true;
+    
+    // Only show posts that have tags and match the selected tag
+    if (!post.tags || !Array.isArray(post.tags)) return false;
+    
+    return post.tags.some(postTag => {
+      const tagName = typeof postTag === 'string' ? postTag : postTag.tag_name || postTag.name;
+      return tagName === filters.tag;
+    });
+  });
+
+  // Apply search filter if there's a search term
+  const myPosts = tagFilteredPosts.filter(post => {
+    if (!filters.search) return true;
+    
+    const searchTerm = filters.search.toLowerCase();
+    const content = post.content?.toLowerCase() || '';
+    const authorName = post.author?.name?.toLowerCase() || 
+                      post.author?.employee_name?.toLowerCase() || 
+                      post.authorName?.toLowerCase() || '';
+    
+    return content.includes(searchTerm) || authorName.includes(searchTerm);
+  });
+
+  useEffect(() => {
+    // Load user's posts when component mounts
+    const loadUserPosts = async () => {
+      // Prevent duplicate requests
+      if (isLoadingRef) {
+        console.log('Request already in progress, skipping...');
+        return;
+      }
+      
+      try {
+        setIsLoadingRef(true);
+        setLoading(true);
+        setError(null);
+        
+        // Add a small delay to avoid rapid duplicate requests
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Call the API for all posts and filter on frontend for current user
+        const backendPosts = await postsAPI.getMyPosts();
+        let postsData = [];
+
+        // Check the response structure
+        if (backendPosts.data && Array.isArray(backendPosts.data.posts)) {
+          postsData = backendPosts.data.posts;
+        } else if (Array.isArray(backendPosts.data)) {
+          postsData = backendPosts.data;
+        } else {
+          postsData = [];
+        }
+        
+        // Normalize posts to ensure consistent format
+        const normalizedPosts = postsData.map(post => normalizePost(post));
+        
+        // Filter posts to show only current user's posts
+        const currentUserId = user?.employee_id || user?.id;
+        console.log('🔍 Current user ID for filtering:', currentUserId);
+        console.log('🔍 Current user object:', user);
+        
+        const userFilteredPosts = normalizedPosts.filter(post => {
+          // Check various possible author ID fields
+          const authorId = post.author?.employee_id || 
+                          post.author?.id || 
+                          post.author?.user_id ||
+                          post.author_id || 
+                          post.user_id ||
+                          post.employee_id;
+          
+          // Also check if the author object has username/name matching current user
+          const authorName = post.author?.username || 
+                            post.author?.employee_name || 
+                            post.authorName ||
+                            post.author_name;
+          const currentUserName = user?.username || user?.name;
+          
+          // Debug first few posts
+          if (normalizedPosts.indexOf(post) < 3) {
+            console.log(`🔍 Post ${normalizedPosts.indexOf(post)} author data:`, {
+              post_id: post.id,
+              author: post.author,
+              authorId,
+              authorName,
+              author_id: post.author_id,
+              user_id: post.user_id,
+              employee_id: post.employee_id
+            });
+          }
+          
+          const isMatch = authorId === currentUserId || 
+                         (authorName && currentUserName && authorName === currentUserName);
+          
+          return isMatch;
+        });
+        
+        console.log(`🔍 Filtered ${userFilteredPosts.length} posts out of ${normalizedPosts.length} total posts`);
+        
+        setUserPosts(userFilteredPosts);
+        
+        // Notify parent component about the filtered posts data for sidebar count updates
+        if (onPostsChange) {
+          onPostsChange(userFilteredPosts);
+        }
+        
+      } catch (error) {
+        console.error('Error loading user posts:', error);
+        setError('Failed to load your posts');
+      } finally {
+        setLoading(false);
+        setIsLoadingRef(false);
       }
     };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [showFilterDropdown]);
+    
+    loadUserPosts();
+  }, []); // Only run once when component mounts
 
   const handleCreatePost = async () => {
     // The CreatePost component will handle the post creation
-    // We just need to refresh the posts after the modal closes
+    // We need to refresh the posts after the modal closes
     setShowCreateModal(true);
+  };
+
+  const handlePostCreated = async () => {
+    // Reload user posts after creating a new post
+    if (isLoadingRef) {
+      console.log('Request already in progress, skipping refresh...');
+      return;
+    }
+    
+    try {
+      setIsLoadingRef(true);
+      
+      // Add a small delay to ensure the new post is saved
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      const backendPosts = await postsAPI.getMyPosts();
+      let postsData = [];
+
+      if (backendPosts.data && Array.isArray(backendPosts.data.posts)) {
+        postsData = backendPosts.data.posts;
+      } else if (Array.isArray(backendPosts.data)) {
+        postsData = backendPosts.data;
+      } else {
+        postsData = [];
+      }
+      
+      const normalizedPosts = postsData.map(post => normalizePost(post));
+      
+      // Filter posts to show only current user's posts
+      const currentUserId = user?.employee_id || user?.id;
+      console.log('🔍 Current user ID for filtering (handlePostCreated):', currentUserId);
+      
+      const userFilteredPosts = normalizedPosts.filter(post => {
+        // Check various possible author ID fields
+        const authorId = post.author?.employee_id || 
+                        post.author?.id || 
+                        post.author?.user_id ||
+                        post.author_id || 
+                        post.user_id ||
+                        post.employee_id;
+        
+        // Also check if the author object has username/name matching current user
+        const authorName = post.author?.username || 
+                          post.author?.employee_name || 
+                          post.authorName ||
+                          post.author_name;
+        const currentUserName = user?.username || user?.name;
+        
+        const isMatch = authorId === currentUserId || 
+                       (authorName && currentUserName && authorName === currentUserName);
+        
+        return isMatch;
+      });
+      
+      console.log(`🔍 Filtered ${userFilteredPosts.length} posts out of ${normalizedPosts.length} total posts (handlePostCreated)`);
+      
+      setUserPosts(userFilteredPosts);
+      
+      // Notify parent component about the updated filtered posts data
+      if (onPostsChange) {
+        onPostsChange(userFilteredPosts);
+      }
+    } catch (error) {
+      console.error('Error reloading user posts:', error);
+    } finally {
+      setIsLoadingRef(false);
+    }
   };
 
   const handleDeletePost = async (postId) => {
     try {
       // Delete locally (frontend only)
       deletePost(postId);
-      setMyPosts(prev => prev.filter(post => 
-        post.id !== postId && 
-        post.post_id !== postId
-      ));
-    
     } catch (error) {
       // Error handled silently
     }
@@ -122,7 +280,7 @@ const MyPosts = () => {
     <div className="max-w-4xl mx-auto">
       {/* Header */}
      <div className="flex items-center justify-between mb-4 sm:mb-6">
-  {/* Left Section - Heading and Filter */}
+  {/* Left Section - Heading */}
   <div className="flex items-center space-x-4">
     <div>
       <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center">
@@ -130,43 +288,8 @@ const MyPosts = () => {
         My Posts
       </h1>
       <p className="text-sm sm:text-base text-gray-600 mt-1">
-        Manage and view all your posts in one place.
+        Manage and view all your posts. Use the sidebar filters to filter by category.
       </p>
-    </div>
-    
-    {/* Category Filter */}
-    <div className="relative filter-dropdown">
-      <button
-        onClick={() => setShowFilterDropdown(!showFilterDropdown)}
-        className="flex items-center space-x-2 px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm"
-      >
-        <Filter className="h-4 w-4 text-gray-500" />
-        <span className="text-gray-700">{selectedTag}</span>
-        <ChevronDown className="h-4 w-4 text-gray-500" />
-      </button>
-      
-      {showFilterDropdown && (
-        <div className="absolute top-full left-0 mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
-          <div className="py-1">
-            {filterOptions.map((option) => (
-              <button
-                key={option}
-                onClick={() => {
-                  setSelectedTag(option);
-                  setShowFilterDropdown(false);
-                }}
-                className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors ${
-                  selectedTag === option 
-                    ? 'bg-purple-50 text-purple-700 font-medium' 
-                    : 'text-gray-700'
-                }`}
-              >
-                {option}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   </div>
 
@@ -294,7 +417,7 @@ const MyPosts = () => {
           onClose={() => {
             setShowCreateModal(false);
             // Refresh posts when modal closes to show newly created post
-            filterMyPosts();
+            handlePostCreated();
           }} 
         />
       )}

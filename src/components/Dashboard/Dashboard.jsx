@@ -26,6 +26,7 @@ const Dashboard = () => {
   });
   const [showCreatePost, setShowCreatePost] = useState(false);
   const [activeView, setActiveView] = useState('home'); // 'home', 'broadcast', 'myposts', 'admin-posts', 'admin-users', 'admin-reports', 'admin-broadcast'
+  const [userPosts, setUserPosts] = useState([]); // Store user posts for sidebar count updates
   const { posts, getFilteredPosts, loadAllPosts, reloadPosts, loading, setIsDashboardManaged } = usePost();
   const { user } = useAuth();
   const { isChatOpen, isChatMinimized, isCompactMode, isFullScreenMobile, totalUnreadMessages, toggleChat, closeChat } = useChat();
@@ -85,10 +86,8 @@ const Dashboard = () => {
         if (activeView === 'home') {
           // Only load all posts for home feed - this manages the posts globally
           await loadAllPosts(true); // Reset pagination and load fresh posts for home feed
-        } else if (activeView === 'myposts') {
-          // This will now check if Dashboard is managing posts and delegate appropriately
-          await reloadPosts(); // Load user's posts only
         }
+        // For myposts view, let MyPosts component handle its own data loading
         // For broadcast view, data is fetched by BroadcastView component
       } catch (error) {
         console.error('Error loading data for view:', activeView, error);
@@ -114,6 +113,15 @@ const Dashboard = () => {
 
   const handleViewChange = (view) => {
     setActiveView(view);
+    
+    // Clear userPosts when leaving My Posts view
+    if (view !== 'myposts') {
+      setUserPosts([]);
+    }
+  };
+
+  const handleUserPostsChange = (posts) => {
+    setUserPosts(posts);
   };
 
   const headerComponent = (
@@ -130,6 +138,7 @@ const Dashboard = () => {
       onCreatePost={() => setShowCreatePost(true)}
       activeView={activeView}
       onViewChange={handleViewChange}
+      userPosts={userPosts}
     />
   );
 
@@ -150,7 +159,7 @@ const Dashboard = () => {
 
     // Handle regular user views
     if (activeView === 'myposts') {
-      return <MyPosts />;
+      return <MyPosts filters={filters} onPostsChange={handleUserPostsChange} />;
     }
     
     if (activeView === 'broadcast') {

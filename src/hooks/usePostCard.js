@@ -619,42 +619,25 @@ export const usePostCard = (post, activeView = 'home') => {
     // Create a user-friendly share URL that goes to the main application
     const shareUrl = `${baseUrl}/post/${postId}`;
     
-    // Clean content for sharing (remove HTML tags and limit length)
-    const cleanContent = normalizedPost.content
-      .replace(/<[^>]*>/g, '') // Remove HTML tags
-      .replace(/&nbsp;/g, ' ') // Replace &nbsp; with spaces
-      .trim();
-    
-    const shortContent = cleanContent.length > 100 
-      ? cleanContent.substring(0, 100) + '...' 
-      : cleanContent;
-    
-    const shareText = `Check out this post by ${normalizedPost.authorName}: "${shortContent}"`;
-    const shareTitle = `Post by ${normalizedPost.authorName} - Company Wall`;
-
     // Try native sharing first (mobile browsers)
     if (navigator.share && /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
       navigator.share({
-        title: shareTitle,
-        text: shareText,
         url: shareUrl,
       }).then(() => {
         setShareCount(prev => prev + 1);
         console.log('✅ Shared successfully via native share');
       }).catch(err => {
         console.log('📋 Native share cancelled, falling back to clipboard');
-        copyToClipboard(shareUrl, shareText);
+        copyToClipboard(shareUrl);
       });
     } else {
       // Fallback to clipboard copy for desktop
-      copyToClipboard(shareUrl, shareText);
+      copyToClipboard(shareUrl);
     }
   };
 
-  const copyToClipboard = (url, text = null) => {
-    const shareData = text ? `${text}\n\n${url}` : url;
-    
-    navigator.clipboard.writeText(shareData).then(() => {
+  const copyToClipboard = (url) => {
+    navigator.clipboard.writeText(url).then(() => {
       setShareCount(prev => prev + 1);
       setShowShareAlert(true);
       setTimeout(() => setShowShareAlert(false), 3000);
@@ -662,7 +645,7 @@ export const usePostCard = (post, activeView = 'home') => {
     }).catch(() => {
       // Fallback for older browsers
       const textArea = document.createElement('textarea');
-      textArea.value = shareData;
+      textArea.value = url;
       document.body.appendChild(textArea);
       textArea.select();
       document.execCommand('copy');

@@ -48,7 +48,7 @@ const getAuthHeaders = () => {
 const FLOWW_TOKEN = getAuthToken();
 
 const API_CONFIG = {
-  BASE_URL: import.meta.env.VITE_API_BASE_URL || 'https://dev.gofloww.co/api/wall',
+  BASE_URL: import.meta.env.VITE_API_BASE_URL,
   TIMEOUT: 10000, // 10 seconds
 };
 
@@ -69,7 +69,7 @@ const checkAuthToken = (userType = null) => {
         if (currentUserType === 'admin') {
           window.location.href = import.meta.env.VITE_ADMIN_DASHBOARD_URL || 'http://localhost:8000/crm/dashboard';
         } else {
-          window.location.href = import.meta.env.VITE_API_BASE_URL?.replace('/api/wall', '') || 'https://dev.gofloww.co';
+          window.location.href = import.meta.env.VITE_APP_BASE_URL;
         }
         throw new Error('Missing authentication token. Redirecting...');
       }
@@ -109,7 +109,8 @@ const fetchWithTimeout = async (url, options = {}) => {
   // Check if this endpoint should allow multiple simultaneous requests
   const allowConcurrentRequests = url.includes('/current_user') || 
                                  url.includes('/get_single_post') ||
-                                 url.includes('/reactions');
+                                 url.includes('/reactions') ||
+                                 (url.includes('/posts') && options.method === 'GET');
   
   // Check if the same request is already in progress (but allow certain endpoints)
   if (!allowConcurrentRequests && activeRequests.has(simpleKey)) {
@@ -443,9 +444,10 @@ export const postsAPI = {
     }
   },
 
-  // Get posts by user
-  getUserPosts: async (userId, page = 1, limit = 20) => {
-    const endpoint = `${API_CONFIG.BASE_URL}/posts/user/${userId}?page=${page}&limit=${limit}`;
+  // Get current user's posts (using /posts/me endpoint)
+  getUserPosts: async (page = 1, limit = 20) => {
+    // Use the /posts/me endpoint for current user's posts
+    const endpoint = `${API_CONFIG.BASE_URL}/posts/me?page=${page}&limit=${limit}`;
     logApiCall('GET', endpoint);
     
     try {

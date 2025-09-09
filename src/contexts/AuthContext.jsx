@@ -271,7 +271,7 @@ const fetchUser = async () => {
     
     if (!hasValidAuth) {
       // No valid authentication found, redirect to main Floww application
-      window.location.href = 'https://dev.gofloww.co';
+      window.location.href = import.meta.env.VITE_APP_BASE_URL ;
       return;
     }
 
@@ -283,7 +283,7 @@ const fetchUser = async () => {
       console.error('Failed to refresh user data:', error);
       // Clear invalid tokens and redirect
       clearAuthTokens();
-      window.location.href = 'https://dev.gofloww.co';
+      window.location.href = import.meta.env.VITE_APP_BASE_URL ;
     } finally {
       setLoading(false);
     }

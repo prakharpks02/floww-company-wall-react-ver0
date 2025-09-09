@@ -212,7 +212,7 @@ const SinglePostView = () => {
                 </Link>
               ) : (
                 <button
-                  onClick={() => window.location.href = 'https://dev.gofloww.co'}
+                  onClick={() => window.location.href = import.meta.env.VITE_APP_BASE_URL}
                   className="flex items-center space-x-2 text-gray-600 hover:text-purple-600 transition-colors"
                 >
                   <ArrowLeft className="h-5 w-5" />
