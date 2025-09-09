@@ -5,8 +5,8 @@ import {
   Calendar,
   Trash2
 } from 'lucide-react';
-import { adminAPI } from '../../services/adminAPI';
-import api from '../../services/api';
+import { adminAPI } from '../../services/adminAPI.jsx';
+import api from '../../services/api.jsx';
 import { useAlert } from '../UI/Alert';
 
 const AdminReportedCommentCard = ({ commentData, onCommentUpdate, onCommentDelete }) => {

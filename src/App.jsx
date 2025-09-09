@@ -4,6 +4,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { PostProvider } from './contexts/PostContext';
 import { NotificationProvider } from './contexts/NotificationContext';
+import { ChatProvider } from './contexts/ChatContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import Dashboard from './components/Dashboard/Dashboard';
 import SinglePostView from './components/Posts/SinglePostView';
@@ -17,7 +18,7 @@ function AppRoutes() {
   // Check if user is authenticated with token
   if (!isAuthenticated()) {
     // Redirect to main Floww application if not authenticated
-    window.location.href = 'https://dev.gofloww.co';
+    window.location.href = import.meta.env.VITE_APP_BASE_URL;
     return null;
   }
 
@@ -51,9 +52,11 @@ function App() {
         <AuthProvider>
           <PostProvider>
             <NotificationProvider>
-              <div className="min-h-screen bg-gray-50">
-                <AppRoutes />
-              </div>
+              <ChatProvider>
+                <div className="min-h-screen bg-gray-50">
+                  <AppRoutes />
+                </div>
+              </ChatProvider>
             </NotificationProvider>
           </PostProvider>
         </AuthProvider>

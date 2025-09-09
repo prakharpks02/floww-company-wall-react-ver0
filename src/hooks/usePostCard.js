@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from './../contexts/AuthContext';
 import { usePost } from './../contexts/PostContext';
-import { postsAPI } from '../services/api';
+import { postsAPI } from '../services/api.jsx';
+import { debounce } from '../utils/requestUtils.jsx';
 
 export const usePostCard = (post, activeView = 'home') => {
   const { user } = useAuth();
@@ -15,7 +16,8 @@ export const usePostCard = (post, activeView = 'home') => {
     deleteReply, 
     addCommentReaction, 
     addReaction, 
-    hasUserReacted 
+    hasUserReacted,
+    hasUserReactedToComment
   } = usePost();
 
   // State management
@@ -148,7 +150,6 @@ export const usePostCard = (post, activeView = 'home') => {
                 const parsed = JSON.parse(fixedJson);
                 actualUrl = parsed.link;
               } catch (e) {
-                console.warn('Failed to parse media link:', item.link);
                 return false;
               }
             } else {
@@ -210,7 +211,6 @@ export const usePostCard = (post, activeView = 'home') => {
               const parsed = JSON.parse(fixedJson);
               actualUrl = parsed.link;
             } catch (e) {
-              console.warn('Failed to parse media link:', item.link);
               return false;
             }
           }
@@ -262,7 +262,6 @@ export const usePostCard = (post, activeView = 'home') => {
               const parsed = JSON.parse(fixedJson);
               actualUrl = parsed.link;
             } catch (e) {
-              console.warn('Failed to parse media link:', item.link);
               return false;
             }
           }
@@ -320,7 +319,6 @@ export const usePostCard = (post, activeView = 'home') => {
               const parsed = JSON.parse(fixedJson);
               actualUrl = parsed.link;
             } catch (e) {
-              console.warn('Failed to parse media link:', item.link);
               return false;
             }
           }
@@ -384,29 +382,62 @@ export const usePostCard = (post, activeView = 'home') => {
     const postId = getPostId();
     
     // First check local user reaction tracking (most reliable for current session)
-    const hasReactedLocally = hasUserReacted ? hasUserReacted(postId, 'like') : false;
+    const hasReactedLocally = hasUserReacted ? hasUserReacted(postId, 'love') : false;
     
-    // Then check various fallback methods
+    // Then check various fallback methods - check both 'love' and 'like' for backward compatibility
     const isInLikesArray = normalizedPost.likes?.includes(user?.id) || 
-                          normalizedPost.likes?.includes(user?.user_id);
+                          normalizedPost.likes?.includes(user?.user_id) ||
+                          normalizedPost.likes?.includes(user?.employee_id);
                           
+    const isInLoveReactionUsers = normalizedPost.reactions?.love?.users?.includes(user?.id) ||
+                                 normalizedPost.reactions?.love?.users?.includes(user?.user_id) ||
+                                 normalizedPost.reactions?.love?.users?.includes(user?.employee_id);
+                                 
     const isInLikeReactionUsers = normalizedPost.reactions?.like?.users?.includes(user?.id) ||
-                                 normalizedPost.reactions?.like?.users?.includes(user?.user_id);
+                                 normalizedPost.reactions?.like?.users?.includes(user?.user_id) ||
+                                 normalizedPost.reactions?.like?.users?.includes(user?.employee_id);
     
-    // For reaction_counts format, if there's a like count > 0, check if it's the user's own post
+    // For reaction_counts format, if there's a love count > 0, check if it's the user's own post
+    const hasLoveCount = normalizedPost.reactions?.love?.count > 0;
     const hasLikeCount = normalizedPost.reactions?.like?.count > 0;
-    const isOwnPost = isCurrentUserPost;
-    const likelyUserLikedOwnPost = hasLikeCount && isOwnPost;
+    // Remove the incorrect assumption that own posts with counts mean user liked it
     
     const liked = hasReactedLocally || 
                  isInLikesArray || 
-                 isInLikeReactionUsers || 
-                 likelyUserLikedOwnPost;
+                 isInLoveReactionUsers ||
+                 isInLikeReactionUsers;
     
     return liked;
   };
 
+  // Check if user has any reaction (for heart icon state)
+  const checkHasAnyReaction = () => {
+    const postId = getPostId();
+    
+    if (!normalizedPost.reactions || !user) return false;
+    
+    // Check each reaction type to see if user has reacted
+    for (const [reactionType, reaction] of Object.entries(normalizedPost.reactions)) {
+      // Check local tracking first
+      if (hasUserReacted && hasUserReacted(postId, reactionType)) {
+        return true;
+      }
+      
+      // Check reaction users array
+      if (reaction.users && (
+        reaction.users.includes(user.id) || 
+        reaction.users.includes(user.user_id) ||
+        reaction.users.includes(user.employee_id)
+      )) {
+        return true;
+      }
+    }
+    
+    return false;
+  };
+
   const isLiked = checkIsLiked();
+  const hasAnyReaction = checkHasAnyReaction();
   const isAuthor = isCurrentUserPost;
 
   // Cleanup timeout on unmount
@@ -426,34 +457,25 @@ export const usePostCard = (post, activeView = 'home') => {
     const postId = getPostId();
     if (!postId) return;
     
-    addReaction(postId, 'like', '❤️', activeView);
+    // For love reactions, we can use the checkIsLiked function
+    const checkIsLikedForLove = () => {
+      return checkIsLiked() ? 'love' : null;
+    };
+    
+    addReaction(postId, 'love', '❤️', activeView, checkIsLikedForLove);
   };
 
   const handleComment = () => {
     const postId = getPostId();
-
-    console.log('🔍 usePostCard handleComment:', {
-      commentText: commentText.trim(),
-      commentMentions,
-      postId
-    });
     
     if (commentText.trim() && postId) {
       const commentData = { 
         content: commentText.trim(),
         mentions: commentMentions
       };
-      console.log('🔍 Calling addComment with:', commentData);
       addComment(postId, commentData);
       setCommentText('');
       setCommentMentions([]);
-    } else {
-      console.warn('⚠️ Cannot add comment:', { 
-        hasContent: !!commentText.trim(), 
-        hasPostId: !!postId,
-        postId,
-        commentText 
-      });
     }
   };
 
@@ -463,7 +485,32 @@ export const usePostCard = (post, activeView = 'home') => {
   };
 
   const handleCommentLike = (commentId) => {
-    addCommentReaction(commentId, 'like');
+    // Find the comment to create a reaction detection function
+    const findComment = (comments) => {
+      for (const comment of comments || []) {
+        if (comment.id === commentId || comment.comment_id === commentId) {
+          return comment;
+        }
+        // Check replies
+        if (comment.replies) {
+          for (const reply of comment.replies) {
+            if (reply.id === commentId || reply.comment_id === commentId) {
+              return reply;
+            }
+          }
+        }
+      }
+      return null;
+    };
+    
+    const targetComment = findComment(normalizedPost.comments);
+    const getCommentLikeReaction = () => {
+      if (!targetComment) return null;
+      const userReaction = getCommentUserReaction(targetComment);
+      return userReaction === 'like' ? 'like' : null;
+    };
+    
+    addCommentReaction(commentId, 'love', '❤️', getCommentLikeReaction);
   };
 
   const handleCommentReaction = (commentId, reactionType, event) => {
@@ -472,7 +519,32 @@ export const usePostCard = (post, activeView = 'home') => {
       event.stopPropagation();
     }
     
-    addCommentReaction(commentId, reactionType);
+    // Find the comment to create a reaction detection function
+    const findComment = (comments) => {
+      for (const comment of comments || []) {
+        if (comment.id === commentId || comment.comment_id === commentId) {
+          return comment;
+        }
+        // Check replies
+        if (comment.replies) {
+          for (const reply of comment.replies) {
+            if (reply.id === commentId || reply.comment_id === commentId) {
+              return reply;
+            }
+          }
+        }
+      }
+      return null;
+    };
+    
+    const targetComment = findComment(normalizedPost.comments);
+    const getSpecificCommentReaction = () => {
+      if (!targetComment) return null;
+      const userReaction = getCommentUserReaction(targetComment);
+      return userReaction === reactionType ? reactionType : null;
+    };
+    
+    addCommentReaction(commentId, reactionType, null, getSpecificCommentReaction);
     setShowCommentReactions(prev => ({ ...prev, [commentId]: false }));
   };
 
@@ -491,9 +563,18 @@ export const usePostCard = (post, activeView = 'home') => {
     }
   };
 
-  const handleEditComment = (commentId, newContent) => {
-    if (newContent.trim()) {
-      editComment(commentId, newContent.trim());
+  const handleEditComment = (commentId, contentOrData) => {
+    // Handle both string content and object data
+    if (typeof contentOrData === 'string') {
+      // Legacy: just content string
+      if (contentOrData.trim()) {
+        editComment(commentId, contentOrData.trim());
+      }
+    } else if (typeof contentOrData === 'object' && contentOrData.content) {
+      // New: object with content and mentions
+      if (contentOrData.content.trim()) {
+        editComment(commentId, contentOrData);
+      }
     }
   };
 
@@ -508,48 +589,43 @@ export const usePostCard = (post, activeView = 'home') => {
   };
 
   const handleShare = () => {
-    setShareCount(prev => prev + 1);
+    // Get the current application URL dynamically
+    const baseUrl = window.location.origin;
+    const postId = normalizedPost.post_id || normalizedPost.id;
     
-    // Use the actual post ID from the API (post_id format)
-    const actualPostId = normalizedPost.post_id || normalizedPost.id;
-    // Use API endpoint that returns post data without authentication
-    const shareUrl = `https://dev.gofloww.co/api/wall/posts/${actualPostId}/get_single_post`;
-    const shareText = `Check out this post by ${normalizedPost.authorName}: ${normalizedPost.content.replace(/<[^>]*>/g, '').substring(0, 100)}...`;
+    // Create a user-friendly share URL that goes to the main application
+    const shareUrl = `${baseUrl}/post/${postId}`;
     
-
-    if (navigator.share) {
+    // Try native sharing first (mobile browsers)
+    if (navigator.share && /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
       navigator.share({
-        title: `Post by ${normalizedPost.authorName}`,
-        text: shareText,
         url: shareUrl,
+      }).then(() => {
+        setShareCount(prev => prev + 1);
       }).catch(err => {
-       
         copyToClipboard(shareUrl);
       });
     } else {
+      // Fallback to clipboard copy for desktop
       copyToClipboard(shareUrl);
     }
-    
-
   };
 
-  const copyToClipboard = (text) => {
-
-    navigator.clipboard.writeText(text).then(() => {
+  const copyToClipboard = (url) => {
+    navigator.clipboard.writeText(url).then(() => {
+      setShareCount(prev => prev + 1);
       setShowShareAlert(true);
       setTimeout(() => setShowShareAlert(false), 3000);
-      
     }).catch(() => {
       // Fallback for older browsers
       const textArea = document.createElement('textarea');
-      textArea.value = text;
+      textArea.value = url;
       document.body.appendChild(textArea);
       textArea.select();
       document.execCommand('copy');
       document.body.removeChild(textArea);
       setShowShareAlert(true);
       setTimeout(() => setShowShareAlert(false), 3000);
- 
     });
   };
 
@@ -590,7 +666,7 @@ export const usePostCard = (post, activeView = 'home') => {
     if (!postId) return;
     
     const emoji = emojiReactions.find(r => r.name === reactionType)?.emoji || '👍';
-    addReaction(postId, reactionType, emoji, activeView);
+    addReaction(postId, reactionType, emoji, activeView, getUserReaction);
     setShowReactions(false);
   };
 
@@ -631,14 +707,14 @@ export const usePostCard = (post, activeView = 'home') => {
     
     const postId = getPostId();
     for (const [reactionType, reaction] of Object.entries(normalizedPost.reactions)) {
-      if (reactionType !== 'like') {
+      // Exclude 'love' and 'like' since they're handled by the heart button
+      if (reactionType !== 'love' && reactionType !== 'like') {
         const hasReactedLocally = hasUserReacted ? hasUserReacted(postId, reactionType) : false;
-        const isInReactionUsers = reaction.users?.includes(user?.id) || reaction.users?.includes(user?.user_id);
-        const hasReactionCount = reaction.count > 0;
-        const isOwnPost = isCurrentUserPost;
-        const likelyUserReactedOwnPost = hasReactionCount && isOwnPost;
+        const isInReactionUsers = reaction.users?.includes(user?.id) || 
+                                 reaction.users?.includes(user?.user_id) ||
+                                 reaction.users?.includes(user?.employee_id);
         
-        const userHasReaction = hasReactedLocally || isInReactionUsers || likelyUserReactedOwnPost;
+        const userHasReaction = hasReactedLocally || isInReactionUsers;
         
         if (userHasReaction) {
           return reactionType;
@@ -649,23 +725,21 @@ export const usePostCard = (post, activeView = 'home') => {
   };
 
   const getCommentUserReaction = (comment) => {
-   
-    
     if (!comment.reactions) {
      return null;
     }
     
     if (Object.keys(comment.reactions).length === 0) {
-
       return null;
     }
     
     // Get current user IDs to check against
-    const currentUserIds = [user?.id, user?.user_id, user?.userId].filter(Boolean);
-
+    const currentUserIds = [user?.id, user?.user_id, user?.userId, user?.employee_id].filter(Boolean);
+    const commentId = comment.comment_id || comment.id;
     
     for (const [reactionType, reaction] of Object.entries(comment.reactions)) {
-     
+      // Check local state first
+      const hasReactedLocally = hasUserReactedToComment ? hasUserReactedToComment(commentId, reactionType) : false;
       
       // Handle different reaction data formats
       let hasReaction = false;
@@ -683,33 +757,30 @@ export const usePostCard = (post, activeView = 'home') => {
                    return match;
         });
       } else if (reaction.count > 0) {
-        // For reaction_counts format, if there's a reaction count > 0 and it's user's own comment,
-        // assume they reacted (similar logic to posts)
-        const isOwnComment = currentUserIds.includes(comment.authorId) || 
-                            currentUserIds.includes(comment.author?.user_id) ||
-                            currentUserIds.includes(comment.author?.id);
-        hasReaction = isOwnComment;
-     
+        // For reaction_counts format, we cannot reliably determine if user has it
+        // without explicit user data, so skip this assumption
+        hasReaction = false;
       }
       
-    
+      const userHasReaction = hasReactedLocally || hasReaction;
       
-      if (hasReaction) {
-       
+      if (userHasReaction) {
         return reactionType;
       }
     }
     
-   
     return null;
   };
 
   const getTotalLikes = () => {
     const likesArrayCount = normalizedPost.likes?.length || 0;
     const likeReactionCount = normalizedPost.reactions?.like?.count || 0;
+    const loveReactionCount = normalizedPost.reactions?.love?.count || 0;
     
-    if (likeReactionCount > 0) {
-      return likeReactionCount;
+    // Use the highest count between like and love reactions, or fall back to likes array
+    const reactionCount = Math.max(likeReactionCount, loveReactionCount);
+    if (reactionCount > 0) {
+      return reactionCount;
     }
     return likesArrayCount;
   };
@@ -717,7 +788,7 @@ export const usePostCard = (post, activeView = 'home') => {
   const getTotalReactions = () => {
     if (!normalizedPost.reactions) return 0;
     return Object.entries(normalizedPost.reactions)
-      .filter(([reactionType]) => reactionType !== 'like')
+      .filter(([reactionType]) => reactionType !== 'like' && reactionType !== 'love')
       .reduce((total, [, reaction]) => total + reaction.count, 0);
   };
 
@@ -731,6 +802,20 @@ export const usePostCard = (post, activeView = 'home') => {
       .map(([type, reaction]) => ({
         type,
         emoji: emojiReactions.find(r => r.name === type)?.emoji || '👍',
+        count: reaction.count
+      }));
+  };
+
+  // Get all reactions including likes for unified display
+  const getAllReactions = () => {
+    if (!normalizedPost.reactions) return [];
+    
+    return Object.entries(normalizedPost.reactions)
+      .sort(([,a], [,b]) => b.count - a.count)
+      .slice(0, 3)
+      .map(([type, reaction]) => ({
+        type,
+        emoji: (type === 'like' || type === 'love') ? '❤️' : (emojiReactions.find(r => r.name === type)?.emoji || '👍'),
         count: reaction.count
       }));
   };
@@ -763,7 +848,6 @@ export const usePostCard = (post, activeView = 'home') => {
 
   // Handle mentions change
   const handleCommentMentionsChange = (mentions) => {
-    console.log('🔍 usePostCard handleCommentMentionsChange:', mentions);
     setCommentMentions(mentions);
   };
 
@@ -806,6 +890,7 @@ export const usePostCard = (post, activeView = 'home') => {
 
     // Computed values
     isLiked,
+    hasAnyReaction,
     isAuthor,
     isBlocked: user?.is_blocked === true || user?.is_blocked === "true",
     emojiReactions,
@@ -837,6 +922,7 @@ export const usePostCard = (post, activeView = 'home') => {
     getTotalLikes,
     getTotalReactions,
     getTopReactions,
+    getAllReactions,
     getCommentTopReactions,
     getCommentTotalReactions,
     getTotalComments,

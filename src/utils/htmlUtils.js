@@ -94,3 +94,17 @@ export const truncateText = (text, maxLength = 200) => {
   
   return plainText.substring(0, maxLength) + '...';
 };
+
+// Function to highlight mentions in comment text
+export const highlightMentions = (text) => {
+  if (!text) return '';
+  
+  // Enhanced regex to match @mentions with full names (including spaces, dots, hyphens)
+  // This will match: @Sakshi Jadhav, @John.Doe, @Mary-Jane, etc.
+  // Updated to be more precise about word boundaries
+  const mentionRegex = /@([a-zA-Z0-9]+(?:[\s\.\-_][a-zA-Z0-9]+)*)/g;
+  
+  return text.replace(mentionRegex, (match, username) => {
+    return `<span class="mention">${match}</span>`;
+  });
+};

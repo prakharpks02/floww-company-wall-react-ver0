@@ -1,7 +1,7 @@
 // Custom hooks for AdminAllPosts functionality
 import { useState, useCallback } from 'react';
-import { postsAPI } from '../../../services/api';
-import { adminAPI } from '../../../services/adminAPI';
+import { postsAPI } from '../../../services/api.jsx';
+import { adminAPI } from '../../../services/adminAPI.jsx';
 
 export const usePostActions = (posts, setPosts, pinnedPosts, setPinnedPosts, setError, setSuccessMessage) => {
   

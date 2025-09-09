@@ -29,7 +29,7 @@ const Header = ({ onSearchChange, searchValue }) => {
               </div>
               <div className="block min-w-0">
                 <h1 className="text-base sm:text-lg lg:text-xl font-semibold text-gray-900 truncate">
-                  Atom Buzz Community
+                  Atom Buzz
                 </h1>
                 <p className="text-xs sm:text-sm text-gray-500 truncate hidden sm:block">
                   Human Resources Department

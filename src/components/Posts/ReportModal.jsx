@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, Flag, AlertTriangle } from 'lucide-react';
-import { postsAPI } from '../../services/api';
+import { postsAPI } from '../../services/api.jsx';
 
 const ReportModal = ({ isOpen, onClose, postId, commentId, type = 'post' }) => {
   const [reason, setReason] = useState('');

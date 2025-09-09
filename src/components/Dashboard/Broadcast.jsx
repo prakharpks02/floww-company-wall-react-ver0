@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Megaphone, Calendar, Users, ExternalLink, RefreshCw } from 'lucide-react';
-import { postsAPI } from '../../services/api';
+import { postsAPI } from '../../services/api.jsx';
 
 const Broadcast = () => {
   const [broadcasts, setBroadcasts] = useState([]);

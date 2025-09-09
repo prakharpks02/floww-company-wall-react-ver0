@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Header from './Header';
 import Sidebar from './Sidebar';
 import PostFeed from '../Posts/PostFeed';
@@ -7,8 +7,11 @@ import MyPosts from './MyPosts';
 import BroadcastView from './BroadcastView';
 import ResponsiveLayout from '../Layout/ResponsiveLayout';
 import ScrollToTop from './ScrollToTop';
+import ChatApp from '../Chat/ChatApp';
+// import ChatToggleButton from '../Chat/ChatToggleButton';
 import { usePost } from '../../contexts/PostContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useChat } from '../../contexts/ChatContext';
 
 // Admin Components
 import AdminAllPosts from '../Admin/AdminAllPosts';
@@ -23,8 +26,33 @@ const Dashboard = () => {
   });
   const [showCreatePost, setShowCreatePost] = useState(false);
   const [activeView, setActiveView] = useState('home'); // 'home', 'broadcast', 'myposts', 'admin-posts', 'admin-users', 'admin-reports', 'admin-broadcast'
-  const { posts, getFilteredPosts, loadAllPosts, reloadPosts, loading } = usePost();
+  const [userPosts, setUserPosts] = useState([]); // Store user posts for sidebar count updates
+  const { posts, getFilteredPosts, loadAllPosts, reloadPosts, loading, setIsDashboardManaged } = usePost();
   const { user } = useAuth();
+  const { isChatOpen, isChatMinimized, isCompactMode, isFullScreenMobile, totalUnreadMessages, toggleChat, closeChat } = useChat();
+  
+  // Add refs to prevent multiple API calls
+  const lastActiveView = useRef(activeView);
+  const isInitialized = useRef(false);
+  const isLoadingRef = useRef(false);
+
+  // Set Dashboard as the posts manager on mount
+  useEffect(() => {
+    setIsDashboardManaged(true);
+    return () => {
+      setIsDashboardManaged(false); // Clean up on unmount
+    };
+  }, [setIsDashboardManaged]);
+
+  // Create chat content for desktop integration
+  const chatContent = isChatOpen && !isChatMinimized && !isCompactMode && !isFullScreenMobile ? (
+    <ChatApp 
+      isMinimized={isChatMinimized} 
+      onToggleMinimize={toggleChat}
+      onClose={closeChat}
+      isIntegratedMode={true}
+    />
+  ) : null;
 
   // Sort comments and replies so that the latest are on top
   const filteredPosts = getFilteredPosts(filters);
@@ -43,22 +71,41 @@ const Dashboard = () => {
       : post.comments
   }));
 
-  // Load appropriate posts based on active view
+  // Load appropriate posts based on active view (with throttling)
   useEffect(() => {
-    if (activeView === 'home') {
-      loadAllPosts(true); // Reset pagination and load fresh posts for home feed
-    } else if (activeView === 'myposts') {
-      reloadPosts(); // Load user's posts only
-    }
-    // For broadcast view, data is fetched by BroadcastView component
-  }, [activeView]);
+    const loadData = async () => {
+      // Prevent loading if already loading or same view
+      if (isLoadingRef.current || lastActiveView.current === activeView) {
+        return;
+      }
+      
+      isLoadingRef.current = true;
+      lastActiveView.current = activeView;
+      
+      try {
+        if (activeView === 'home') {
+          // Only load all posts for home feed - this manages the posts globally
+          await loadAllPosts(true); // Reset pagination and load fresh posts for home feed
+        }
+        // For myposts view, let MyPosts component handle its own data loading
+        // For broadcast view, data is fetched by BroadcastView component
+      } catch (error) {
+        console.error('Error loading data for view:', activeView, error);
+      } finally {
+        isLoadingRef.current = false;
+      }
+    };
 
-  // Set default view for admin users
+    loadData();
+  }, [activeView, loadAllPosts, reloadPosts]);
+
+  // Set default view for admin users (only once)
   useEffect(() => {
-    if (user?.is_admin && activeView === 'home') {
+    if (user?.is_admin && activeView === 'home' && !isInitialized.current) {
       setActiveView('admin-posts');
+      isInitialized.current = true;
     }
-  }, [user]);
+  }, [user?.is_admin]);
 
   const handleSearchChange = (searchValue) => {
     setFilters(prev => ({ ...prev, search: searchValue }));
@@ -66,6 +113,15 @@ const Dashboard = () => {
 
   const handleViewChange = (view) => {
     setActiveView(view);
+    
+    // Clear userPosts when leaving My Posts view
+    if (view !== 'myposts') {
+      setUserPosts([]);
+    }
+  };
+
+  const handleUserPostsChange = (posts) => {
+    setUserPosts(posts);
   };
 
   const headerComponent = (
@@ -82,6 +138,7 @@ const Dashboard = () => {
       onCreatePost={() => setShowCreatePost(true)}
       activeView={activeView}
       onViewChange={handleViewChange}
+      userPosts={userPosts}
     />
   );
 
@@ -102,7 +159,7 @@ const Dashboard = () => {
 
     // Handle regular user views
     if (activeView === 'myposts') {
-      return <MyPosts />;
+      return <MyPosts filters={filters} onPostsChange={handleUserPostsChange} />;
     }
     
     if (activeView === 'broadcast') {
@@ -115,7 +172,7 @@ const Dashboard = () => {
   {/* Welcome Message */}
   <div className="bg-white rounded-lg shadow-sm p-4 lg:p-6 border border-gray-200">
     <h1 className="text-xl lg:text-2xl font-bold text-gray-900 mb-2">
-      Welcome to Atom Buzz Community Wall 👋
+      Welcome to Atom Buzz👋
     </h1>
     <p className="text-sm lg:text-base text-gray-600">
       Share updates, collaborate with colleagues, and stay connected with the HR team.
@@ -173,24 +230,52 @@ const Dashboard = () => {
   };
 
   return (
-    <ResponsiveLayout 
-      header={headerComponent}
-      sidebar={sidebarComponent}
-      activeView={activeView}
-      onViewChange={handleViewChange}
-      onCreatePost={() => setShowCreatePost(true)}
-      user={user}
-    >
-      {/* Create Post Modal - Only show if user is not blocked and not admin */}
-      {showCreatePost && !(user?.is_blocked === true || user?.is_blocked === "true") && !user?.is_admin && (
-        <CreatePost onClose={() => setShowCreatePost(false)} />
+    <>
+      {/* Full Screen Mobile Chat - Render outside ResponsiveLayout */}
+      {isFullScreenMobile && (
+        <ChatApp 
+          isMinimized={isChatMinimized} 
+          onToggleMinimize={toggleChat}
+          onClose={closeChat}
+        />
       )}
 
-      {renderMainContent()}
-      
-      {/* Scroll to Top Button */}
-      <ScrollToTop />
-    </ResponsiveLayout>
+      <ResponsiveLayout 
+        header={headerComponent}
+        sidebar={sidebarComponent}
+        activeView={activeView}
+        onViewChange={handleViewChange}
+        onCreatePost={() => setShowCreatePost(true)}
+        user={user}
+        chatContent={chatContent}
+      >
+        {/* Create Post Modal - Only show if user is not blocked and not admin */}
+        {showCreatePost && !(user?.is_blocked === true || user?.is_blocked === "true") && !user?.is_admin && (
+          <CreatePost onClose={() => setShowCreatePost(false)} />
+        )}
+
+        {renderMainContent()}
+        
+        {/* Scroll to Top Button - Hide when chat is taking up layout space */}
+        {!(isChatOpen && !isChatMinimized && !isCompactMode) && <ScrollToTop />}
+
+        {/* Chat Components - Only render compact mode and mobile toggle */}
+        {isChatOpen && !isFullScreenMobile && (isCompactMode || isChatMinimized) ? (
+          <ChatApp 
+            isMinimized={isChatMinimized} 
+            onToggleMinimize={toggleChat}
+            onClose={closeChat}
+          />
+        ) : (
+          !isChatOpen && null
+          /* <ChatToggleButton 
+            onClick={toggleChat}
+            hasUnreadMessages={totalUnreadMessages > 0}
+            unreadCount={totalUnreadMessages}
+          /> */
+        )}
+      </ResponsiveLayout>
+    </>
   );
 };
 

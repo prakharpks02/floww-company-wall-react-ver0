@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { adminAPI } from '../../services/adminAPI';
+import { adminAPI } from '../../services/adminAPI.jsx';
 import { Ban, Check, User, Mail, Calendar, AlertTriangle, UserCheck } from 'lucide-react';
 import Alert, { useAlert } from '../UI/Alert';
 

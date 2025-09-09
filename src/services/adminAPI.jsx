@@ -4,6 +4,10 @@
 
 import { cookieUtils } from '../utils/cookieUtils';
 
+// Request cache for admin API deduplication
+const adminRequestCache = new Map();
+const ADMIN_CACHE_DURATION = 2000; // 2 seconds cache for admin requests
+
 // Get the appropriate admin token based on current URL
 const getAdminToken = () => {
   const currentPath = window.location.pathname;
@@ -22,7 +26,7 @@ const getAdminToken = () => {
 };
 
 const API_CONFIG = {
-  BASE_URL: 'https://dev.gofloww.co/api/wall',
+  BASE_URL: import.meta.env.VITE_API_BASE_URL,
   TIMEOUT: 30000, // Increased timeout to 30 seconds
   HEADERS: {
     'Authorization': getAdminToken(),
@@ -30,10 +34,6 @@ const API_CONFIG = {
   }
 };
 
-// Debug: Log the token being used
-console.log('🔑 Admin API Token:', API_CONFIG.HEADERS.Authorization ? 'Token loaded' : 'No token found');
-console.log('🔑 Current path:', window.location.pathname);
-console.log('🔑 Using token type:', window.location.pathname.includes('/crm') ? 'Admin' : 'Employee');
 
 // Helper function to handle API responses
 const handleResponse = async (response) => {
@@ -60,6 +60,18 @@ const fetchWithTimeout = async (url, options = {}) => {
   // Get fresh token for each request
   const currentToken = getAdminToken();
   
+  // Create cache key for admin request deduplication
+  const cacheKey = `admin-${options.method || 'GET'}-${url}-${JSON.stringify(options.body || {})}`;
+  
+  // Check if there's a cached request in progress
+  if (adminRequestCache.has(cacheKey)) {
+    const cached = adminRequestCache.get(cacheKey);
+    if (Date.now() - cached.timestamp < ADMIN_CACHE_DURATION) {
+
+      return cached.promise;
+    }
+  }
+  
   // Prepare headers
   let headers = {
     'Authorization': currentToken,
@@ -71,28 +83,43 @@ const fetchWithTimeout = async (url, options = {}) => {
     headers['Content-Type'] = 'application/json';
   }
   
-  try {
-    const response = await fetch(url, {
-      ...options,
-      signal: controller.signal,
-      headers
-    });
-    
-    clearTimeout(timeoutId);
-    return response;
-  } catch (error) {
-    clearTimeout(timeoutId);
-    if (error.name === 'AbortError') {
-      throw new Error('Request timeout');
+  const requestPromise = (async () => {
+    try {
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+        headers
+      });
+      
+      clearTimeout(timeoutId);
+      
+      // Clean up cache after request completes
+      setTimeout(() => {
+        adminRequestCache.delete(cacheKey);
+      }, ADMIN_CACHE_DURATION);
+      
+      return response;
+    } catch (error) {
+      clearTimeout(timeoutId);
+      adminRequestCache.delete(cacheKey);
+      
+      if (error.name === 'AbortError') {
+        throw new Error('Request timeout');
+      }
+      throw error;
     }
-    throw error;
-  }
+  })();
+  
+  // Cache the request promise
+  adminRequestCache.set(cacheKey, {
+    promise: requestPromise,
+    timestamp: Date.now()
+  });
+  
+  return requestPromise;
 };
 
-// Log API calls for debugging
-const logApiCall = (method, url, data = null) => {
-  console.log(`🌐 ${method} ${url}`, data ? { data } : '');
-};
+
 
 // =============================================================================
 // ADMIN API FUNCTIONS
@@ -372,8 +399,6 @@ export const adminAPI = {
       throw error;
     }
   },
-
-
 
   // ========================================
   // BROADCAST MESSAGES

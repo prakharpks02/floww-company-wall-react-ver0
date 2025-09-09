@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Bold, Italic, List, Underline, AlignLeft, AlignCenter, AlignRight,PaintBucket  } from 'lucide-react';
-import { userAPI } from '../../services/api';
-import { adminAPI } from '../../services/adminAPI';
+import { userAPI } from '../../services/api.jsx';
+import { adminAPI } from '../../services/adminAPI.jsx';
 
 const RichTextEditor = ({ 
   value, 
@@ -150,7 +150,7 @@ const RichTextEditor = ({
       
       // Create mention element
       const mentionSpan = document.createElement('span');
-      mentionSpan.className = 'mention bg-purple-100 text-purple-800 px-1 rounded';
+      mentionSpan.className = 'mention';
       mentionSpan.setAttribute('data-user-id', user.user_id || user.id || user.employee_id);
       
       const employeeDisplayName = user.employee_name || user.username || user.name;

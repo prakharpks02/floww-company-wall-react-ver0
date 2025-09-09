@@ -75,21 +75,32 @@
   content: "";
 }
 
-/* Mention styles */
-.mention {
-  background-color: #f3f0ff;
-  color: #9f7aea;
+/* Mention styles - increased specificity */
+.mention,
+span.mention,
+.prose .mention,
+div .mention,
+.text-gray-700 .mention,
+.text-gray-900 .mention {
+  background-color: #f3f0ff !important;
+  color: #9f7aea !important;
   padding: 2px 4px;
   border-radius: 4px;
   font-weight: 500;
   text-decoration: none;
   cursor: pointer;
   transition: all 0.2s ease;
+  display: inline;
 }
 
-.mention:hover {
-  background-color: #e9e5f5;
-  color: #8b5cf6;
+.mention:hover,
+span.mention:hover,
+.prose .mention:hover,
+div .mention:hover,
+.text-gray-700 .mention:hover,
+.text-gray-900 .mention:hover {
+  background-color: #e9e5f5 !important;
+  color: #8b5cf6 !important;
   transform: translateY(-1px);
 }
 

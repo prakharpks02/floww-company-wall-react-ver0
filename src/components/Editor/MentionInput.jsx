@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { userAPI } from '../../services/api';
-import { adminAPI } from '../../services/adminAPI';
+import { userAPI } from '../../services/api.jsx';
+import { adminAPI } from '../../services/adminAPI.jsx';
+import { highlightMentions } from '../../utils/htmlUtils';
 
 const MentionInput = ({ 
   value, 
@@ -14,12 +15,49 @@ const MentionInput = ({
   onMentionsChange = () => {} // New prop to pass mentions back to parent
 }) => {
   const textareaRef = useRef(null);
+  const overlayRef = useRef(null);
   const [showMentions, setShowMentions] = useState(false);
   const [mentionQuery, setMentionQuery] = useState('');
   const [mentionPosition, setMentionPosition] = useState({ top: 0, left: 0 });
   const [users, setUsers] = useState([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
   const [currentMentions, setCurrentMentions] = useState([]);
+  const [highlightedText, setHighlightedText] = useState('');
+
+  // Effect to update highlighted text when value changes
+  useEffect(() => {
+    if (value) {
+      const highlighted = highlightMentions(value);
+      setHighlightedText(highlighted);
+    } else {
+      setHighlightedText('');
+    }
+  }, [value]);
+
+  // Effect to extract mentions from initial value (for editing mode)
+  useEffect(() => {
+    if (value && currentMentions.length === 0) {
+      // Extract @mentions from the text
+      const mentionRegex = /@([a-zA-Z0-9\s\.\-_]+?)(?=\s|$|[^\w\s\.\-_])/g;
+      const foundMentions = [];
+      let match;
+      
+      while ((match = mentionRegex.exec(value)) !== null) {
+        const mentionName = match[1].trim();
+        // Create a basic mention object (we don't have employee_id from text, so this is limited)
+        foundMentions.push({
+          employee_id: '', // We can't determine this from text alone
+          employee_name: mentionName,
+          username: mentionName
+        });
+      }
+      
+      if (foundMentions.length > 0) {
+        setCurrentMentions(foundMentions);
+        onMentionsChange(foundMentions);
+      }
+    }
+  }, [value]);
 
   // Debounce function for API calls
   const debounce = (func, wait) => {
@@ -70,6 +108,29 @@ const MentionInput = ({
   const handleInput = (e) => {
     const newValue = e.target.value;
     onChange(newValue);
+    
+    // Update highlighted text
+    const highlighted = highlightMentions(newValue);
+    setHighlightedText(highlighted);
+    
+ 
+    
+    // Sync mentions with text content - remove mentions that are no longer in the text
+    const updatedMentions = currentMentions.filter(mention => {
+      const mentionText = `@${mention.employee_name}`;
+      const isStillInText = newValue.includes(mentionText);
+
+      return isStillInText;
+    });
+    
+
+    
+    // Update mentions if any were removed
+    if (updatedMentions.length !== currentMentions.length) {
+
+      setCurrentMentions(updatedMentions);
+      onMentionsChange(updatedMentions);
+    }
     
     // Handle mentions
     const caretPos = e.target.selectionStart;
@@ -124,17 +185,30 @@ const MentionInput = ({
       const newText = beforeMention + `@${displayName} ` + afterMention;
       onChange(newText);
       
-      // Update mentions list - store employee_username for backend
-      const newMention = {
-        user_id: user.user_id || user.id || user.employee_id,
-        employee_username: username,
-        employee_name: displayName,
-        username: username
-      };
+      // Update highlighted text
+      const highlighted = highlightMentions(newText);
+      setHighlightedText(highlighted);
       
-      const updatedMentions = [...currentMentions, newMention];
-      setCurrentMentions(updatedMentions);
-      onMentionsChange(updatedMentions);
+      // Update mentions list - store employee_id for backend as clean string
+      const employeeId = String(user.employee_id || user.user_id || user.id || '').trim();
+      
+    
+      
+      if (employeeId) {
+        const newMention = {
+          employee_id: employeeId,
+          employee_name: displayName,
+          username: username
+        };
+        
+   
+        
+        const updatedMentions = [...currentMentions, newMention];
+        setCurrentMentions(updatedMentions);
+        onMentionsChange(updatedMentions);
+        
+      
+      }
       
       // Set cursor position after mention
       setTimeout(() => {
@@ -191,17 +265,52 @@ const MentionInput = ({
 
   return (
     <div className={`relative ${className}`}>
+      {/* Visual overlay for highlighting mentions */}
+      <div
+        ref={overlayRef}
+        className="absolute inset-0 px-3 py-2 pointer-events-none text-sm whitespace-pre-wrap break-words overflow-hidden z-10"
+        style={{
+          color: 'transparent',
+          lineHeight: '1.5',
+          fontFamily: 'inherit',
+          fontSize: 'inherit',
+          border: '1px solid transparent', // Match textarea border
+          borderRadius: '0.5rem', // Match textarea border radius
+        }}
+        dangerouslySetInnerHTML={{ __html: highlightedText }}
+      />
+      
+      {/* Textarea for input */}
       <textarea
         ref={textareaRef}
         value={value}
         onChange={handleInput}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
-        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none transition-all duration-200"
+        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none transition-all duration-200 relative z-20 bg-transparent"
         rows={rows}
         maxLength={maxLength}
         disabled={disabled}
+        style={{
+          color: value && highlightedText ? 'transparent' : 'inherit'
+        }}
       />
+      
+      {/* Fallback text when highlighting is active */}
+      {value && highlightedText && (
+        <div
+          className="absolute inset-0 px-3 py-2 pointer-events-none text-sm whitespace-pre-wrap break-words overflow-hidden z-30"
+          style={{
+            lineHeight: '1.5',
+            fontFamily: 'inherit',
+            fontSize: 'inherit',
+            border: '1px solid transparent',
+            borderRadius: '0.5rem',
+            color: '#111827' // Default text color
+          }}
+          dangerouslySetInnerHTML={{ __html: highlightedText }}
+        />
+      )}
       
       {/* Character count */}
       {maxLength && (

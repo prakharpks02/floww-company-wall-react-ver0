@@ -8,7 +8,7 @@ import {
   Image as ImageIcon,
   FileText
 } from 'lucide-react';
-import { adminAPI } from '../../services/adminAPI';
+import { adminAPI } from '../../services/adminAPI.jsx';
 import { useAlert } from '../UI/Alert';
 
 

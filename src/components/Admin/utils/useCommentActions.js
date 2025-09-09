@@ -1,6 +1,6 @@
 // Custom hooks for comment and user management
-import { adminAPI } from '../../../services/adminAPI';
-import { postsAPI } from '../../../services/api';
+import { adminAPI } from '../../../services/adminAPI.jsx';
+import { postsAPI } from '../../../services/api.jsx';
 
 export const useCommentActions = (posts, setPosts, pinnedPosts, setPinnedPosts, setError) => {
   

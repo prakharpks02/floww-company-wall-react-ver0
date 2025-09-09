@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { userAPI } from '../services/api';
+import { userAPI } from '../services/api.jsx';
 import { cookieUtils } from '../utils/cookieUtils';
 
 // Create the Auth Context
@@ -46,7 +46,7 @@ const fetchUser = async () => {
     if (!token) {
    
       // No token found, redirect to main Floww application
-      window.location.href = "https://dev.gofloww.co";
+      window.location.href = "https://employee.gofloww.co";
       return;
     }
 
@@ -271,7 +271,7 @@ const fetchUser = async () => {
     
     if (!hasValidAuth) {
       // No valid authentication found, redirect to main Floww application
-      window.location.href = 'https://dev.gofloww.co';
+      window.location.href = import.meta.env.VITE_APP_BASE_URL ;
       return;
     }
 
@@ -283,7 +283,7 @@ const fetchUser = async () => {
       console.error('Failed to refresh user data:', error);
       // Clear invalid tokens and redirect
       clearAuthTokens();
-      window.location.href = 'https://dev.gofloww.co';
+      window.location.href = import.meta.env.VITE_APP_BASE_URL ;
     } finally {
       setLoading(false);
     }

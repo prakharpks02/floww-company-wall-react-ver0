@@ -41,19 +41,16 @@ export const usePostCreation = (createPost, editPost, editingPost, onClose) => {
     // Look for mention spans with either data-user-id attribute or mention class
     const mentionElements = tempDiv.querySelectorAll('span[data-user-id], span.mention');
     
-    // Return array of employee usernames as strings
+    // Return array of employee_ids as strings
     const extractedMentions = Array.from(mentionElements).map(element => {
-      const employee_username = element.getAttribute('data-employee_username');
-      const employee_name = element.getAttribute('data-employee_name');
-      const textContent = element.textContent.replace('@', '').trim();
+      const employee_id = element.getAttribute('data-user-id') || element.getAttribute('data-employee_id');
 
-      // Prioritize employee_username, then fall back to employee_name, then text content
-      const username = employee_username || employee_name || textContent;
       
-      // Return just the username as a string
-      return username || null;
+      // Return just the employee_id as a string
+      return employee_id || null;
     }).filter(Boolean); // Remove null entries
     
+
     return extractedMentions;
   };
 

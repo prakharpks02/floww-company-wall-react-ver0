@@ -4,6 +4,11 @@
 
 import { cookieUtils } from '../utils/cookieUtils';
 
+// Request deduplication cache
+const requestCache = new Map();
+const CACHE_DURATION = 2000; // 2 second cache for deduplication
+const activeRequests = new Set(); // Track currently active requests
+
 // Get authentication token based on environment and user type
 const getAuthToken = (userType = 'employee') => {
   const { employeeToken, employeeId, adminToken } = cookieUtils.getAuthTokens();
@@ -43,8 +48,13 @@ const getAuthHeaders = () => {
 const FLOWW_TOKEN = getAuthToken();
 
 const API_CONFIG = {
-  BASE_URL: import.meta.env.VITE_API_BASE_URL || 'https://dev.gofloww.co/api/wall',
+  BASE_URL: import.meta.env.VITE_API_BASE_URL,
   TIMEOUT: 10000, // 10 seconds
+};
+
+// No-op function for production - removes API call logging
+const logApiCall = () => {
+  // Intentionally empty for production
 };
 
 // =============================================================================
@@ -64,7 +74,7 @@ const checkAuthToken = (userType = null) => {
         if (currentUserType === 'admin') {
           window.location.href = import.meta.env.VITE_ADMIN_DASHBOARD_URL || 'http://localhost:8000/crm/dashboard';
         } else {
-          window.location.href = import.meta.env.VITE_API_BASE_URL?.replace('/api/wall', '') || 'https://dev.gofloww.co';
+          window.location.href = import.meta.env.VITE_APP_BASE_URL;
         }
         throw new Error('Missing authentication token. Redirecting...');
       }
@@ -97,6 +107,27 @@ const fetchWithTimeout = async (url, options = {}) => {
   const userType = options.userType || getCurrentUserType();
   const currentToken = checkAuthToken(userType);
   
+  // Create cache key for request deduplication
+  const cacheKey = `${options.method || 'GET'}-${url}-${JSON.stringify(options.body || {})}-${Date.now() - (Date.now() % CACHE_DURATION)}`;
+  const simpleKey = `${options.method || 'GET'}-${url.split('?')[0]}`; // For active request tracking
+  
+  // Check if this endpoint should allow multiple simultaneous requests
+  const allowConcurrentRequests = url.includes('/current_user') || 
+                                 url.includes('/get_single_post') ||
+                                 url.includes('/reactions') ||
+                                 url.includes('/get_user') ||
+                                 (url.includes('/posts') && options.method === 'GET');
+  
+ 
+  
+  // Check if there's a cached request in progress
+  if (requestCache.has(cacheKey)) {
+    const cached = requestCache.get(cacheKey);
+    if (Date.now() - cached.timestamp < CACHE_DURATION) {
+      return cached.promise;
+    }
+  }
+  
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT);
   
@@ -118,30 +149,52 @@ const fetchWithTimeout = async (url, options = {}) => {
   // Remove userType from options before passing to fetch
   const { userType: _, ...fetchOptions } = options;
   
-  try {
-    const response = await fetch(url, {
-      ...fetchOptions,
-      signal: controller.signal,
-      headers
-    });
-    
-    clearTimeout(timeoutId);
-    return response;
-  } catch (error) {
-    clearTimeout(timeoutId);
-    if (error.name === 'AbortError') {
-      throw new Error('Request timeout - please check your connection');
+  const requestPromise = (async () => {
+    // Mark request as active (only if we're tracking duplicates for this endpoint)
+    if (!allowConcurrentRequests) {
+      activeRequests.add(simpleKey);
     }
-    throw error;
-  }
+    
+    try {
+      const response = await fetch(url, {
+        ...fetchOptions,
+        signal: controller.signal,
+        headers
+      });
+      
+      clearTimeout(timeoutId);
+      
+      // Clean up cache after request completes
+      setTimeout(() => {
+        requestCache.delete(cacheKey);
+      }, CACHE_DURATION);
+      
+      return response;
+    } catch (error) {
+      clearTimeout(timeoutId);
+      requestCache.delete(cacheKey);
+      
+      if (error.name === 'AbortError') {
+        throw new Error('Request timeout');
+      }
+      throw error;
+    } finally {
+      // Remove from active requests (only if we were tracking)
+      if (!allowConcurrentRequests) {
+        activeRequests.delete(simpleKey);
+      }
+    }
+  })();
+  
+  // Cache the request promise
+  requestCache.set(cacheKey, {
+    promise: requestPromise,
+    timestamp: Date.now()
+  });
+  
+  return requestPromise;
 };
 
-// Helper function to log API calls (for debugging)
-const logApiCall = (method, endpoint, data = null) => {
-  if (process.env.NODE_ENV === 'development') {
-
-  }
-};
 
 // =============================================================================
 // LOCAL STORAGE MANAGEMENT
@@ -163,7 +216,7 @@ const StorageManager = {
       const item = localStorage.getItem(key);
       return item ? JSON.parse(item) : null;
     } catch (error) {
-      console.error(`Error reading from localStorage (${key}):`, error);
+      console.error(`Storage error getting ${key}:`, error);
       return null;
     }
   },
@@ -174,7 +227,7 @@ const StorageManager = {
       localStorage.setItem(key, JSON.stringify(value));
       return true;
     } catch (error) {
-      console.error(`Error writing to localStorage (${key}):`, error);
+      console.error(`Storage error setting ${key}:`, error);
       return false;
     }
   },
@@ -185,7 +238,7 @@ const StorageManager = {
       localStorage.removeItem(key);
       return true;
     } catch (error) {
-      console.error(`Error removing from localStorage (${key}):`, error);
+      console.error(`Storage error removing ${key}:`, error);
       return false;
     }
   },
@@ -256,9 +309,10 @@ export const userAPI = {
         method: 'GET'
       });
       
-      return await handleResponse(response);
+      const result = await handleResponse(response);
+      return result;
     } catch (error) {
-      console.error('❌ Get user error:', error.message);
+      console.error('❌ Get user by ID error:', error.message);
       throw error;
     }
   },
@@ -271,31 +325,10 @@ export const userAPI = {
     try {
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...getAuthHeaders()
-        }
+        body: JSON.stringify({})
       });
       
       const result = await handleResponse(response);
-      
-      // Transform the response to match expected user structure
-      if (result.status === 'success' && result.data) {
-        const userData = result.data;
-        return {
-          status: 'success',
-          data: {
-            ...userData,
-            username: userData.employee_username, // Map employee_username to username
-            name: userData.employee_name,
-            profile_picture: userData.profile_picture_link,
-            title: userData.job_title, // Use job_title instead of employee
-            is_blocked: userData.is_blocked || false
-          },
-          message: result.message
-        };
-      }
-      
       return result;
     } catch (error) {
       console.error('❌ Get current user error:', error.message);
@@ -315,26 +348,14 @@ export const userAPI = {
     
     try {
       const response = await fetchWithTimeout(endpoint, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          ...getAuthHeaders()
-        }
+        method: 'GET'
       });
-      
-      // Check if response is actually JSON
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        console.warn('Mention API endpoint not available yet, returning empty array');
-        return { data: [] };
-      }
       
       const result = await handleResponse(response);
       return result;
     } catch (error) {
-      console.warn('Mention API not available yet:', error.message);
-      // Return empty array as fallback when API is not available
-      return { data: [] };
+      console.error('❌ Get users for mentions error:', error.message);
+      throw error;
     }
   }
 };
@@ -349,67 +370,12 @@ export const postsAPI = {
     const endpoint = `${API_CONFIG.BASE_URL}/posts/create_post`;
     
     try {
-      const requestBody = {
-        content: postData.content,
-        // Combine all media into a single array of URLs
-        ...(postData.media && postData.media.length > 0 && { 
-          media: postData.media.map(item => {
-            if (typeof item === 'string') return item;
-            return item.url || item.link || item;
-          }).filter(Boolean)
-        }),
-        // Also handle individual media arrays and convert to single media array
-        ...(() => {
-          const allMedia = [
-            ...(postData.images || []).map(img => typeof img === 'string' ? img : img.url || img.link),
-            ...(postData.videos || []).map(vid => typeof vid === 'string' ? vid : vid.url || vid.link),
-            ...(postData.documents || []).map(doc => typeof doc === 'string' ? doc : doc.url || doc.link),
-            ...(postData.links || []).map(link => typeof link === 'string' ? link : link.url || link.link)
-          ].filter(Boolean);
-          
-          return allMedia.length > 0 ? { media: allMedia } : {};
-        })(),
-        ...(postData.mentions && postData.mentions.length > 0 && { 
-          // Send mentions as array of employee usernames (strings only)
-          mentions: postData.mentions.map(m => {
-            // If it's already a string, use it directly
-            if (typeof m === 'string') {
-              return m;
-            }
-            // If it's an object, extract the username from various possible properties
-            if (m && typeof m === 'object') {
-              return m.employee_username || m.username || m.employee_name || m.name || m.user_id || '';
-            }
-            // Fallback for other types
-            return String(m);
-          }).filter(Boolean) // Remove empty strings
-        }),
-        // Process tags to extract just the tag names, not the nested objects
-        ...(postData.tags && postData.tags.length > 0 && { 
-          tags: postData.tags.map(tag => {
-            // If tag is an object with tag_name, extract just the name
-            if (typeof tag === 'object' && tag.tag_name) {
-              return tag.tag_name;
-            }
-            // If tag is already a string, use it as is  
-            return tag;
-          })
-        }),
-        // If no tags are provided, explicitly send empty array
-        ...((!postData.tags || postData.tags.length === 0) && { tags: [] })
-      };
-
-      console.log('🔍 Final requestBody before sending:', JSON.stringify(requestBody, null, 2));
-      
-      logApiCall('POST', endpoint, requestBody);
-
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify(postData)
       });
       
       const result = await handleResponse(response);
-      
       return result;
     } catch (error) {
       console.error('❌ Create post error:', error.message);
@@ -421,11 +387,9 @@ export const postsAPI = {
   getPosts: async (page = 1, limit = 10, lastPostId = null) => {
     let endpoint;
     if (lastPostId) {
-      // Use cursor-based pagination
       endpoint = `${API_CONFIG.BASE_URL}/posts?lastPostId=${lastPostId}&limit=${limit}`;
     } else {
-      // Initial request or fallback to page-based pagination
-      endpoint = `${API_CONFIG.BASE_URL}/posts?limit=${limit}`;
+      endpoint = `${API_CONFIG.BASE_URL}/posts?page=${page}&limit=${limit}`;
     }
     
     logApiCall('GET', endpoint);
@@ -437,7 +401,17 @@ export const postsAPI = {
       
       const result = await handleResponse(response);
       
-      return result;
+      // Handle different response structures
+      const posts = result?.data?.posts || result?.posts || result?.data || [];
+      const nextCursor = result?.data?.nextCursor || result?.nextCursor || null;
+      const hasMore = result?.data?.hasMore || result?.hasMore || false;
+      
+      return {
+        posts,
+        nextCursor,
+        hasMore,
+        raw: result
+      };
     } catch (error) {
       console.error('❌ Get posts error:', error.message);
       throw error;
@@ -453,32 +427,22 @@ export const postsAPI = {
       : `${API_CONFIG.BASE_URL}/posts`;
     
     try {
-      logApiCall('GET', endpoint);
-
       const response = await fetchWithTimeout(endpoint, {
-        method: 'GET',
-        userType: currentUserType // Pass user type to ensure correct token is used
+        method: 'GET'
       });
       
       const result = await handleResponse(response);
-      
-      // Extract posts from the response
-      const posts = result?.data?.posts || result?.posts || result?.data || [];
-      
-      return {
-        ...result,
-        data: posts
-      };
+      return result;
     } catch (error) {
       console.error('❌ Get my posts error:', error.message);
-      console.error('❌ Full error details:', error);
       throw error;
     }
   },
 
-  // Get posts by user
-  getUserPosts: async (userId, page = 1, limit = 20) => {
-    const endpoint = `${API_CONFIG.BASE_URL}/posts/user/${userId}?page=${page}&limit=${limit}`;
+  // Get current user's posts (using /posts/me endpoint)
+  getUserPosts: async (page = 1, limit = 20) => {
+    // Use the /posts/me endpoint for current user's posts
+    const endpoint = `${API_CONFIG.BASE_URL}/posts/me?page=${page}&limit=${limit}`;
     logApiCall('GET', endpoint);
     
     try {
@@ -487,7 +451,6 @@ export const postsAPI = {
       });
       
       const result = await handleResponse(response);
-      
       return result;
     } catch (error) {
       console.error('❌ Get user posts error:', error.message);
@@ -505,9 +468,10 @@ export const postsAPI = {
         method: 'GET'
       });
       
-      return await handleResponse(response);
+      const result = await handleResponse(response);
+      return result;
     } catch (error) {
-      console.error('❌ Get post error:', error.message);
+      console.error('❌ Get post by ID error:', error.message);
       throw error;
     }
   },
@@ -521,55 +485,25 @@ export const postsAPI = {
     // Transform the data to match backend expectations
     const backendData = {
       content: updateData.content,
-      post_content: updateData.content, // Fallback field name
-      // Process tags to extract just the tag names, not the nested objects
+      post_content: updateData.content,
       ...(updateData.tags && updateData.tags.length > 0 && { 
         tags: updateData.tags.map(tag => {
-          // If tag is an object with tag_name, extract just the name
-          if (typeof tag === 'object' && tag.tag_name) {
-            return tag.tag_name;
+          if (typeof tag === 'string') {
+            return { name: tag, color: '#3B82F6' };
           }
-          // If tag is already a string, use it as is  
           return tag;
         })
       }),
-      // If no tags are provided, explicitly send empty array to clear existing tags
       ...((!updateData.tags || updateData.tags.length === 0) && { tags: [] }),
-      // Combine all media into single media array as URLs
       ...(() => {
-        const allMedia = [
-          // Images as URLs
-          ...(updateData.images || []).filter(img => img && (typeof img === 'string' || img.url)).map(img => 
-            typeof img === 'string' ? img : img.url
-          ),
-          // Videos as URLs  
-          ...(updateData.videos || []).filter(vid => vid && (typeof vid === 'string' || vid.url)).map(vid => 
-            typeof vid === 'string' ? vid : vid.url
-          ),
-          // Documents as URLs
-          ...(updateData.documents || []).filter(doc => doc && (typeof doc === 'string' || doc.url)).map(doc => 
-            typeof doc === 'string' ? doc : doc.url
-          ),
-          // Links as URLs
-          ...(updateData.links || []).filter(link => link && (typeof link === 'string' || link.url)).map(link => 
-            typeof link === 'string' ? link : link.url
-          )
-        ];
-        
-        // Always send media array, even if empty (to clear existing media)
-        return { media: allMedia };
+        if (updateData.media && updateData.media.length > 0) {
+          return { media: updateData.media };
+        }
+        return {};
       })(),
-      ...(updateData.mentions && { 
-        // Send mentions as array of objects with employee_name
-        mentions: (Array.isArray(updateData.mentions) ? updateData.mentions : [updateData.mentions]).map(m => {
-          if (typeof m === 'string') return { employee_name: m };
-          if (m && typeof m === 'object') {
-            const employee_name = m.employee_name || m.user_id || '';
-            return employee_name ? { employee_name: employee_name } : null;
-          }
-          return { employee_name: String(m) };
-        }).filter(Boolean)
-      })
+      mentions: updateData.mentions ? updateData.mentions.map(m => {
+        return typeof m === 'object' && m.employee_id ? m.employee_id : m;
+      }).filter(Boolean) : []
     };
     
     logApiCall('POST', endpoint, backendData);
@@ -581,7 +515,6 @@ export const postsAPI = {
       });
       
       const result = await handleResponse(response);
-      
       return result;
     } catch (error) {
       console.error('❌ Update post error:', error.message);
@@ -604,7 +537,6 @@ export const postsAPI = {
       });
       
       const result = await handleResponse(response);
-      
       return result;
     } catch (error) {
       console.error('❌ Delete post error:', error.message);
@@ -623,15 +555,16 @@ export const postsAPI = {
     try {
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
-        body: JSON.stringify({})
+        body: JSON.stringify({ 
+          reactionType: 'like',
+          reaction_type: 'like' // Add both formats for compatibility
+        })
       });
       
       const result = await handleResponse(response);
-      
       return result;
     } catch (error) {
       console.error('❌ Toggle like error:', error.message);
-      console.error('❌ Full error details:', error);
       throw error;
     }
   },
@@ -642,25 +575,30 @@ export const postsAPI = {
     const actualPostId = (typeof postId === 'object' && postId.post_id) ? postId.post_id : postId;
     const endpoint = `${API_CONFIG.BASE_URL}/posts/${actualPostId}/reactions`;
     
+    // Prepare request body with multiple formats for compatibility
+    const requestBody = {
+      reactionType: reactionType,
+      reaction_type: reactionType // Some backends expect snake_case
+    };
+    
+    // Only add emoji if it's provided and not undefined
+    if (emoji !== undefined && emoji !== null) {
+      requestBody.emoji = emoji;
+    }
+    
+    logApiCall('POST', endpoint, requestBody);
+    
     try {
-      const requestBody = {
-        reaction_type: reactionType,
-        emoji: emoji
-      };
-
-      logApiCall('POST', endpoint, requestBody);
-
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
         body: JSON.stringify(requestBody)
       });
       
       const result = await handleResponse(response);
-      
       return result;
     } catch (error) {
       console.error('❌ Add reaction error:', error.message);
-      console.error('❌ Full error details:', error);
+      console.error('❌ Request body was:', requestBody);
       throw error;
     }
   },
@@ -671,24 +609,24 @@ export const postsAPI = {
     const actualPostId = (typeof postId === 'object' && postId.post_id) ? postId.post_id : postId;
     const endpoint = `${API_CONFIG.BASE_URL}/posts/${actualPostId}/reactions/delete`;
     
+    const requestBody = {
+      reactionType: reactionType,
+      reaction_type: reactionType // Add both formats for compatibility
+    };
+    
+    logApiCall('POST', endpoint, requestBody);
+    
     try {
-      const requestBody = {
-        reaction_type: reactionType
-      };
-
-      logApiCall('POST', endpoint, requestBody);
-
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
         body: JSON.stringify(requestBody)
       });
       
       const result = await handleResponse(response);
-      
       return result;
     } catch (error) {
       console.error('❌ Remove reaction error:', error.message);
-      console.error('❌ Full error details:', error);
+      console.error('❌ Request body was:', requestBody);
       throw error;
     }
   },
@@ -697,53 +635,15 @@ export const postsAPI = {
   addComment: async (postId, commentData) => {
     const endpoint = `${API_CONFIG.BASE_URL}/posts/${postId}/comments`;
     logApiCall('POST', endpoint, commentData);
+    
     try {
-      // Extract mentions from the content if it's HTML
-      const mentions = commentData.mentions || [];
-      
-      console.log('🔍 Comment mentions being processed:', mentions);
-      
-      // The backend expects { content, mentions }
-      const requestBody = {
-        content: commentData.content || commentData.comment, // always send as 'content'
-        ...(mentions.length > 0 && { 
-          mentions: mentions.map(m => {
-            let employee_username;
-            
-            // If the mention is a stringified object, parse it
-            if (typeof m === 'string' && m.startsWith("{") && m.includes("employee_username")) {
-              try {
-                const parsed = JSON.parse(m.replace(/'/g, '"'));
-                employee_username = parsed.employee_username;
-              } catch (e) {
-                employee_username = m;
-              }
-            }
-            // If it's an object, extract employee_username
-            else if (typeof m === 'object' && m !== null) {
-              employee_username = m.employee_username || m.username || m.employee_name || m.employeeName;
-            }
-            // If it's a plain string
-            else {
-              employee_username = m;
-            }
-            
-            const processed = {
-              username: employee_username // Send as username to match your desired format
-            };
-            console.log('🔍 Processing mention:', m, '→', processed);
-            return processed;
-          })
-        })
-      };
-      
-      console.log('🔍 Final comment requestBody:', JSON.stringify(requestBody, null, 2));
-      
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify(commentData)
       });
-      return await handleResponse(response);
+      
+      const result = await handleResponse(response);
+      return result;
     } catch (error) {
       console.error('❌ Add comment error:', error.message);
       throw error;
@@ -760,7 +660,8 @@ export const postsAPI = {
         method: 'GET'
       });
       
-      return await handleResponse(response);
+      const result = await handleResponse(response);
+      return result;
     } catch (error) {
       console.error('❌ Get comments error:', error.message);
       throw error;
@@ -773,46 +674,13 @@ export const postsAPI = {
     logApiCall('POST', endpoint, replyData);
     
     try {
-      // Extract mentions from the content if it's HTML
-      const mentions = replyData.mentions || [];
-      
-      const requestBody = {
-        content: replyData.content,
-        ...(mentions.length > 0 && { 
-          mentions: mentions.map(m => {
-            let employee_username;
-            
-            // If the mention is a stringified object, parse it
-            if (typeof m === 'string' && m.startsWith("{") && m.includes("employee_username")) {
-              try {
-                const parsed = JSON.parse(m.replace(/'/g, '"'));
-                employee_username = parsed.employee_username;
-              } catch (e) {
-                employee_username = m;
-              }
-            }
-            // If it's an object, extract employee_username
-            else if (typeof m === 'object' && m !== null) {
-              employee_username = m.employee_username || m.username || m.employee_name || m.employeeName;
-            }
-            // If it's a plain string
-            else {
-              employee_username = m;
-            }
-            
-            return {
-              username: employee_username // Send as username to match your desired format
-            };
-          })
-        })
-      };
-
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify(replyData)
       });
       
-      return await handleResponse(response);
+      const result = await handleResponse(response);
+      return result;
     } catch (error) {
       console.error('❌ Add reply error:', error.message);
       throw error;
@@ -826,10 +694,12 @@ export const postsAPI = {
     
     try {
       const response = await fetchWithTimeout(endpoint, {
-        method: 'POST'
+        method: 'POST',
+        body: JSON.stringify({})
       });
       
-      return await handleResponse(response);
+      const result = await handleResponse(response);
+      return result;
     } catch (error) {
       console.error('❌ Get replies error:', error.message);
       throw error;
@@ -847,9 +717,10 @@ export const postsAPI = {
         method: 'DELETE'
       });
       
-      return await handleResponse(response);
+      const result = await handleResponse(response);
+      return result;
     } catch (error) {
-      console.error('❌ Delete comment error:', error.message);
+      console.error('❌ Delete comment (legacy) error:', error.message);
       throw error;
     }
   },
@@ -864,7 +735,8 @@ export const postsAPI = {
         method: 'DELETE'
       });
       
-      return await handleResponse(response);
+      const result = await handleResponse(response);
+      return result;
     } catch (error) {
       console.error('❌ Delete reply error:', error.message);
       throw error;
@@ -874,21 +746,31 @@ export const postsAPI = {
   // Add reaction to comment
   addCommentReaction: async (commentId, reactionType, emoji = null) => {
     const endpoint = `${API_CONFIG.BASE_URL}/comments/${commentId}/reactions`;
-    logApiCall('POST', endpoint, { reactionType, emoji });
+    
+    // Prepare request body with multiple formats for compatibility
+    const requestBody = {
+      reactionType: reactionType,
+      reaction_type: reactionType // Some backends expect snake_case
+    };
+    
+    // Only add emoji if it's provided and not null/undefined
+    if (emoji !== null && emoji !== undefined) {
+      requestBody.emoji = emoji;
+    }
+    
+    logApiCall('POST', endpoint, requestBody);
     
     try {
-      const requestBody = {
-        reaction_type: reactionType
-      };
-
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
         body: JSON.stringify(requestBody)
       });
       
-      return await handleResponse(response);
+      const result = await handleResponse(response);
+      return result;
     } catch (error) {
       console.error('❌ Add comment reaction error:', error.message);
+      console.error('❌ Request body was:', requestBody);
       throw error;
     }
   },
@@ -896,24 +778,29 @@ export const postsAPI = {
   // Delete reaction from comment
   deleteCommentReaction: async (commentId, reactionType) => {
     const endpoint = `${API_CONFIG.BASE_URL}/comments/${commentId}/reactions/delete`;
-    logApiCall('POST', endpoint, { reactionType });
+    
+    const requestBody = {
+      reactionType: reactionType,
+      reaction_type: reactionType // Add both formats for compatibility
+    };
+    
+    logApiCall('POST', endpoint, requestBody);
     
     try {
-      const requestBody = {
-        reaction_type: reactionType
-      };
-
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
         body: JSON.stringify(requestBody)
       });
       
-      return await handleResponse(response);
+      const result = await handleResponse(response);
+      return result;
     } catch (error) {
       console.error('❌ Delete comment reaction error:', error.message);
+      console.error('❌ Request body was:', requestBody);
       throw error;
     }
   },
+
   // Delete comment by comment_id (POST) - Current API endpoint
   deleteComment: async (commentId) => {
     const endpoint = `${API_CONFIG.BASE_URL}/comments/${commentId}/delete`;
@@ -922,8 +809,10 @@ export const postsAPI = {
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
         body: JSON.stringify({})
-    });
-      return await handleResponse(response);
+      });
+      
+      const result = await handleResponse(response);
+      return result;
     } catch (error) {
       console.error('❌ Delete comment error:', error.message);
       throw error;
@@ -934,42 +823,21 @@ export const postsAPI = {
   editComment: async (commentId, contentOrData) => {
     const endpoint = `${API_CONFIG.BASE_URL}/comments/${commentId}/edit`;
     
+   
+    
     // Handle both string content and object data
     const content = typeof contentOrData === 'string' ? contentOrData : contentOrData.content;
     const mentions = typeof contentOrData === 'object' ? contentOrData.mentions || [] : [];
     
+ 
     // Try multiple field names to match backend expectations
     const requestBody = {
-      content: content,        // Primary field name
-      comment: content,        // Fallback field name
-      new_content: content,    // Alternative field name
-      ...(mentions.length > 0 && { 
-        mentions: mentions.map(m => {
-          let employee_username;
-          
-          // If the mention is a stringified object, parse it
-          if (typeof m === 'string' && m.startsWith("{") && m.includes("employee_username")) {
-            try {
-              const parsed = JSON.parse(m.replace(/'/g, '"'));
-              employee_username = parsed.employee_username;
-            } catch (e) {
-              employee_username = m;
-            }
-          }
-          // If it's an object, extract employee_username
-          else if (typeof m === 'object' && m !== null) {
-            employee_username = m.employee_username || m.username || m.employee_name || m.employeeName;
-          }
-          // If it's a plain string
-          else {
-            employee_username = m;
-          }
-          
-          return {
-            username: employee_username // Send as username to match your desired format
-          };
-        })
-      })
+      content: content,
+      comment: content,
+      new_content: content,
+      mentions: mentions.length > 0 ? mentions.map(m => {
+        return typeof m === 'object' && m.employee_id ? m.employee_id : m;
+      }).filter(Boolean) : []
     };
     
     logApiCall('POST', endpoint, requestBody);
@@ -997,33 +865,9 @@ export const postsAPI = {
     
     const requestBody = {
       content: content,
-      ...(mentions.length > 0 && { 
-        mentions: mentions.map(m => {
-          let employee_username;
-          
-          // If the mention is a stringified object, parse it
-          if (typeof m === 'string' && m.startsWith("{") && m.includes("employee_username")) {
-            try {
-              const parsed = JSON.parse(m.replace(/'/g, '"'));
-              employee_username = parsed.employee_username;
-            } catch (e) {
-              employee_username = m;
-            }
-          }
-          // If it's an object, extract employee_username
-          else if (typeof m === 'object' && m !== null) {
-            employee_username = m.employee_username || m.username || m.employee_name || m.employeeName;
-          }
-          // If it's a plain string
-          else {
-            employee_username = m;
-          }
-          
-          return {
-            username: employee_username // Send as username to match your desired format
-          };
-        })
-      })
+      mentions: mentions.length > 0 ? mentions.map(m => {
+        return typeof m === 'object' && m.employee_id ? m.employee_id : m;
+      }).filter(Boolean) : []
     };
     
     logApiCall('POST', endpoint, requestBody);
@@ -1032,7 +876,9 @@ export const postsAPI = {
         method: 'POST',
         body: JSON.stringify(requestBody)
       });
-      return await handleResponse(response);
+      
+      const result = await handleResponse(response);
+      return result;
     } catch (error) {
       console.error('❌ Add comment reply error:', error.message);
       throw error;
@@ -1045,17 +891,11 @@ export const postsAPI = {
     const endpoint = `${API_CONFIG.BASE_URL}/posts/${actualPostId}/report`;
     
     try {
-      const requestBody = {
-        reason: reason
-      };
-
-      logApiCall('POST', endpoint, requestBody);
-
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify({ reason })
       });
-
+      
       const result = await handleResponse(response);
       return result;
     } catch (error) {
@@ -1069,17 +909,11 @@ export const postsAPI = {
     const endpoint = `${API_CONFIG.BASE_URL}/comments/${commentId}/report`;
     
     try {
-      const requestBody = {
-        reason: reason
-      };
-
-      logApiCall('POST', endpoint, requestBody);
-
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify({ reason })
       });
-
+      
       const result = await handleResponse(response);
       return result;
     } catch (error) {
@@ -1093,12 +927,10 @@ export const postsAPI = {
     const endpoint = `${API_CONFIG.BASE_URL}/posts/broadcast`;
     
     try {
-      logApiCall('GET', endpoint);
-
       const response = await fetchWithTimeout(endpoint, {
         method: 'GET'
       });
-
+      
       const result = await handleResponse(response);
       return result;
     } catch (error) {
@@ -1112,16 +944,10 @@ export const postsAPI = {
     const endpoint = `${API_CONFIG.BASE_URL}/posts/pinned`;
     
     try {
-      logApiCall('GET', endpoint);
-
       const response = await fetchWithTimeout(endpoint, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          ...getAuthHeaders()
-        }
+        method: 'GET'
       });
-
+      
       const result = await handleResponse(response);
       return result;
     } catch (error) {
@@ -1145,26 +971,13 @@ export const mediaAPI = {
       formData.append('file', file);
       formData.append('type', type);
       
-      logApiCall('POST', endpoint, { fileName: file.name, fileSize: file.size });
-
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
         body: formData
-        // fetchWithTimeout will automatically handle headers for FormData
       });
       
       const result = await handleResponse(response);
-      
-      // Extract file URL from the nested response structure
-      // Expected format: { status: "success", message: "...", data: { file_url: "..." } }
-      const fileUrl = result.data?.file_url || result.url || result.link || result.file_url;
-      
-      // Normalize response to ensure 'url' field is available for compatibility
-      return {
-        ...result,
-        url: fileUrl,
-        file_url: fileUrl
-      };
+      return result;
     } catch (error) {
       console.error('❌ Upload file error:', error.message);
       throw error;
@@ -1174,13 +987,11 @@ export const mediaAPI = {
   // Upload multiple files
   uploadFiles: async (files, type = 'image') => {
     try {
-      // Upload files individually since the endpoint expects single file uploads
-      const uploadPromises = files.map(file => mediaAPI.uploadFile(file, type));
+      const uploadPromises = files.map(file => this.uploadFile(file, type));
       const results = await Promise.all(uploadPromises);
-      
       return results;
     } catch (error) {
-      console.error('❌ Upload files error:', error.message);
+      console.error('❌ Upload multiple files error:', error.message);
       throw error;
     }
   },
@@ -1193,10 +1004,11 @@ export const mediaAPI = {
     try {
       const response = await fetchWithTimeout(endpoint, {
         method: 'DELETE',
-        body: JSON.stringify({ url: fileUrl })
+        body: JSON.stringify({ fileUrl })
       });
       
-      return await handleResponse(response);
+      const result = await handleResponse(response);
+      return result;
     } catch (error) {
       console.error('❌ Delete file error:', error.message);
       throw error;
@@ -1215,16 +1027,12 @@ export const notificationsAPI = {
     logApiCall('GET', endpoint);
     
     try {
-      const userId = userAPI.getCurrentUserId();
-      if (!userId) {
-        throw new Error('User not logged in');
-      }
-
       const response = await fetchWithTimeout(endpoint, {
         method: 'GET'
       });
       
-      return await handleResponse(response);
+      const result = await handleResponse(response);
+      return result;
     } catch (error) {
       console.error('❌ Get notifications error:', error.message);
       throw error;
@@ -1234,14 +1042,16 @@ export const notificationsAPI = {
   // Mark notification as read
   markAsRead: async (notificationId) => {
     const endpoint = `${API_CONFIG.BASE_URL}/notifications/${notificationId}/read`;
-    logApiCall('PUT', endpoint);
+    logApiCall('POST', endpoint);
     
     try {
       const response = await fetchWithTimeout(endpoint, {
-        method: 'PUT'
+        method: 'POST',
+        body: JSON.stringify({})
       });
       
-      return await handleResponse(response);
+      const result = await handleResponse(response);
+      return result;
     } catch (error) {
       console.error('❌ Mark notification as read error:', error.message);
       throw error;
@@ -1251,14 +1061,16 @@ export const notificationsAPI = {
   // Mark all notifications as read
   markAllAsRead: async () => {
     const endpoint = `${API_CONFIG.BASE_URL}/notifications/read-all`;
-    logApiCall('PUT', endpoint);
+    logApiCall('POST', endpoint);
     
     try {
       const response = await fetchWithTimeout(endpoint, {
-        method: 'PUT'
+        method: 'POST',
+        body: JSON.stringify({})
       });
       
-      return await handleResponse(response);
+      const result = await handleResponse(response);
+      return result;
     } catch (error) {
       console.error('❌ Mark all notifications as read error:', error.message);
       throw error;
@@ -1271,69 +1083,77 @@ export const notificationsAPI = {
 // =============================================================================
 
 export const adminAPI = {
-  // Get all users (admin only)
+  // Get all users
   getAllUsers: async (page = 1, limit = 50) => {
     const endpoint = `${API_CONFIG.BASE_URL}/admin/users?page=${page}&limit=${limit}`;
     logApiCall('GET', endpoint);
     
     try {
       const response = await fetchWithTimeout(endpoint, {
-        method: 'GET'
+        method: 'GET',
+        userType: 'admin'
       });
       
-      return await handleResponse(response);
+      const result = await handleResponse(response);
+      return result;
     } catch (error) {
       console.error('❌ Get all users error:', error.message);
       throw error;
     }
   },
 
-  // Block/Unblock user
+  // Toggle user block status
   toggleUserBlock: async (userId, block = true) => {
-    const endpoint = `${API_CONFIG.BASE_URL}/admin/users/${userId}/${block ? 'block' : 'unblock'}`;
-    logApiCall('PUT', endpoint);
+    const endpoint = `${API_CONFIG.BASE_URL}/admin/users/${userId}/block`;
+    logApiCall('POST', endpoint, { block });
     
     try {
       const response = await fetchWithTimeout(endpoint, {
-        method: 'PUT'
+        method: 'POST',
+        body: JSON.stringify({ block }),
+        userType: 'admin'
       });
       
-      return await handleResponse(response);
+      const result = await handleResponse(response);
+      return result;
     } catch (error) {
       console.error('❌ Toggle user block error:', error.message);
       throw error;
     }
   },
 
-  // Delete post (admin)
+  // Delete post as admin
   deletePostAdmin: async (postId) => {
-    const endpoint = `${API_CONFIG.BASE_URL}/admin/posts/${postId}`;
-    logApiCall('DELETE', endpoint);
+    const actualPostId = (typeof postId === 'object' && postId.post_id) ? postId.post_id : postId;
+    const endpoint = `${API_CONFIG.BASE_URL}/admin/posts/${actualPostId}/delete`;
+    logApiCall('POST', endpoint);
     
     try {
       const response = await fetchWithTimeout(endpoint, {
-        method: 'DELETE'
+        method: 'POST',
+        body: JSON.stringify({}),
+        userType: 'admin'
       });
       
-      return await handleResponse(response);
+      const result = await handleResponse(response);
+      return result;
     } catch (error) {
       console.error('❌ Admin delete post error:', error.message);
       throw error;
     }
   },
 
-  // Get blocked users (admin only)
+  // Get blocked users
   getBlockedUsers: async () => {
-    const endpoint = `${API_CONFIG.BASE_URL}/admin/get_blocked_users`;
+    const endpoint = `${API_CONFIG.BASE_URL}/admin/blocked-users`;
+    logApiCall('GET', endpoint);
     
     try {
-      logApiCall('POST', endpoint);
-
       const response = await fetchWithTimeout(endpoint, {
-        method: 'POST',
-        body: JSON.stringify({})
+        method: 'GET',
+        userType: 'admin'
       });
-
+      
       const result = await handleResponse(response);
       return result;
     } catch (error) {
@@ -1342,16 +1162,16 @@ export const adminAPI = {
     }
   },
 
-  // Admin delete comment (admin can delete any comment)
+  // Admin delete comment
   adminDeleteComment: async (commentId) => {
     const endpoint = `${API_CONFIG.BASE_URL}/admin/comments/${commentId}/delete`;
+    logApiCall('POST', endpoint);
     
     try {
-      logApiCall('POST', endpoint);
-      
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
-        body: JSON.stringify({})
+        body: JSON.stringify({}),
+        userType: 'admin'
       });
       
       const result = await handleResponse(response);
@@ -1362,16 +1182,16 @@ export const adminAPI = {
     }
   },
 
-  // Admin delete reply (admin can delete any reply)
+  // Admin delete reply
   adminDeleteReply: async (postId, commentId, replyId) => {
     const endpoint = `${API_CONFIG.BASE_URL}/admin/posts/${postId}/comments/${commentId}/replies/${replyId}/delete`;
+    logApiCall('POST', endpoint);
     
     try {
-      logApiCall('POST', endpoint);
-      
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
-        body: JSON.stringify({})
+        body: JSON.stringify({}),
+        userType: 'admin'
       });
       
       const result = await handleResponse(response);
@@ -1388,53 +1208,43 @@ export const adminAPI = {
 // =============================================================================
 
 export const utilityAPI = {
-
-  // Get server info
+  // Get server information
   getServerInfo: async () => {
     const endpoint = `${API_CONFIG.BASE_URL}/info`;
+    logApiCall('GET', endpoint);
     
     try {
       const response = await fetchWithTimeout(endpoint, {
         method: 'GET'
       });
       
-      return await handleResponse(response);
+      const result = await handleResponse(response);
+      return result;
     } catch (error) {
       console.error('❌ Get server info error:', error.message);
       throw error;
     }
   },
 
-  // Cookie management utilities
+  // Authentication utilities
   auth: {
-    // Set authentication tokens in cookies
     setTokens: (employeeToken, adminToken, employeeId = null) => {
-      cookieUtils.setAuthTokens(employeeToken, adminToken, employeeId);
+      storeTokenInCookies(employeeToken, adminToken, employeeId);
     },
-    
-    // Get authentication tokens from cookies
     getTokens: () => {
       return cookieUtils.getAuthTokens();
     },
-    
-    // Clear all authentication tokens
     clearTokens: () => {
       cookieUtils.clearAuthTokens();
     },
-    
-    // Check if user is authenticated
     isAuthenticated: () => {
-      return cookieUtils.isAuthenticated();
+      return !!getAuthToken();
     },
-    
-    // Check if employee is authenticated (both token and ID required)
     isEmployeeAuthenticated: () => {
-      return cookieUtils.isEmployeeAuthenticated();
+      return !!getAuthToken('employee');
     },
-    
-    // Check if admin is authenticated
     isAdminAuthenticated: () => {
-      return cookieUtils.isAdminAuthenticated();
+      return !!getAuthToken('admin');
     }
   }
 };
@@ -1443,62 +1253,42 @@ export const utilityAPI = {
 // MAIN API OBJECT - CENTRALIZED ACCESS POINT
 // =============================================================================
 const api = {
-  // Configuration
   config: API_CONFIG,
-  
-  // Core APIs
   user: userAPI,
   posts: postsAPI,
   media: mediaAPI,
   notifications: notificationsAPI,
   admin: adminAPI,
   utility: utilityAPI,
-  
-  // Utility functions
   utils: {
     handleResponse,
     fetchWithTimeout,
     logApiCall,
     checkAuthToken
   },
-  
-  // Convenience methods for common operations
   auth: {
     isLoggedIn: () => userAPI.isAuthenticated(),
     getCurrentUser: () => userAPI.getUserSession(),
     getCurrentToken: () => userAPI.getCurrentToken(),
     storeToken: (token) => userAPI.storeToken(token),
     clearToken: () => userAPI.clearSession(),
-    // Token-based authentication with environment detection
     checkAuth: () => {
-      const currentToken = getAuthToken();
-      if (!currentToken) {
-        if (typeof window !== 'undefined' && window.location.hostname !== "localhost") {
-          window.location.href = 'https://dev.gofloww.co';
-          return false;
-        }
+      try {
+        return checkAuthToken();
+      } catch (error) {
+        console.error('❌ Auth check failed:', error.message);
         return false;
       }
-      return true;
     }
   },
-  
-  // Quick access methods
   quick: {
-    // Quick post creation
     post: (content, options = {}) => postsAPI.createPost({
       content,
       ...options
     }),
-    
-    // Quick user lookup
     getUser: (userId) => userAPI.getUserById(userId),
-    
-    // Quick posts fetch
     getFeed: (page = 1) => postsAPI.getPosts(page),
   },
-  
-  // Error constants
   errors: {
     NETWORK_ERROR: 'NETWORK_ERROR',
     TIMEOUT_ERROR: 'TIMEOUT_ERROR',
@@ -1506,7 +1296,9 @@ const api = {
     NOT_FOUND: 'NOT_FOUND',
     SERVER_ERROR: 'SERVER_ERROR'
   }
-};// =============================================================================
+};
+
+// =============================================================================
 // EXPORTS
 // =============================================================================
 
@@ -1527,24 +1319,6 @@ export default api;
 
 // Initialize API on load
 if (typeof window !== 'undefined') {
-  // Browser environment - check authentication token
-  const currentToken = getAuthToken();
-  
-  if (!currentToken) {
-    if (window.location.hostname === "localhost") {
-      console.error('❌ No authentication token found for localhost development');
-    } else {
-      console.warn('⚠️ No authentication token found, redirecting to Floww');
-      window.location.href = 'https://dev.gofloww.co';
-    }
-  } else {
-    const environment = window.location.hostname === "localhost" ? 'development' : 'production';
-    const tokenSource = window.location.hostname === "localhost" ? 'hardcoded' : 'cookie';
-    
-    // Store token in cookies if not already stored (for production)
-    const { employeeToken, employeeId, adminToken } = cookieUtils.getAuthTokens();
-    if (environment === 'production' && !employeeToken && !adminToken) {
-      storeTokenInCookies(currentToken, null, null);
-    }
-  }
+  // Check if we're in development mode and log initialization
+
 }

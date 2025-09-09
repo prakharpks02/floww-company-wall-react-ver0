@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Navigate, Link } from 'react-router-dom';
 import { usePost } from '../../contexts/PostContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { postsAPI } from '../../services/api';
+import { postsAPI } from '../../services/api.jsx';
 import PostCard from './PostCard';
 import Alert from '../UI/Alert';
 import { ArrowLeft, Home, Loader } from 'lucide-react';
@@ -212,7 +212,7 @@ const SinglePostView = () => {
                 </Link>
               ) : (
                 <button
-                  onClick={() => window.location.href = 'https://dev.gofloww.co'}
+                  onClick={() => window.location.href = import.meta.env.VITE_APP_BASE_URL}
                   className="flex items-center space-x-2 text-gray-600 hover:text-purple-600 transition-colors"
                 >
                   <ArrowLeft className="h-5 w-5" />
@@ -244,7 +244,7 @@ const SinglePostView = () => {
               </Link>
             ) : (
               <a
-                href="https://dev.gofloww.co"
+                href="https://buzz.gofloww.co"
                 className="inline-flex items-center px-4 py-2 text-white rounded-lg hover:opacity-90 transition-opacity"
                 style={{ backgroundColor: '#9f7aea' }}
               >

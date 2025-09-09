@@ -1,6 +1,7 @@
 // Custom hook for media handling in posts
 import { useState, useRef } from 'react';
-import { mediaAPI } from '../../../services/api';
+import { mediaAPI } from '../../../services/api.jsx';
+import { formatFileSize } from '../../../utils/helpers';
 
 export const usePostMediaHandling = () => {
   const [images, setImages] = useState([]);
@@ -37,13 +38,22 @@ export const usePostMediaHandling = () => {
   };
 
   const handleVideoUpload = async (files) => {
+    const MAX_VIDEO_SIZE = 50 * 1024 * 1024; // 50MB in bytes
+    
     for (const file of Array.from(files)) {
       if (file.type.startsWith('video/')) {
+        // Check file size limit
+        if (file.size > MAX_VIDEO_SIZE) {
+          const fileSize = formatFileSize(file.size);
+          alert(`Video file "${file.name}" (${fileSize}) is too large. Maximum size allowed is 50MB.`);
+          continue; // Skip this file and continue with others
+        }
+        
         try {
           const uploadedVideo = await uploadMedia(file, 'video');
           setVideos(prev => [...prev, uploadedVideo]);
         } catch (error) {
-         
+          alert(`Failed to upload video "${file.name}". Please try again.`);
         }
       }
     }
