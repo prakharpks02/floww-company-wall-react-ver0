@@ -52,6 +52,11 @@ const API_CONFIG = {
   TIMEOUT: 10000, // 10 seconds
 };
 
+// No-op function for production - removes API call logging
+const logApiCall = () => {
+  // Intentionally empty for production
+};
+
 // =============================================================================
 // UTILITY FUNCTIONS
 // =============================================================================
