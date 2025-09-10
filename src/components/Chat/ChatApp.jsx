@@ -284,13 +284,28 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
     pinAndFavoriteHandlers.handlePinConfirm(duration, messageToPinOrChat, pinType);
   };
 
-  // Check if we're on mobile/small screen
-  const isMobile = window.innerWidth < 1024;
+  // Check if we're on mobile/small screen with proper state management
+  const [isMobile, setIsMobile] = React.useState(window.innerWidth < 1024);
 
-  // Minimized state - just the toggle button
+  React.useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Minimized state - hide on mobile entirely, show floating button only on desktop
   if (isMinimized) {
+    // On mobile, don't show any floating button (chat is in navigation)
+    if (isMobile) {
+      return null;
+    }
+    
+    // On desktop, show floating button
     return (
-      <div className="fixed bottom-20 right-4 z-50">
+      <div className="fixed bottom-24 right-4 z-50">
         <button
           onClick={onToggleMinimize}
           className="relative p-4 bg-gradient-to-br from-[#6d28d9] to-[#7c3aed] hover:from-[#7c3aed] hover:to-[#8b5cf6] text-white rounded-2xl shadow-[0_16px_64px_rgba(109,40,217,0.4)] hover:shadow-[0_20px_80px_rgba(109,40,217,0.5)] transition-all duration-300 hover:scale-110 backdrop-blur-xl"
@@ -553,7 +568,13 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
   if ((isCompactMode || (isMobile && !isFullScreenMobile)) && !isIntegratedMode) {
     return (
       <>
-        <div className="fixed bottom-4 right-4 w-[420px] h-[500px] bg-white rounded-xl shadow-2xl border border-gray-200 z-50 flex flex-col transform transition-all duration-500 ease-out animate-slideUp chat-window-glass">
+        <div 
+          className="fixed bottom-4 right-4 w-[420px] bg-white rounded-xl shadow-2xl border border-gray-200 z-50 flex flex-col transform transition-all duration-500 ease-out animate-slideUp chat-window-glass overflow-hidden"
+          style={{
+            height: 'min(500px, calc(100vh - 32px))',
+            maxWidth: 'calc(100vw - 32px)'
+          }}
+        >
           
           {/* Compact Header */}
           <CompactHeader
@@ -635,11 +656,15 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
               </div>
 
               {/* Conversations List or Search Results */}
-              <div className="flex-1 overflow-y-auto" style={{ 
-                maxHeight: 'calc(100% - 80px)',
-                scrollbarWidth: 'thin',
-                scrollbarColor: '#cbd5e1 #f1f5f9'
-              }}>
+              <div 
+                className="flex-1 overflow-y-auto" 
+                style={{ 
+                  height: 'calc(100% - 80px)',
+                  minHeight: '200px',
+                  scrollbarWidth: 'thin',
+                  scrollbarColor: '#cbd5e1 #f1f5f9'
+                }}
+              >
                 {searchQuery ? (
                   <div className="p-2 space-y-1">
                     {/* Contacts Section */}
@@ -654,7 +679,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                             <button
                               key={employee.id}
                               onClick={() => navigationHandlers.handleStartNewChat(employee)}
-                              className="w-full flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg transition-all duration-200 transform hover:scale-[1.02]"
+                              className="w-full flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg transition-all duration-200"
                             >
                               <div className="relative">
                                 <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md">
@@ -755,7 +780,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                                 key={`pinned-${conversation.id}`}
                                 onClick={() => messageHandlers.handleSelectConversation(conversation)}
                                 onContextMenu={(e) => contextMenuHandlers.handleChatContextMenu(e, conversation)}
-                                className={`w-full flex items-center gap-3 p-2 rounded-lg transition-all duration-200 transform hover:scale-[1.02] bg-purple-50 border-l-2 border-purple-600 ${
+                                className={`w-full flex items-center gap-3 p-2 rounded-lg transition-all duration-200 bg-purple-50 border-l-2 border-purple-600 ${
                                   isActive 
                                     ? 'bg-purple-100 hover:bg-purple-200' 
                                     : 'hover:bg-purple-100'
@@ -867,9 +892,10 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
               <div 
                 className="flex-1 overflow-y-auto p-2 space-y-2" 
                 style={{ 
-                  maxHeight: activeConversation && pinnedMessages[activeConversation.id] 
-                    ? 'calc(100% - 140px)' // Account for pinned message height (reduced from 160px)
-                    : 'calc(100% - 100px)', // Reduced from 120px
+                  height: activeConversation && pinnedMessages[activeConversation.id] 
+                    ? 'calc(100% - 140px)' // Account for header + pinned message + input area
+                    : 'calc(100% - 100px)', // Account for header + input area
+                  minHeight: '200px',
                   scrollbarWidth: 'thin',
                   scrollbarColor: '#cbd5e1 #f1f5f9'
                 }}
@@ -915,7 +941,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
               </div>
               
               {/* Input Area */}
-              <div className="p-3 border-t border-gray-200 bg-gray-50 relative">
+              <div className="p-3 border-t border-gray-200 bg-gray-50 relative" style={{ minHeight: '80px' }}>
                 {/* Reply UI */}
                 {replyToMessage && (
                   <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
@@ -941,7 +967,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                 <div className="flex gap-2">
                   <button
                     onClick={() => setShowAttachmentMenu(true)}
-                    className="p-2 text-gray-500 hover:bg-gray-200 rounded-lg transition-all duration-200 transform hover:scale-110"
+                    className="p-2 text-gray-500 hover:bg-gray-200 rounded-lg transition-all duration-200"
                   >
                     <Paperclip className="h-4 w-4" />
                   </button>
@@ -961,14 +987,14 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                     <div className="flex gap-1">
                       <button
                         onClick={messageHandlers.handleCancelEdit}
-                        className="p-2 text-red-500 hover:bg-red-100 rounded-lg transition-all duration-200 transform hover:scale-110"
+                        className="p-2 text-red-500 hover:bg-red-100 rounded-lg transition-all duration-200"
                       >
                         <X className="h-4 w-4" />
                       </button>
                       <button
                         onClick={messageHandlers.handleSaveEdit}
                         disabled={!editMessageText.trim()}
-                        className="p-2 bg-green-500 text-white hover:bg-green-600 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-110"
+                        className="p-2 bg-green-500 text-white hover:bg-green-600 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                       >
                         <Check className="h-4 w-4" />
                       </button>
@@ -977,7 +1003,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                     <button
                       onClick={messageHandlers.handleSendMessage}
                       disabled={!newMessage.trim()}
-                      className="p-2 bg-purple-500 text-white hover:bg-purple-600 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-110"
+                      className="p-2 bg-purple-500 text-white hover:bg-purple-600 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                     >
                       <Send className="h-4 w-4" />
                     </button>

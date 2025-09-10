@@ -456,3 +456,38 @@ body {
 .animate-scale-in {
   animation: scale-in 0.2s ease-out;
 }
+
+/* Chat compact mode fixes */
+.chat-window-glass {
+  contain: layout style;
+  display: flex;
+  flex-direction: column;
+  min-height: 400px;
+  max-height: calc(100vh - 32px);
+}
+
+.chat-window-glass > * {
+  flex-shrink: 0;
+}
+
+.chat-window-glass .flex-1 {
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+/* Fix hover effects that might cause overflow */
+.chat-window-glass button:hover {
+  transform: none !important;
+}
+
+.chat-window-glass .hover\:scale-\[1\.02\]:hover {
+  transform: none !important;
+}
+
+.chat-window-glass .hover\:scale-110:hover {
+  transform: none !important;
+}
+
+.chat-window-glass .hover\:scale-105:hover {
+  transform: none !important;
+}

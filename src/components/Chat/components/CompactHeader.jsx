@@ -42,7 +42,7 @@ const CompactHeader = ({
     : null;
 
   return (
-    <div className="p-3 bg-gradient-to-r from-purple-600 to-purple-700 flex items-center justify-between text-white rounded-t-xl">
+    <div className="p-3 bg-gradient-to-r from-purple-600 to-purple-700 flex items-center justify-between text-white rounded-t-xl" style={{ minHeight: '60px' }}>
       <div className="flex items-center gap-3">
         {activeConversation ? (
           <>
@@ -96,7 +96,7 @@ const CompactHeader = ({
             <div className="relative" ref={compactKebabMenuRef}>
               <button
                 onClick={() => setShowCompactKebabMenu(!showCompactKebabMenu)}
-                className="p-1.5 hover:bg-purple-700 rounded-full transition-all duration-200 transform hover:scale-110"
+                className="p-1.5 hover:bg-purple-700 rounded-full transition-all duration-200"
                 title="More options"
               >
                 <MoreVertical className="h-4 w-4" />
@@ -104,8 +104,14 @@ const CompactHeader = ({
               
               {/* Compact Kebab Menu */}
               {showCompactKebabMenu && activeConversation && (
-                <div className="absolute right-0 top-full mt-1 w-44 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
-                  <div className="py-1">
+                <div 
+                  className="absolute top-full mt-1 w-44 bg-white border border-gray-200 rounded-lg shadow-lg z-[9999] overflow-hidden max-h-80"
+                  style={{
+                    right: '0px',
+                    left: 'auto'
+                  }}
+                >
+                  <div className="py-1 overflow-y-auto">
                     {(() => {
                       const isPinned = pinnedChats?.find(p => p.id === activeConversation.id);
                       const isFavourite = favouriteChats?.find(f => f.id === activeConversation.id);
@@ -151,7 +157,7 @@ const CompactHeader = ({
           <div className="relative" ref={compactPlusMenuRef}>
             <button
               onClick={() => setShowCompactPlusMenu(!showCompactPlusMenu)}
-              className="p-1.5 hover:bg-purple-700 rounded-full transition-all duration-200 transform hover:scale-110"
+              className="p-1.5 hover:bg-purple-700 rounded-full transition-all duration-200"
               title="New chat options"
             >
               <Plus className="h-4 w-4" />
@@ -159,8 +165,14 @@ const CompactHeader = ({
             
             {/* Compact Plus Menu */}
             {showCompactPlusMenu && (
-              <div className="absolute right-0 top-full mt-1 w-40 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
-                <div className="py-1">
+              <div 
+                className="absolute top-full mt-1 w-40 bg-white border border-gray-200 rounded-lg shadow-lg z-[9999] overflow-hidden max-h-80"
+                style={{
+                  right: '0px',
+                  left: 'auto'
+                }}
+              >
+                <div className="py-1 overflow-y-auto">
                   <button
                     onClick={onNewChat}
                     className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center gap-2 text-xs text-gray-700"

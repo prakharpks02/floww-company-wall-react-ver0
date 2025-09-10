@@ -8,7 +8,7 @@ import BroadcastView from './BroadcastView';
 import ResponsiveLayout from '../Layout/ResponsiveLayout';
 import ScrollToTop from './ScrollToTop';
 import ChatApp from '../Chat/ChatApp';
-// import ChatToggleButton from '../Chat/ChatToggleButton';
+import ChatToggleButton from '../Chat/ChatToggleButton';
 import { usePost } from '../../contexts/PostContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useChat } from '../../contexts/ChatContext';
@@ -259,21 +259,22 @@ const Dashboard = () => {
         {/* Scroll to Top Button - Hide when chat is taking up layout space */}
         {!(isChatOpen && !isChatMinimized && !isCompactMode) && <ScrollToTop />}
 
-        {/* Chat Components - Only render compact mode and mobile toggle */}
-        {isChatOpen && !isFullScreenMobile && (isCompactMode || isChatMinimized) ? (
-          <ChatApp 
-            isMinimized={isChatMinimized} 
-            onToggleMinimize={toggleChat}
-            onClose={closeChat}
-          />
-        ) : (
-          !isChatOpen && null
-          /* <ChatToggleButton 
+      {/* Chat Components - Only render compact mode and mobile toggle */}
+      {isChatOpen && !isFullScreenMobile && (isCompactMode || isChatMinimized) ? (
+        <ChatApp 
+          isMinimized={isChatMinimized} 
+          onToggleMinimize={toggleChat}
+          onClose={closeChat}
+        />
+      ) : (
+        !isChatOpen && (
+          <ChatToggleButton 
             onClick={toggleChat}
             hasUnreadMessages={totalUnreadMessages > 0}
             unreadCount={totalUnreadMessages}
-          /> */
-        )}
+          />
+        )
+      )}
       </ResponsiveLayout>
     </>
   );
