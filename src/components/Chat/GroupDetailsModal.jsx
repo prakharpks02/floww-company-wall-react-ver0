@@ -1,21 +1,23 @@
 import React, { useState } from 'react';
 import { X, Users, UserPlus, UserMinus, Edit2, Crown, Shield, User } from 'lucide-react';
-import { dummyEmployees, getEmployeeById } from './utils/dummyData';
+import { useChat } from '../../contexts/ChatContext';
+import { getEmployeeByIdFromList } from './utils/dummyData';
 
 const GroupDetailsModal = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup, onLeaveGroup, onRemoveMember }) => {
+  const { employees } = useChat();
   const [isEditing, setIsEditing] = useState(false);
   const [groupName, setGroupName] = useState(conversation?.name || '');
   const [groupDescription, setGroupDescription] = useState(conversation?.description || '');
   const [showAddMember, setShowAddMember] = useState(false);
 
-  if (!isOpen || !conversation) return null;
+  if (!isOpen || !conversation || !employees.length) return null;
 
-  const currentUser = getEmployeeById(currentUserId);
+  const currentUser = getEmployeeByIdFromList(currentUserId, employees);
   const isAdmin = conversation.admins?.includes(currentUserId);
   const isCreator = conversation.createdBy === currentUserId;
 
   // Get available employees to add (not already in group)
-  const availableEmployees = dummyEmployees.filter(emp => 
+  const availableEmployees = employees.filter(emp => 
     !conversation.participants.includes(emp.id) && emp.id !== currentUserId
   );
 
@@ -135,7 +137,7 @@ const GroupDetailsModal = ({ isOpen, onClose, conversation, currentUserId, onUpd
                   <p className="text-gray-600 text-sm">{conversation.description}</p>
                 )}
                 <div className="mt-3 text-xs text-gray-500">
-                  Created by {getEmployeeById(conversation.createdBy)?.name} • {new Date(conversation.createdAt).toLocaleDateString()}
+                  Created by {getEmployeeByIdFromList(conversation.createdBy, employees)?.name} • {new Date(conversation.createdAt).toLocaleDateString()}
                 </div>
               </div>
             )}
@@ -190,7 +192,7 @@ const GroupDetailsModal = ({ isOpen, onClose, conversation, currentUserId, onUpd
             {/* Members List */}
             <div className="space-y-3">
               {conversation.participants.map(participantId => {
-                const member = getEmployeeById(participantId);
+                const member = getEmployeeByIdFromList(participantId, employees);
                 if (!member) return null;
 
                 return (

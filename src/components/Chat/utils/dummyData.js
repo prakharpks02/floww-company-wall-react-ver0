@@ -1,131 +1,21 @@
-// Dummy employee data for chat functionality
-export const dummyEmployees = [
-  {
-    id: 1,
-    name: "Shreyansh Shandilya",
-    email: "shreyansh@gofloww.co",
-    phone: "+91 98765 43210",
-    role: "Tester",
-    department: "Quality Assurance",
-    location: "Mumbai, India",
-    employeeId: "EMP001",
-    joinDate: "Jan 15, 2023",
-    bio: "Passionate QA engineer with 3+ years of experience in manual and automated testing. Love ensuring software quality and user satisfaction.",
-    avatar: "SS",
-    status: "online",
-    lastSeen: new Date()
-  },
-  {
-    id: 2,
-    name: "Sakshi Jadhav",
-    email: "sakshi@gofloww.co",
-    phone: "+91 98765 43211",
-    role: "Developer",
-    department: "Engineering",
-    location: "Pune, India",
-    employeeId: "EMP002",
-    joinDate: "Feb 20, 2023",
-    bio: "Full-stack developer specializing in React and Node.js. Always excited to learn new technologies and solve complex problems.",
-    avatar: "SJ",
-    status: "online",
-    lastSeen: new Date(Date.now() - 5 * 60 * 1000) // 5 minutes ago
-  },
-  {
-    id: 3,
-    name: "Aman Yadav",
-    email: "aman@gofloww.co",
-    phone: "+91 98765 43212",
-    role: "Developer",
-    department: "Engineering",
-    location: "Delhi, India",
-    employeeId: "EMP003",
-    joinDate: "Mar 10, 2023",
-    bio: "Backend developer with expertise in microservices and cloud architecture. Enjoys building scalable and efficient systems.",
-    avatar: "AY",
-    status: "away",
-    lastSeen: new Date(Date.now() - 15 * 60 * 1000) // 15 minutes ago
-  },
-  {
-    id: 4,
-    name: "John Smith",
-    email: "john.smith@gofloww.co",
-    phone: "+91 98765 43213",
-    role: "Product Manager",
-    department: "Product",
-    location: "Bangalore, India",
-    employeeId: "EMP004",
-    joinDate: "Jan 5, 2023",
-    bio: "Product manager with 5+ years of experience in SaaS products. Passionate about user experience and data-driven decisions.",
-    avatar: "JS",
-    status: "offline",
-    lastSeen: new Date(Date.now() - 2 * 60 * 60 * 1000) // 2 hours ago
-  },
-  {
-    id: 5,
-    name: "Samrat Singh",
-    email: "samrat.singh@gofloww.co",
-    phone: "+91 98765 43214",
-    role: "Designer",
-    department: "Design",
-    location: "Mumbai, India",
-    employeeId: "EMP005",
-    joinDate: "Apr 12, 2023",
-    bio: "UI/UX designer focused on creating beautiful and intuitive user interfaces. Love working on mobile and web experiences.",
-    avatar: "SS",
-    status: "online",
-    lastSeen: new Date()
-  },
-  {
-    id: 6,
-    name: "Mike Wilson",
-    email: "mike.wilson@gofloww.co",
-    role: "DevOps Engineer",
-    department: "Engineering",
-    avatar: "MW",
-    status: "busy",
-    lastSeen: new Date(Date.now() - 30 * 60 * 1000) // 30 minutes ago
-  },
-  {
-    id: 7,
-    name: "Lisa Chen",
-    email: "lisa.chen@gofloww.co",
-    role: "HR Manager",
-    department: "Human Resources",
-    avatar: "LC",
-    status: "online",
-    lastSeen: new Date()
-  },
-  {
-    id: 8,
-    name: "David Brown",
-    email: "david.brown@gofloww.co",
-    role: "Sales Manager",
-    department: "Sales",
-    avatar: "DB",
-    status: "offline",
-    lastSeen: new Date(Date.now() - 4 * 60 * 60 * 1000) // 4 hours ago
-  },
-  {
-    id: 9,
-    name: "Emily Davis",
-    email: "emily.davis@gofloww.co",
-    role: "Marketing Specialist",
-    department: "Marketing",
-    avatar: "ED",
-    status: "away",
-    lastSeen: new Date(Date.now() - 45 * 60 * 1000) // 45 minutes ago
-  },
-  {
-    id: 10,
-    name: "Alex Rodriguez",
-    email: "alex.rodriguez@gofloww.co",
-    role: "Senior Developer",
-    department: "Engineering",
-    avatar: "AR",
-    status: "online",
-    lastSeen: new Date()
+// Import real employee API
+import { fetchAllEmployees, findEmployeeById as findEmployeeByIdAPI } from '../../../services/employeeAPI.js';
+
+// Employee data - will be populated from API
+export let dummyEmployees = [];
+
+// Initialize employees from API
+export const initializeEmployees = async () => {
+  try {
+    dummyEmployees = await fetchAllEmployees();
+    return dummyEmployees;
+  } catch (error) {
+    console.error('Failed to load employees:', error);
+    // Fallback to empty array if API fails
+    dummyEmployees = [];
+    return dummyEmployees;
   }
-];
+};
 
 // Dummy chat conversations
 export const dummyConversations = [
@@ -326,7 +216,12 @@ export const dummyMessages = {
 };
 
 export const getEmployeeById = (id) => {
-  return dummyEmployees.find(emp => emp.id === id);
+  return findEmployeeByIdAPI(id, dummyEmployees);
+};
+
+// Updated function that works with the context
+export const getEmployeeByIdFromList = (id, employeesList) => {
+  return findEmployeeByIdAPI(id, employeesList);
 };
 
 export const getConversationPartner = (conversation, currentUserId) => {

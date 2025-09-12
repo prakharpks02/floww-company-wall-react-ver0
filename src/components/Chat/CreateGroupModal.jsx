@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import { X, Users, Search, Plus } from 'lucide-react';
-import { dummyEmployees } from './utils/dummyData';
+import { useChat } from '../../contexts/ChatContext';
 
 const CreateGroupModal = ({ isOpen, onClose, onCreateGroup, currentUserId }) => {
+  const { employees } = useChat();
   const [groupName, setGroupName] = useState('');
   const [groupDescription, setGroupDescription] = useState('');
   const [selectedParticipants, setSelectedParticipants] = useState([currentUserId]);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const availableEmployees = dummyEmployees.filter(emp => emp.id !== currentUserId);
+  const availableEmployees = employees.filter(emp => emp.id !== currentUserId);
   const filteredEmployees = availableEmployees.filter(emp =>
     emp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     emp.role.toLowerCase().includes(searchQuery.toLowerCase())
@@ -37,7 +38,7 @@ const CreateGroupModal = ({ isOpen, onClose, onCreateGroup, currentUserId }) => 
     onClose();
   };
 
-  const getEmployeeById = (id) => dummyEmployees.find(emp => emp.id === id);
+  const getEmployeeById = (id) => employees.find(emp => emp.id === id);
 
   if (!isOpen) return null;
 

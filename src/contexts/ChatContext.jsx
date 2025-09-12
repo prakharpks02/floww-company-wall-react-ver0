@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { dummyConversations, dummyMessages } from '../components/Chat/utils/dummyData';
+import { dummyConversations, dummyMessages, initializeEmployees } from '../components/Chat/utils/dummyData';
 
 const ChatContext = createContext();
 
@@ -19,6 +19,26 @@ export const ChatProvider = ({ children }) => {
   const [isChatMinimized, setIsChatMinimized] = useState(false);
   const [isCompactMode, setIsCompactMode] = useState(true); // Start in compact mode
   const [isFullScreenMobile, setIsFullScreenMobile] = useState(false); // Full screen mobile mode
+  const [employees, setEmployees] = useState([]);
+  const [employeesLoading, setEmployeesLoading] = useState(true);
+
+  // Initialize employees from API on component mount
+  useEffect(() => {
+    const loadEmployees = async () => {
+      try {
+        setEmployeesLoading(true);
+        const loadedEmployees = await initializeEmployees();
+        setEmployees(loadedEmployees);
+      } catch (error) {
+        console.error('Failed to load employees:', error);
+        setEmployees([]);
+      } finally {
+        setEmployeesLoading(false);
+      }
+    };
+
+    loadEmployees();
+  }, []);
 
   // Calculate total unread messages
   const totalUnreadMessages = conversations.reduce((total, conv) => total + conv.unreadCount, 0);
@@ -151,6 +171,8 @@ export const ChatProvider = ({ children }) => {
     isCompactMode,
     isFullScreenMobile,
     totalUnreadMessages,
+    employees,
+    employeesLoading,
 
     // Actions
     setConversations,

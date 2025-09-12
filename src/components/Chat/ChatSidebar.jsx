@@ -1,16 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, Plus, MoreVertical, Users, Pin, Filter } from 'lucide-react';
-import { dummyEmployees, getConversationPartner, formatMessageTime } from './utils/dummyData';
+import { getConversationPartner, formatMessageTime } from './utils/dummyData';
 import { useChat } from '../../contexts/ChatContext';
 
 const ChatSidebar = ({ onSelectConversation, onStartNewChat, activeConversation, onCreateGroup, onChatContextMenu, pinnedChats = [], chatFilter = 'all', onFilterChange }) => {
+  const { conversations, employees, totalUnreadMessages } = useChat();
   const [searchQuery, setSearchQuery] = useState('');
   const [showUserSearch, setShowUserSearch] = useState(false);
   const [showPlusDropdown, setShowPlusDropdown] = useState(false);
   const dropdownRef = useRef(null);
   
-  const { conversations, totalUnreadMessages } = useChat();
-  const currentUser = dummyEmployees[0]; // Shreyansh Shandilya
+  const currentUser = employees[0] || null; // First employee as current user
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -27,14 +27,14 @@ const ChatSidebar = ({ onSelectConversation, onStartNewChat, activeConversation,
   }, []);
 
   // Filter employees for search
-  const filteredEmployees = dummyEmployees.filter(emp => 
-    emp.id !== currentUser.id && 
+  const filteredEmployees = employees.filter(emp => 
+    emp.id !== currentUser?.id && 
     emp.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   // Filter conversations for search and type
   const filteredConversations = conversations.filter(conv => {
-    const partner = getConversationPartner(conv, currentUser.id);
+    const partner = getConversationPartner(conv, currentUser?.id);
     const matchesSearch = partner?.name.toLowerCase().includes(searchQuery.toLowerCase());
     
     // Apply chat filter

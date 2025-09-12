@@ -1,29 +1,37 @@
-import { dummyEmployees, getConversationPartner as getPartner, formatMessageTime, getEmployeeById } from '../utils/dummyData';
+import { getConversationPartner as getPartner, formatMessageTime, getEmployeeByIdFromList } from '../utils/dummyData';
+import { useChat } from '../../../contexts/ChatContext';
 
 export const useChatUtilities = () => {
-  const currentUser = dummyEmployees[0]; // Shreyansh Shandilya
+  const { employees } = useChat();
+  const currentUser = employees[0] || null; // First employee as current user, with fallback
+
+  // Create a local getEmployeeById function that uses the current employees list
+  const getEmployeeById = (id) => {
+    return getEmployeeByIdFromList(id, employees);
+  };
 
   // Filter employees for search
   const getFilteredEmployees = (searchQuery) => {
-    return dummyEmployees.filter(emp => 
-      emp.id !== currentUser.id && 
+    if (!employees.length) return [];
+    return employees.filter(emp => 
+      emp.id !== currentUser?.id && 
       emp.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
   };
 
   // Global search: search both conversations and messages
   const getMessageSearchResults = (searchQuery, conversations, messages) => {
-    if (!searchQuery.trim()) return [];
+    if (!searchQuery.trim() || !employees.length) return [];
     
     const results = [];
     conversations.forEach(conv => {
       const conversationMessages = messages[conv.id] || [];
       conversationMessages.forEach(msg => {
         if ((msg.text || '').toLowerCase().includes(searchQuery.toLowerCase())) {
-          const sender = dummyEmployees.find(emp => emp.id === msg.senderId);
+          const sender = employees.find(emp => emp.id === msg.senderId);
           const partner = conv.type === 'group' ? 
             { name: conv.name, avatar: '👥' } : 
-            dummyEmployees.find(emp => emp.id !== currentUser.id && conv.participants.includes(emp.id));
+            employees.find(emp => emp.id !== currentUser?.id && conv.participants.includes(emp.id));
           
           results.push({
             id: `${conv.id}-${msg.id}`,
@@ -100,7 +108,7 @@ export const useChatUtilities = () => {
   // Get conversation partner helper
   const getConversationPartner = (conversation, currentUserId) => {
     // Add null check to prevent errors
-    if (!conversation) {
+    if (!conversation || !employees.length) {
       return null;
     }
     
@@ -109,7 +117,7 @@ export const useChatUtilities = () => {
     }
     
     const partnerId = conversation.participants.find(id => id !== currentUserId);
-    return dummyEmployees.find(emp => emp.id === partnerId);
+    return employees.find(emp => emp.id === partnerId);
   };
 
   // Get status color utility
@@ -129,7 +137,7 @@ export const useChatUtilities = () => {
 
   // Helper function to check if a message can be edited (within 5 minutes)
   const canEditMessage = (message) => {
-    if (!message || message.senderId !== currentUser.id) return false;
+    if (!message || !currentUser || message.senderId !== currentUser.id) return false;
     const messageTime = new Date(message.timestamp);
     const currentTime = new Date();
     const timeDifference = currentTime - messageTime;
