@@ -80,7 +80,8 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
     toggleFullScreenMobile,
     closeChat,
     setConversations,
-    setMessages
+    setMessages,
+    conversationsLoading
   } = useChat();
   
   // Use utilities hook
@@ -382,6 +383,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                     messageHandlers={messageHandlers}
                     contextMenuHandlers={contextMenuHandlers}
                     setSearchQuery={setSearchQuery}
+                    conversationsLoading={conversationsLoading}
                   />
                 )}
               </div>

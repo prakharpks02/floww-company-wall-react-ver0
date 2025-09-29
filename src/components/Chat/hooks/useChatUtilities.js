@@ -3,7 +3,28 @@ import { useChat } from '../../../contexts/ChatContext';
 
 export const useChatUtilities = () => {
   const { employees } = useChat();
-  const currentUser = employees[0] || null; // First employee as current user, with fallback
+  
+  // Always provide a current user, even if employees haven't loaded yet
+  const currentUser = (() => {
+    // If employees are available, try to find one with employeeId
+    if (employees.length > 0) {
+      const emp = employees.find(emp => emp.employeeId) || employees[0];
+      return {
+        ...emp,
+        id: emp.employeeId || emp.id || 'emp-k15sLcnjub9r',
+        employeeId: emp.employeeId || emp.id || 'emp-k15sLcnjub9r'
+      };
+    }
+    
+    // Fallback current user when employees haven't loaded
+    return {
+      id: 'emp-k15sLcnjub9r',
+      employeeId: 'emp-k15sLcnjub9r', 
+      name: 'Current User',
+      email: 'current@company.com',
+      status: 'online'
+    };
+  })();
 
   // Create a local getEmployeeById function that uses the current employees list
   const getEmployeeById = (id) => {

@@ -14,10 +14,19 @@ export const useChatNavigationHandlers = ({
 
   // Handle starting a new chat with an employee
   const handleStartNewChat = (employee) => {
+    // Use employeeId for chat system compatibility, fallback to id
+    const employeeChatId = employee.employeeId || employee.id;
+    const currentUserChatId = currentUser.employeeId || currentUser.id;
+    
+    console.log('🔍 Starting new chat with chat IDs:', {
+      employee: employeeChatId,
+      currentUser: currentUserChatId
+    });
+    
     const existingConv = conversations.find(conv => 
       conv.type === 'direct' && 
-      conv.participants.includes(employee.id) && 
-      conv.participants.includes(currentUser.id)
+      conv.participants.includes(employeeChatId) && 
+      conv.participants.includes(currentUserChatId)
     );
 
     if (existingConv) {
@@ -25,7 +34,7 @@ export const useChatNavigationHandlers = ({
       setGlobalActiveConversation(existingConv);
       markConversationAsRead(existingConv.id);
     } else {
-      const newConv = createConversation([currentUser.id, employee.id], 'direct');
+      const newConv = createConversation([currentUserChatId, employeeChatId], 'direct');
       setActiveConversation(newConv);
       setGlobalActiveConversation(newConv);
     }

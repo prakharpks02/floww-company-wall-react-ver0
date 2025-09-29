@@ -1,4 +1,4 @@
-import { getEmployeeById } from '../utils/dummyData';
+﻿import { enhancedChatAPI } from '../chatapi';
 
 export const useChatMessageHandlers = ({
   activeConversation,
@@ -25,46 +25,181 @@ export const useChatMessageHandlers = ({
   messages
 }) => {
   
-  // Handle sending a new message
-  const handleSendMessage = () => {
-    // If editing a message, save the edit instead
+  const handleSendMessage = async () => {
     if (editingMessage) {
-      handleSaveEdit();
+      await handleSaveEdit();
       return;
     }
     
-    if (!newMessage.trim() || !activeConversation) return;
+    if (!newMessage.trim() || !activeConversation) {
+      console.log('Cannot send message: empty message or no active conversation');
+      return;
+    }
+
+    console.log('📤 Attempting to send message...');
+    console.log('🏠 Active conversation room_id:', activeConversation.room_id);
     
-    let messageData = {
-      id: Date.now(),
-      senderId: currentUser.id,
-      text: newMessage.trim(),
-      timestamp: new Date(),
-      read: true
-    };
-    
-    if (replyToMessage) {
-      messageData.replyTo = replyToMessage;
-      setReplyToMessage(null);
+    // Ensure WebSocket connection exists for the current conversation
+    if (!activeConversation.room_id) {
+      console.log('⚠️ No room_id found, attempting to establish room connection...');
+      console.log('🔍 Active conversation details:', {
+        id: activeConversation.id,
+        type: activeConversation.type,
+        name: activeConversation.name,
+        participants: activeConversation.participants,
+        room_id: activeConversation.room_id
+      });
+      console.log('🔍 Current user details:', {
+        id: currentUser?.id,
+        employeeId: currentUser?.employeeId,
+        name: currentUser?.name
+      });
+      
+      // If it's a direct conversation, try to find or create room
+      if (activeConversation.type === 'direct') {
+        const otherParticipantId = activeConversation.participants.find(id => id !== currentUser?.id);
+        console.log('🔍 Other participant ID found:', otherParticipantId);
+        console.log('🔍 All participants:', activeConversation.participants);
+        console.log('🔍 Current user ID for comparison:', currentUser?.id);
+        
+        if (otherParticipantId) {
+          try {
+            console.log('🔍 Finding/creating room for participant:', otherParticipantId);
+            
+            let roomResponse = await enhancedChatAPI.findRoomWithParticipant(String(otherParticipantId));
+            
+            if (!roomResponse || !roomResponse.room_id) {
+              console.log('🏠 Creating new room...');
+              roomResponse = await enhancedChatAPI.createRoomAndConnect(String(otherParticipantId));
+            } else {
+              console.log('🔗 Connecting to existing room...');
+              enhancedChatAPI.connectToRoom(roomResponse.room_id);
+            }
+            
+            if (roomResponse && roomResponse.room_id) {
+              activeConversation.room_id = roomResponse.room_id;
+              console.log('✅ Room established:', roomResponse.room_id);
+              
+              // Update conversations with room_id
+              setConversations(prev => prev.map(conv => 
+                conv.id === activeConversation.id 
+                  ? { ...conv, room_id: roomResponse.room_id }
+                  : conv
+              ));
+            } else {
+              console.error('❌ Failed to establish room connection');
+              return;
+            }
+          } catch (error) {
+            console.error('❌ Error establishing room connection:', error);
+            return;
+          }
+        } else {
+          console.error('❌ Could not find other participant');
+          return;
+        }
+      } else {
+        console.error('❌ Group conversations not yet supported for auto-connection');
+        return;
+      }
+    } else {
+      // Ensure WebSocket is connected to the room
+      console.log('🔗 Ensuring WebSocket connection to room:', activeConversation.room_id);
+      enhancedChatAPI.connectToRoom(activeConversation.room_id);
     }
     
-    // Add message directly to state
-    setMessages(prev => ({
-      ...prev,
-      [activeConversation.id]: [...(prev[activeConversation.id] || []), messageData]
-    }));
-
-    // Update conversation last message
-    setConversations(prev => prev.map(conv => 
-      conv.id === activeConversation.id 
-        ? { ...conv, lastMessage: { text: messageData.text, timestamp: new Date() } }
-        : conv
-    ));
-    
-    setNewMessage('');
+    try {
+      const senderEmployeeId = currentUser.employeeId || 'emp-' + currentUser.id;
+      const replyToMessageId = replyToMessage ? replyToMessage.id : null;
+      
+      console.log('📤 Sending message via enhanced WebSocket API...');
+      const sendResult = await enhancedChatAPI.sendMessage(
+        newMessage.trim(),
+        senderEmployeeId,
+        [],
+        replyToMessageId,
+        activeConversation.room_id // Pass room ID for verification
+      );
+      
+      console.log('📤 Send result:', sendResult);
+      
+      if (sendResult && sendResult.success !== false) {
+        const messageData = {
+          id: sendResult.temporaryMessage?.id || Date.now(),
+          senderId: senderEmployeeId,
+          text: newMessage.trim(),
+          timestamp: new Date(),
+          read: true,
+          status: sendResult.requiresVerification ? 'sending' : 'sent', // Show as 'sending' until verified
+          _temporary: sendResult.temporaryMessage?._temporary || false
+        };
+        
+        if (replyToMessage) {
+          messageData.replyTo = replyToMessage;
+          setReplyToMessage(null);
+        }
+        
+        // Add message to local state immediately
+        setMessages(prev => ({
+          ...prev,
+          [activeConversation.id]: [...(prev[activeConversation.id] || []), messageData]
+        }));
+        
+        // Update conversation's last message
+        setConversations(prev => prev.map(conv => 
+          conv.id === activeConversation.id 
+            ? { ...conv, lastMessage: { text: messageData.text, timestamp: new Date() } }
+            : conv
+        ));
+        
+        setNewMessage('');
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+      setNewMessage('');
+    }
   };
 
-  // Handle key press in message input
+  const handleIncomingMessage = (messageData) => {
+    if (!activeConversation) return;
+    
+    const senderEmployeeId = messageData.sender?.employee_id || messageData.sender_id;
+    const currentUserEmployeeId = currentUser?.employeeId || 'emp-' + currentUser?.id;
+    
+    if (senderEmployeeId === currentUserEmployeeId) {
+      return;
+    }
+    
+    const incomingMessage = {
+      id: messageData.message_id || Date.now(),
+      senderId: senderEmployeeId,
+      text: messageData.content,
+      timestamp: new Date(messageData.timestamp || messageData.created_at || Date.now()),
+      read: false,
+      status: 'received'
+    };
+    
+    setMessages(prev => ({
+      ...prev,
+      [activeConversation.id]: [...(prev[activeConversation.id] || []), incomingMessage]
+    }));
+    
+    // Update conversation list with new last message and increment unread count
+    setConversations(prev => prev.map(conv => 
+      conv.id === activeConversation.id 
+        ? { 
+            ...conv, 
+            lastMessage: { 
+              text: incomingMessage.text, 
+              timestamp: incomingMessage.timestamp,
+              senderId: incomingMessage.senderId
+            },
+            unreadCount: (conv.unreadCount || 0) + 1
+          }
+        : conv
+    ));
+  };
+
   const handleKeyPress = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -72,176 +207,174 @@ export const useChatMessageHandlers = ({
     }
   };
 
-  // Handle selecting a conversation
-  const handleSelectConversation = (conversation) => {
+  const handleSaveEdit = async () => {
+    if (!editMessageText.trim()) return;
+    
+    setMessages(prev => ({
+      ...prev,
+      [activeConversation.id]: (prev[activeConversation.id] || []).map(msg => 
+        msg.id === editingMessage.id 
+          ? { ...msg, text: editMessageText.trim(), edited: true }
+          : msg
+      )
+    }));
+    
+    setEditingMessage(null);
+    setEditMessageText('');
+  };
+
+  const loadPreviousMessages = async (roomId, conversationId) => {
+    try {
+      console.log('Loading previous messages for room:', roomId);
+      
+      const existingMessages = messages[conversationId] || [];
+      if (existingMessages.length > 0) {
+        console.log('Messages already loaded for this conversation, skipping...');
+        return;
+      }
+      
+      const messagesResponse = await enhancedChatAPI.getRoomMessages(roomId);
+      console.log('Messages API response:', messagesResponse);
+      
+      if (messagesResponse.status === 'success' && messagesResponse.data) {
+        const apiMessages = messagesResponse.data;
+        
+        const convertedMessages = apiMessages.map(msg => ({
+          id: msg.message_id || msg.id,
+          senderId: msg.sender?.employee_id || msg.sender_id,
+          senderName: msg.sender?.employee_name || 'Unknown',
+          text: msg.content,
+          timestamp: new Date(msg.created_at || msg.timestamp),
+          read: true,
+          status: 'sent',
+          fileUrls: msg.file_urls || [],
+          replyTo: msg.reply_to_message_id ? { id: msg.reply_to_message_id } : null
+        }));
+        
+        console.log('Converted', convertedMessages.length, 'previous messages');
+        
+        setMessages(prev => ({
+          ...prev,
+          [conversationId]: convertedMessages
+        }));
+        
+        console.log('Previous messages loaded successfully');
+      } else {
+        console.log('No previous messages found or API error');
+      }
+    } catch (error) {
+      console.error('Error loading previous messages:', error);
+    }
+  };
+
+  const handleSelectConversation = async (conversation) => {
+    console.log('Selecting conversation:', conversation);
+    
     setActiveConversation(conversation);
     setGlobalActiveConversation(conversation);
     markConversationAsRead(conversation.id);
-  };
 
-  // Handle starting message edit
-  const handleStartEdit = (message) => {
-    setEditingMessage(message);
-    setEditMessageText(message.text || '');
-    setContextMenu({ show: false, x: 0, y: 0, message: null });
-  };
-
-  // Handle saving edited message
-  const handleSaveEdit = () => {
-    if (!editingMessage || !editMessageText.trim()) return;
-
-    const updatedMessages = { ...messages };
-    const conversationMessages = updatedMessages[activeConversation.id] || [];
-    
-    const messageIndex = conversationMessages.findIndex(msg => msg.id === editingMessage.id);
-   
-    if (messageIndex !== -1) {
-      conversationMessages[messageIndex] = {
-        ...conversationMessages[messageIndex],
-        text: editMessageText.trim(),
-        edited: true,
-        editedAt: new Date()
-      };
-      
-      setMessages(updatedMessages);
+    // Load messages if they haven't been loaded yet
+    if (conversation.room_id) {
+      console.log('Conversation has room_id:', conversation.room_id, '- loading messages...');
+      await loadPreviousMessages(conversation.room_id, conversation.id);
     }
 
-    // Clear editing state
-    setEditingMessage(null);
-    setEditMessageText('');
+    if (!conversation.room_id && conversation.type === 'direct') {
+      try {
+        console.log('Conversation missing room_id, attempting to find/create room...');
+        
+        const otherParticipantId = conversation.participants.find(id => id !== currentUser?.id);
+        
+        if (otherParticipantId) {
+          console.log('Found other participant ID:', otherParticipantId);
+          
+          const roomResponse = await enhancedChatAPI.findRoomWithParticipant(String(otherParticipantId));
+          
+          if (roomResponse && roomResponse.room_id) {
+            console.log('Found existing room:', roomResponse.room_id);
+            
+            conversation.room_id = roomResponse.room_id;
+            
+            setConversations(prev => prev.map(conv => 
+              conv.id === conversation.id 
+                ? { ...conv, room_id: roomResponse.room_id }
+                : conv
+            ));
+            
+            console.log('Room ID added to conversation, WebSocket will connect automatically');
+            
+            await loadPreviousMessages(roomResponse.room_id, conversation.id);
+          } else {
+            console.log('No existing room found, creating new room...');
+            
+            const newRoomResponse = await enhancedChatAPI.createRoomAndConnect(String(otherParticipantId));
+            
+            if (newRoomResponse && newRoomResponse.room_id) {
+              console.log('Created new room:', newRoomResponse.room_id);
+              
+              conversation.room_id = newRoomResponse.room_id;
+              
+              setConversations(prev => prev.map(conv => 
+                conv.id === conversation.id 
+                  ? { ...conv, room_id: newRoomResponse.room_id }
+                  : conv
+              ));
+              
+              console.log('New room created and WebSocket connected');
+              
+              await loadPreviousMessages(newRoomResponse.room_id, conversation.id);
+            } else {
+              console.warn('Failed to create room for conversation');
+            }
+          }
+        } else {
+          console.warn('Could not find other participant for direct conversation');
+        }
+      } catch (error) {
+        console.error('Error handling room for conversation:', error);
+      }
+    } else if (conversation.room_id) {
+      console.log('Conversation already has room_id:', conversation.room_id);
+      
+      await loadPreviousMessages(conversation.room_id, conversation.id);
+    } else {
+      console.log('Group conversation or no room_id handling needed');
+    }
   };
 
-  // Handle canceling edit
   const handleCancelEdit = () => {
     setEditingMessage(null);
     setEditMessageText('');
-    setNewMessage('');
   };
 
-  // Handle reply to message
-  const handleReply = (message) => {
-    if (!message) return;
+  const handleStartEdit = (message) => {
+    if (message.senderId !== currentUser?.employeeId && message.senderId !== 'emp-' + currentUser?.id) {
+      return;
+    }
+    
+    setEditingMessage(message);
+    setEditMessageText(message.text);
+  };
+
+  const handleReplyToMessage = (message) => {
     setReplyToMessage(message);
   };
 
-  // Handle cancel reply
   const handleCancelReply = () => {
     setReplyToMessage(null);
   };
 
-  // Handle forward message
-  const handleForward = (message) => {
-    if (!message) return;
-    setMessageToForward(message);
-    setShowForwardModal(true);
-    setContextMenu({ show: false, x: 0, y: 0, message: null });
-  };
-
-  // Handle pin message
-  const handlePinMessage = (message) => {
-    if (!message || !activeConversation) return;
-    
-    // Store the message to pin and show the pin duration modal
-    setMessageToPin(message);
-    setShowPinMessageModal(true);
-    
-    // Close context menu
-    setContextMenu({ show: false, x: 0, y: 0, message: null });
-  };
-
-  // Handle pin message with duration (called from PinModal)
-  const handlePinMessageWithDuration = (duration) => {
-    if (!messageToPin || !activeConversation) return;
-    
-    // Calculate expiry based on duration
-    let expiry = null;
-    const now = Date.now();
-    
-    switch (duration) {
-      case '24hours':
-        expiry = now + (24 * 60 * 60 * 1000); // 24 hours in milliseconds
-        break;
-      case '7days':
-        expiry = now + (7 * 24 * 60 * 60 * 1000); // 7 days in milliseconds
-        break;
-      case '30days':
-        expiry = now + (30 * 24 * 60 * 60 * 1000); // 30 days in milliseconds
-        break;
-      case 'forever':
-      default:
-        expiry = null; // Pin forever
-        break;
-    }
-    
-    // Create pinned message object
-    const pinnedMessage = {
-      id: `pinned-${messageToPin.id}-${Date.now()}`,
-      message: messageToPin,
-      pinnedBy: currentUser.id,
-      pinnedAt: now,
-      expiry: expiry
-    };
-
-    // Add to pinned messages for this conversation
-    setPinnedMessages(prev => ({
-      ...prev,
-      [activeConversation.id]: pinnedMessage
-    }));
-
-    // Clear the message to pin
-    setMessageToPin(null);
-    setShowPinMessageModal(false);
-  };
-
-  // Handle forwarding message to selected conversations
-  const handleForwardMessage = (selectedConversations) => {
-    if (!messageToForward || !selectedConversations.length) return;
-
-    selectedConversations.forEach(convId => {
-      const forwardedMessage = {
-        id: Date.now() + Math.random(),
-        senderId: currentUser.id,
-        text: messageToForward.text,
-        timestamp: new Date(),
-        read: true,
-        forwarded: true,
-        originalSender: getEmployeeById(messageToForward.senderId)?.name
-      };
-
-      setMessages(prev => ({
-        ...prev,
-        [convId]: [...(prev[convId] || []), forwardedMessage]
-      }));
-
-      setConversations(prev => prev.map(conv => 
-        conv.id === convId 
-          ? { ...conv, lastMessage: { text: 'Forwarded message', timestamp: new Date() } }
-          : conv
-      ));
-    });
-
-    setShowForwardModal(false);
-    setMessageToForward(null);
-  };
-
   return {
     handleSendMessage,
+    handleIncomingMessage,
     handleKeyPress,
-    handleSelectConversation,
-    handleStartEdit,
     handleSaveEdit,
     handleCancelEdit,
-    handleReply,
-    handleCancelReply,
-    handleForward,
-    handleForwardMessage,
-    handlePinMessage,
-    handlePinMessageWithDuration,
-    // Add the setter functions for direct access
-    setReplyToMessage,
-    setMessageToForward,
-    setShowForwardModal,
-    setEditingMessage,
-    setNewMessage
+    handleStartEdit,
+    handleSelectConversation,
+    loadPreviousMessages,
+    handleReplyToMessage,
+    handleCancelReply
   };
 };
