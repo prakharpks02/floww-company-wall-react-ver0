@@ -1,18 +1,39 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { initializeEmployees, getEmployeeById } from '../components/Chat/utils/dummyData';
 import { enhancedChatAPI } from '../components/Chat/chatapi';
+import adminChatAPI from '../services/adminChatAPI';
+
+// Environment detection
+const isAdminEnvironment = () => {
+  return window.location.pathname.includes('/crm');
+};
+
+// Choose API based on environment
+const getChatAPI = () => {
+  if (isAdminEnvironment()) {
+    console.log('🔧 ChatContext: Using ADMIN APIs (CRM environment detected)');
+    return adminChatAPI;
+  } else {
+    console.log('🔧 ChatContext: Using EMPLOYEE APIs (regular environment)');
+    return enhancedChatAPI;
+  }
+};
 
 const ChatContext = createContext();
 
 export const useChat = () => {
   const context = useContext(ChatContext);
   if (!context) {
+    console.error('🔧 ChatContext: useChat called outside of ChatProvider!');
+    console.error('🔧 Current location:', window.location.pathname);
+    console.error('🔧 Stack trace:', new Error().stack);
     throw new Error('useChat must be used within a ChatProvider');
   }
   return context;
 };
 
 export const ChatProvider = ({ children }) => {
+  console.log('🔧 ChatProvider: Component initialized');
   const [conversations, setConversations] = useState([]);
   const [messages, setMessages] = useState({});
   const [activeConversation, setActiveConversation] = useState(null);
@@ -24,11 +45,14 @@ export const ChatProvider = ({ children }) => {
   const [employeesLoading, setEmployeesLoading] = useState(true);
   const [conversationsLoading, setConversationsLoading] = useState(true);
 
-  // Load messages for a specific conversation
+  // Load messages for a specific conversation (environment-aware)
   const loadMessagesForConversation = async (conversationId) => {
     try {
-      console.log(`Loading messages for conversation ${conversationId}...`);
-      const messagesResponse = await enhancedChatAPI.getRoomMessages(conversationId);
+      const currentAPI = getChatAPI();
+      const envType = isAdminEnvironment() ? 'ADMIN' : 'EMPLOYEE';
+      
+      console.log(`🔧 ChatContext: Loading messages for conversation ${conversationId} using ${envType} API...`);
+      const messagesResponse = await currentAPI.getRoomMessages(conversationId);
       
       if (messagesResponse.status === 'success' && Array.isArray(messagesResponse.data)) {
         const apiMessages = messagesResponse.data.map(msg => ({
@@ -69,13 +93,16 @@ export const ChatProvider = ({ children }) => {
     }
   };
 
-  // Load conversations from API
+  // Load conversations from API (environment-aware)
   const loadConversations = async () => {
     try {
-      console.log('Loading conversations from API...');
+      const currentAPI = getChatAPI();
+      const envType = isAdminEnvironment() ? 'ADMIN' : 'EMPLOYEE';
+      
+      console.log(`🔧 ChatContext: Loading conversations using ${envType} API...`);
       setConversationsLoading(true);
       
-      const roomsResponse = await enhancedChatAPI.listAllRooms();
+      const roomsResponse = await currentAPI.listAllRooms();
       console.log('Rooms API response:', roomsResponse);
       console.log('Response status:', roomsResponse?.status);
       console.log('Response data:', roomsResponse?.data);
@@ -84,14 +111,27 @@ export const ChatProvider = ({ children }) => {
       if (roomsResponse.status === 'success' && Array.isArray(roomsResponse.data)) {
         const apiConversations = roomsResponse.data.map(room => {
           console.log('Processing room:', room);
+          console.log('Room description (room_desc):', room.room_desc);
+          
+          // Extract participants and filter out null/invalid values
+          const participants = room.participants ? room.participants
+            .map(p => p.employee_id && p.employee_id !== 'N/A' ? p.employee_id : p.id)
+            .filter(id => id && id !== null && id !== undefined) : 
+            (room.receiver_employee_id && room.sender_employee_id ? 
+             [room.receiver_employee_id, room.sender_employee_id] : []);
+
+          // Extract admin IDs from participants with is_admin: true
+          const adminIds = room.participants ? room.participants
+            .filter(p => p.is_admin === true && p.employee_id && p.employee_id !== 'N/A')
+            .map(p => p.employee_id) : [];
+
+          console.log('Room participants with admin status:', room.participants?.map(p => ({ id: p.employee_id, isAdmin: p.is_admin })));
+          console.log('Extracted admin IDs:', adminIds);
+          console.log('Room creator:', room.created_by, 'creator_id:', room.creator_id);
           console.log('Last message type:', typeof room.last_message);
           console.log('Last message value:', room.last_message);
           
-          // Determine conversation type and participants - handle both possible structures
-          const participants = room.participants ? room.participants.map(p => p.employee_id || p.id) : 
-                              (room.receiver_employee_id && room.sender_employee_id ? 
-                               [room.receiver_employee_id, room.sender_employee_id] : []);
-          const isGroup = participants.length > 2;
+          const isGroup = room.is_group || participants.length > 2;
           
           // Handle both possible timestamp formats
           const parseDate = (dateStr) => {
@@ -100,12 +140,30 @@ export const ChatProvider = ({ children }) => {
             return isNaN(parsed.getTime()) ? new Date() : parsed;
           };
           
+          // Simply use room_name directly from API - handle both string and array formats
+          let conversationName;
+          if (Array.isArray(room.room_name)) {
+            // If API returns array, take first element
+            conversationName = room.room_name[0] || 'Unnamed Chat';
+          } else if (typeof room.room_name === 'string') {
+            // If API returns string, use directly
+            conversationName = room.room_name;
+          } else {
+            // Fallback for invalid room_name
+            conversationName = isGroup ? 'Group Chat' : 'Direct Chat';
+          }
+          
+
+
           return {
             id: room.room_id || room.id,
             room_id: room.room_id || room.id,
             participants: participants,
             type: isGroup ? 'group' : 'direct',
-            name: room.room_name || room.name || (isGroup ? 'Group Chat' : null),
+            name: conversationName,
+            description: room.room_desc || room.description || '', // Map room_desc to description
+            admins: adminIds, // Extract from participants with is_admin: true
+            createdBy: room.created_by || room.creator_id || null, // Map creator ID
             lastMessage: room.last_message && room.last_message !== 'N/A' ? (
               typeof room.last_message === 'string' ? {
                 // If last_message is just a string
@@ -254,14 +312,104 @@ export const ChatProvider = ({ children }) => {
     return newConversation;
   };
 
-  // Create new group
-  const createGroup = (name, description, participants, createdBy) => {
-    const avatar = name.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2);
-    return createConversation(
-      participants,
-      'group',
-      { name, description, avatar, createdBy }
-    );
+  // Create new group using admin API
+  const createGroup = async (name, description, participants, createdBy) => {
+    console.log('🔧 ChatContext: Creating group using admin API...');
+    console.log('🔧 Group data:', { name, description, participants, createdBy });
+    
+    try {
+      // Prepare participants for admin API (need employee IDs)
+      const participantIds = [];
+      
+      // Convert participants to employee IDs if needed
+      for (const participant of participants) {
+        if (typeof participant === 'string') {
+          // If it's already an employee ID string
+          participantIds.push(participant);
+        } else if (participant.employeeId) {
+          // If it's an employee object with employeeId
+          participantIds.push(participant.employeeId);
+        } else if (participant.id) {
+          // If it's an employee object with id, try to find the employeeId
+          const employee = employees.find(emp => emp.id === participant.id);
+          if (employee && employee.employeeId) {
+            participantIds.push(employee.employeeId);
+          }
+        }
+      }
+      
+      console.log('🔧 Converted participant IDs:', participantIds);
+      
+      // Call admin API to create group
+      const groupData = {
+        group_name: name,
+        group_description: description,
+        group_icon: name.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2),
+        participants_ids: participantIds
+      };
+      
+      console.log('🔧 Calling admin API with:', groupData);
+      const response = await adminChatAPI.createGroup(groupData);
+      
+      if (response && response.status === 'success') {
+        console.log('✅ Group created successfully via admin API:', response);
+        
+        // Reload conversations to include the new group
+        await loadConversations();
+        
+        // Find the newly created group in the conversations
+        const newGroup = conversations.find(conv => 
+          conv.name === name && conv.type === 'group'
+        );
+        
+        if (newGroup) {
+          console.log('✅ New group found in conversations:', newGroup);
+          return newGroup;
+        } else {
+          // Create a temporary local group object for immediate UI update
+          console.log('📝 Creating temporary group object for UI');
+          const tempGroup = createConversation(
+            participants,
+            'group',
+            { 
+              name, 
+              description, 
+              avatar: groupData.group_icon, 
+              createdBy,
+              _adminCreated: true // Flag to indicate it was created via admin API
+            }
+          );
+          return tempGroup;
+        }
+      } else {
+        console.error('❌ Failed to create group via admin API:', response);
+        throw new Error(response?.message || 'Failed to create group');
+      }
+      
+    } catch (error) {
+      console.error('❌ Error creating group via admin API:', error);
+      
+      // Fallback: create local group if API fails (for development)
+      console.log('🔄 Falling back to local group creation');
+      const avatar = name.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2);
+      const fallbackGroup = createConversation(
+        participants,
+        'group',
+        { name, description, avatar, createdBy, _fallback: true }
+      );
+      
+      // Show error to user (you might want to add error state to context)
+      console.warn('⚠️ Group created locally only - API creation failed:', error.message);
+      
+      return fallbackGroup;
+    }
+  };
+
+  // Update existing conversation
+  const updateConversation = (conversationId, updates) => {
+    setConversations(prev => prev.map(conv => 
+      conv.id === conversationId ? { ...conv, ...updates } : conv
+    ));
   };
 
   // Chat controls
@@ -338,6 +486,7 @@ export const ChatProvider = ({ children }) => {
     sendMessage,
     createConversation,
     createGroup,
+    updateConversation,
     loadConversations,
     loadMessagesForConversation,
 

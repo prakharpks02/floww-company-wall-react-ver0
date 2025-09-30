@@ -9,25 +9,77 @@ const GroupDetailsModal = ({ isOpen, onClose, conversation, currentUserId, onUpd
   const [groupName, setGroupName] = useState(conversation?.name || '');
   const [groupDescription, setGroupDescription] = useState(conversation?.description || '');
   const [showAddMember, setShowAddMember] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   if (!isOpen || !conversation || !employees.length) return null;
 
   const currentUser = getEmployeeByIdFromList(currentUserId, employees);
-  const isAdmin = conversation.admins?.includes(currentUserId);
+  
+  // Check if user is admin - either in conversation.admins or in admin environment (CRM)
+  const isAdminEnvironment = window.location.pathname.includes('/crm');
+  const isAdmin = conversation.admins?.includes(currentUserId) || isAdminEnvironment;
   const isCreator = conversation.createdBy === currentUserId;
+  
+  console.log('🔧 GroupDetailsModal: Admin check:', {
+    currentUserId,
+    conversationAdmins: conversation.admins,
+    isAdminEnvironment,
+    isAdmin,
+    isCreator,
+    pathname: window.location.pathname
+  });
 
   // Get available employees to add (not already in group)
   const availableEmployees = employees.filter(emp => 
     !conversation.participants.includes(emp.id) && emp.id !== currentUserId
   );
 
-  const handleSaveChanges = () => {
-    if (groupName.trim()) {
-      onUpdateGroup(conversation.id, {
-        name: groupName.trim(),
-        description: groupDescription.trim()
+  const handleSaveChanges = async () => {
+    if (!groupName.trim() || isSaving) return;
+    
+    setIsSaving(true);
+    try {
+      // Import admin API for room editing
+      const { adminChatAPI } = await import('../../services/adminChatAPI');
+      
+      // Use room_id if available, otherwise fallback to conversation id
+      const roomId = conversation.room_id || conversation.id;
+      
+      console.log('🔧 GroupDetailsModal: Editing group details via admin API:', {
+        roomId,
+        room_name: groupName.trim(),
+        room_desc: groupDescription.trim()
       });
-      setIsEditing(false);
+      
+      const response = await adminChatAPI.editRoomDetails(roomId, {
+        room_name: groupName.trim(),
+        room_icon: conversation.name ? conversation.name.substring(0, 2).toUpperCase() : 'GR',
+        room_desc: groupDescription.trim()
+      });
+      
+      if (response && response.status === 'success') {
+        console.log('✅ Group details updated successfully via admin API');
+        
+        // Update local conversation data if onUpdateGroup callback is available
+        if (onUpdateGroup) {
+          onUpdateGroup(conversation.id, {
+            name: groupName.trim(),
+            description: groupDescription.trim()
+          });
+        }
+        
+        setIsEditing(false);
+        
+        // Show success message (you could add a toast notification here)
+        alert('Group details updated successfully!');
+      } else {
+        throw new Error(response?.message || 'Failed to update group details');
+      }
+    } catch (error) {
+      console.error('❌ Error updating group details:', error);
+      alert('Failed to update group details. Please try again.');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -114,9 +166,16 @@ const GroupDetailsModal = ({ isOpen, onClose, conversation, currentUserId, onUpd
                 <div className="flex gap-2">
                   <button
                     onClick={handleSaveChanges}
-                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                    disabled={isSaving || !groupName.trim()}
+                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
                   >
-                    Save Changes
+                    {isSaving && (
+                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                    )}
+                    {isSaving ? 'Saving...' : 'Save Changes'}
                   </button>
                   <button
                     onClick={() => {

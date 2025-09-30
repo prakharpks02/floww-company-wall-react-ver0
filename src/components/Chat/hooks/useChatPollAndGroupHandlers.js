@@ -1,5 +1,6 @@
 export const useChatPollAndGroupHandlers = ({
   createGroup,
+  updateConversation,
   setActiveConversation,
   setGlobalActiveConversation,
   setShowCreateGroup,
@@ -10,12 +11,25 @@ export const useChatPollAndGroupHandlers = ({
   currentUser
 }) => {
 
-  // Handle creating a group
-  const handleCreateGroup = (name, description, participants, createdBy) => {
-    const newGroup = createGroup(name, description, participants, createdBy);
-    setActiveConversation(newGroup);
-    setGlobalActiveConversation(newGroup);
-    setShowCreateGroup(false);
+  // Handle creating a group (now async to support admin API)
+  const handleCreateGroup = async (name, description, participants, createdBy) => {
+    try {
+      console.log('🔧 useChatPollAndGroupHandlers: Creating group...', { name, participants });
+      
+      const newGroup = await createGroup(name, description, participants, createdBy);
+      
+      if (newGroup) {
+        console.log('✅ Group created successfully, setting as active:', newGroup);
+        setActiveConversation(newGroup);
+        setGlobalActiveConversation(newGroup);
+        setShowCreateGroup(false);
+      } else {
+        console.error('❌ Failed to create group - no group returned');
+      }
+    } catch (error) {
+      console.error('❌ Error in handleCreateGroup:', error);
+      // Don't close the modal if there's an error, let user try again
+    }
   };
 
   // Handle creating a poll
@@ -95,8 +109,18 @@ export const useChatPollAndGroupHandlers = ({
 
   // Handle updating group information
   const handleUpdateGroup = (groupId, updates) => {
-    // Group update logic would go here
     console.log('Update group:', groupId, updates);
+    
+    // Update the conversation in the context
+    updateConversation(groupId, updates);
+    
+    // If this is the active conversation, update it too
+    if (activeConversation && activeConversation.id === groupId) {
+      setActiveConversation(prev => ({
+        ...prev,
+        ...updates
+      }));
+    }
   };
 
   // Handle leaving a group

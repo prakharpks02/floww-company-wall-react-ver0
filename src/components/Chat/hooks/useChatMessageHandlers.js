@@ -1,4 +1,9 @@
 ﻿import { enhancedChatAPI } from '../chatapi';
+import adminChatAPI from '../../../services/adminChatAPI';
+
+// For admin environment, we only use admin APIs for group creation
+// All other chat operations (messaging, room connections) use existing WebSocket infrastructure
+const isAdminEnvironment = () => window.location.pathname.includes('/crm');
 
 export const useChatMessageHandlers = ({
   activeConversation,
@@ -233,7 +238,10 @@ export const useChatMessageHandlers = ({
         return;
       }
       
-      const messagesResponse = await enhancedChatAPI.getRoomMessages(roomId);
+      // Use admin API for message retrieval in admin environment, otherwise use employee API
+      const messagesResponse = isAdminEnvironment() 
+        ? await adminChatAPI.getRoomMessages(roomId)
+        : await enhancedChatAPI.getRoomMessages(roomId);
       console.log('Messages API response:', messagesResponse);
       
       if (messagesResponse.status === 'success' && messagesResponse.data) {
@@ -289,6 +297,7 @@ export const useChatMessageHandlers = ({
         if (otherParticipantId) {
           console.log('Found other participant ID:', otherParticipantId);
           
+          // For room finding, use existing employee API infrastructure (works with WebSocket)
           const roomResponse = await enhancedChatAPI.findRoomWithParticipant(String(otherParticipantId));
           
           if (roomResponse && roomResponse.room_id) {
@@ -308,6 +317,7 @@ export const useChatMessageHandlers = ({
           } else {
             console.log('No existing room found, creating new room...');
             
+            // For room creation in direct chats, use existing employee API infrastructure
             const newRoomResponse = await enhancedChatAPI.createRoomAndConnect(String(otherParticipantId));
             
             if (newRoomResponse && newRoomResponse.room_id) {

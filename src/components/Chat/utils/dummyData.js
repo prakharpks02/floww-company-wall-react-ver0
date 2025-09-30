@@ -22,35 +22,39 @@ export const dummyMessages = {};
 
 // Helper functions
 export const getEmployeeById = (id) => {
-  console.log(`🔍 Looking up employee by ID: "${id}" (type: ${typeof id})`);
+
   
   // Handle both numeric IDs and employee IDs (emp-xxx format)
   if (typeof id === 'number') {
     const result = findEmployeeByIdAPI(id, dummyEmployees);
-    console.log(`📊 Numeric ID lookup result:`, result?.name || 'Not found');
+
     return result;
   } else if (typeof id === 'string' && id.startsWith('emp-')) {
     const result = findEmployeeByEmployeeId(id, dummyEmployees);
-    console.log(`📊 Employee ID lookup result:`, result?.name || 'Not found');
+  
     return result;
   } else if (typeof id === 'string') {
     // Try to find by employeeId first, then by numeric conversion
     const byEmployeeId = findEmployeeByEmployeeId(id, dummyEmployees);
     if (byEmployeeId) {
-      console.log(`📊 String employeeId lookup result:`, byEmployeeId.name);
+
       return byEmployeeId;
     }
     
     const numericId = parseInt(id);
     if (!isNaN(numericId)) {
       const result = findEmployeeByIdAPI(numericId, dummyEmployees);
-      console.log(`📊 Converted numeric lookup result:`, result?.name || 'Not found');
+   
       return result;
     }
   }
   
   console.log(`❌ No employee found for ID: "${id}"`);
   return null;
+};
+
+export const getAllEmployees = () => {
+  return dummyEmployees;
 };
 
 export const getEmployeeByIdFromList = (id, employeesList) => {

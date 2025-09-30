@@ -29,7 +29,28 @@ const Dashboard = () => {
   const [userPosts, setUserPosts] = useState([]); // Store user posts for sidebar count updates
   const { posts, getFilteredPosts, loadAllPosts, reloadPosts, loading, setIsDashboardManaged } = usePost();
   const { user } = useAuth();
-  const { isChatOpen, isChatMinimized, isCompactMode, isFullScreenMobile, totalUnreadMessages, toggleChat, closeChat } = useChat();
+  
+  // Debug: Add error handling for useChat
+  let chatContext;
+  try {
+    chatContext = useChat();
+    console.log('🔧 Dashboard: useChat() successful');
+  } catch (error) {
+    console.error('🔧 Dashboard: useChat() failed:', error);
+    console.error('🔧 Dashboard: Location:', window.location.pathname);
+    // Provide fallback values to prevent crash
+    chatContext = {
+      isChatOpen: false,
+      isChatMinimized: false,
+      isCompactMode: false,
+      isFullScreenMobile: false,
+      totalUnreadMessages: 0,
+      toggleChat: () => console.warn('Chat not available - context error'),
+      closeChat: () => console.warn('Chat not available - context error')
+    };
+  }
+  
+  const { isChatOpen, isChatMinimized, isCompactMode, isFullScreenMobile, totalUnreadMessages, toggleChat, closeChat } = chatContext;
   
   // Add refs to prevent multiple API calls
   const lastActiveView = useRef(activeView);

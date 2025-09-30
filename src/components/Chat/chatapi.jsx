@@ -954,4 +954,98 @@ export const enhancedChatAPI = {
   onError: (callback) => chatWebSocket.onError(callback)
 };
 
+// =============================================================================
+// ADMIN API INTEGRATION EXAMPLE
+// =============================================================================
+/*
+  To use the admin API functions in your components, import them like this:
+
+  import adminAPI from '../../services/adminAPI';
+
+  Example usage:
+
+  // List all rooms as admin
+  const loadAdminRooms = async () => {
+    try {
+      const response = await adminAPI.listAllRooms();
+      if (response.status === 'success') {
+        setRooms(response.data);
+      }
+    } catch (error) {
+      console.error('Failed to load admin rooms:', error);
+    }
+  };
+
+  // Create a group as admin
+  const createAdminGroup = async () => {
+    try {
+      const groupData = {
+        group_name: 'Admin Group',
+        group_description: 'Created by admin',
+        group_icon: 'admin-icon',
+        participants_ids: ['emp-K6m82p2AJ6bd', 'emp-Hfpxcxh1L612']
+      };
+      
+      const response = await adminAPI.createGroup(groupData);
+      if (response.status === 'success') {
+        console.log('Group created successfully');
+        loadAdminRooms(); // Refresh the list
+      }
+    } catch (error) {
+      console.error('Failed to create group:', error);
+    }
+  };
+
+  // Get room messages as admin
+  const loadRoomMessages = async (roomId) => {
+    try {
+      const response = await adminAPI.getRoomMessages(roomId);
+      if (response.status === 'success') {
+        setMessages(response.data);
+      }
+    } catch (error) {
+      console.error('Failed to load messages:', error);
+    }
+  };
+
+  // Edit a message as admin
+  const editMessage = async (messageId, newContent) => {
+    try {
+      const response = await adminAPI.editMessage(messageId, newContent);
+      if (response.status === 'success') {
+        console.log('Message edited successfully');
+        loadRoomMessages(currentRoomId); // Refresh messages
+      }
+    } catch (error) {
+      console.error('Failed to edit message:', error);
+    }
+  };
+
+  // Manage participants
+  const addParticipant = async (roomId, participantIds) => {
+    try {
+      const response = await adminAPI.addParticipants(roomId, participantIds);
+      if (response.status === 'success') {
+        console.log('Participants added successfully');
+      }
+    } catch (error) {
+      console.error('Failed to add participants:', error);
+    }
+  };
+
+  // Assign admin rights
+  const giveAdminRights = async (roomId, employeeId) => {
+    try {
+      const response = await adminAPI.assignAdminRights(roomId, employeeId);
+      if (response.status === 'success') {
+        console.log('Admin rights assigned successfully');
+      }
+    } catch (error) {
+      console.error('Failed to assign admin rights:', error);
+    }
+  };
+
+  For a complete working example, see: src/components/Admin/AdminChatDashboard.jsx
+*/
+
 export default enhancedChatAPI;

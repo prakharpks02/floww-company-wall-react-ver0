@@ -59,9 +59,9 @@ export const cookieUtils = {
   // Get authentication tokens from cookies
   getAuthTokens: () => {
     // Hardcoded values for testing/development
-    const employeeToken = cookieUtils.getCookie('floww-employee-token') || 'eac60d178d2308aff2f83e14b0e63464bc3d3cadca1fa22c3ab80272e454099b';
-    const employeeId = cookieUtils.getCookie('floww-employee-id') || 'emp-K6m82p2AJ6bd';
-    const adminToken = cookieUtils.getCookie('floww-admin-token');
+    const employeeToken = cookieUtils.getCookie('floww-employee-token');
+    const employeeId = cookieUtils.getCookie('floww-employee-id')  ;
+    const adminToken = cookieUtils.getCookie('floww-admin-token') || '7a3239c81974cdd6140c3162468500ba95d7d5823ea69658658c2986216b273e';
     
     return {
       employeeToken,

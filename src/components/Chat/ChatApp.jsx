@@ -81,6 +81,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
     closeChat,
     setConversations,
     setMessages,
+    updateConversation,
     conversationsLoading
   } = useChat();
   
@@ -173,6 +174,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
   // Use poll and group handlers hook
   const pollAndGroupHandlers = useChatPollAndGroupHandlers({
     createGroup,
+    updateConversation,
     setActiveConversation: chatState.setActiveConversation,
     setGlobalActiveConversation,
     setShowCreateGroup: chatState.setShowCreateGroup,
@@ -610,7 +612,20 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
           />
 
           {/* Compact Chat Content */}
-          {!activeConversation ? (
+          {showChatInfo ? (
+            // Show Group Info inline
+            <ChatInfo
+              isOpen={true}
+              onClose={() => setShowChatInfo(false)}
+              conversation={activeConversation}
+              currentUserId={currentUser.id}
+              onUpdateGroup={pollAndGroupHandlers.handleUpdateGroup}
+              onLeaveGroup={pollAndGroupHandlers.handleLeaveGroup}
+              onRemoveMember={pollAndGroupHandlers.handleRemoveMember}
+              isCompact={true}
+              isInline={false}
+            />
+          ) : !activeConversation ? (
             <div className="flex-1 flex flex-col">
               {/* Search and Filters */}
               <div className="p-2 border-b border-gray-200">

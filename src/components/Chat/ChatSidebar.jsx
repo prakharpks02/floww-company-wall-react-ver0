@@ -10,6 +10,8 @@ const ChatSidebar = ({ onSelectConversation, onStartNewChat, activeConversation,
   const [showPlusDropdown, setShowPlusDropdown] = useState(false);
   const dropdownRef = useRef(null);
   
+
+  
   const currentUser = employees[0] || null; // First employee as current user
 
   // Close dropdown when clicking outside
@@ -35,7 +37,8 @@ const ChatSidebar = ({ onSelectConversation, onStartNewChat, activeConversation,
   // Filter conversations for search and type
   const filteredConversations = conversations.filter(conv => {
     const partner = getConversationPartner(conv, currentUser?.id);
-    const matchesSearch = partner?.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const displayName = conv.name || partner?.name || 'Unknown User';
+    const matchesSearch = displayName.toLowerCase().includes(searchQuery.toLowerCase());
     
     // Apply chat filter
     if (chatFilter === 'direct') {
@@ -225,9 +228,15 @@ const ChatSidebar = ({ onSelectConversation, onStartNewChat, activeConversation,
                   const partner = getConversationPartner(conversation, currentUser.id);
                   const isActive = activeConversation?.id === conversation.id;
                   
+                  // Use conversation.name if available (from admin API), otherwise fall back to partner name
+                  const displayName = conversation.name || partner?.name || 'Unknown User';
+                  const displayAvatar = conversation.type === 'group' 
+                    ? (conversation.name ? conversation.name.substring(0, 2).toUpperCase() : 'GR')
+                    : (partner?.avatar || 'U');
+                  
                   return (
                     <button
-                      key={`pinned-${conversation.id}`}
+                      key={`pinned-${conversation.id}-${conversation.name || 'unnamed'}`}
                       onClick={() => onSelectConversation(conversation)}
                       onContextMenu={(e) => onChatContextMenu && onChatContextMenu(e, conversation)}
                       className={`w-full flex items-center gap-3 p-3 transition-colors bg-orange-50 border-l-4 border-[#FFAD46] ${
@@ -238,7 +247,7 @@ const ChatSidebar = ({ onSelectConversation, onStartNewChat, activeConversation,
                     >
                       <div className="relative flex-shrink-0">
                         <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-md">
-                          {partner?.avatar}
+                          {displayAvatar}
                         </div>
                         <div className={`absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-white ${getStatusColor(partner?.status)}`}></div>
                         <div className="absolute -top-1 -right-1 w-4 h-4 bg-[#FFAD46] rounded-full flex items-center justify-center">
@@ -247,7 +256,7 @@ const ChatSidebar = ({ onSelectConversation, onStartNewChat, activeConversation,
                       </div>
                       <div className="flex-1 text-left min-w-0">
                         <div className="flex items-center justify-between mb-1">
-                          <div className="font-medium text-gray-900 truncate">{partner?.name}</div>
+                          <div className="font-medium text-gray-900 truncate">{displayName}</div>
                           <div className="flex items-center gap-1">
                             {conversation.lastMessage && (
                               <div className="text-xs text-gray-500">
@@ -280,9 +289,16 @@ const ChatSidebar = ({ onSelectConversation, onStartNewChat, activeConversation,
                 const partner = getConversationPartner(conversation, currentUser.id);
                 const isActive = activeConversation?.id === conversation.id;
                 
+                // Use conversation.name if available (from admin API), otherwise fall back to partner name
+                const displayName = conversation.name || partner?.name || 'Unknown User';
+                
+                const displayAvatar = conversation.type === 'group' 
+                  ? (conversation.name ? conversation.name.substring(0, 2).toUpperCase() : 'GR')
+                  : (partner?.avatar || 'U');
+                
                 return (
                   <button
-                    key={conversation.id}
+                    key={`${conversation.id}-${conversation.name || 'unnamed'}`}
                     onClick={() => onSelectConversation(conversation)}
                     onContextMenu={(e) => onChatContextMenu && onChatContextMenu(e, conversation)}
                     className={`w-full flex items-center gap-3 p-3 transition-colors ${
@@ -293,13 +309,13 @@ const ChatSidebar = ({ onSelectConversation, onStartNewChat, activeConversation,
                   >
                     <div className="relative flex-shrink-0">
                       <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-md">
-                        {partner?.avatar}
+                        {displayAvatar}
                       </div>
                       <div className={`absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-white ${getStatusColor(partner?.status)}`}></div>
                     </div>
                     <div className="flex-1 text-left min-w-0">
                       <div className="flex items-center justify-between mb-1">
-                        <div className="font-medium text-gray-900 truncate">{partner?.name}</div>
+                        <div className="font-medium text-gray-900 truncate">{displayName}</div>
                         <div className="flex items-center gap-1">
                           {conversation.lastMessage && (
                             <div className="text-xs text-gray-500">
