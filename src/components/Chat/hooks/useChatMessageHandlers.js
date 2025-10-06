@@ -5,6 +5,26 @@ import adminChatAPI from '../../../services/adminChatAPI';
 // All other chat operations (messaging, room connections) use existing WebSocket infrastructure
 const isAdminEnvironment = () => window.location.pathname.includes('/crm');
 
+// Utility function to parse reply data from API response
+const parseReplyData = (replyToMessageData) => {
+  if (!replyToMessageData) return null;
+  
+  const result = {
+    id: replyToMessageData.message_id,
+    text: replyToMessageData.content,
+    senderId: replyToMessageData.sender?.employee_id,
+    senderName: replyToMessageData.sender?.employee_name || 'Unknown User',
+    timestamp: new Date(replyToMessageData.created_at)
+  };
+  
+  console.log('🔍 Parsing reply data:', {
+    original: replyToMessageData,
+    parsed: result
+  });
+  
+  return result;
+};
+
 export const useChatMessageHandlers = ({
   activeConversation,
   setActiveConversation,
@@ -114,7 +134,24 @@ export const useChatMessageHandlers = ({
     }
     
     try {
-      const senderEmployeeId = currentUser.employeeId || 'emp-' + currentUser.id;
+      // Determine sender_id based on environment and user type
+      let senderEmployeeId;
+      
+      // Check if we're in admin environment - always use admin sender_id
+      if (currentUser.isAdmin) {
+        senderEmployeeId = 'UAI5Tfzl3k4Y6NIp';
+        console.log('📤 Using admin sender_id:', senderEmployeeId);
+      } else if (activeConversation.type === 'direct' && activeConversation.participants) {
+        // For direct conversations, use the other participant's employee_id as sender_id
+        const otherParticipantId = activeConversation.participants.find(id => id !== currentUser?.id);
+        senderEmployeeId = otherParticipantId || (currentUser.employeeId || 'emp-' + currentUser.id);
+        console.log('📤 Using other participant employee_id as sender:', senderEmployeeId);
+      } else {
+        // Fallback to current user for group chats or if no other participant found
+        senderEmployeeId = currentUser.employeeId || 'emp-' + currentUser.id;
+        console.log('📤 Using current user employee_id as sender:', senderEmployeeId);
+      }
+      
       const replyToMessageId = replyToMessage ? replyToMessage.id : null;
       
       console.log('📤 Sending message via enhanced WebSocket API...');
@@ -183,6 +220,11 @@ export const useChatMessageHandlers = ({
       read: false,
       status: 'received'
     };
+
+    // Handle reply to message from API
+    if (messageData.reply_to_message) {
+      incomingMessage.replyTo = parseReplyData(messageData.reply_to_message);
+    }
     
     setMessages(prev => ({
       ...prev,
@@ -215,17 +257,102 @@ export const useChatMessageHandlers = ({
   const handleSaveEdit = async () => {
     if (!editMessageText.trim()) return;
     
-    setMessages(prev => ({
-      ...prev,
-      [activeConversation.id]: (prev[activeConversation.id] || []).map(msg => 
-        msg.id === editingMessage.id 
-          ? { ...msg, text: editMessageText.trim(), edited: true }
-          : msg
-      )
-    }));
-    
-    setEditingMessage(null);
-    setEditMessageText('');
+    try {
+      // Call admin API to edit the message
+      if (currentUser.isAdmin && editingMessage.id) {
+        console.log('📝 Editing message via admin API:', editingMessage.id);
+        
+        const response = await fetch(`https://dev.gofloww.co/api/wall/chat/admin/messages/${editingMessage.id}/edit`, {
+          method: 'POST',
+          headers: {
+            'Authorization': '7a3239c81974cdd6140c3162468500ba95d7d5823ea69658658c2986216b273e',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            content: editMessageText.trim()
+          })
+        });
+        
+        const result = await response.json();
+        console.log('📝 Admin edit API result:', result);
+        
+        if (response.ok && result.status === 'success') {
+          console.log('✅ Message edited successfully via admin API');
+        } else {
+          console.error('❌ Failed to edit message via admin API:', result);
+        }
+      }
+      
+      // Update local state regardless of API call result
+      const editedText = editMessageText.trim();
+      setMessages(prev => ({
+        ...prev,
+        [activeConversation.id]: (prev[activeConversation.id] || []).map(msg => 
+          msg.id === editingMessage.id 
+            ? { ...msg, text: editedText, edited: true }
+            : msg
+        )
+      }));
+
+      // Update conversation list if this was the last message
+      const currentMessages = messages[activeConversation.id] || [];
+      const isLastMessage = currentMessages.length > 0 && 
+        currentMessages[currentMessages.length - 1].id === editingMessage.id;
+      
+      if (isLastMessage) {
+        setConversations(prev => prev.map(conv => 
+          conv.id === activeConversation.id 
+            ? { 
+                ...conv, 
+                lastMessage: { 
+                  text: editedText, 
+                  timestamp: new Date(),
+                  senderId: editingMessage.senderId,
+                  edited: true
+                }
+              }
+            : conv
+        ));
+      }
+      
+    } catch (error) {
+      console.error('❌ Error editing message:', error);
+      
+      // Still update local state even if API fails
+      const editedText = editMessageText.trim();
+      setMessages(prev => ({
+        ...prev,
+        [activeConversation.id]: (prev[activeConversation.id] || []).map(msg => 
+          msg.id === editingMessage.id 
+            ? { ...msg, text: editedText, edited: true }
+            : msg
+        )
+      }));
+
+      // Update conversation list if this was the last message
+      const currentMessages = messages[activeConversation.id] || [];
+      const isLastMessage = currentMessages.length > 0 && 
+        currentMessages[currentMessages.length - 1].id === editingMessage.id;
+      
+      if (isLastMessage) {
+        setConversations(prev => prev.map(conv => 
+          conv.id === activeConversation.id 
+            ? { 
+                ...conv, 
+                lastMessage: { 
+                  text: editedText, 
+                  timestamp: new Date(),
+                  senderId: editingMessage.senderId,
+                  edited: true
+                }
+              }
+            : conv
+        ));
+      }
+    } finally {
+      setEditingMessage(null);
+      setEditMessageText('');
+    }
   };
 
   const loadPreviousMessages = async (roomId, conversationId) => {
@@ -239,32 +366,69 @@ export const useChatMessageHandlers = ({
       }
       
       // Use admin API for message retrieval in admin environment, otherwise use employee API
-      const messagesResponse = isAdminEnvironment() 
+      const isAdminEnv = isAdminEnvironment();
+      console.log('🔍 [LOAD] Using admin API:', isAdminEnv);
+      const messagesResponse = isAdminEnv 
         ? await adminChatAPI.getRoomMessages(roomId)
         : await enhancedChatAPI.getRoomMessages(roomId);
-      console.log('Messages API response:', messagesResponse);
+      console.log('🔍 [LOAD] Messages API response:', messagesResponse);
+      
+      // Log raw messages with reply data
+      if (messagesResponse.status === 'success' && messagesResponse.data) {
+        const messagesWithReplies = messagesResponse.data.filter(msg => msg.reply_to_message);
+        console.log('🔍 [LOAD] Raw messages with replies from API:', messagesWithReplies);
+      }
       
       if (messagesResponse.status === 'success' && messagesResponse.data) {
         const apiMessages = messagesResponse.data;
         
-        const convertedMessages = apiMessages.map(msg => ({
-          id: msg.message_id || msg.id,
-          senderId: msg.sender?.employee_id || msg.sender_id,
-          senderName: msg.sender?.employee_name || 'Unknown',
-          text: msg.content,
-          timestamp: new Date(msg.created_at || msg.timestamp),
-          read: true,
-          status: 'sent',
-          fileUrls: msg.file_urls || [],
-          replyTo: msg.reply_to_message_id ? { id: msg.reply_to_message_id } : null
-        }));
+        const convertedMessages = apiMessages.map(msg => {
+          const convertedMsg = {
+            id: msg.message_id || msg.id,
+            senderId: msg.sender?.employee_id || msg.sender_id,
+            senderName: msg.sender?.employee_name || 'Unknown',
+            text: msg.content,
+            timestamp: new Date(msg.created_at || msg.timestamp),
+            read: true,
+            status: 'sent',
+            fileUrls: msg.file_urls || []
+          };
+
+          // Handle reply to message from API
+          if (msg.reply_to_message) {
+            convertedMsg.replyTo = parseReplyData(msg.reply_to_message);
+            console.log('🔍 Message with reply found:', {
+              messageId: convertedMsg.id,
+              content: convertedMsg.text,
+              replyTo: convertedMsg.replyTo
+            });
+          }
+
+          return convertedMsg;
+        });
         
-        console.log('Converted', convertedMessages.length, 'previous messages');
+        console.log('🔍 [LOAD] Converted', convertedMessages.length, 'previous messages');
+        const messagesWithReplies = convertedMessages.filter(msg => msg.replyTo);
+        console.log('🔍 [LOAD] Messages with replies after conversion:', messagesWithReplies.length);
         
-        setMessages(prev => ({
-          ...prev,
-          [conversationId]: convertedMessages
-        }));
+        // Show detailed info about converted messages with replies
+        messagesWithReplies.forEach(msg => {
+          console.log('🔍 [LOAD] Converted message with reply:', {
+            id: msg.id,
+            text: msg.text,
+            replyTo: msg.replyTo
+          });
+        });
+        
+        setMessages(prev => {
+          const newState = {
+            ...prev,
+            [conversationId]: convertedMessages
+          };
+          console.log('🔍 [LOAD] Updated messages state for conversation', conversationId);
+          console.log('🔍 [LOAD] Messages with replies in state:', newState[conversationId].filter(msg => msg.replyTo).length);
+          return newState;
+        });
         
         console.log('Previous messages loaded successfully');
       } else {
@@ -375,6 +539,131 @@ export const useChatMessageHandlers = ({
     setReplyToMessage(null);
   };
 
+  const handleReply = (message) => {
+    console.log('📤 Setting reply to message:', message);
+    setReplyToMessage(message);
+    setContextMenu({ show: false, x: 0, y: 0, message: null });
+  };
+
+  const handleForward = (message) => {
+    console.log('📤 Setting message to forward:', message);
+    setMessageToForward(message);
+    setShowForwardModal(true);
+    setContextMenu({ show: false, x: 0, y: 0, message: null });
+  };
+
+  const handleForwardMessage = async (conversationIds, forwardMessage) => {
+    console.log('📤 Forwarding message to conversations:', conversationIds);
+    console.log('📤 Message to forward:', forwardMessage);
+    
+    if (!forwardMessage || !conversationIds || conversationIds.length === 0) {
+      console.error('❌ Invalid forward parameters');
+      return;
+    }
+
+    try {
+      // Get current conversations state
+      let currentConversations;
+      setConversations(prev => {
+        currentConversations = prev;
+        return prev;
+      });
+
+      // Forward to each selected conversation
+      for (const conversationId of conversationIds) {
+        const targetConversation = currentConversations.find(conv => conv.id === conversationId);
+        console.log('📤 Target conversation found:', targetConversation);
+        
+        if (targetConversation) {
+          // Ensure the conversation has a room_id
+          let roomId = targetConversation.room_id;
+          
+          if (!roomId && targetConversation.type === 'direct') {
+            console.log('📤 No room_id, creating room for direct conversation...');
+            const otherParticipantId = targetConversation.participants.find(id => id !== currentUser?.id);
+            
+            if (otherParticipantId) {
+              const roomResponse = await enhancedChatAPI.createRoomAndConnect(String(otherParticipantId));
+              if (roomResponse && roomResponse.room_id) {
+                roomId = roomResponse.room_id;
+                
+                // Update conversation with room_id
+                setConversations(prev => prev.map(conv => 
+                  conv.id === conversationId 
+                    ? { ...conv, room_id: roomId }
+                    : conv
+                ));
+              }
+            }
+          }
+          
+          if (roomId) {
+            console.log('📤 Forwarding to room:', roomId);
+            
+            // Use enhanced API to forward the message
+            await enhancedChatAPI.sendMessage(
+              forwardMessage.text, // Forward original message without prefix
+              currentUser.isAdmin ? 'UAI5Tfzl3k4Y6NIp' : (currentUser.employeeId || 'emp-' + currentUser.id),
+              forwardMessage.fileUrls || [],
+              null,
+              roomId
+            );
+            
+            console.log('✅ Message forwarded to conversation:', targetConversation.name);
+          } else {
+            console.error('❌ Could not establish room_id for conversation:', conversationId);
+          }
+        } else {
+          console.error('❌ Target conversation not found:', conversationId);
+        }
+      }
+      
+      // Close the forward modal
+      setShowForwardModal(false);
+      setMessageToForward(null);
+      
+      console.log('✅ Message forwarded to', conversationIds.length, 'conversations');
+    } catch (error) {
+      console.error('❌ Error forwarding message:', error);
+    }
+  };
+
+  const handlePinMessage = (message) => {
+    console.log('📌 Pinning message:', message);
+    setMessageToPin(message);
+    setShowPinMessageModal(true);
+    setContextMenu({ show: false, x: 0, y: 0, message: null });
+  };
+
+  const handlePinMessageWithDuration = async (message, duration) => {
+    console.log('📌 Pinning message with duration:', { message, duration });
+    
+    if (!message) {
+      console.error('❌ No message to pin');
+      return;
+    }
+
+    try {
+      // Add message to pinned messages
+      const pinnedMessage = {
+        ...message,
+        pinnedAt: new Date(),
+        pinnedBy: currentUser.isAdmin ? 'UAI5Tfzl3k4Y6NIp' : (currentUser.employeeId || 'emp-' + currentUser.id),
+        duration: duration
+      };
+
+      setPinnedMessages(prev => [...prev, pinnedMessage]);
+      
+      // Close the pin modal
+      setShowPinMessageModal(false);
+      setMessageToPin(null);
+      
+      console.log('✅ Message pinned successfully');
+    } catch (error) {
+      console.error('❌ Error pinning message:', error);
+    }
+  };
+
   return {
     handleSendMessage,
     handleIncomingMessage,
@@ -385,6 +674,11 @@ export const useChatMessageHandlers = ({
     handleSelectConversation,
     loadPreviousMessages,
     handleReplyToMessage,
-    handleCancelReply
+    handleCancelReply,
+    handleReply,
+    handleForward,
+    handleForwardMessage,
+    handlePinMessage,
+    handlePinMessageWithDuration
   };
 };

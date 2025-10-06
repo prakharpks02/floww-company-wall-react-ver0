@@ -11,6 +11,7 @@ const MobileConversationList = ({
   formatMessageTime,
   getStatusColor,
   messageHandlers,
+  navigationHandlers,
   contextMenuHandlers,
   setSearchQuery,
   conversationsLoading
@@ -58,7 +59,7 @@ const MobileConversationList = ({
               partner={partner}
               isPinned={isPinned}
               isFavorite={isFavorite}
-              onSelect={messageHandlers.handleSelectConversation}
+              onSelect={navigationHandlers.handleSelectConversation}
               onContextMenu={contextMenuHandlers.handleChatContextMenu}
               formatMessageTime={formatMessageTime}
               getStatusColor={getStatusColor}

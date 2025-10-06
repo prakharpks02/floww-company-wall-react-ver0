@@ -4,8 +4,28 @@ import { useChat } from '../../../contexts/ChatContext';
 export const useChatUtilities = () => {
   const { employees } = useChat();
   
+  // Detect if we're in admin environment
+  const isAdminEnvironment = () => {
+    return window.location.pathname.includes('/crm');
+  };
+  
   // Always provide a current user, even if employees haven't loaded yet
   const currentUser = (() => {
+    // Check if we're in admin environment
+    if (isAdminEnvironment()) {
+      console.log('🔧 Admin environment detected, using Admin user configuration');
+      return {
+        id: 'UAI5Tfzl3k4Y6NIp', // Use specific admin sender_id
+        employeeId: 'UAI5Tfzl3k4Y6NIp', // Use specific admin sender_id for API calls
+        name: 'Admin',
+        email: 'admin@company.com',
+        status: 'online',
+        avatar: 'AD',
+        role: 'Administrator',
+        isAdmin: true
+      };
+    }
+    
     // If employees are available, try to find one with employeeId
     if (employees.length > 0) {
       const emp = employees.find(emp => emp.employeeId) || employees[0];

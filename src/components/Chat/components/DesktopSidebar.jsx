@@ -38,7 +38,7 @@ const DesktopSidebar = ({
       <div className="p-3 border-b border-white/30">
         <div className="flex items-center justify-between mb-3">
           <div>
-            <h2 className="text-base text-[#1f2937]">Atom Link</h2>
+            <h2 className="text-base text-[#1f2937]">Chat</h2>
             <p className="text-xs text-[#6b7280]">Stay connected with your team</p>
           </div>
           <div className="relative" ref={compactPlusMenuRef}>
@@ -171,7 +171,27 @@ const DesktopSidebar = ({
                       {filteredEmployees.map(employee => (
                         <button
                           key={employee.id}
-                          onClick={() => navigationHandlers.handleStartNewChat(employee)}
+                          onClick={() => {
+                            // Create or find conversation, then select it like clicking on conversation list
+                            const employeeChatId = employee.employeeId || employee.id;
+                            const currentUserChatId = currentUser.employeeId || currentUser.id;
+                            
+                            // Check if conversation already exists
+                            const existingConv = filteredConversations.find(conv => 
+                              conv.type === 'direct' && 
+                              conv.participants.includes(employeeChatId) && 
+                              conv.participants.includes(currentUserChatId)
+                            );
+                            
+                            if (existingConv) {
+                              // Use same logic as clicking on conversation list
+                              navigationHandlers.handleSelectConversation(existingConv);
+                            } else {
+                              // Create new conversation and select it
+                              navigationHandlers.handleStartNewChat(employee);
+                            }
+                            setSearchQuery(''); // Clear search after selection
+                          }}
                           className="w-full p-4 bg-white/70 backdrop-blur-sm rounded-2xl hover:bg-white/80 hover:scale-105 shadow-[inset_0_0_20px_rgba(255,255,255,0.8),0_8px_32px_rgba(109,40,217,0.1)] transition-all duration-300"
                         >
                           <div className="flex items-center gap-3">

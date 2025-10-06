@@ -32,7 +32,7 @@ const Header = ({ onSearchChange, searchValue }) => {
                   Atom Buzz
                 </h1>
                 <p className="text-xs sm:text-sm text-gray-500 truncate hidden sm:block">
-                  Human Resources Department
+                 Buzz Together. Work Smarter.
                 </p>
               </div>
            

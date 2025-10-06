@@ -10,6 +10,9 @@ const MobileSearchResults = ({
   getStatusColor,
   formatMessageTime,
   currentUser,
+  conversations,
+  isConnectingToChat,
+  connectingChatId,
   setSearchQuery
 }) => {
   return (
@@ -22,12 +25,40 @@ const MobileSearchResults = ({
             Contacts ({filteredEmployees.length})
           </h4>
           <div className="space-y-3">
-            {filteredEmployees.map(employee => (
-              <button
-                key={employee.id}
-                onClick={() => navigationHandlers.handleStartNewChat(employee)}
-                className="w-full flex items-center gap-4 p-3 hover:bg-white rounded-lg transition-all duration-200"
-              >
+            {filteredEmployees.map(employee => {
+              const employeeChatId = employee.employeeId || employee.id;
+              const isConnecting = isConnectingToChat && connectingChatId === employeeChatId;
+              
+              return (
+                <button
+                  key={employee.id}
+                  onClick={() => {
+                    // Create or find conversation, then select it like clicking on conversation list
+                    const currentUserChatId = currentUser.employeeId || currentUser.id;
+                    
+                    // Check if conversation already exists
+                    const existingConv = conversations.find(conv => 
+                      conv.type === 'direct' && 
+                      conv.participants.includes(employeeChatId) && 
+                      conv.participants.includes(currentUserChatId)
+                    );
+                    
+                    if (existingConv) {
+                      // Use same logic as clicking on conversation list
+                      navigationHandlers.handleSelectConversation(existingConv);
+                    } else {
+                      // Create new conversation and select it
+                      navigationHandlers.handleStartNewChat(employee);
+                    }
+                    setSearchQuery(''); // Clear search after selection
+                  }}
+                  disabled={isConnecting}
+                  className={`w-full flex items-center gap-4 p-3 rounded-lg transition-all duration-200 ${
+                    isConnecting 
+                      ? 'bg-purple-50 cursor-not-allowed' 
+                      : 'hover:bg-white'
+                  }`}
+                >
                 <div className="relative">
                   <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white text-lg font-bold shadow-md">
                     {employee.avatar}
@@ -38,8 +69,14 @@ const MobileSearchResults = ({
                   <div className="font-medium text-base truncate">{employee.name}</div>
                   <div className="text-sm text-gray-500 truncate">{employee.role}</div>
                 </div>
+                {isConnecting && (
+                  <div className="w-5 h-5">
+                    <div className="w-5 h-5 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+                  </div>
+                )}
               </button>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

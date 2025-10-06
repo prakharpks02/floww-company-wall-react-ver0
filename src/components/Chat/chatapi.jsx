@@ -4,6 +4,17 @@ const BASE_URL = 'https://dev.gofloww.co';
 
 // Helper function to get authorization headers for employee API
 const getEmployeeApiHeaders = () => {
+  if (isAdminEnvironment()) {
+    // Use admin token and ID in admin environment
+    console.log('🔧 Using admin headers for employee API');
+    return {
+      'Content-Type': 'application/json',
+      'Authorization': '7a3239c81974cdd6140c3162468500ba95d7d5823ea69658658c2986216b273e',
+      'floww-admin-token': '7a3239c81974cdd6140c3162468500ba95d7d5823ea69658658c2986216b273e',
+    };
+  }
+  
+  // Use employee token and ID in employee environment
   return {
     'Content-Type': 'application/json',
     'Authorization': 'token-68VCKDcyqrds',
@@ -12,11 +23,34 @@ const getEmployeeApiHeaders = () => {
   };
 };
 
+// Helper function to detect admin environment
+const isAdminEnvironment = () => {
+  return window.location.pathname.includes('/crm');
+};
+
+// Helper function to get the proper API base URL
+const getChatApiBaseUrl = (endpoint = '') => {
+  // For message sending, always use regular chat endpoints even in admin mode
+  // Admin endpoints may not support message sending
+  if (endpoint.includes('send_message')) {
+    return `${BASE_URL}/api/wall/chat`;
+  }
+  
+  if (isAdminEnvironment()) {
+    return `${BASE_URL}/api/wall/chat/admin`;
+  }
+  return `${BASE_URL}/api/wall/chat`;
+};
+
 // Helper function to get authorization headers for chat API
 const getChatApiHeaders = () => {
-  // Use the working token from API testing
-  const token = '88e68a3c158170f5144582c7fd759e99c64aa53406d6a6ae32e697bb50a6f374';
-  console.log('Using token for authorization:', token ? `${token.substring(0, 10)}...` : 'No token found');
+  // Use admin token in admin environment, employee token otherwise
+  const token = isAdminEnvironment() 
+    ? '7a3239c81974cdd6140c3162468500ba95d7d5823ea69658658c2986216b273e' // Admin token (floww-admin-token)
+    : '88e68a3c158170f5144582c7fd759e99c64aa53406d6a6ae32e697bb50a6f374'; // Employee token
+  
+  const userType = isAdminEnvironment() ? 'admin' : 'employee';
+  console.log('Using token for authorization:', token ? `${token.substring(0, 10)}...` : 'No token found', `(${userType})`);
   
   return {
     'Content-Type': 'application/json',
@@ -79,12 +113,13 @@ export const chatAPI = {
         receiver_employee_id: String(receiverEmployeeId) // Ensure it's a string
       };
       
+      const apiUrl = `${getChatApiBaseUrl()}/rooms/create`;
       console.log('Creating chat room with:');
-      console.log('URL:', `${BASE_URL}/api/wall/chat/rooms/create`);
+      console.log('URL:', apiUrl);
       console.log('Headers:', headers);
       console.log('Body:', body);
       
-      const response = await fetch(`${BASE_URL}/api/wall/chat/rooms/create`, {
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers,
         body: JSON.stringify(body),
@@ -105,12 +140,13 @@ export const chatAPI = {
         last_checked_at: new Date().toISOString()
       };
       
+      const apiUrl = `${getChatApiBaseUrl()}/rooms/list_all_rooms`;
       console.log('Getting all chat rooms with:');
-      console.log('URL:', `${BASE_URL}/api/wall/chat/rooms/list_all_rooms`);
+      console.log('URL:', apiUrl);
       console.log('Headers:', headers);
       console.log('Body:', body);
       
-      const response = await fetch(`${BASE_URL}/api/wall/chat/rooms/list_all_rooms`, {
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers,
         body: JSON.stringify(body),
@@ -128,11 +164,12 @@ export const chatAPI = {
     try {
       const headers = getChatApiHeaders();
       
+      const apiUrl = `${getChatApiBaseUrl()}/rooms/${roomId}/get_details`;
       console.log('Getting room details with:');
-      console.log('URL:', `${BASE_URL}/api/wall/chat/rooms/${roomId}/get_details`);
+      console.log('URL:', apiUrl);
       console.log('Headers:', headers);
       
-      const response = await fetch(`${BASE_URL}/api/wall/chat/rooms/${roomId}/get_details`, {
+      const response = await fetch(apiUrl, {
         method: 'GET',
         headers,
       });
@@ -149,11 +186,12 @@ export const chatAPI = {
     try {
       const headers = getChatApiHeaders();
       
+      const apiUrl = `${getChatApiBaseUrl()}/rooms/${roomId}/get_messages`;
       console.log('Getting room messages with:');
-      console.log('URL:', `${BASE_URL}/api/wall/chat/rooms/${roomId}/get_messages`);
+      console.log('URL:', apiUrl);
       console.log('Headers:', headers);
       
-      const response = await fetch(`${BASE_URL}/api/wall/chat/rooms/${roomId}/get_messages`, {
+      const response = await fetch(apiUrl, {
         method: 'GET',
         headers,
       });
@@ -169,26 +207,40 @@ export const chatAPI = {
   sendMessageHttp: async (roomId, content, senderId, fileUrls = [], replyToMessageId = null) => {
     try {
       const headers = getChatApiHeaders();
+      
+      // Use the exact format expected by the API
       const body = {
-        room_id: String(roomId),
         content: String(content),
         sender_id: String(senderId),
-        file_urls: Array.isArray(fileUrls) ? fileUrls : [],
-        reply_to_message_id: replyToMessageId ? String(replyToMessageId) : null
+        file_urls: Array.isArray(fileUrls) ? fileUrls : []
       };
       
-      console.log('Sending message via HTTP API:');
-      console.log('URL:', `${BASE_URL}/api/wall/chat/rooms/${roomId}/send_message`);
-      console.log('Headers:', headers);
-      console.log('Body:', body);
+      // Only add reply_to_message_id if it exists
+      if (replyToMessageId) {
+        body.reply_to_message_id = String(replyToMessageId);
+      }
       
-      const response = await fetch(`${BASE_URL}/api/wall/chat/rooms/${roomId}/send_message`, {
+      const apiUrl = `${getChatApiBaseUrl('send_message')}/rooms/${roomId}/send_message`;
+      console.log('📤 Sending message via HTTP API:');
+      console.log('🔗 URL:', apiUrl);
+      console.log('🔑 Headers:', headers);
+      console.log('📦 Body:', body);
+      console.log('🏠 Room ID:', roomId);
+      console.log('🌍 Environment:', isAdminEnvironment() ? 'admin' : 'employee');
+      
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers,
         body: JSON.stringify(body),
       });
       
-      return await handleResponse(response);
+      console.log('📨 HTTP Response status:', response.status);
+      console.log('📨 HTTP Response headers:', Object.fromEntries(response.headers.entries()));
+      
+      const result = await handleResponse(response);
+      console.log('✅ HTTP Send message result:', result);
+      
+      return result;
     } catch (error) {
       console.error('Error sending message via HTTP:', error);
       // Don't throw the error - this is a fallback mechanism
@@ -432,8 +484,10 @@ export class ChatWebSocketManager {
     this.roomId = roomId;
     
     try {
+      // WebSocket uses the same path for both admin and employee environments
+      // Only the HTTP API endpoints differ between admin and employee
       const wsUrl = `wss://dev.gofloww.co/ws/chat/${roomId}/`;
-      console.log('🔗 Connecting to WebSocket URL:', wsUrl);
+      console.log('🔗 Connecting to WebSocket URL:', wsUrl, `(${isAdminEnvironment() ? 'admin' : 'employee'} environment)`);
       
       this.ws = new WebSocket(wsUrl);
       
@@ -931,6 +985,13 @@ export const enhancedChatAPI = {
   getRoomMessages: async (roomId) => {
     console.log('📜 Enhanced API getRoomMessages called with room ID:', roomId);
     return await chatAPI.getRoomMessages(roomId);
+  },
+
+  // Send message via HTTP API for database persistence
+  sendMessageHttp: async (roomId, content, senderId, fileUrls = [], replyToMessageId = null) => {
+    console.log('📤 Enhanced API sendMessageHttp called');
+    console.log('🔍 Parameters:', { roomId, content, senderId, fileUrls, replyToMessageId });
+    return await chatAPI.sendMessageHttp(roomId, content, senderId, fileUrls, replyToMessageId);
   },
 
   // WebSocket connection management

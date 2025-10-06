@@ -59,7 +59,8 @@ import {
   useChatContextMenuHandlers,
   useChatPinAndFavoriteHandlers,
   useChatPollAndGroupHandlers,
-  useChatNavigationHandlers
+  useChatNavigationHandlers,
+  useChatWebSocketMessages
 } from './hooks';
 
 const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = false }) => {
@@ -197,7 +198,20 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
     setShowChatInfo: chatState.setShowChatInfo,
     setShowAttachmentMenu: chatState.setShowAttachmentMenu,
     setShowPollModal: chatState.setShowPollModal,
-    currentUser
+    setMessages,
+    setConversations,
+    currentUser,
+    setIsConnectingToChat: chatState.setIsConnectingToChat,
+    setConnectingChatId: chatState.setConnectingChatId
+  });
+
+  // Use WebSocket messages hook for real-time messaging
+  const { isConnected, loadingInitialMessages } = useChatWebSocketMessages({
+    activeConversation: chatState.activeConversation,
+    setMessages,
+    currentUser,
+    getEmployeeById,
+    messages
   });
 
   // Destructure state variables for easier access in JSX
@@ -371,6 +385,9 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                     getStatusColor={getStatusColor}
                     formatMessageTime={formatMessageTime}
                     currentUser={currentUser}
+                    conversations={conversations}
+                    isConnectingToChat={chatState.isConnectingToChat}
+                    connectingChatId={chatState.connectingChatId}
                     setSearchQuery={setSearchQuery}
                   />
                 ) : (
@@ -383,6 +400,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                     formatMessageTime={formatMessageTime}
                     getStatusColor={getStatusColor}
                     messageHandlers={messageHandlers}
+                    navigationHandlers={navigationHandlers}
                     contextMenuHandlers={contextMenuHandlers}
                     setSearchQuery={setSearchQuery}
                     conversationsLoading={conversationsLoading}
@@ -404,9 +422,27 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
 
                   {/* Messages Area */}
                   <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
-                    {(messages[activeConversation.id] || []).map(message => {
-                      const isOwnMessage = message.senderId === currentUser.id;
+                    {chatState.isConnectingToChat ? (
+                      <div className="flex items-center justify-center h-full">
+                        <div className="text-center">
+                          <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                          <p className="text-sm text-gray-500">Connecting to chat...</p>
+                        </div>
+                      </div>
+                    ) : (
+                      (messages[activeConversation.id] || []).map(message => {
+                      const currentUserEmployeeId = currentUser?.employeeId || `emp-${currentUser?.id}`;
+                      const isOwnMessage = message.senderId === currentUser.id || message.senderId === currentUserEmployeeId;
                       const sender = getEmployeeById(message.senderId);
+                      
+                      // Debug logging for reply messages
+                      if (message.replyTo) {
+                        console.log('🎯 [MOBILE] Rendering message with reply:', {
+                          messageId: message.id,
+                          content: message.text,
+                          replyTo: message.replyTo
+                        });
+                      }
                       
                       return (
                         <div
@@ -467,7 +503,8 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                           </div>
                         </div>
                       );
-                    })}
+                    })
+                    )}
                     <div ref={messagesEndRef} />
                   </div>
 
@@ -692,12 +729,40 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                           Contacts ({filteredEmployees.length})
                         </h4>
                         <div className="space-y-1">
-                          {filteredEmployees.map(employee => (
-                            <button
-                              key={employee.id}
-                              onClick={() => navigationHandlers.handleStartNewChat(employee)}
-                              className="w-full flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg transition-all duration-200"
-                            >
+                          {filteredEmployees.map(employee => {
+                            const employeeChatId = employee.employeeId || employee.id;
+                            const isConnecting = chatState.isConnectingToChat && chatState.connectingChatId === employeeChatId;
+                            
+                            return (
+                              <button
+                                key={employee.id}
+                                onClick={() => {
+                                  // Create or find conversation, then select it like clicking on conversation list
+                                  const currentUserChatId = currentUser.employeeId || currentUser.id;
+                                  
+                                  // Check if conversation already exists
+                                  const existingConv = conversations.find(conv => 
+                                    conv.type === 'direct' && 
+                                    conv.participants.includes(employeeChatId) && 
+                                    conv.participants.includes(currentUserChatId)
+                                  );
+                                  
+                                  if (existingConv) {
+                                    // Use same logic as clicking on conversation list
+                                    navigationHandlers.handleSelectConversation(existingConv);
+                                  } else {
+                                    // Create new conversation and select it
+                                    navigationHandlers.handleStartNewChat(employee);
+                                  }
+                                  setSearchQuery(''); // Clear search after selection
+                                }}
+                                disabled={isConnecting}
+                                className={`w-full flex items-center gap-3 p-2 rounded-lg transition-all duration-200 ${
+                                  isConnecting 
+                                    ? 'bg-purple-50 cursor-not-allowed' 
+                                    : 'hover:bg-gray-50'
+                                }`}
+                              >
                               <div className="relative">
                                 <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md">
                                   {employee.avatar}
@@ -708,8 +773,14 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                                 <div className="text-sm truncate">{employee.name}</div>
                                 <div className="text-xs text-gray-500 truncate">{employee.role}</div>
                               </div>
+                              {isConnecting && (
+                                <div className="w-4 h-4">
+                                  <div className="w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+                                </div>
+                              )}
                             </button>
-                          ))}
+                          );
+                        })}
                         </div>
                       </div>
                     )}
@@ -726,7 +797,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                             <button
                               key={result.id}
                               onClick={() => {
-                                messageHandlers.handleSelectConversation(result.conversation);
+                                navigationHandlers.handleSelectConversation(result.conversation);
                                 setSearchQuery('');
                               }}
                               className="w-full p-2 hover:bg-gray-50 rounded-lg transition-all duration-200"
@@ -795,7 +866,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                             return (
                               <button
                                 key={`pinned-${conversation.id}`}
-                                onClick={() => messageHandlers.handleSelectConversation(conversation)}
+                                onClick={() => navigationHandlers.handleSelectConversation(conversation)}
                                 onContextMenu={(e) => contextMenuHandlers.handleChatContextMenu(e, conversation)}
                                 className={`w-full flex items-center gap-3 p-2 rounded-lg transition-all duration-200 bg-purple-50 border-l-2 border-purple-600 ${
                                   isActive 
@@ -851,7 +922,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                         return (
                           <button
                             key={conversation.id}
-                            onClick={() => messageHandlers.handleSelectConversation(conversation)}
+                            onClick={() => navigationHandlers.handleSelectConversation(conversation)}
                             onContextMenu={(e) => contextMenuHandlers.handleChatContextMenu(e, conversation)}
                             className={`w-full flex items-center gap-3 p-2 rounded-lg transition-all duration-200 ${
                               isActive 
@@ -918,37 +989,73 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                 }}
               >
                 {(messages[activeConversation.id] || []).map(message => {
-                  const isOwnMessage = message.senderId === currentUser.id;
+                  const currentUserEmployeeId = currentUser?.employeeId || `emp-${currentUser?.id}`;
+                  const isOwnMessage = message.senderId === currentUser.id || message.senderId === currentUserEmployeeId;
+                  const sender = getEmployeeById(message.senderId);
+                  
+                  // Debug logging for reply messages
+                  if (message.replyTo) {
+                    console.log('🎯 [DESKTOP] Rendering message with reply:', {
+                      messageId: message.id,
+                      content: message.text,
+                      replyTo: message.replyTo
+                    });
+                  }
                   
                   return (
                     <div
                       key={message.id}
                       className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
                     >
-                      <div
-                        className={`max-w-[280px] px-2 py-1.5 rounded-lg text-xs transition-all duration-200 hover:shadow-md ${
-                          isOwnMessage
-                            ? 'bg-gradient-to-br from-purple-500 to-purple-600 text-white'
-                            : 'bg-gray-100 text-gray-900 border border-gray-200'
-                        }`}
-                        onContextMenu={(e) => contextMenuHandlers.handleContextMenu(e, message)}
-                      >
-                        {message.type === 'poll' ? (
-                          <PollMessage
-                            poll={message.poll}
-                            currentUserId={currentUser.id}
-                            onVote={(optionIndexes) => pollAndGroupHandlers.handlePollVote(message.id, optionIndexes)}
-                            isOwnMessage={isOwnMessage}
-                            isCompact={true}
-                          />
-                        ) : (
-                          <p className="leading-relaxed">{message.text}</p>
+                      <div className={`max-w-[280px] ${isOwnMessage ? 'order-2' : 'order-1'}`}>
+                        {!isOwnMessage && activeConversation.type === 'group' && (
+                          <div className="text-xs text-purple-600 mb-1 ml-2">{sender?.name}</div>
                         )}
-                        <div className={`text-xs mt-1 ${isOwnMessage ? 'text-purple-100' : 'text-gray-500'}`}>
-                          {formatMessageTime(message.timestamp)}
-                          {message.edited && (
-                            <span className="ml-1 italic opacity-75">edited</span>
+                        <div
+                          className={`px-2 py-1.5 rounded-lg text-xs transition-all duration-200 hover:shadow-md ${
+                            isOwnMessage
+                              ? `bg-gradient-to-br from-purple-500 to-purple-600 text-white ${isOwnMessage ? 'rounded-br-md' : ''}`
+                              : `bg-gray-100 text-gray-900 border border-gray-200 ${!isOwnMessage ? 'rounded-bl-md' : ''}`
+                          }`}
+                          onContextMenu={(e) => contextMenuHandlers.handleContextMenu(e, message)}
+                        >
+                          {/* Reply indicator */}
+                          {message.replyTo && (
+                            <div className={`mb-1 p-1 rounded border-l-2 ${
+                              isOwnMessage 
+                                ? 'bg-white/20 border-white/40' 
+                                : 'bg-purple-50 border-purple-300'
+                            }`}>
+                              <div className={`text-xs mb-0.5 ${
+                                isOwnMessage ? 'text-white/90' : 'text-purple-700'
+                              }`}>
+                                {message.replyTo.senderName}
+                              </div>
+                              <div className={`text-xs ${
+                                isOwnMessage ? 'text-white/80' : 'text-gray-600'
+                              }`}>
+                                {message.replyTo.text}
+                              </div>
+                            </div>
                           )}
+                          
+                          {message.type === 'poll' ? (
+                            <PollMessage
+                              poll={message.poll}
+                              currentUserId={currentUser.id}
+                              onVote={(optionIndexes) => pollAndGroupHandlers.handlePollVote(message.id, optionIndexes)}
+                              isOwnMessage={isOwnMessage}
+                              isCompact={true}
+                            />
+                          ) : (
+                            <p className="leading-relaxed">{message.text}</p>
+                          )}
+                          <div className={`text-xs mt-1 ${isOwnMessage ? 'text-purple-100' : 'text-gray-500'}`}>
+                            {formatMessageTime(message.timestamp)}
+                            {message.edited && (
+                              <span className="ml-1 italic opacity-75">edited</span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1185,7 +1292,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                       return (
                         <button
                           key={`pinned-${conversation.id}`}
-                          onClick={() => messageHandlers.handleSelectConversation(conversation)}
+                          onClick={() => navigationHandlers.handleSelectConversation(conversation)}
                           onContextMenu={(e) => contextMenuHandlers.handleChatContextMenu(e, conversation)}
                           className={`w-full p-1.5 rounded-lg transition-all duration-200 ${
                             isActive 
@@ -1250,7 +1357,27 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                             {filteredEmployees.map(employee => (
                               <button
                                 key={employee.id}
-                                onClick={() => navigationHandlers.handleStartNewChat(employee)}
+                                onClick={() => {
+                                  // Create or find conversation, then select it like clicking on conversation list
+                                  const employeeChatId = employee.employeeId || employee.id;
+                                  const currentUserChatId = currentUser.employeeId || currentUser.id;
+                                  
+                                  // Check if conversation already exists
+                                  const existingConv = conversations.find(conv => 
+                                    conv.type === 'direct' && 
+                                    conv.participants.includes(employeeChatId) && 
+                                    conv.participants.includes(currentUserChatId)
+                                  );
+                                  
+                                  if (existingConv) {
+                                    // Use same logic as clicking on conversation list
+                                    navigationHandlers.handleSelectConversation(existingConv);
+                                  } else {
+                                    // Create new conversation and select it
+                                    navigationHandlers.handleStartNewChat(employee);
+                                  }
+                                  setSearchQuery(''); // Clear search after selection
+                                }}
                                 className="w-full p-2 bg-white/70 backdrop-blur-sm rounded-lg hover:bg-white/80 hover:scale-[1.02] shadow-[inset_0_0_10px_rgba(255,255,255,0.8),0_4px_16px_rgba(109,40,217,0.1)] transition-all duration-300"
                               >
                                 <div className="flex items-center gap-2">
@@ -1283,7 +1410,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                               <button
                                 key={result.id}
                                 onClick={() => {
-                                  messageHandlers.handleSelectConversation(result.conversation);
+                                  navigationHandlers.handleSelectConversation(result.conversation);
                                   setSearchQuery('');
                                 }}
                                 className="w-full p-2 bg-white/70 backdrop-blur-sm rounded-lg hover:bg-white/80 transition-all duration-200"
@@ -1339,7 +1466,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                               return (
                                 <button
                                   key={conversation.id}
-                                  onClick={() => messageHandlers.handleSelectConversation(conversation)}
+                                  onClick={() => navigationHandlers.handleSelectConversation(conversation)}
                                   onContextMenu={(e) => contextMenuHandlers.handleChatContextMenu(e, conversation)}
                                   className={`w-full p-1.5 rounded-lg transition-all duration-200 ${
                                     isActive 
@@ -1401,7 +1528,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                       return (
                         <button
                           key={conversation.id}
-                          onClick={() => messageHandlers.handleSelectConversation(conversation)}
+                          onClick={() => navigationHandlers.handleSelectConversation(conversation)}
                           onContextMenu={(e) => contextMenuHandlers.handleChatContextMenu(e, conversation)}
                           className={`w-full p-2 rounded-xl transition-all duration-200 ${
                             isActive 
@@ -1536,7 +1663,8 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                     )}
 
                     {(messages[activeConversation.id] || []).map(message => {
-                      const isOwnMessage = message.senderId === currentUser.id;
+                      const currentUserEmployeeId = currentUser?.employeeId || `emp-${currentUser?.id}`;
+                      const isOwnMessage = message.senderId === currentUser.id || message.senderId === currentUserEmployeeId;
                       const sender = getEmployeeById(message.senderId);
                       
                       return (

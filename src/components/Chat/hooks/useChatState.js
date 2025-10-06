@@ -43,6 +43,10 @@ export const useChatState = () => {
   const [showGroupFilter, setShowGroupFilter] = useState(false);
   const [showFavouritesFilter, setShowFavouritesFilter] = useState(false);
   
+  // Loading states
+  const [isConnectingToChat, setIsConnectingToChat] = useState(false);
+  const [connectingChatId, setConnectingChatId] = useState(null);
+  
   // Refs
   const mobilePlusMenuRef = useRef(null);
   const compactPlusMenuRef = useRef(null);
@@ -122,6 +126,12 @@ export const useChatState = () => {
     setShowGroupFilter,
     showFavouritesFilter,
     setShowFavouritesFilter,
+    
+    // Loading states
+    isConnectingToChat,
+    setIsConnectingToChat,
+    connectingChatId,
+    setConnectingChatId,
     
     // Refs
     mobilePlusMenuRef,

@@ -55,16 +55,35 @@ export const ChatProvider = ({ children }) => {
       const messagesResponse = await currentAPI.getRoomMessages(conversationId);
       
       if (messagesResponse.status === 'success' && Array.isArray(messagesResponse.data)) {
-        const apiMessages = messagesResponse.data.map(msg => ({
-          id: msg.message_id,
-          senderId: msg.sender?.employee_id || msg.sender_id,
-          text: msg.content,
-          timestamp: new Date(msg.created_at),
-          read: true,
-          isStarred: msg.is_starred || false,
-          replyToMessage: msg.reply_to_message,
-          fileUrls: msg.file_urls || []
-        }));
+        const apiMessages = messagesResponse.data.map(msg => {
+          const message = {
+            id: msg.message_id,
+            senderId: msg.sender?.employee_id || msg.sender_id,
+            text: msg.content,
+            timestamp: new Date(msg.created_at),
+            read: true,
+            isStarred: msg.is_starred || false,
+            fileUrls: msg.file_urls || []
+          };
+
+          // Parse reply data properly
+          if (msg.reply_to_message) {
+            message.replyTo = {
+              id: msg.reply_to_message.message_id,
+              text: msg.reply_to_message.content,
+              senderId: msg.reply_to_message.sender?.employee_id,
+              senderName: msg.reply_to_message.sender?.employee_name || 'Unknown User',
+              timestamp: new Date(msg.reply_to_message.created_at)
+            };
+            console.log('🔍 [CONTEXT] Parsed reply in ChatContext:', {
+              messageId: message.id,
+              content: message.text,
+              replyTo: message.replyTo
+            });
+          }
+
+          return message;
+        });
         
         console.log(`Loaded ${apiMessages.length} messages for conversation ${conversationId}`);
         
