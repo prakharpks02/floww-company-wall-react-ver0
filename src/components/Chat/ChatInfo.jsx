@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { X, Phone, Video, Mail, MapPin, Calendar, Building, User, MessageCircle, Users, Settings, Image, FileText, Link, Clock, Crown, Shield, UserPlus, UserMinus, Edit2, VolumeX, Search, Camera } from 'lucide-react';
 import { getEmployeeById, getAllEmployees } from './utils/dummyData';
 
-const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup, onLeaveGroup, onRemoveMember, onStartCall, onStartVideoCall, onReloadConversations, isCompact = false, isInline = false }) => {
+const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup, onLeaveGroup, onRemoveMember, onStartCall, onStartVideoCall, onReloadConversations, onStartChatWithMember, isCompact = false, isInline = false }) => {
   const [activeSection, setActiveSection] = useState('overview');
   const [isEditing, setIsEditing] = useState(false);
   const [groupName, setGroupName] = useState(conversation?.name || '');
@@ -627,21 +627,47 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
             if (!member) return null;
 
             return (
-              <div key={memberId} className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg transition-colors">
-                <div className="relative">
-                  <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white font-bold">
-                    {member.avatar}
+              <div key={memberId} className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg transition-colors group">
+                {/* Clickable member info section */}
+                <div 
+                  className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer"
+                  onClick={() => {
+                    if (memberId !== currentUserId && onStartChatWithMember) {
+                      console.log('🎯 Starting chat with member:', { memberId, member });
+                      onStartChatWithMember(member);
+                    }
+                  }}
+                  title={memberId !== currentUserId ? "Click to start chat" : undefined}
+                >
+                  <div className="relative">
+                    {member.profile_picture_link ? (
+                      <div className="w-12 h-12 bg-gray-100 rounded-full overflow-hidden">
+                        <img 
+                          src={member.profile_picture_link} 
+                          alt={member.name}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white font-bold">
+                        {member.avatar}
+                      </div>
+                    )}
+                    <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${getStatusColor(member.status)}`}></div>
                   </div>
-                  <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${getStatusColor(member.status)}`}></div>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="font-medium text-gray-900 truncate">{member.name}</p>
-                    {getRoleIcon(memberId)}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium text-gray-900 truncate">{member.name}</p>
+                      {getRoleIcon(memberId)}
+                      {memberId !== currentUserId && (
+                        <MessageCircle className="h-3 w-3 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-500 truncate">{member.position}</p>
+                    <p className="text-xs text-gray-400">{getRoleText(memberId)}</p>
                   </div>
-                  <p className="text-sm text-gray-500 truncate">{member.position}</p>
-                  <p className="text-xs text-gray-400">{getRoleText(memberId)}</p>
                 </div>
+                
                 {(isAdmin || isCreator) && memberId !== currentUserId && (
                   <div className="flex items-center gap-1">
                     {/* Admin Rights Management */}

@@ -169,6 +169,11 @@ export const useChatMessageHandlers = ({
         const messageData = {
           id: sendResult.temporaryMessage?.id || Date.now(),
           senderId: senderEmployeeId,
+          sender: {
+            employee_id: senderEmployeeId,
+            employee_name: currentUser?.name || currentUser?.fullName || 'You',
+            profile_picture_link: currentUser?.profile_picture_link || currentUser?.avatar || ''
+          }, // 🔑 Add sender object for consistency with received messages
           text: newMessage.trim(),
           timestamp: new Date(),
           read: true,
@@ -386,6 +391,7 @@ export const useChatMessageHandlers = ({
           const convertedMsg = {
             id: msg.message_id || msg.id,
             senderId: msg.sender?.employee_id || msg.sender_id,
+            sender: msg.sender, // 🔑 Preserve full sender object with profile_picture_link
             senderName: msg.sender?.employee_name || 'Unknown',
             text: msg.content,
             timestamp: new Date(msg.created_at || msg.timestamp),

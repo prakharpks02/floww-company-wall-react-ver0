@@ -304,6 +304,32 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
     pinAndFavoriteHandlers.handlePinConfirm(duration, messageToPinOrChat, pinType);
   };
 
+  // Handler to start chat with a group member
+  const handleStartChatWithMember = (member) => {
+    console.log('💬 Starting chat with member:', member);
+    
+    // Close the chat info modal
+    setShowChatInfo(false);
+    
+    // Check if a direct conversation already exists with this member
+    const currentUserChatId = currentUser.employeeId || currentUser.id;
+    const memberChatId = member.employeeId || member.id;
+    
+    const existingConv = conversations.find(conv => 
+      conv.type === 'direct' && 
+      conv.participants.includes(memberChatId) && 
+      conv.participants.includes(currentUserChatId)
+    );
+    
+    if (existingConv) {
+      console.log('✅ Found existing conversation:', existingConv);
+      navigationHandlers.handleSelectConversation(existingConv);
+    } else {
+      console.log('🆕 Creating new conversation with member');
+      navigationHandlers.handleStartNewChat(member);
+    }
+  };
+
   // Check if we're on mobile/small screen with proper state management
   const [isMobile, setIsMobile] = React.useState(window.innerWidth < 1024);
 
@@ -463,13 +489,33 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                               >
                                 {/* Profile picture for group chats (left side for others' messages) */}
                                 {!isOwnMessage && activeConversation.type === 'group' && (
-                                  <div className="flex-shrink-0 mr-2">
+                                  <div 
+                                    className="flex-shrink-0 mr-2 cursor-pointer hover:opacity-80 transition-opacity"
+                                    onClick={() => {
+                                      const senderEmployee = getEmployeeById(message.senderId);
+                                      if (senderEmployee) {
+                                        handleStartChatWithMember(senderEmployee);
+                                      }
+                                    }}
+                                    title="Click to start chat"
+                                  >
                                     {(() => {
                                       const senderEmployee = getEmployeeById(message.senderId);
                                       const profilePic = message.sender?.profile_picture_link || 
                                                        message.sender?.avatar || 
                                                        senderEmployee?.profile_picture_link ||
                                                        senderEmployee?.avatar;
+                                      
+                                      // Debug logging
+                                      console.log('🖼️ [MOBILE] Profile pic debug:', {
+                                        senderId: message.senderId,
+                                        messageSenderProfilePic: message.sender?.profile_picture_link,
+                                        messageSenderAvatar: message.sender?.avatar,
+                                        employeeProfilePic: senderEmployee?.profile_picture_link,
+                                        employeeAvatar: senderEmployee?.avatar,
+                                        finalProfilePic: profilePic,
+                                        isValidUrl: profilePic && profilePic.startsWith('http')
+                                      });
                                       
                                       return profilePic && profilePic.startsWith('http') ? (
                                         <div className="w-8 h-8 bg-gray-100 rounded-full overflow-hidden">
@@ -490,7 +536,16 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                                 
                                 <div className={`max-w-[280px] ${isOwnMessage ? 'order-2' : 'order-1'}`}>
                                   {!isOwnMessage && activeConversation.type === 'group' && (
-                                    <div className="text-xs text-purple-600 mb-1 ml-3 font-medium">
+                                    <div 
+                                      className="text-xs text-purple-600 mb-1 ml-3 font-medium cursor-pointer hover:underline"
+                                      onClick={() => {
+                                        const senderEmployee = getEmployeeById(message.senderId);
+                                        if (senderEmployee) {
+                                          handleStartChatWithMember(senderEmployee);
+                                        }
+                                      }}
+                                      title="Click to start chat"
+                                    >
                                       {message.sender?.name || getEmployeeById(message.senderId)?.name || 'Unknown User'}
                                     </div>
                                   )}
@@ -596,6 +651,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                     onLeaveGroup={pollAndGroupHandlers.handleLeaveGroup}
                     onRemoveMember={pollAndGroupHandlers.handleRemoveMember}
                     onReloadConversations={loadConversations}
+                    onStartChatWithMember={handleStartChatWithMember}
                     isCompact={false}
                     isInline={true}
                   />
@@ -704,6 +760,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
               onLeaveGroup={pollAndGroupHandlers.handleLeaveGroup}
               onRemoveMember={pollAndGroupHandlers.handleRemoveMember}
               onReloadConversations={loadConversations}
+              onStartChatWithMember={handleStartChatWithMember}
               isCompact={true}
               isInline={false}
             />
@@ -1083,13 +1140,33 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                         >
                           {/* Profile picture for group chats (left side for others' messages) */}
                           {!isOwnMessage && activeConversation.type === 'group' && (
-                            <div className="flex-shrink-0 self-end mb-1">
+                            <div 
+                              className="flex-shrink-0 self-end mb-1 cursor-pointer hover:opacity-80 transition-opacity"
+                              onClick={() => {
+                                const senderEmployee = getEmployeeById(message.senderId);
+                                if (senderEmployee) {
+                                  handleStartChatWithMember(senderEmployee);
+                                }
+                              }}
+                              title="Click to start chat"
+                            >
                               {(() => {
                                 const senderEmployee = getEmployeeById(message.senderId);
                                 const profilePic = message.sender?.profile_picture_link || 
                                                  message.sender?.avatar || 
                                                  senderEmployee?.profile_picture_link ||
                                                  senderEmployee?.avatar;
+                                
+                                // Debug logging
+                                console.log('🖼️ [COMPACT] Profile pic debug:', {
+                                  senderId: message.senderId,
+                                  messageSenderProfilePic: message.sender?.profile_picture_link,
+                                  messageSenderAvatar: message.sender?.avatar,
+                                  employeeProfilePic: senderEmployee?.profile_picture_link,
+                                  employeeAvatar: senderEmployee?.avatar,
+                                  finalProfilePic: profilePic,
+                                  isValidUrl: profilePic && profilePic.startsWith('http')
+                                });
                                 
                                 return profilePic && profilePic.startsWith('http') ? (
                                   <div className="w-6 h-6 bg-gray-100 rounded-full overflow-hidden">
@@ -1110,7 +1187,16 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                           
                           <div className={`flex flex-col max-w-[280px]`}>
                             {!isOwnMessage && activeConversation.type === 'group' && (
-                              <div className="text-xs text-purple-600 mb-0.5 font-medium">
+                              <div 
+                                className="text-xs text-purple-600 mb-0.5 font-medium cursor-pointer hover:underline"
+                                onClick={() => {
+                                  const senderEmployee = getEmployeeById(message.senderId);
+                                  if (senderEmployee) {
+                                    handleStartChatWithMember(senderEmployee);
+                                  }
+                                }}
+                                title="Click to start chat"
+                              >
                                 {message.sender?.name || getEmployeeById(message.senderId)?.name || 'Unknown User'}
                               </div>
                             )}
@@ -1828,13 +1914,33 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                             >
                               {/* Profile picture for group chats (left side for others' messages) */}
                               {!isOwnMessage && activeConversation.type === 'group' && (
-                                <div className="flex-shrink-0 mr-2">
+                                <div 
+                                  className="flex-shrink-0 mr-2 cursor-pointer hover:opacity-80 transition-opacity"
+                                  onClick={() => {
+                                    const senderEmployee = getEmployeeById(message.senderId);
+                                    if (senderEmployee) {
+                                      handleStartChatWithMember(senderEmployee);
+                                    }
+                                  }}
+                                  title="Click to start chat"
+                                >
                                   {(() => {
                                     const senderEmployee = getEmployeeById(message.senderId);
                                     const profilePic = message.sender?.profile_picture_link || 
                                                      message.sender?.avatar || 
                                                      senderEmployee?.profile_picture_link ||
                                                      senderEmployee?.avatar;
+                                    
+                                    // Debug logging
+                                    console.log('🖼️ [DESKTOP] Profile pic debug:', {
+                                      senderId: message.senderId,
+                                      messageSenderProfilePic: message.sender?.profile_picture_link,
+                                      messageSenderAvatar: message.sender?.avatar,
+                                      employeeProfilePic: senderEmployee?.profile_picture_link,
+                                      employeeAvatar: senderEmployee?.avatar,
+                                      finalProfilePic: profilePic,
+                                      isValidUrl: profilePic && profilePic.startsWith('http')
+                                    });
                                     
                                     return profilePic && profilePic.startsWith('http') ? (
                                       <div className="w-6 h-6 bg-gray-100 rounded-full overflow-hidden">
@@ -1855,7 +1961,16 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                               
                               <div className={`max-w-md ${isOwnMessage ? 'order-2' : 'order-1'}`}>
                                 {!isOwnMessage && activeConversation.type === 'group' && (
-                                  <div className="text-xs text-[#6d28d9] mb-1 ml-2 font-medium">
+                                  <div 
+                                    className="text-xs text-[#6d28d9] mb-1 ml-2 font-medium cursor-pointer hover:underline"
+                                    onClick={() => {
+                                      const senderEmployee = getEmployeeById(message.senderId);
+                                      if (senderEmployee) {
+                                        handleStartChatWithMember(senderEmployee);
+                                      }
+                                    }}
+                                    title="Click to start chat"
+                                  >
                                     {message.sender?.name || getEmployeeById(message.senderId)?.name || 'Unknown User'}
                                   </div>
                                 )}
@@ -2004,6 +2119,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                     onLeaveGroup={pollAndGroupHandlers.handleLeaveGroup}
                     onRemoveMember={pollAndGroupHandlers.handleRemoveMember}
                     onReloadConversations={loadConversations}
+                    onStartChatWithMember={handleStartChatWithMember}
                     isCompact={false}
                     isInline={true}
                   />

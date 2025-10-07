@@ -36,16 +36,24 @@ export const useChatWebSocketMessages = ({
       return;
     }
 
-    // Create message object
+    // Create message object - PRESERVE SENDER DATA for profile pictures
     const incomingMessage = {
       id: messageData.message_id || `ws-${Date.now()}`,
       senderId: senderEmployeeId,
+      sender: messageData.sender, // 🔑 Preserve full sender object with profile_picture_link
       text: messageData.content || messageData.message,
       timestamp: new Date(messageData.timestamp || messageData.created_at || Date.now()),
       read: false,
       status: 'received',
       type: messageData.type || 'text'
     };
+    
+    // Verify sender data is preserved
+    console.log('✅ [WS] Message sender data:', {
+      hasSender: !!incomingMessage.sender,
+      profilePic: incomingMessage.sender?.profile_picture_link,
+      name: incomingMessage.sender?.employee_name
+    });
 
     // Add reply information if present
     if (messageData.reply_to_message_id || messageData.reply_to) {
@@ -88,6 +96,7 @@ export const useChatWebSocketMessages = ({
         const formattedMessages = response.data.map(msg => ({
           id: msg.message_id,
           senderId: msg.sender?.employee_id || msg.sender_id,
+          sender: msg.sender, // 🔑 Preserve full sender object with profile_picture_link
           text: msg.content,
           timestamp: new Date(msg.created_at),
           read: true,
@@ -101,6 +110,13 @@ export const useChatWebSocketMessages = ({
             }
           })
         }));
+        
+        // Verify sender data is preserved
+        console.log('✅ [API] First message sender data:', {
+          hasSender: !!formattedMessages[0]?.sender,
+          profilePic: formattedMessages[0]?.sender?.profile_picture_link,
+          name: formattedMessages[0]?.sender?.employee_name
+        });
 
         // Set initial messages for the conversation
         setMessages(prev => ({

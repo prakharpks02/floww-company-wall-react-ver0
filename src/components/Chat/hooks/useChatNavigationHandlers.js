@@ -61,6 +61,7 @@ export const useChatNavigationHandlers = ({
             const formattedMessages = messagesResponse.data.map(msg => ({
               id: msg.message_id,
               senderId: msg.sender?.employee_id || msg.sender_id,
+              sender: msg.sender, // 🔑 Preserve full sender object with profile_picture_link
               text: msg.content,
               timestamp: new Date(msg.created_at),
               read: true,
@@ -130,6 +131,7 @@ export const useChatNavigationHandlers = ({
               const formattedMessages = messagesResponse.data.map(msg => ({
                 id: msg.message_id,
                 senderId: msg.sender?.employee_id || msg.sender_id,
+                sender: msg.sender, // 🔑 Preserve full sender object with profile_picture_link
                 text: msg.content,
                 timestamp: new Date(msg.created_at),
                 read: true,
@@ -236,6 +238,7 @@ export const useChatNavigationHandlers = ({
             const message = {
               id: msg.message_id,
               senderId: msg.sender?.employee_id || msg.sender_id,
+              sender: msg.sender, // 🔑 Preserve full sender object with profile_picture_link
               text: msg.content,
               timestamp: new Date(msg.created_at),
               read: true,
