@@ -1,4 +1,4 @@
-import { getConversationPartner as getPartner, formatMessageTime, getEmployeeByIdFromList } from '../utils/dummyData';
+import { getConversationPartner as getPartner, formatMessageTime, getEmployeeByIdFromList, getDateHeader, groupMessagesByDate } from '../utils/dummyData';
 import { useChat } from '../../../contexts/ChatContext';
 
 export const useChatUtilities = () => {
@@ -195,6 +195,8 @@ export const useChatUtilities = () => {
     getStatusColor,
     canEditMessage,
     getEmployeeById,
-    formatMessageTime
+    formatMessageTime,
+    getDateHeader,
+    groupMessagesByDate
   };
 };

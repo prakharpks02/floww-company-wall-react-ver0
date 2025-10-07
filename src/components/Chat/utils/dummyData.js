@@ -166,7 +166,21 @@ export const formatMessageTime = (timestamp) => {
   const isToday = now.toDateString() === messageDate.toDateString();
   
   if (isToday) {
-    return messageDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return messageDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+  } else {
+    // For previous days, always show time in AM/PM format
+    return messageDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+  }
+};
+
+// New function to get date headers
+export const getDateHeader = (timestamp) => {
+  const now = new Date();
+  const messageDate = new Date(timestamp);
+  const isToday = now.toDateString() === messageDate.toDateString();
+  
+  if (isToday) {
+    return 'Today';
   } else {
     const yesterday = new Date(now);
     yesterday.setDate(yesterday.getDate() - 1);
@@ -175,7 +189,42 @@ export const formatMessageTime = (timestamp) => {
     if (isYesterday) {
       return 'Yesterday';
     } else {
-      return messageDate.toLocaleDateString([], { month: 'short', day: 'numeric' });
+      // Calculate how many days ago the message was sent
+      const daysDifference = Math.floor((now - messageDate) / (1000 * 60 * 60 * 24));
+      
+      // For messages within the last 5 days (including today and yesterday), show day names only
+      if (daysDifference <= 5) {
+        return messageDate.toLocaleDateString([], { weekday: 'long' });
+      } else {
+        // For messages older than 5 days, show date only (no day name)
+        return messageDate.toLocaleDateString([], { 
+          year: 'numeric', 
+          month: 'short', 
+          day: 'numeric' 
+        });
+      }
     }
   }
+};
+
+// Function to group messages by date
+export const groupMessagesByDate = (messages) => {
+  const groups = [];
+  let currentGroup = null;
+  
+  messages.forEach(message => {
+    const dateHeader = getDateHeader(message.timestamp);
+    
+    if (!currentGroup || currentGroup.date !== dateHeader) {
+      currentGroup = {
+        date: dateHeader,
+        messages: [message]
+      };
+      groups.push(currentGroup);
+    } else {
+      currentGroup.messages.push(message);
+    }
+  });
+  
+  return groups;
 };

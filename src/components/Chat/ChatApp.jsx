@@ -96,7 +96,9 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
     getStatusColor,
     canEditMessage,
     getEmployeeById,
-    formatMessageTime
+    formatMessageTime,
+    getDateHeader,
+    groupMessagesByDate
   } = useChatUtilities();
 
   // Use effects hook
@@ -430,30 +432,49 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                         </div>
                       </div>
                     ) : (
-                      (messages[activeConversation.id] || []).map(message => {
-                      const currentUserEmployeeId = currentUser?.employeeId || `emp-${currentUser?.id}`;
-                      const isOwnMessage = message.senderId === currentUser.id || message.senderId === currentUserEmployeeId;
-                      const sender = getEmployeeById(message.senderId);
-                      
-                      // Debug logging for reply messages
-                      if (message.replyTo) {
-                        console.log('🎯 [MOBILE] Rendering message with reply:', {
-                          messageId: message.id,
-                          content: message.text,
-                          replyTo: message.replyTo
-                        });
-                      }
-                      
-                      return (
-                        <div
-                          key={message.id}
-                          className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
-                        >
-                          <div className={`max-w-[280px] ${isOwnMessage ? 'order-2' : 'order-1'}`}>
-                            {!isOwnMessage && activeConversation.type === 'group' && (
-                              <div className="text-xs text-purple-600 mb-1 ml-3">{sender?.name}</div>
-                            )}
-                            <div
+                      groupMessagesByDate(messages[activeConversation.id] || []).map((group, groupIndex) => (
+                        <div key={groupIndex} className="space-y-4">
+                          {/* Date Header */}
+                          <div className="flex justify-center">
+                            <div className="bg-gray-100 text-gray-600 text-xs px-3 py-1 rounded-full">
+                              {group.date}
+                            </div>
+                          </div>
+                          
+                          {/* Messages for this date */}
+                          {group.messages.map(message => {
+                            const currentUserEmployeeId = currentUser?.employeeId || `emp-${currentUser?.id}`;
+                            const isOwnMessage = message.senderId === currentUser.id || message.senderId === currentUserEmployeeId;
+                            const sender = getEmployeeById(message.senderId);
+                            
+                            // Debug logging for reply messages
+                            if (message.replyTo) {
+                              console.log('🎯 [MOBILE] Rendering message with reply:', {
+                                messageId: message.id,
+                                content: message.text,
+                                replyTo: message.replyTo
+                              });
+                            }
+                            
+                            return (
+                              <div
+                                key={message.id}
+                                className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
+                              >
+                                {/* Profile picture for group chats (left side for others' messages) */}
+                                {!isOwnMessage && activeConversation.type === 'group' && (
+                                  <div className="flex-shrink-0 mr-2">
+                                    <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                                      {sender?.avatar || sender?.name?.charAt(0) || 'U'}
+                                    </div>
+                                  </div>
+                                )}
+                                
+                                <div className={`max-w-[280px] ${isOwnMessage ? 'order-2' : 'order-1'}`}>
+                                  {!isOwnMessage && activeConversation.type === 'group' && (
+                                    <div className="text-xs text-purple-600 mb-1 ml-3 font-medium">{sender?.name}</div>
+                                  )}
+                                  <div
                               className={`px-4 py-3 rounded-2xl transition-all duration-200 ${
                                 isOwnMessage
                                   ? `bg-gradient-to-br from-purple-500 to-purple-600 text-white ${isOwnMessage ? 'rounded-br-lg' : ''}`
@@ -503,7 +524,9 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                           </div>
                         </div>
                       );
-                    })
+                    })}
+                        </div>
+                      ))
                     )}
                     <div ref={messagesEndRef} />
                   </div>
@@ -1662,21 +1685,40 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                       </div>
                     )}
 
-                    {(messages[activeConversation.id] || []).map(message => {
-                      const currentUserEmployeeId = currentUser?.employeeId || `emp-${currentUser?.id}`;
-                      const isOwnMessage = message.senderId === currentUser.id || message.senderId === currentUserEmployeeId;
-                      const sender = getEmployeeById(message.senderId);
-                      
-                      return (
-                        <div
-                          key={message.id}
-                          className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
-                        >
-                          <div className={`max-w-md ${isOwnMessage ? 'order-2' : 'order-1'}`}>
-                            {!isOwnMessage && activeConversation.type === 'group' && (
-                              <div className="text-xs text-[#6d28d9] mb-2 ml-2">{sender?.name}</div>
-                            )}
+                    {groupMessagesByDate(messages[activeConversation.id] || []).map((group, groupIndex) => (
+                      <div key={groupIndex} className="space-y-2">
+                        {/* Date Header */}
+                        <div className="flex justify-center">
+                          <div className="bg-white/60 backdrop-blur-sm text-[#6b7280] text-xs px-3 py-1 rounded-full border border-white/40">
+                            {group.date}
+                          </div>
+                        </div>
+                        
+                        {/* Messages for this date */}
+                        {group.messages.map(message => {
+                          const currentUserEmployeeId = currentUser?.employeeId || `emp-${currentUser?.id}`;
+                          const isOwnMessage = message.senderId === currentUser.id || message.senderId === currentUserEmployeeId;
+                          const sender = getEmployeeById(message.senderId);
+                          
+                          return (
                             <div
+                              key={message.id}
+                              className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
+                            >
+                              {/* Profile picture for group chats (left side for others' messages) */}
+                              {!isOwnMessage && activeConversation.type === 'group' && (
+                                <div className="flex-shrink-0 mr-2">
+                                  <div className="w-6 h-6 bg-gradient-to-br from-[#6d28d9] to-[#7c3aed] rounded-full flex items-center justify-center text-white text-xs font-bold">
+                                    {sender?.avatar || sender?.name?.charAt(0) || 'U'}
+                                  </div>
+                                </div>
+                              )}
+                              
+                              <div className={`max-w-md ${isOwnMessage ? 'order-2' : 'order-1'}`}>
+                                {!isOwnMessage && activeConversation.type === 'group' && (
+                                  <div className="text-xs text-[#6d28d9] mb-1 ml-2 font-medium">{sender?.name}</div>
+                                )}
+                                <div
                               className={`relative group ${message.type === 'poll' ? 'p-2' : 'px-3 py-2'} rounded-lg transition-all duration-300 hover:scale-[1.02] ${
                                 isOwnMessage
                                   ? `bg-gradient-to-br from-[#6d28d9] to-[#7c3aed] text-white shadow-[0_4px_16px_rgba(109,40,217,0.3)] ${isOwnMessage ? 'rounded-br-md' : ''}`
@@ -1726,6 +1768,8 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                         </div>
                       );
                     })}
+                      </div>
+                    ))}
                     <div ref={messagesEndRef} />
                   </div>
 
