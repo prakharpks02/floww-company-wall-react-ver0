@@ -83,6 +83,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
     setConversations,
     setMessages,
     updateConversation,
+    loadConversations,
     conversationsLoading
   } = useChat();
   
@@ -445,7 +446,6 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                           {group.messages.map(message => {
                             const currentUserEmployeeId = currentUser?.employeeId || `emp-${currentUser?.id}`;
                             const isOwnMessage = message.senderId === currentUser.id || message.senderId === currentUserEmployeeId;
-                            const sender = getEmployeeById(message.senderId);
                             
                             // Debug logging for reply messages
                             if (message.replyTo) {
@@ -464,15 +464,35 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                                 {/* Profile picture for group chats (left side for others' messages) */}
                                 {!isOwnMessage && activeConversation.type === 'group' && (
                                   <div className="flex-shrink-0 mr-2">
-                                    <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
-                                      {sender?.avatar || sender?.name?.charAt(0) || 'U'}
-                                    </div>
+                                    {(() => {
+                                      const senderEmployee = getEmployeeById(message.senderId);
+                                      const profilePic = message.sender?.profile_picture_link || 
+                                                       message.sender?.avatar || 
+                                                       senderEmployee?.profile_picture_link ||
+                                                       senderEmployee?.avatar;
+                                      
+                                      return profilePic && profilePic.startsWith('http') ? (
+                                        <div className="w-8 h-8 bg-gray-100 rounded-full overflow-hidden">
+                                          <img 
+                                            src={profilePic} 
+                                            alt={message.sender?.name || senderEmployee?.name}
+                                            className="w-full h-full object-cover"
+                                          />
+                                        </div>
+                                      ) : (
+                                        <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                                          {(message.sender?.name || senderEmployee?.name || 'U').charAt(0)}
+                                        </div>
+                                      );
+                                    })()}
                                   </div>
                                 )}
                                 
                                 <div className={`max-w-[280px] ${isOwnMessage ? 'order-2' : 'order-1'}`}>
                                   {!isOwnMessage && activeConversation.type === 'group' && (
-                                    <div className="text-xs text-purple-600 mb-1 ml-3 font-medium">{sender?.name}</div>
+                                    <div className="text-xs text-purple-600 mb-1 ml-3 font-medium">
+                                      {message.sender?.name || getEmployeeById(message.senderId)?.name || 'Unknown User'}
+                                    </div>
                                   )}
                                   <div
                               className={`px-4 py-3 rounded-2xl transition-all duration-200 ${
@@ -575,6 +595,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                     onUpdateGroup={pollAndGroupHandlers.handleUpdateGroup}
                     onLeaveGroup={pollAndGroupHandlers.handleLeaveGroup}
                     onRemoveMember={pollAndGroupHandlers.handleRemoveMember}
+                    onReloadConversations={loadConversations}
                     isCompact={false}
                     isInline={true}
                   />
@@ -682,6 +703,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
               onUpdateGroup={pollAndGroupHandlers.handleUpdateGroup}
               onLeaveGroup={pollAndGroupHandlers.handleLeaveGroup}
               onRemoveMember={pollAndGroupHandlers.handleRemoveMember}
+              onReloadConversations={loadConversations}
               isCompact={true}
               isInline={false}
             />
@@ -898,9 +920,19 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                                 }`}
                               >
                                 <div className="relative">
-                                  <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md">
-                                    {partner?.avatar}
-                                  </div>
+                                  {conversation.icon ? (
+                                    <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center overflow-hidden shadow-md">
+                                      <img 
+                                        src={conversation.icon} 
+                                        alt={conversation.name || partner?.name}
+                                        className="w-full h-full object-cover"
+                                      />
+                                    </div>
+                                  ) : (
+                                    <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md">
+                                      {partner?.avatar}
+                                    </div>
+                                  )}
                                   <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-white ${getStatusColor(partner?.status)} transition-all duration-200`}></div>
                                 </div>
                                 <div className="flex-1 text-left min-w-0">
@@ -954,9 +986,19 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                             }`}
                           >
                             <div className="relative">
-                              <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md">
-                                {partner?.avatar}
-                              </div>
+                              {conversation.icon ? (
+                                <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center overflow-hidden shadow-md">
+                                  <img 
+                                    src={conversation.icon} 
+                                    alt={conversation.name || partner?.name}
+                                    className="w-full h-full object-cover"
+                                  />
+                                </div>
+                              ) : (
+                                <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md">
+                                  {partner?.avatar}
+                                </div>
+                              )}
                               <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-white ${getStatusColor(partner?.status)} transition-all duration-200`}></div>
                             </div>
                             <div className="flex-1 text-left min-w-0">
@@ -1011,79 +1053,119 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                   scrollbarColor: '#cbd5e1 #f1f5f9'
                 }}
               >
-                {(messages[activeConversation.id] || []).map(message => {
-                  const currentUserEmployeeId = currentUser?.employeeId || `emp-${currentUser?.id}`;
-                  const isOwnMessage = message.senderId === currentUser.id || message.senderId === currentUserEmployeeId;
-                  const sender = getEmployeeById(message.senderId);
-                  
-                  // Debug logging for reply messages
-                  if (message.replyTo) {
-                    console.log('🎯 [DESKTOP] Rendering message with reply:', {
-                      messageId: message.id,
-                      content: message.text,
-                      replyTo: message.replyTo
-                    });
-                  }
-                  
-                  return (
-                    <div
-                      key={message.id}
-                      className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
-                    >
-                      <div className={`max-w-[280px] ${isOwnMessage ? 'order-2' : 'order-1'}`}>
-                        {!isOwnMessage && activeConversation.type === 'group' && (
-                          <div className="text-xs text-purple-600 mb-1 ml-2">{sender?.name}</div>
-                        )}
+                {groupMessagesByDate(messages[activeConversation.id] || []).map((group, groupIndex) => (
+                  <div key={groupIndex} className="space-y-2">
+                    {/* Date Header */}
+                    <div className="flex justify-center">
+                      <div className="bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-full">
+                        {group.date}
+                      </div>
+                    </div>
+                    
+                    {/* Messages for this date */}
+                    {group.messages.map(message => {
+                      const currentUserEmployeeId = currentUser?.employeeId || `emp-${currentUser?.id}`;
+                      const isOwnMessage = message.senderId === currentUser.id || message.senderId === currentUserEmployeeId;
+                      
+                      // Debug logging for reply messages
+                      if (message.replyTo) {
+                        console.log('🎯 [COMPACT] Rendering message with reply:', {
+                          messageId: message.id,
+                          content: message.text,
+                          replyTo: message.replyTo
+                        });
+                      }
+                      
+                      return (
                         <div
-                          className={`px-2 py-1.5 rounded-lg text-xs transition-all duration-200 hover:shadow-md ${
-                            isOwnMessage
-                              ? `bg-gradient-to-br from-purple-500 to-purple-600 text-white ${isOwnMessage ? 'rounded-br-md' : ''}`
-                              : `bg-gray-100 text-gray-900 border border-gray-200 ${!isOwnMessage ? 'rounded-bl-md' : ''}`
-                          }`}
-                          onContextMenu={(e) => contextMenuHandlers.handleContextMenu(e, message)}
+                          key={message.id}
+                          className={`flex gap-1.5 ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
                         >
-                          {/* Reply indicator */}
-                          {message.replyTo && (
-                            <div className={`mb-1 p-1 rounded border-l-2 ${
-                              isOwnMessage 
-                                ? 'bg-white/20 border-white/40' 
-                                : 'bg-purple-50 border-purple-300'
-                            }`}>
-                              <div className={`text-xs mb-0.5 ${
-                                isOwnMessage ? 'text-white/90' : 'text-purple-700'
-                              }`}>
-                                {message.replyTo.senderName}
-                              </div>
-                              <div className={`text-xs ${
-                                isOwnMessage ? 'text-white/80' : 'text-gray-600'
-                              }`}>
-                                {message.replyTo.text}
-                              </div>
+                          {/* Profile picture for group chats (left side for others' messages) */}
+                          {!isOwnMessage && activeConversation.type === 'group' && (
+                            <div className="flex-shrink-0 self-end mb-1">
+                              {(() => {
+                                const senderEmployee = getEmployeeById(message.senderId);
+                                const profilePic = message.sender?.profile_picture_link || 
+                                                 message.sender?.avatar || 
+                                                 senderEmployee?.profile_picture_link ||
+                                                 senderEmployee?.avatar;
+                                
+                                return profilePic && profilePic.startsWith('http') ? (
+                                  <div className="w-6 h-6 bg-gray-100 rounded-full overflow-hidden">
+                                    <img 
+                                      src={profilePic} 
+                                      alt={message.sender?.name || senderEmployee?.name}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  </div>
+                                ) : (
+                                  <div className="w-6 h-6 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                                    {(message.sender?.name || senderEmployee?.name || 'U').charAt(0)}
+                                  </div>
+                                );
+                              })()}
                             </div>
                           )}
                           
-                          {message.type === 'poll' ? (
-                            <PollMessage
-                              poll={message.poll}
-                              currentUserId={currentUser.id}
-                              onVote={(optionIndexes) => pollAndGroupHandlers.handlePollVote(message.id, optionIndexes)}
-                              isOwnMessage={isOwnMessage}
-                              isCompact={true}
-                            />
-                          ) : (
-                            <p className="leading-relaxed">{message.text}</p>
-                          )}
-                          <div className={`text-xs mt-1 ${isOwnMessage ? 'text-purple-100' : 'text-gray-500'}`}>
-                            {formatMessageTime(message.timestamp)}
-                            {message.edited && (
-                              <span className="ml-1 italic opacity-75">edited</span>
+                          <div className={`flex flex-col max-w-[280px]`}>
+                            {!isOwnMessage && activeConversation.type === 'group' && (
+                              <div className="text-xs text-purple-600 mb-0.5 font-medium">
+                                {message.sender?.name || getEmployeeById(message.senderId)?.name || 'Unknown User'}
+                              </div>
                             )}
+                            <div
+                              className={`px-2 py-1.5 rounded-lg text-xs transition-all duration-200 hover:shadow-md ${
+                                isOwnMessage
+                                  ? `bg-gradient-to-br from-purple-500 to-purple-600 text-white ${isOwnMessage ? 'rounded-br-md' : ''}`
+                                  : `bg-gray-100 text-gray-900 border border-gray-200 ${!isOwnMessage ? 'rounded-bl-md' : ''}`
+                              }`}
+                              onContextMenu={(e) => contextMenuHandlers.handleContextMenu(e, message)}
+                            >
+                              {/* Reply indicator */}
+                              {message.replyTo && (
+                                <div className={`mb-1 p-1 rounded border-l-2 ${
+                                  isOwnMessage 
+                                    ? 'bg-white/20 border-white/40' 
+                                    : 'bg-purple-50 border-purple-300'
+                                }`}>
+                                  <div className={`text-xs mb-0.5 ${
+                                    isOwnMessage ? 'text-white/90' : 'text-purple-700'
+                                  }`}>
+                                    {message.replyTo.senderName}
+                                  </div>
+                                  <div className={`text-xs ${
+                                    isOwnMessage ? 'text-white/80' : 'text-gray-600'
+                                  }`}>
+                                    {message.replyTo.text}
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {message.type === 'poll' ? (
+                                <PollMessage
+                                  poll={message.poll}
+                                  currentUserId={currentUser.id}
+                                  onVote={(optionIndexes) => pollAndGroupHandlers.handlePollVote(message.id, optionIndexes)}
+                                  isOwnMessage={isOwnMessage}
+                                  isCompact={true}
+                                />
+                              ) : (
+                                <p className="leading-relaxed">{message.text}</p>
+                              )}
+                              <div className={`text-xs mt-1 ${isOwnMessage ? 'text-purple-100' : 'text-gray-500'}`}>
+                                {formatMessageTime(message.timestamp)}
+                                {message.edited && (
+                                  <span className="ml-1 italic opacity-75">edited</span>
+                                )}
+                              </div>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </div>
-                  );
-                })}
+                      );
+                    })}
+                  </div>
+                ))}
                 <div ref={messagesEndRef} />
               </div>
               
@@ -1325,9 +1407,19 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                         >
                           <div className="flex items-center gap-1.5">
                             <div className="relative">
-                              <div className="w-8 h-8 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-lg flex items-center justify-center text-white font-bold text-xs">
-                                {partner?.avatar}
-                              </div>
+                              {conversation.icon ? (
+                                <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden">
+                                  <img 
+                                    src={conversation.icon} 
+                                    alt={conversation.name || partner?.name}
+                                    className="w-full h-full object-cover"
+                                  />
+                                </div>
+                              ) : (
+                                <div className="w-8 h-8 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-lg flex items-center justify-center text-white font-bold text-xs">
+                                  {partner?.avatar}
+                                </div>
+                              )}
                               <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-[#86efac] rounded-full flex items-center justify-center">
                                 <Pin className="h-1.5 w-1.5 text-white" />
                               </div>
@@ -1499,9 +1591,19 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                                 >
                                   <div className="flex items-center gap-1.5">
                                     <div className="relative">
-                                      <div className="w-8 h-8 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-lg flex items-center justify-center text-white font-bold text-xs">
-                                        {partner?.avatar}
-                                      </div>
+                                      {conversation.icon ? (
+                                        <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden">
+                                          <img 
+                                            src={conversation.icon} 
+                                            alt={conversation.name || partner?.name}
+                                            className="w-full h-full object-cover"
+                                          />
+                                        </div>
+                                      ) : (
+                                        <div className="w-8 h-8 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-lg flex items-center justify-center text-white font-bold text-xs">
+                                          {partner?.avatar}
+                                        </div>
+                                      )}
                                       <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white shadow-sm ${getStatusColor(partner?.status)}`}></div>
                                     </div>
                                     <div className="flex-1 text-left min-w-0">
@@ -1561,9 +1663,19 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                         >
                           <div className="flex items-center gap-2">
                             <div className="relative">
-                              <div className="w-9 h-9 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-xl flex items-center justify-center text-white font-bold text-sm">
-                                {partner?.avatar}
-                              </div>
+                              {conversation.icon ? (
+                                <div className="w-9 h-9 bg-gray-100 rounded-xl flex items-center justify-center overflow-hidden">
+                                  <img 
+                                    src={conversation.icon} 
+                                    alt={conversation.name || partner?.name}
+                                    className="w-full h-full object-cover"
+                                  />
+                                </div>
+                              ) : (
+                                <div className="w-9 h-9 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-xl flex items-center justify-center text-white font-bold text-sm">
+                                  {partner?.avatar}
+                                </div>
+                              )}
                               <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white shadow-sm ${getStatusColor(partner?.status)}`}></div>
                             </div>
                             <div className="flex-1 text-left min-w-0">
@@ -1606,14 +1718,24 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="relative">
-                      <div className="w-12 h-12 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-2xl flex items-center justify-center text-white font-bold text-base shadow-[0_8px_32px_rgba(192,132,252,0.3)]">
-                        {getConversationPartner(activeConversation, currentUser.id)?.avatar}
-                      </div>
+                      {activeConversation.icon ? (
+                        <div className="w-12 h-12 bg-gray-100 rounded-2xl flex items-center justify-center overflow-hidden shadow-[0_8px_32px_rgba(192,132,252,0.3)]">
+                          <img 
+                            src={activeConversation.icon} 
+                            alt={activeConversation.name || getConversationPartner(activeConversation, currentUser.id)?.name}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      ) : (
+                        <div className="w-12 h-12 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-2xl flex items-center justify-center text-white font-bold text-base shadow-[0_8px_32px_rgba(192,132,252,0.3)]">
+                          {getConversationPartner(activeConversation, currentUser.id)?.avatar}
+                        </div>
+                      )}
                       {/* <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white shadow-sm ${getStatusColor(getConversationPartner(activeConversation, currentUser.id)?.status)}`}></div> */}
                     </div>
                     <div>
                       <h2 className="text-sm font-normal text-[#1f2937]">
-                        {getConversationPartner(activeConversation, currentUser.id)?.name}
+                        {activeConversation.name || getConversationPartner(activeConversation, currentUser.id)?.name}
                       </h2>
                       <p className="text-sm text-[#6b7280] flex items-center gap-2">
                         <span className={`w-2 h-2 rounded-full ${getStatusColor(getConversationPartner(activeConversation, currentUser.id)?.status)}`}></span>
@@ -1698,7 +1820,6 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                         {group.messages.map(message => {
                           const currentUserEmployeeId = currentUser?.employeeId || `emp-${currentUser?.id}`;
                           const isOwnMessage = message.senderId === currentUser.id || message.senderId === currentUserEmployeeId;
-                          const sender = getEmployeeById(message.senderId);
                           
                           return (
                             <div
@@ -1708,15 +1829,35 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                               {/* Profile picture for group chats (left side for others' messages) */}
                               {!isOwnMessage && activeConversation.type === 'group' && (
                                 <div className="flex-shrink-0 mr-2">
-                                  <div className="w-6 h-6 bg-gradient-to-br from-[#6d28d9] to-[#7c3aed] rounded-full flex items-center justify-center text-white text-xs font-bold">
-                                    {sender?.avatar || sender?.name?.charAt(0) || 'U'}
-                                  </div>
+                                  {(() => {
+                                    const senderEmployee = getEmployeeById(message.senderId);
+                                    const profilePic = message.sender?.profile_picture_link || 
+                                                     message.sender?.avatar || 
+                                                     senderEmployee?.profile_picture_link ||
+                                                     senderEmployee?.avatar;
+                                    
+                                    return profilePic && profilePic.startsWith('http') ? (
+                                      <div className="w-6 h-6 bg-gray-100 rounded-full overflow-hidden">
+                                        <img 
+                                          src={profilePic} 
+                                          alt={message.sender?.name || senderEmployee?.name}
+                                          className="w-full h-full object-cover"
+                                        />
+                                      </div>
+                                    ) : (
+                                      <div className="w-6 h-6 bg-gradient-to-br from-[#6d28d9] to-[#7c3aed] rounded-full flex items-center justify-center text-white text-xs font-bold">
+                                        {(message.sender?.name || senderEmployee?.name || 'U').charAt(0)}
+                                      </div>
+                                    );
+                                  })()}
                                 </div>
                               )}
                               
                               <div className={`max-w-md ${isOwnMessage ? 'order-2' : 'order-1'}`}>
                                 {!isOwnMessage && activeConversation.type === 'group' && (
-                                  <div className="text-xs text-[#6d28d9] mb-1 ml-2 font-medium">{sender?.name}</div>
+                                  <div className="text-xs text-[#6d28d9] mb-1 ml-2 font-medium">
+                                    {message.sender?.name || getEmployeeById(message.senderId)?.name || 'Unknown User'}
+                                  </div>
                                 )}
                                 <div
                               className={`relative group ${message.type === 'poll' ? 'p-2' : 'px-3 py-2'} rounded-lg transition-all duration-300 hover:scale-[1.02] ${
@@ -1862,6 +2003,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                     onUpdateGroup={pollAndGroupHandlers.handleUpdateGroup}
                     onLeaveGroup={pollAndGroupHandlers.handleLeaveGroup}
                     onRemoveMember={pollAndGroupHandlers.handleRemoveMember}
+                    onReloadConversations={loadConversations}
                     isCompact={false}
                     isInline={true}
                   />

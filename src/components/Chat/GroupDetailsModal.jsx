@@ -1,17 +1,26 @@
-import React, { useState } from 'react';
-import { X, Users, UserPlus, UserMinus, Edit2, Crown, Shield, User } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { X, Users, UserPlus, UserMinus, Crown, Shield, User, Camera, Phone, Video, Search } from 'lucide-react';
 import { useChat } from '../../contexts/ChatContext';
 import { getEmployeeByIdFromList } from './utils/dummyData';
 
 const GroupDetailsModal = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup, onLeaveGroup, onRemoveMember }) => {
   const { employees } = useChat();
-  const [isEditing, setIsEditing] = useState(false);
-  const [groupName, setGroupName] = useState(conversation?.name || '');
-  const [groupDescription, setGroupDescription] = useState(conversation?.description || '');
+  const [activeTab, setActiveTab] = useState('Overview');
   const [showAddMember, setShowAddMember] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
+  const [groupIcon, setGroupIcon] = useState(conversation?.icon || null);
+  const [uploadingIcon, setUploadingIcon] = useState(false);
+  const fileInputRef = useRef(null);
 
   if (!isOpen || !conversation || !employees.length) return null;
+
+  console.log('🔍 GroupDetailsModal conversation object:', {
+    id: conversation.id,
+    name: conversation.name,
+    icon: conversation.icon,
+    hasIcon: !!conversation.icon,
+    groupIconState: groupIcon,
+    type: conversation.type
+  });
 
   const currentUser = getEmployeeByIdFromList(currentUserId, employees);
   
@@ -34,60 +43,78 @@ const GroupDetailsModal = ({ isOpen, onClose, conversation, currentUserId, onUpd
     !conversation.participants.includes(emp.id) && emp.id !== currentUserId
   );
 
-  const handleSaveChanges = async () => {
-    if (!groupName.trim() || isSaving) return;
-    
-    setIsSaving(true);
-    try {
-      // Import admin API for room editing
-      const { adminChatAPI } = await import('../../services/adminChatAPI');
-      
-      // Use room_id if available, otherwise fallback to conversation id
-      const roomId = conversation.room_id || conversation.id;
-      
-      console.log('🔧 GroupDetailsModal: Editing group details via admin API:', {
-        roomId,
-        room_name: groupName.trim(),
-        room_desc: groupDescription.trim()
-      });
-      
-      const response = await adminChatAPI.editRoomDetails(roomId, {
-        room_name: groupName.trim(),
-        room_icon: conversation.name ? conversation.name.substring(0, 2).toUpperCase() : 'GR',
-        room_desc: groupDescription.trim()
-      });
-      
-      if (response && response.status === 'success') {
-        console.log('✅ Group details updated successfully via admin API');
-        
-        // Update local conversation data if onUpdateGroup callback is available
-        if (onUpdateGroup) {
-          onUpdateGroup(conversation.id, {
-            name: groupName.trim(),
-            description: groupDescription.trim()
-          });
-        }
-        
-        setIsEditing(false);
-        
-        // Show success message (you could add a toast notification here)
-        alert('Group details updated successfully!');
-      } else {
-        throw new Error(response?.message || 'Failed to update group details');
-      }
-    } catch (error) {
-      console.error('❌ Error updating group details:', error);
-      alert('Failed to update group details. Please try again.');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
   const handleAddMember = (employeeId) => {
     onUpdateGroup(conversation.id, {
       participants: [...conversation.participants, employeeId]
     });
     setShowAddMember(false);
+  };
+
+  const handleIconUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('File size must be less than 5MB');
+      return;
+    }
+
+    setUploadingIcon(true);
+    
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const baseURL = 'https://dev.gofloww.co';
+      const response = await fetch(`${baseURL}/api/wall/admin/upload_file`, {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+        headers: {
+          'Authorization': '7a3239c81974cdd6140c3162468500ba95d7d5823ea69658658c2986216b273e'
+        }
+      });
+
+      const result = await response.json();
+      
+      if (result.status === 'success' && result.data?.file_url) {
+        setGroupIcon(result.data.file_url);
+        
+        // Optionally update the group icon in the backend
+        try {
+          const { adminChatAPI } = await import('../../services/adminChatAPI');
+          const roomId = conversation.room_id || conversation.id;
+          
+          await adminChatAPI.editRoom(roomId, {
+            room_name: conversation.name,
+            room_icon: result.data.file_url,
+          });
+          
+          // Update local conversation data
+          onUpdateGroup(conversation.id, {
+            icon: result.data.file_url
+          });
+          
+          console.log('✅ Group icon updated successfully');
+        } catch (updateError) {
+          console.error('❌ Error updating group icon in backend:', updateError);
+        }
+      } else {
+        throw new Error(result.message || 'Upload failed');
+      }
+    } catch (error) {
+      console.error('❌ Error uploading group icon:', error);
+      alert('Failed to upload icon. Please try again.');
+    } finally {
+      setUploadingIcon(false);
+    }
   };
 
   const getRoleIcon = (userId) => {
@@ -106,26 +133,146 @@ const GroupDetailsModal = ({ isOpen, onClose, conversation, currentUserId, onUpd
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl max-w-lg w-full max-h-[90vh] overflow-hidden shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-purple-600 to-purple-700 text-white">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-white bg-opacity-20 rounded-full flex items-center justify-center backdrop-blur-sm">
-              <Users className="h-6 w-6" />
-            </div>
-            <div>
-              <h2 className="text-lg font-semibold">Group Info</h2>
-              <p className="text-sm text-purple-200">{conversation.participants.length} members</p>
-            </div>
-          </div>
+        <div className="flex items-center justify-between p-4 border-b border-gray-200">
+          <h2 className="text-lg font-semibold text-gray-900">Group Info</h2>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors"
+            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
           >
-            <X className="h-5 w-5" />
+            <X className="h-5 w-5 text-gray-500" />
           </button>
         </div>
 
+        {/* Tabs */}
+        <div className="flex border-b border-gray-200">
+          {['Overview', 'Members', 'Media', 'Settings'].map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`flex-1 py-3 px-4 text-sm font-medium transition-colors ${
+                activeTab === tab
+                  ? 'text-orange-500 border-b-2 border-orange-500 bg-orange-50'
+                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+
         {/* Content */}
-        <div className="overflow-y-auto max-h-[calc(90vh-80px)]">
+        <div className="overflow-y-auto max-h-[calc(90vh-140px)]">
+          {activeTab === 'Overview' && (
+            <div className="p-6 text-center">
+              {/* Group Avatar */}
+              <div className="flex flex-col items-center mb-8">
+                <div className="relative inline-block">
+                  <div className="w-32 h-32 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-4xl overflow-hidden">
+                    {groupIcon || conversation.icon ? (
+                      <img 
+                        src={groupIcon || conversation.icon} 
+                        alt="Group Icon" 
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      conversation.name ? conversation.name.substring(0, 1).toUpperCase() : 'G'
+                    )}
+                  </div>
+                  {/* Upload button - DEFINITELY VISIBLE */}
+                  <button
+                    onClick={() => {
+                      console.log('🔧 Camera button clicked!');
+                      fileInputRef.current?.click();
+                    }}
+                    disabled={uploadingIcon}
+                    className="absolute -bottom-2 -right-2 w-12 h-12 bg-orange-500 rounded-full flex items-center justify-center hover:bg-orange-600 transition-all shadow-2xl border-4 border-white"
+                    title="Change group icon"
+                  >
+                    {uploadingIcon ? (
+                      <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    ) : (
+                      <Camera className="h-6 w-6 text-white" />
+                    )}
+                  </button>
+                </div>
+                {/* Hidden file input */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleIconUpload}
+                  className="hidden"
+                />
+              </div>
+
+              {/* Group Name */}
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                {conversation.name || 'Testing Room'}
+              </h3>
+              
+              {/* Group Description */}
+              <p className="text-gray-600 mb-4">
+                {conversation.description || 'its a test room'}
+              </p>
+
+              {/* Member count */}
+              <p className="text-sm text-gray-500 mb-6">
+                {conversation.participants.length} members
+              </p>
+
+              {/* Creation date */}
+              <p className="text-xs text-gray-400 mb-8">
+                Created {conversation.createdAt ? new Date(conversation.createdAt).toLocaleDateString('en-US', { 
+                  year: 'numeric', 
+                  month: 'long', 
+                  day: 'numeric' 
+                }) : 'September 23, 2025'}
+              </p>
+
+              {/* Action buttons */}
+              <div className="flex justify-center gap-8">
+                <div className="flex flex-col items-center">
+                  <button className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-2 hover:bg-green-200 transition-colors">
+                    <Phone className="h-5 w-5 text-green-600" />
+                  </button>
+                  <span className="text-xs text-gray-600">Audio</span>
+                </div>
+                <div className="flex flex-col items-center">
+                  <button className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-2 hover:bg-blue-200 transition-colors">
+                    <Video className="h-5 w-5 text-blue-600" />
+                  </button>
+                  <span className="text-xs text-gray-600">Video</span>
+                </div>
+                <div className="flex flex-col items-center">
+                  <button className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-2 hover:bg-gray-200 transition-colors">
+                    <Search className="h-5 w-5 text-gray-600" />
+                  </button>
+                  <span className="text-xs text-gray-600">Search</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'Members' && (
+            <div className="p-4">
+              {/* Members list will go here */}
+              <p className="text-gray-500 text-center py-8">Members content coming soon</p>
+            </div>
+          )}
+
+          {activeTab === 'Media' && (
+            <div className="p-4">
+              {/* Media content will go here */}
+              <p className="text-gray-500 text-center py-8">Media content coming soon</p>
+            </div>
+          )}
+
+          {activeTab === 'Settings' && (
+            <div className="p-4">
+              {/* Settings content will go here */}
+              <p className="text-gray-500 text-center py-8">Settings content coming soon</p>
+            </div>
+          )}
           {/* Group Details */}
           <div className="p-6 border-b border-gray-200">
             <div className="flex items-center justify-between mb-4">

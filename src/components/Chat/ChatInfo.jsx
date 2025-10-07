@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { X, Phone, Video, Mail, MapPin, Calendar, Building, User, MessageCircle, Users, Settings, Image, FileText, Link, Clock, Crown, Shield, UserPlus, UserMinus, Edit2, VolumeX, Search } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Phone, Video, Mail, MapPin, Calendar, Building, User, MessageCircle, Users, Settings, Image, FileText, Link, Clock, Crown, Shield, UserPlus, UserMinus, Edit2, VolumeX, Search, Camera } from 'lucide-react';
 import { getEmployeeById, getAllEmployees } from './utils/dummyData';
 
-const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup, onLeaveGroup, onRemoveMember, onStartCall, onStartVideoCall, isCompact = false, isInline = false }) => {
+const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup, onLeaveGroup, onRemoveMember, onStartCall, onStartVideoCall, onReloadConversations, isCompact = false, isInline = false }) => {
   const [activeSection, setActiveSection] = useState('overview');
   const [isEditing, setIsEditing] = useState(false);
   const [groupName, setGroupName] = useState(conversation?.name || '');
@@ -10,6 +10,9 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
   const [showAddParticipants, setShowAddParticipants] = useState(false);
   const [selectedParticipants, setSelectedParticipants] = useState([]);
   const [availableEmployees, setAvailableEmployees] = useState([]);
+  const [groupIcon, setGroupIcon] = useState(conversation?.icon || null);
+  const [uploadingIcon, setUploadingIcon] = useState(false);
+  const fileInputRef = useRef(null);
 
   // Load available employees for participant selection
   useEffect(() => {
@@ -299,6 +302,98 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
     }
   };
 
+  const handleIconUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('File size must be less than 5MB');
+      return;
+    }
+
+    setUploadingIcon(true);
+    
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      // Use correct admin API base URL
+      const baseURL = 'https://dev.gofloww.co';
+      
+      const response = await fetch(`${baseURL}/api/wall/admin/upload_file`, {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+        headers: {
+          'Authorization': '7a3239c81974cdd6140c3162468500ba95d7d5823ea69658658c2986216b273e'
+        }
+      });
+
+      const result = await response.json();
+      
+      if (result.status === 'success' && result.data?.file_url) {
+        setGroupIcon(result.data.file_url);
+        
+        // Update the group icon in the backend
+        try {
+          const { adminChatAPI } = await import('../../services/adminChatAPI');
+          const roomId = conversation.room_id || conversation.id;
+          
+          const updateResponse = await adminChatAPI.editRoomDetails(roomId, {
+            room_icon: result.data.file_url
+          });
+          
+          if (updateResponse && updateResponse.status === 'success') {
+            console.log('✅ Group icon updated successfully in backend');
+            console.log('📤 Calling onUpdateGroup with:', {
+              conversationId: conversation.id,
+              room_id: conversation.room_id,
+              icon: result.data.file_url
+            });
+            
+            // Update local conversation state to reflect in sidebar
+            if (onUpdateGroup) {
+              onUpdateGroup(conversation.id, {
+                icon: result.data.file_url
+              });
+              console.log('✅ onUpdateGroup called successfully');
+            } else {
+              console.warn('⚠️ onUpdateGroup is not defined');
+            }
+            
+            // Reload conversations from backend to refresh sidebar
+            if (onReloadConversations) {
+              console.log('🔄 Reloading conversations from backend...');
+              await onReloadConversations();
+              console.log('✅ Conversations reloaded successfully');
+            } else {
+              console.warn('⚠️ onReloadConversations is not defined');
+            }
+          } else {
+            console.error('❌ Error updating group icon in backend:', updateResponse);
+          }
+        } catch (updateError) {
+          console.error('❌ Error updating group icon:', updateError);
+        }
+        
+      } else {
+        throw new Error(result.message || 'Upload failed');
+      }
+    } catch (error) {
+      console.error('❌ Error uploading group icon:', error);
+      alert('Failed to upload group icon. Please try again.');
+    } finally {
+      setUploadingIcon(false);
+    }
+  };
+
   const formatDate = (dateString) => {
     if (!dateString) return '';
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -314,8 +409,39 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
         <div className={`space-y-${isCompact ? '4' : '6'}`}>
           {/* Group Header */}
           <div className="text-center">
-            <div className={`${isCompact ? 'w-20 h-20 text-2xl' : 'w-32 h-32 text-4xl'} bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white font-bold mx-auto mb-4 shadow-lg`}>
-              {conversation.name?.charAt(0) || 'G'}
+            <div className="relative inline-block mx-auto mb-4">
+              <div className={`${isCompact ? 'w-20 h-20 text-2xl' : 'w-32 h-32 text-4xl'} ${groupIcon || conversation.icon ? 'bg-gray-100' : 'bg-gradient-to-br from-purple-500 to-purple-700'} rounded-full flex items-center justify-center text-white font-bold shadow-lg overflow-hidden`}>
+                {groupIcon || conversation.icon ? (
+                  <img 
+                    src={groupIcon || conversation.icon} 
+                    alt="Group Icon" 
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  conversation.name?.charAt(0) || 'G'
+                )}
+              </div>
+              {/* Camera button for uploading group icon */}
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingIcon}
+                className="absolute -bottom-1 -right-1 w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center hover:bg-orange-600 transition-all duration-200 shadow-2xl border-3 border-white z-10"
+                title="Change group icon"
+              >
+                {uploadingIcon ? (
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  <Camera className="h-5 w-5 text-white" />
+                )}
+              </button>
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleIconUpload}
+                className="hidden"
+              />
             </div>
             <div className="space-y-2">
               {isEditing ? (

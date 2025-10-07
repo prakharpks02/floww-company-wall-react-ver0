@@ -53,14 +53,35 @@ const CompactHeader = ({
               <ArrowLeft className="h-4 w-4" />
             </button>
             <div className="relative">
-              <div className="w-8 h-8 bg-gradient-to-br from-purple-400 to-purple-500 rounded-full flex items-center justify-center text-white font-normal text-sm shadow-lg">
-                {partner?.avatar}
-              </div>
+              {activeConversation.icon ? (
+                <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center overflow-hidden shadow-lg">
+                  <img 
+                    src={activeConversation.icon} 
+                    alt={activeConversation.type === 'group' ? 'Group Icon' : 'Profile Picture'} 
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              ) : (
+                <div className="w-8 h-8 bg-gradient-to-br from-purple-400 to-purple-500 rounded-full flex items-center justify-center text-white font-normal text-sm shadow-lg overflow-hidden">
+                  {activeConversation.type === 'group' ? (
+                    <span className="text-white text-xs">{activeConversation.name?.substring(0, 2).toUpperCase() || 'GR'}</span>
+                  ) : (
+                    partner?.avatar
+                  )}
+                </div>
+              )}
               <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border border-white shadow-sm ${getStatusColor(partner?.status)}`}></div>
             </div>
             <div>
-              <h3 className="font-normal text-sm">{partner?.name}</h3>
-              <p className="text-xs text-purple-200">{partner?.status === 'online' ? 'Active now' : partner?.status}</p>
+              <h3 className="font-normal text-sm">
+                {activeConversation.type === 'group' ? activeConversation.name : partner?.name}
+              </h3>
+              <p className="text-xs text-purple-200">
+                {activeConversation.type === 'group' 
+                  ? `${activeConversation.participants?.length || 0} members`
+                  : (partner?.status === 'online' ? 'Active now' : partner?.status)
+                }
+              </p>
             </div>
           </>
         ) : (

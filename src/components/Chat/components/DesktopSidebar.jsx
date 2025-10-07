@@ -123,8 +123,18 @@ const DesktopSidebar = ({
                   >
                     <div className="flex items-center gap-2">
                       <div className="relative">
-                        <div className="w-8 h-8 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-xl flex items-center justify-center text-white font-normal text-xs">
-                          {partner?.avatar}
+                        <div className="w-8 h-8 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-xl flex items-center justify-center text-white font-normal text-xs overflow-hidden">
+                          {conversation.type === 'group' && conversation.icon ? (
+                            <img 
+                              src={conversation.icon} 
+                              alt="Group Icon" 
+                              className="w-full h-full object-cover"
+                            />
+                          ) : conversation.type === 'group' ? (
+                            conversation.name ? conversation.name.substring(0, 2).toUpperCase() : 'GR'
+                          ) : (
+                            partner?.avatar
+                          )}
                         </div>
                         <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border border-white shadow-sm ${getStatusColor(partner?.status)}`}></div>
                       </div>
@@ -290,8 +300,18 @@ const DesktopSidebar = ({
                           >
                             <div className="flex items-center gap-3">
                               <div className="relative">
-                                <div className="w-12 h-12 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-2xl flex items-center justify-center text-white font-normal shadow-[0_8px_32px_rgba(192,132,252,0.3)]">
-                                  {partner?.avatar}
+                                <div className="w-12 h-12 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-2xl flex items-center justify-center text-white font-normal shadow-[0_8px_32px_rgba(192,132,252,0.3)] overflow-hidden">
+                                  {conversation.type === 'group' && conversation.icon ? (
+                                    <img 
+                                      src={conversation.icon} 
+                                      alt="Group Icon" 
+                                      className="w-full h-full object-cover"
+                                    />
+                                  ) : conversation.type === 'group' ? (
+                                    conversation.name ? conversation.name.substring(0, 2).toUpperCase() : 'GR'
+                                  ) : (
+                                    partner?.avatar
+                                  )}
                                 </div>
                                 <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white shadow-sm ${getStatusColor(partner?.status)}`}></div>
                               </div>
@@ -348,8 +368,18 @@ const DesktopSidebar = ({
                   >
                     <div className="flex items-center gap-3">
                       <div className="relative">
-                        <div className="w-12 h-12 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-2xl flex items-center justify-center text-white font-normal shadow-[0_8px_32px_rgba(192,132,252,0.3)]">
-                          {partner?.avatar}
+                        <div className="w-12 h-12 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-2xl flex items-center justify-center text-white font-normal shadow-[0_8px_32px_rgba(192,132,252,0.3)] overflow-hidden">
+                          {conversation.type === 'group' && conversation.icon ? (
+                            <img 
+                              src={conversation.icon} 
+                              alt="Group Icon" 
+                              className="w-full h-full object-cover"
+                            />
+                          ) : conversation.type === 'group' ? (
+                            conversation.name ? conversation.name.substring(0, 2).toUpperCase() : 'GR'
+                          ) : (
+                            partner?.avatar
+                          )}
                         </div>
                         <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white shadow-sm ${getStatusColor(partner?.status)}`}></div>
                       </div>

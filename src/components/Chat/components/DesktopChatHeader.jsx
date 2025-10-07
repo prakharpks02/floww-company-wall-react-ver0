@@ -24,18 +24,35 @@ const DesktopChatHeader = ({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="relative">
-            <div className="w-12 h-12 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-2xl flex items-center justify-center text-white text-base shadow-[0_8px_32px_rgba(192,132,252,0.3)]">
-              {partner?.avatar}
-            </div>
+            {activeConversation.icon ? (
+              <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-[0_8px_32px_rgba(192,132,252,0.3)] overflow-hidden">
+                <img 
+                  src={activeConversation.icon} 
+                  alt={activeConversation.type === 'group' ? 'Group Icon' : 'Profile Picture'} 
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            ) : (
+              <div className="w-12 h-12 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-2xl flex items-center justify-center text-white text-base shadow-[0_8px_32px_rgba(192,132,252,0.3)] overflow-hidden">
+                {activeConversation.type === 'group' ? (
+                  <span className="text-white">{activeConversation.name?.substring(0, 2).toUpperCase() || 'GR'}</span>
+                ) : (
+                  partner?.avatar
+                )}
+              </div>
+            )}
             <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white shadow-sm ${getStatusColor(partner?.status)}`}></div>
           </div>
           <div>
             <h2 className="text-lg font-normal text-[#1f2937]">
-              {partner?.name}
+              {activeConversation.type === 'group' ? activeConversation.name : partner?.name}
             </h2>
             <p className="text-sm text-[#6b7280] flex items-center gap-2">
               <span className={`w-2 h-2 rounded-full ${getStatusColor(partner?.status)}`}></span>
-              {partner?.status === 'online' ? 'Active now' : partner?.status}
+              {activeConversation.type === 'group' 
+                ? `${activeConversation.participants?.length || 0} members`
+                : (partner?.status === 'online' ? 'Active now' : partner?.status)
+              }
             </p>
           </div>
         </div>

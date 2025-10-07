@@ -63,7 +63,14 @@ export const ChatProvider = ({ children }) => {
             timestamp: new Date(msg.created_at),
             read: true,
             isStarred: msg.is_starred || false,
-            fileUrls: msg.file_urls || []
+            fileUrls: msg.file_urls || [],
+            // Store sender information from API
+            sender: msg.sender ? {
+              id: msg.sender.employee_id,
+              name: msg.sender.employee_name,
+              avatar: msg.sender.profile_picture_link,
+              jobTitle: msg.sender.job_title
+            } : null
           };
 
           // Parse reply data properly
@@ -73,6 +80,7 @@ export const ChatProvider = ({ children }) => {
               text: msg.reply_to_message.content,
               senderId: msg.reply_to_message.sender?.employee_id,
               senderName: msg.reply_to_message.sender?.employee_name || 'Unknown User',
+              senderAvatar: msg.reply_to_message.sender?.profile_picture_link,
               timestamp: new Date(msg.reply_to_message.created_at)
             };
             console.log('🔍 [CONTEXT] Parsed reply in ChatContext:', {
@@ -131,6 +139,13 @@ export const ChatProvider = ({ children }) => {
         const apiConversations = roomsResponse.data.map(room => {
           console.log('Processing room:', room);
           console.log('Room description (room_desc):', room.room_desc);
+          console.log('Room icon fields:', {
+            room_icon: room.room_icon,
+            icon: room.icon,
+            group_icon: room.group_icon,
+            image: room.image,
+            avatar: room.avatar
+          });
           
           // Extract participants and filter out null/invalid values
           const participants = room.participants ? room.participants
@@ -174,6 +189,42 @@ export const ChatProvider = ({ children }) => {
           
 
 
+          // Handle room_icon - can be string or array
+          let iconUrl = null;
+          console.log(`🖼️ Processing icon for room: ${conversationName}`, {
+            room_icon: room.room_icon,
+            isArray: Array.isArray(room.room_icon),
+            type: typeof room.room_icon
+          });
+          
+          if (room.room_icon) {
+            if (Array.isArray(room.room_icon)) {
+              // For direct chats, room_icon is an array - take first element
+              const iconValue = room.room_icon[0];
+              console.log(`  📦 Array icon value: ${iconValue}`);
+              // Only use if it's a valid URL (not abbreviations)
+              if (iconValue && iconValue.startsWith('http')) {
+                iconUrl = iconValue;
+                console.log(`  ✅ Using array icon URL: ${iconUrl}`);
+              } else {
+                console.log(`  ❌ Ignoring non-URL array value: ${iconValue}`);
+              }
+            } else if (typeof room.room_icon === 'string') {
+              // For groups, room_icon is a string
+              console.log(`  📝 String icon value: ${room.room_icon}`);
+              // Only use it if it's a valid URL (starts with http)
+              if (room.room_icon.startsWith('http')) {
+                iconUrl = room.room_icon;
+                console.log(`  ✅ Using string icon URL: ${iconUrl}`);
+              } else {
+                console.log(`  ❌ Ignoring non-URL string value: ${room.room_icon}`);
+              }
+              // Ignore abbreviations like "TE", "A", etc. - they should show as initials instead
+            }
+          }
+          
+          console.log(`  🎯 Final icon URL for ${conversationName}: ${iconUrl}`);
+
           return {
             id: room.room_id || room.id,
             room_id: room.room_id || room.id,
@@ -181,6 +232,7 @@ export const ChatProvider = ({ children }) => {
             type: isGroup ? 'group' : 'direct',
             name: conversationName,
             description: room.room_desc || room.description || '', // Map room_desc to description
+            icon: iconUrl, // Map icon field (handles both string and array)
             admins: adminIds, // Extract from participants with is_admin: true
             createdBy: room.created_by || room.creator_id || null, // Map creator ID
             lastMessage: room.last_message && room.last_message !== 'N/A' ? (
@@ -426,9 +478,22 @@ export const ChatProvider = ({ children }) => {
 
   // Update existing conversation
   const updateConversation = (conversationId, updates) => {
-    setConversations(prev => prev.map(conv => 
-      conv.id === conversationId ? { ...conv, ...updates } : conv
-    ));
+    console.log('🔄 ChatContext: updateConversation called', {
+      conversationId,
+      updates,
+      currentConversationsCount: conversations.length
+    });
+    
+    setConversations(prev => {
+      const updated = prev.map(conv => {
+        if (conv.id === conversationId) {
+          console.log('✅ Found and updating conversation:', conv.name || conv.id);
+          return { ...conv, ...updates };
+        }
+        return conv;
+      });
+      return updated;
+    });
   };
 
   // Chat controls
