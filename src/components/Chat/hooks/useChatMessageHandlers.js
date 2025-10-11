@@ -1,5 +1,6 @@
 ﻿import { enhancedChatAPI } from '../chatapi';
 import adminChatAPI from '../../../services/adminChatAPI';
+import chatToast from '../utils/toastUtils';
 
 // For admin environment, we only use admin APIs for group creation
 // All other chat operations (messaging, room connections) use existing WebSocket infrastructure
@@ -117,14 +118,17 @@ export const useChatMessageHandlers = ({
             }
           } catch (error) {
             console.error('❌ Error establishing room connection:', error);
+            chatToast.connectionError();
             return;
           }
         } else {
           console.error('❌ Could not find other participant');
+          chatToast.error('Could not find chat participant');
           return;
         }
       } else {
         console.error('❌ Group conversations not yet supported for auto-connection');
+        chatToast.error('Group conversation setup not supported');
         return;
       }
     } else {
@@ -200,9 +204,12 @@ export const useChatMessageHandlers = ({
         ));
         
         setNewMessage('');
+      } else {
+        chatToast.sendMessageFailed();
       }
     } catch (error) {
       console.error('Error sending message:', error);
+      chatToast.sendMessageFailed();
       setNewMessage('');
     }
   };
@@ -283,8 +290,10 @@ export const useChatMessageHandlers = ({
         
         if (response.ok && result.status === 'success') {
           console.log('✅ Message edited successfully via admin API');
+          chatToast.messageEdited();
         } else {
           console.error('❌ Failed to edit message via admin API:', result);
+          chatToast.error('Failed to save edit');
         }
       }
       
@@ -322,6 +331,7 @@ export const useChatMessageHandlers = ({
       
     } catch (error) {
       console.error('❌ Error editing message:', error);
+      chatToast.error('Failed to edit message');
       
       // Still update local state even if API fails
       const editedText = editMessageText.trim();

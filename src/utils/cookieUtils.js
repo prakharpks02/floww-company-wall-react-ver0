@@ -59,13 +59,13 @@ export const cookieUtils = {
   // Get authentication tokens from cookies
   getAuthTokens: () => {
     // Hardcoded values for testing/development
-    // const employeeToken = cookieUtils.getCookie('floww-employee-token')|| '88e68a3c158170f5144582c7fd759e99c64aa53406d6a6ae32e697bb50a6f374';
-    // const employeeId = cookieUtils.getCookie('floww-employee-id') || 'emp-n4j8V79h5jHi' ;
+    // const employeeToken = cookieUtils.getCookie('floww-employee-token')|| 'deca5e658fce699254ade23cf4b46bf63ea207395d69176e6b97a8ecd7e9cfcf';
+    // const employeeId = cookieUtils.getCookie('floww-employee-id') || 'emp-k15sLcnjub9r';
         const employeeToken = cookieUtils.getCookie('floww-employee-token');
     const employeeId = cookieUtils.getCookie('floww-employee-id')  ;
     const adminToken = cookieUtils.getCookie('floww-admin-token') || '7a3239c81974cdd6140c3162468500ba95d7d5823ea69658658c2986216b273e';
 // const adminToken = cookieUtils.getCookie('floww-admin-token');
-    
+    // 
     return {
       employeeToken,
       employeeId,

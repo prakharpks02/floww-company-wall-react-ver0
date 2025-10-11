@@ -1,5 +1,6 @@
 import { getConversationPartner as getPartner, formatMessageTime, getEmployeeByIdFromList, getDateHeader, groupMessagesByDate } from '../utils/dummyData';
 import { useChat } from '../../../contexts/ChatContext';
+import { cookieUtils } from '../../../utils/cookieUtils';
 
 export const useChatUtilities = () => {
   const { employees } = useChat();
@@ -26,20 +27,43 @@ export const useChatUtilities = () => {
       };
     }
     
-    // If employees are available, try to find one with employeeId
+    // Get the logged-in user's employee ID from cookies/auth
+    const { employeeId: loggedInEmployeeId } = cookieUtils.getAuthTokens();
+    console.log('🔑 Logged-in employee ID from cookies:', loggedInEmployeeId);
+    
+    // If employees are available, find the logged-in user
     if (employees.length > 0) {
-      const emp = employees.find(emp => emp.employeeId) || employees[0];
-      return {
+      // Try to find the current logged-in user by their employeeId from cookies
+      let emp = employees.find(emp => emp.employeeId === loggedInEmployeeId);
+      
+      // Fallback: if not found, use first employee with employeeId
+      if (!emp) {
+        console.warn('⚠️ Could not find logged-in user in employees list, using fallback');
+        emp = employees.find(emp => emp.employeeId) || employees[0];
+      }
+      
+      const user = {
         ...emp,
-        id: emp.employeeId || emp.id || 'emp-k15sLcnjub9r',
-        employeeId: emp.employeeId || emp.id || 'emp-k15sLcnjub9r'
+        id: emp.employeeId || emp.id || loggedInEmployeeId || 'emp-k15sLcnjub9r',
+        employeeId: emp.employeeId || emp.id || loggedInEmployeeId || 'emp-k15sLcnjub9r'
       };
+      console.log('👤 Current user loaded:', {
+        name: user.name,
+        id: user.id,
+        employeeId: user.employeeId,
+        originalEmpId: emp.employeeId,
+        originalId: emp.id,
+        matchedLoggedInUser: emp.employeeId === loggedInEmployeeId
+      });
+      return user;
     }
     
-    // Fallback current user when employees haven't loaded
+    // Fallback current user when employees haven't loaded - use cookie value
+    const fallbackId = loggedInEmployeeId || 'emp-k15sLcnjub9r';
+    console.log('👤 Using fallback current user with ID:', fallbackId);
     return {
-      id: 'emp-k15sLcnjub9r',
-      employeeId: 'emp-k15sLcnjub9r', 
+      id: fallbackId,
+      employeeId: fallbackId, 
       name: 'Current User',
       email: 'current@company.com',
       status: 'online'

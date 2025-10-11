@@ -21,6 +21,7 @@ import {
   Forward,
   MoreVertical
 } from 'lucide-react';
+import { Toaster } from 'react-hot-toast';
 import { useChat } from '../../contexts/ChatContext';
 import ChatSidebar from './ChatSidebar';
 import ChatInfo from './ChatInfo';
@@ -371,6 +372,9 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
   if (isFullScreenMobile && isMobile) {
     return (
       <>
+        {/* Toast Notifications */}
+        <Toaster />
+        
         <div className="fixed inset-0 bg-white z-50 flex flex-col">
           {/* Mobile Chat Header */}
           <MobileChatHeader
@@ -471,7 +475,22 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                           {/* Messages for this date */}
                           {group.messages.map(message => {
                             const currentUserEmployeeId = currentUser?.employeeId || `emp-${currentUser?.id}`;
-                            const isOwnMessage = message.senderId === currentUser.id || message.senderId === currentUserEmployeeId;
+                            // More comprehensive sender ID comparison
+                            const isOwnMessage = 
+                              message.senderId === currentUser.id || 
+                              message.senderId === currentUserEmployeeId ||
+                              message.senderId === currentUser?.employeeId ||
+                              String(message.senderId) === String(currentUser.id) ||
+                              String(message.senderId) === String(currentUserEmployeeId);
+                            
+                            // Debug logging
+                            console.log('🔍 [MOBILE] Message alignment check:', {
+                              messageId: message.id,
+                              messageSenderId: message.senderId,
+                              currentUserId: currentUser.id,
+                              currentUserEmployeeId: currentUserEmployeeId,
+                              isOwnMessage: isOwnMessage
+                            });
                             
                             // Debug logging for reply messages
                             if (message.replyTo) {
@@ -506,16 +525,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                                                        senderEmployee?.profile_picture_link ||
                                                        senderEmployee?.avatar;
                                       
-                                      // Debug logging
-                                      console.log('🖼️ [MOBILE] Profile pic debug:', {
-                                        senderId: message.senderId,
-                                        messageSenderProfilePic: message.sender?.profile_picture_link,
-                                        messageSenderAvatar: message.sender?.avatar,
-                                        employeeProfilePic: senderEmployee?.profile_picture_link,
-                                        employeeAvatar: senderEmployee?.avatar,
-                                        finalProfilePic: profilePic,
-                                        isValidUrl: profilePic && profilePic.startsWith('http')
-                                      });
+                                     
                                       
                                       return profilePic && profilePic.startsWith('http') ? (
                                         <div className="w-8 h-8 bg-gray-100 rounded-full overflow-hidden">
@@ -709,6 +719,9 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
   if ((isCompactMode || (isMobile && !isFullScreenMobile)) && !isIntegratedMode) {
     return (
       <>
+        {/* Toast Notifications */}
+        <Toaster />
+        
         <div 
           className="fixed bottom-4 right-4 w-[420px] bg-white rounded-xl shadow-2xl border border-gray-200 z-50 flex flex-col transform transition-all duration-500 ease-out animate-slideUp chat-window-glass overflow-hidden"
           style={{
@@ -1122,17 +1135,16 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                     {/* Messages for this date */}
                     {group.messages.map(message => {
                       const currentUserEmployeeId = currentUser?.employeeId || `emp-${currentUser?.id}`;
-                      const isOwnMessage = message.senderId === currentUser.id || message.senderId === currentUserEmployeeId;
+                      // More comprehensive sender ID comparison
+                      const isOwnMessage = 
+                        message.senderId === currentUser.id || 
+                        message.senderId === currentUserEmployeeId ||
+                        message.senderId === currentUser?.employeeId ||
+                        String(message.senderId) === String(currentUser.id) ||
+                        String(message.senderId) === String(currentUserEmployeeId);
+                  
                       
-                      // Debug logging for reply messages
-                      if (message.replyTo) {
-                        console.log('🎯 [COMPACT] Rendering message with reply:', {
-                          messageId: message.id,
-                          content: message.text,
-                          replyTo: message.replyTo
-                        });
-                      }
-                      
+                   
                       return (
                         <div
                           key={message.id}
@@ -1157,17 +1169,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                                                  senderEmployee?.profile_picture_link ||
                                                  senderEmployee?.avatar;
                                 
-                                // Debug logging
-                                console.log('🖼️ [COMPACT] Profile pic debug:', {
-                                  senderId: message.senderId,
-                                  messageSenderProfilePic: message.sender?.profile_picture_link,
-                                  messageSenderAvatar: message.sender?.avatar,
-                                  employeeProfilePic: senderEmployee?.profile_picture_link,
-                                  employeeAvatar: senderEmployee?.avatar,
-                                  finalProfilePic: profilePic,
-                                  isValidUrl: profilePic && profilePic.startsWith('http')
-                                });
-                                
+                               
                                 return profilePic && profilePic.startsWith('http') ? (
                                   <div className="w-6 h-6 bg-gray-100 rounded-full overflow-hidden">
                                     <img 
@@ -1383,6 +1385,9 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
   // Desktop expanded layout (popup or integrated)
   return (
     <>
+      {/* Toast Notifications */}
+      <Toaster />
+      
       <div className={`bg-gradient-to-br from-[#f7f4ff] to-[#ede7f6] flex font-['Inter',sans-serif] overflow-hidden neo-glassmorphism ${
         isIntegratedMode ? 'h-full' : 'fixed bottom-4 right-4 w-[790px] h-[790px] max-w-[85vw] max-h-[85vh] z-40 rounded-3xl shadow-[0_25px_80px_rgba(109,40,217,0.25)] border border-white/40 backdrop-blur-xl animate-in zoom-in-95 duration-300'
       }`}>
@@ -1905,7 +1910,22 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                         {/* Messages for this date */}
                         {group.messages.map(message => {
                           const currentUserEmployeeId = currentUser?.employeeId || `emp-${currentUser?.id}`;
-                          const isOwnMessage = message.senderId === currentUser.id || message.senderId === currentUserEmployeeId;
+                          // More comprehensive sender ID comparison
+                          const isOwnMessage = 
+                            message.senderId === currentUser.id || 
+                            message.senderId === currentUserEmployeeId ||
+                            message.senderId === currentUser?.employeeId ||
+                            String(message.senderId) === String(currentUser.id) ||
+                            String(message.senderId) === String(currentUserEmployeeId);
+                          
+                          // Debug logging
+                          console.log('🔍 [DESKTOP] Message alignment check:', {
+                            messageId: message.id,
+                            messageSenderId: message.senderId,
+                            currentUserId: currentUser.id,
+                            currentUserEmployeeId: currentUserEmployeeId,
+                            isOwnMessage: isOwnMessage
+                          });
                           
                           return (
                             <div
@@ -1931,16 +1951,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                                                      senderEmployee?.profile_picture_link ||
                                                      senderEmployee?.avatar;
                                     
-                                    // Debug logging
-                                    console.log('🖼️ [DESKTOP] Profile pic debug:', {
-                                      senderId: message.senderId,
-                                      messageSenderProfilePic: message.sender?.profile_picture_link,
-                                      messageSenderAvatar: message.sender?.avatar,
-                                      employeeProfilePic: senderEmployee?.profile_picture_link,
-                                      employeeAvatar: senderEmployee?.avatar,
-                                      finalProfilePic: profilePic,
-                                      isValidUrl: profilePic && profilePic.startsWith('http')
-                                    });
+                                 
                                     
                                     return profilePic && profilePic.startsWith('http') ? (
                                       <div className="w-6 h-6 bg-gray-100 rounded-full overflow-hidden">

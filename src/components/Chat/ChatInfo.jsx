@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Phone, Video, Mail, MapPin, Calendar, Building, User, MessageCircle, Users, Settings, Image, FileText, Link, Clock, Crown, Shield, UserPlus, UserMinus, Edit2, VolumeX, Search, Camera } from 'lucide-react';
 import { getEmployeeById, getAllEmployees } from './utils/dummyData';
+import chatToast from './utils/toastUtils';
 
 const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup, onLeaveGroup, onRemoveMember, onStartCall, onStartVideoCall, onReloadConversations, onStartChatWithMember, isCompact = false, isInline = false }) => {
   const [activeSection, setActiveSection] = useState('overview');
@@ -12,6 +13,8 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
   const [availableEmployees, setAvailableEmployees] = useState([]);
   const [groupIcon, setGroupIcon] = useState(conversation?.icon || null);
   const [uploadingIcon, setUploadingIcon] = useState(false);
+  const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
+  const [memberToRemove, setMemberToRemove] = useState(null);
   const fileInputRef = useRef(null);
 
   // Load available employees for participant selection
@@ -113,21 +116,25 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
         setSelectedParticipants([]);
         
         // Show success message
-        alert('Participants added successfully!');
+        chatToast.success('Participants added successfully!');
       } else {
         console.error('❌ Failed to add participants:', response);
-        alert('Failed to add participants. Please try again.');
+        chatToast.error('Failed to add participants. Please try again.');
       }
     } catch (error) {
       console.error('❌ Error adding participants:', error);
-      alert('Error adding participants: ' + error.message);
+      chatToast.error('Error adding participants: ' + error.message);
     }
   };
 
-  const handleRemoveParticipant = async (participantId) => {
-    if (!window.confirm('Are you sure you want to remove this participant from the group?')) {
-      return;
-    }
+  const handleRemoveParticipant = (participantId) => {
+    // Show confirmation modal
+    setMemberToRemove(participantId);
+    setShowRemoveConfirm(true);
+  };
+
+  const confirmRemoveParticipant = async () => {
+    if (!memberToRemove) return;
 
     try {
       // Import admin API for participant management
@@ -138,41 +145,53 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
       
       console.log('🔧 ChatInfo: Removing participant via admin API:', {
         roomId,
-        participantId
+        participantId: memberToRemove
       });
 
-      const response = await adminChatAPI.removeParticipant(roomId, participantId);
+      const response = await adminChatAPI.removeParticipant(roomId, memberToRemove);
       
       if (response && response.status === 'success') {
         console.log('✅ Participant removed successfully via admin API');
         
         // Update local conversation data
         if (onUpdateGroup) {
-          const updatedParticipants = (conversation.participants || []).filter(id => id !== participantId);
+          const updatedParticipants = (conversation.participants || []).filter(id => id !== memberToRemove);
           onUpdateGroup(conversation.id, {
             participants: updatedParticipants
           });
         }
         
-        // Show success message
-        alert('Participant removed successfully!');
+        // Show success message in red
+        const memberName = getEmployeeById(memberToRemove)?.name || 'Participant';
+        chatToast.custom(`${memberName} removed from group`, {
+          duration: 3000,
+          style: {
+            background: '#ef4444',
+            color: '#fff',
+            padding: '12px 20px',
+            borderRadius: '8px',
+            fontSize: '14px',
+            fontWeight: '500'
+          },
+          icon: '👋'
+        });
       } else {
         console.error('❌ Failed to remove participant:', response);
-        alert('Failed to remove participant. Please try again.');
+        chatToast.error('Failed to remove participant. Please try again.');
       }
     } catch (error) {
       console.error('❌ Error removing participant:', error);
-      alert('Error removing participant: ' + error.message);
+      chatToast.error('Error removing participant: ' + error.message);
+    } finally {
+      // Close modal and reset state
+      setShowRemoveConfirm(false);
+      setMemberToRemove(null);
     }
   };
 
   const handleAssignAdminRights = async (participantId) => {
     const member = getEmployeeById(participantId);
     const memberName = member ? member.name : 'this participant';
-    
-    if (!window.confirm(`Are you sure you want to give admin rights to ${memberName}? They will be able to add/remove participants and edit group details.`)) {
-      return;
-    }
 
     try {
       // Import admin API for rights management
@@ -200,24 +219,20 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
         }
         
         // Show success message
-        alert(`Admin rights assigned to ${memberName} successfully!`);
+        chatToast.success(`Admin rights assigned to ${memberName} successfully!`);
       } else {
         console.error('❌ Failed to assign admin rights:', response);
-        alert('Failed to assign admin rights. Please try again.');
+        chatToast.error('Failed to assign admin rights. Please try again.');
       }
     } catch (error) {
       console.error('❌ Error assigning admin rights:', error);
-      alert('Error assigning admin rights: ' + error.message);
+      chatToast.error('Error assigning admin rights: ' + error.message);
     }
   };
 
   const handleRemoveAdminRights = async (participantId) => {
     const member = getEmployeeById(participantId);
     const memberName = member ? member.name : 'this participant';
-    
-    if (!window.confirm(`Are you sure you want to remove admin rights from ${memberName}? They will no longer be able to manage this group.`)) {
-      return;
-    }
 
     try {
       // Import admin API for rights management
@@ -245,14 +260,14 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
         }
         
         // Show success message
-        alert(`Admin rights removed from ${memberName} successfully!`);
+        chatToast.success(`Admin rights removed from ${memberName} successfully!`);
       } else {
         console.error('❌ Failed to remove admin rights:', response);
-        alert('Failed to remove admin rights. Please try again.');
+        chatToast.error('Failed to remove admin rights. Please try again.');
       }
     } catch (error) {
       console.error('❌ Error removing admin rights:', error);
-      alert('Error removing admin rights: ' + error.message);
+      chatToast.error('Error removing admin rights: ' + error.message);
     }
   };
 
@@ -292,13 +307,13 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
         setIsEditing(false);
         
         // Show success message
-        alert('Group details updated successfully!');
+        chatToast.success('Group details updated successfully!');
       } else {
         throw new Error(response?.message || 'Failed to update group details');
       }
     } catch (error) {
       console.error('❌ Error updating group details:', error);
-      alert('Failed to update group details. Please try again.');
+      chatToast.error('Failed to update group details. Please try again.');
     }
   };
 
@@ -308,13 +323,13 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
 
     // Validate file type
     if (!file.type.startsWith('image/')) {
-      alert('Please select an image file');
+      chatToast.error('Please select an image file');
       return;
     }
 
     // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
-      alert('File size must be less than 5MB');
+      chatToast.error('File size must be less than 5MB');
       return;
     }
 
@@ -388,7 +403,7 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
       }
     } catch (error) {
       console.error('❌ Error uploading group icon:', error);
-      alert('Failed to upload group icon. Please try again.');
+      chatToast.error('Failed to upload group icon. Please try again.');
     } finally {
       setUploadingIcon(false);
     }
@@ -1005,6 +1020,36 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
                 className="flex-1 px-4 py-2 bg-[#FFAD46] text-white rounded-lg hover:bg-[#E6941A] transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
               >
                 Add ({selectedParticipants.length})
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Remove Member Confirmation Modal */}
+      {showRemoveConfirm && memberToRemove && (
+        <div className="fixed inset-0 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm mx-4 shadow-2xl animate-in zoom-in-95 duration-200 border border-gray-200">
+            <h3 className="text-xl font-semibold text-gray-900 mb-3">Remove Member</h3>
+            <p className="text-gray-600 text-sm leading-relaxed mb-6">
+              Are you sure you want to remove <span className="font-semibold text-gray-900">{getEmployeeById(memberToRemove)?.name || 'this participant'}</span> from the group?
+            </p>
+            
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowRemoveConfirm(false);
+                  setMemberToRemove(null);
+                }}
+                className="flex-1 px-5 py-2.5 text-gray-700 font-medium bg-white border-2 border-gray-300 rounded-xl hover:bg-gray-50 active:scale-95 transition-all duration-200"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmRemoveParticipant}
+                className="flex-1 px-5 py-2.5 bg-red-500 text-white font-medium rounded-xl hover:bg-red-600 active:scale-95 transition-all duration-200 shadow-lg shadow-red-500/30"
+              >
+                Remove
               </button>
             </div>
           </div>

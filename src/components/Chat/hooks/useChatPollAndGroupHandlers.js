@@ -1,3 +1,5 @@
+import chatToast from '../utils/toastUtils';
+
 export const useChatPollAndGroupHandlers = ({
   createGroup,
   updateConversation,
@@ -23,11 +25,14 @@ export const useChatPollAndGroupHandlers = ({
         setActiveConversation(newGroup);
         setGlobalActiveConversation(newGroup);
         setShowCreateGroup(false);
+        chatToast.groupCreated(name);
       } else {
         console.error('❌ Failed to create group - no group returned');
+        chatToast.error('Failed to create group');
       }
     } catch (error) {
       console.error('❌ Error in handleCreateGroup:', error);
+      chatToast.error('Failed to create group. Please try again.');
       // Don't close the modal if there's an error, let user try again
     }
   };
@@ -128,12 +133,14 @@ export const useChatPollAndGroupHandlers = ({
     // Leave group logic would go here
     console.log('Leave group:', groupId);
     setActiveConversation(null);
+    chatToast.leftGroup();
   };
 
   // Handle removing a member from group
   const handleRemoveMember = (groupId, memberId) => {
     // Remove member logic would go here
     console.log('Remove member:', groupId, memberId);
+    chatToast.success('Member removed from group');
   };
 
   return {

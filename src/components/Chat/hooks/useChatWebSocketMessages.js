@@ -26,15 +26,36 @@ export const useChatWebSocketMessages = ({
       return;
     }
 
+    console.log('📨 Active conversation:', {
+      id: activeConversation.id,
+      type: activeConversation.type,
+      room_id: activeConversation.room_id
+    });
+
     // Extract message details
     const senderEmployeeId = messageData.sender?.employee_id || messageData.sender_id;
     const currentUserEmployeeId = currentUser?.employeeId || `emp-${currentUser?.id}`;
     
-    // Don't add our own messages (they're already optimistically added)
-    if (senderEmployeeId === currentUserEmployeeId || senderEmployeeId === currentUser?.id) {
-      console.log('🚫 Ignoring own message echo from:', senderEmployeeId);
+    console.log('📨 Sender check:', {
+      senderEmployeeId,
+      currentUserEmployeeId,
+      currentUserId: currentUser?.id,
+      isOwnMessage: senderEmployeeId === currentUserEmployeeId || senderEmployeeId === currentUser?.id
+    });
+    
+    // Check if message already exists to prevent duplicates (optimistic UI)
+    const existingMessages = messages[activeConversation.id] || [];
+    const messageExists = existingMessages.some(msg => msg.id === messageData.message_id);
+    
+    if (messageExists) {
+      console.log('🚫 Message already exists in UI, skipping:', messageData.message_id);
       return;
     }
+    
+    console.log('✅ Message is new, adding to UI');
+    
+    // REMOVED: Don't filter by sender - show all messages from WebSocket
+    // This allows real-time updates even for own messages sent from other clients
 
     // Create message object - PRESERVE SENDER DATA for profile pictures
     const incomingMessage = {
@@ -45,7 +66,8 @@ export const useChatWebSocketMessages = ({
       timestamp: new Date(messageData.timestamp || messageData.created_at || Date.now()),
       read: false,
       status: 'received',
-      type: messageData.type || 'text'
+      type: messageData.type || 'text',
+      fileUrls: messageData.file_urls || [] // Include file URLs from WebSocket
     };
     
     // Verify sender data is preserved
@@ -66,12 +88,28 @@ export const useChatWebSocketMessages = ({
     }
 
     console.log('✅ Adding incoming message to conversation:', activeConversation.id);
+    console.log('✅ Message object to add:', incomingMessage);
     
     // Add message to the active conversation
-    setMessages(prev => ({
-      ...prev,
-      [activeConversation.id]: [...(prev[activeConversation.id] || []), incomingMessage]
-    }));
+    setMessages(prev => {
+      const previousMessages = prev[activeConversation.id] || [];
+      const updatedMessages = {
+        ...prev,
+        [activeConversation.id]: [...previousMessages, incomingMessage]
+      };
+      const newMessages = updatedMessages[activeConversation.id];
+      
+      console.log('✅ Updated messages state:', {
+        conversationId: activeConversation.id,
+        previousCount: previousMessages.length,
+        newCount: newMessages.length,
+        lastMessage: newMessages[newMessages.length - 1],
+        allMessageIds: newMessages.map(m => m.id),
+        newMessageAdded: newMessages[newMessages.length - 1]?.id === incomingMessage.id
+      });
+      
+      return updatedMessages;
+    });
   };
 
   // WebSocket connection handler
