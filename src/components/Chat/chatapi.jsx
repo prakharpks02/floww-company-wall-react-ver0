@@ -248,6 +248,43 @@ export const chatAPI = {
     }
   },
 
+  // Forward message to multiple rooms
+  forwardMessage: async (messageId, roomIds) => {
+    try {
+      const headers = getChatApiHeaders();
+      
+      const body = {
+        room_ids: Array.isArray(roomIds) ? roomIds : [roomIds]
+      };
+      
+      const apiUrl = `${getChatApiBaseUrl()}/messages/${messageId}/forward`;
+      console.log('📤 Forwarding message via HTTP API:');
+      console.log('🔗 URL:', apiUrl);
+      console.log('🔑 Headers:', headers);
+      console.log('📦 Body:', body);
+      console.log('💬 Message ID:', messageId);
+      console.log('🏠 Room IDs:', roomIds);
+      console.log('🌍 Environment:', isAdminEnvironment() ? 'admin' : 'employee');
+      
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+      });
+      
+      console.log('📨 HTTP Response status:', response.status);
+      console.log('📨 HTTP Response headers:', Object.fromEntries(response.headers.entries()));
+      
+      const result = await handleResponse(response);
+      console.log('✅ HTTP Forward message result:', result);
+      
+      return result;
+    } catch (error) {
+      console.error('Error forwarding message via HTTP:', error);
+      throw error;
+    }
+  },
+
   // Find the actual employee ID format for a given participant ID
   resolveEmployeeId: async (partialId) => {
     try {
@@ -992,6 +1029,13 @@ export const enhancedChatAPI = {
     console.log('📤 Enhanced API sendMessageHttp called');
     console.log('🔍 Parameters:', { roomId, content, senderId, fileUrls, replyToMessageId });
     return await chatAPI.sendMessageHttp(roomId, content, senderId, fileUrls, replyToMessageId);
+  },
+
+  // Forward message to multiple rooms
+  forwardMessage: async (messageId, roomIds) => {
+    console.log('📤 Enhanced API forwardMessage called');
+    console.log('🔍 Parameters:', { messageId, roomIds });
+    return await chatAPI.forwardMessage(messageId, roomIds);
   },
 
   // WebSocket connection management

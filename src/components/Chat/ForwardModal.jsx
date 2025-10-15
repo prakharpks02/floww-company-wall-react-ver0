@@ -23,7 +23,7 @@ const ForwardModal = ({ isOpen, onClose, onForward, conversations, currentUserId
   };
 
   const handleForward = () => {
-    onForward(selectedConversations);
+    onForward(selectedConversations, message);
     setSelectedConversations([]);
     setSearchQuery('');
     onClose();

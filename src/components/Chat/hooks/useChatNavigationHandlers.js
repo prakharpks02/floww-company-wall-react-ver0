@@ -67,6 +67,7 @@ export const useChatNavigationHandlers = ({
               read: true,
               status: 'delivered',
               type: msg.type || 'text',
+              isForwarded: msg.is_forwarded || false, // 🔁 Include forwarded flag
               ...(msg.reply_to_message_id && {
                 replyTo: {
                   id: msg.reply_to_message_id,
@@ -137,6 +138,7 @@ export const useChatNavigationHandlers = ({
                 read: true,
                 status: 'delivered',
                 type: msg.type || 'text',
+                isForwarded: msg.is_forwarded || false, // 🔁 Include forwarded flag
                 ...(msg.reply_to_message_id && {
                   replyTo: {
                     id: msg.reply_to_message_id,
@@ -243,7 +245,8 @@ export const useChatNavigationHandlers = ({
               timestamp: new Date(msg.created_at),
               read: true,
               status: 'delivered',
-              type: msg.type || 'text'
+              type: msg.type || 'text',
+              isForwarded: msg.is_forwarded || false // 🔁 Include forwarded flag
             };
 
             // Parse reply data properly

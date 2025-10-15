@@ -587,6 +587,14 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                                 </div>
                               )}
                               
+                              {message.isForwarded && (
+                                <div className={`text-xs mb-1 flex items-center gap-1 ${isOwnMessage ? 'text-purple-200' : 'text-gray-500'}`}>
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                                  </svg>
+                                  <span className="italic">Forwarded</span>
+                                </div>
+                              )}
                               {message.type === 'poll' ? (
                                 <PollMessage
                                   poll={message.poll}
@@ -1230,6 +1238,14 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                                 </div>
                               )}
                               
+                              {message.isForwarded && (
+                                <div className={`text-xs mb-1 flex items-center gap-1 ${isOwnMessage ? 'text-purple-200' : 'text-gray-500'}`}>
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                                  </svg>
+                                  <span className="italic">Forwarded</span>
+                                </div>
+                              )}
                               {message.type === 'poll' ? (
                                 <PollMessage
                                   poll={message.poll}
@@ -2013,6 +2029,14 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                                 </div>
                               )}
                               
+                              {message.isForwarded && (
+                                <div className={`text-[10px] mb-1 flex items-center gap-1 ${isOwnMessage ? 'text-purple-200' : 'text-gray-500'}`}>
+                                  <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                                  </svg>
+                                  <span className="italic">Forwarded</span>
+                                </div>
+                              )}
                               {message.type === 'poll' ? (
                                 <PollMessage
                                   poll={message.poll}

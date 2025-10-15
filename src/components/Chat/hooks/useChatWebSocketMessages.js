@@ -35,21 +35,108 @@ export const useChatWebSocketMessages = ({
     // Extract message details
     const senderEmployeeId = messageData.sender?.employee_id || messageData.sender_id;
     const currentUserEmployeeId = currentUser?.employeeId || `emp-${currentUser?.id}`;
+    const messageContent = messageData.content || messageData.message;
+    const messageId = messageData.message_id;
     
     console.log('📨 Sender check:', {
       senderEmployeeId,
       currentUserEmployeeId,
       currentUserId: currentUser?.id,
-      isOwnMessage: senderEmployeeId === currentUserEmployeeId || senderEmployeeId === currentUser?.id
+      isOwnMessage: senderEmployeeId === currentUserEmployeeId || senderEmployeeId === currentUser?.id,
+      messageId,
+      messageContent
     });
     
     // Check if message already exists to prevent duplicates (optimistic UI)
     const existingMessages = messages[activeConversation.id] || [];
+    
+    console.log('📨 Current messages in conversation:', {
+      count: existingMessages.length,
+      messageIds: existingMessages.map(m => ({ id: m.id, text: m.text, optimistic: m._optimistic }))
+    });
+    
+    // Check for duplicate by message_id
     const messageExists = existingMessages.some(msg => msg.id === messageData.message_id);
     
     if (messageExists) {
-      console.log('🚫 Message already exists in UI, skipping:', messageData.message_id);
+      console.log('🚫 Message already exists in UI (by ID), skipping:', messageData.message_id);
       return;
+    }
+    
+    // Check for optimistic message that matches this WebSocket message
+    const messageTime = new Date(messageData.timestamp || messageData.created_at || Date.now());
+    
+    console.log('🔍 Looking for optimistic message to replace:', {
+      messageContent,
+      senderEmployeeId,
+      existingCount: existingMessages.length,
+      optimisticMessages: existingMessages.filter(m => m._optimistic).map(m => ({
+        id: m.id,
+        text: m.text,
+        sender: m.senderId
+      }))
+    });
+    
+    // Find optimistic message that matches
+    const optimisticMessage = existingMessages.find(msg => {
+      const isOptimistic = msg._optimistic === true;
+      const senderMatches = msg._optimisticSender === senderEmployeeId;
+      const textMatches = msg._optimisticText === messageContent;
+      const timeDiff = Math.abs(messageTime - msg.timestamp);
+      const timeWithinWindow = timeDiff < 10000;
+      
+      console.log('🔍 Checking message for optimistic match:', {
+        msgId: msg.id,
+        isOptimistic,
+        senderMatches,
+        msgSender: msg._optimisticSender,
+        wsSender: senderEmployeeId,
+        textMatches,
+        msgText: msg._optimisticText,
+        wsText: messageContent,
+        timeDiff,
+        timeWithinWindow,
+        allMatch: isOptimistic && senderMatches && textMatches && timeWithinWindow
+      });
+      
+      return isOptimistic && senderMatches && textMatches && timeWithinWindow;
+    });
+    
+    if (optimisticMessage) {
+      console.log('✅ Found optimistic message, replacing with real message:', {
+        tempId: optimisticMessage.id,
+        realId: messageData.message_id,
+        willReplace: true
+      });
+      
+      // Replace optimistic message with real message
+      setMessages(prev => {
+        const updated = prev[activeConversation.id].map(msg => {
+          if (msg.id === optimisticMessage.id) {
+            console.log('🔄 Replacing optimistic message:', msg.id, '→', messageData.message_id);
+            return {
+              ...msg,
+              id: messageData.message_id,
+              message_id: messageData.message_id,
+              sender: messageData.sender, // Update with real sender data
+              status: 'delivered',
+              _optimistic: false, // No longer optimistic
+              timestamp: new Date(messageData.created_at || messageData.timestamp || Date.now())
+            };
+          }
+          return msg;
+        });
+        
+        console.log('✅ After replacement, message count:', updated.length);
+        
+        return {
+          ...prev,
+          [activeConversation.id]: updated
+        };
+      });
+      
+      console.log('🛑 Optimistic message replaced, stopping here to prevent duplicate');
+      return; // CRITICAL: Stop here, don't add the message again
     }
     
     console.log('✅ Message is new, adding to UI');
@@ -67,7 +154,8 @@ export const useChatWebSocketMessages = ({
       read: false,
       status: 'received',
       type: messageData.type || 'text',
-      fileUrls: messageData.file_urls || [] // Include file URLs from WebSocket
+      fileUrls: messageData.file_urls || [], // Include file URLs from WebSocket
+      isForwarded: messageData.is_forwarded || false // 🔁 Include forwarded flag
     };
     
     // Verify sender data is preserved
@@ -140,6 +228,7 @@ export const useChatWebSocketMessages = ({
           read: true,
           status: 'delivered',
           type: msg.type || 'text',
+          isForwarded: msg.is_forwarded || false, // 🔁 Include forwarded flag
           ...(msg.reply_to_message_id && {
             replyTo: {
               id: msg.reply_to_message_id,
@@ -208,9 +297,9 @@ export const useChatWebSocketMessages = ({
     };
   }, [activeConversation?.id, activeConversation?.room_id]);
 
-  // Effect to subscribe to WebSocket events
+  // Effect to subscribe to WebSocket events - ONLY ONCE
   useEffect(() => {
-    console.log('👂 Setting up WebSocket event listeners');
+    console.log('👂 Setting up WebSocket event listeners (ONE TIME ONLY)');
     
     const unsubscribeMessage = enhancedChatAPI.onMessage(handleWebSocketMessage);
     const unsubscribeConnection = enhancedChatAPI.onConnection(handleWebSocketConnection);
@@ -220,7 +309,7 @@ export const useChatWebSocketMessages = ({
       unsubscribeMessage();
       unsubscribeConnection();
     };
-  }, [activeConversation?.id, currentUser?.id]);
+  }, []); // Empty dependency array - subscribe only once!
 
   return {
     isConnected,

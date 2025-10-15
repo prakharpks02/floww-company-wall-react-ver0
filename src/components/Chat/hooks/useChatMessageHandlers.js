@@ -145,13 +145,8 @@ export const useChatMessageHandlers = ({
       if (currentUser.isAdmin) {
         senderEmployeeId = 'UAI5Tfzl3k4Y6NIp';
         console.log('📤 Using admin sender_id:', senderEmployeeId);
-      } else if (activeConversation.type === 'direct' && activeConversation.participants) {
-        // For direct conversations, use the other participant's employee_id as sender_id
-        const otherParticipantId = activeConversation.participants.find(id => id !== currentUser?.id);
-        senderEmployeeId = otherParticipantId || (currentUser.employeeId || 'emp-' + currentUser.id);
-        console.log('📤 Using other participant employee_id as sender:', senderEmployeeId);
       } else {
-        // Fallback to current user for group chats or if no other participant found
+        // Always use current user's employee ID as sender (you are sending the message!)
         senderEmployeeId = currentUser.employeeId || 'emp-' + currentUser.id;
         console.log('📤 Using current user employee_id as sender:', senderEmployeeId);
       }
@@ -170,19 +165,28 @@ export const useChatMessageHandlers = ({
       console.log('📤 Send result:', sendResult);
       
       if (sendResult && sendResult.success !== false) {
+        // Create optimistic message with unique temporary ID
+        const tempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const messageText = newMessage.trim();
+        
+        console.log('📤 Creating optimistic message with temp ID:', tempId);
+        
         const messageData = {
-          id: sendResult.temporaryMessage?.id || Date.now(),
+          id: tempId,
+          message_id: tempId,
           senderId: senderEmployeeId,
           sender: {
             employee_id: senderEmployeeId,
             employee_name: currentUser?.name || currentUser?.fullName || 'You',
             profile_picture_link: currentUser?.profile_picture_link || currentUser?.avatar || ''
-          }, // 🔑 Add sender object for consistency with received messages
-          text: newMessage.trim(),
+          },
+          text: messageText,
           timestamp: new Date(),
           read: true,
-          status: sendResult.requiresVerification ? 'sending' : 'sent', // Show as 'sending' until verified
-          _temporary: sendResult.temporaryMessage?._temporary || false
+          status: 'sending',
+          _optimistic: true, // Mark as optimistic
+          _optimisticText: messageText, // Store original text for matching
+          _optimisticSender: senderEmployeeId // Store sender for matching
         };
         
         if (replyToMessage) {
@@ -190,7 +194,9 @@ export const useChatMessageHandlers = ({
           setReplyToMessage(null);
         }
         
-        // Add message to local state immediately
+        console.log('📤 Adding optimistic message to UI:', messageData);
+        
+        // Add message to local state immediately (optimistic UI)
         setMessages(prev => ({
           ...prev,
           [activeConversation.id]: [...(prev[activeConversation.id] || []), messageData]
@@ -199,7 +205,7 @@ export const useChatMessageHandlers = ({
         // Update conversation's last message
         setConversations(prev => prev.map(conv => 
           conv.id === activeConversation.id 
-            ? { ...conv, lastMessage: { text: messageData.text, timestamp: new Date() } }
+            ? { ...conv, lastMessage: { text: messageText, timestamp: new Date() } }
             : conv
         ));
         
@@ -407,7 +413,8 @@ export const useChatMessageHandlers = ({
             timestamp: new Date(msg.created_at || msg.timestamp),
             read: true,
             status: 'sent',
-            fileUrls: msg.file_urls || []
+            fileUrls: msg.file_urls || [],
+            isForwarded: msg.is_forwarded || false // 🔁 Include forwarded flag
           };
 
           // Handle reply to message from API
@@ -574,6 +581,14 @@ export const useChatMessageHandlers = ({
     
     if (!forwardMessage || !conversationIds || conversationIds.length === 0) {
       console.error('❌ Invalid forward parameters');
+      chatToast.error('Please select at least one conversation to forward to');
+      return;
+    }
+
+    // Check if message has a message_id
+    if (!forwardMessage.message_id && !forwardMessage.id) {
+      console.error('❌ Message does not have a message_id');
+      chatToast.error('Cannot forward this message');
       return;
     }
 
@@ -585,7 +600,9 @@ export const useChatMessageHandlers = ({
         return prev;
       });
 
-      // Forward to each selected conversation
+      // Collect room_ids from the selected conversations
+      const roomIds = [];
+      
       for (const conversationId of conversationIds) {
         const targetConversation = currentConversations.find(conv => conv.id === conversationId);
         console.log('📤 Target conversation found:', targetConversation);
@@ -614,18 +631,8 @@ export const useChatMessageHandlers = ({
           }
           
           if (roomId) {
-            console.log('📤 Forwarding to room:', roomId);
-            
-            // Use enhanced API to forward the message
-            await enhancedChatAPI.sendMessage(
-              forwardMessage.text, // Forward original message without prefix
-              currentUser.isAdmin ? 'UAI5Tfzl3k4Y6NIp' : (currentUser.employeeId || 'emp-' + currentUser.id),
-              forwardMessage.fileUrls || [],
-              null,
-              roomId
-            );
-            
-            console.log('✅ Message forwarded to conversation:', targetConversation.name);
+            roomIds.push(roomId);
+            console.log('✅ Added room to forward list:', roomId);
           } else {
             console.error('❌ Could not establish room_id for conversation:', conversationId);
           }
@@ -634,13 +641,89 @@ export const useChatMessageHandlers = ({
         }
       }
       
+      if (roomIds.length === 0) {
+        console.error('❌ No valid room IDs found');
+        chatToast.error('Failed to forward message - no valid conversations');
+        return;
+      }
+      
+      // Use the new forward API endpoint
+      const messageId = forwardMessage.message_id || forwardMessage.id;
+      console.log('📤 Forwarding message ID:', messageId, 'to rooms:', roomIds);
+      
+      const result = await enhancedChatAPI.forwardMessage(messageId, roomIds);
+      
+      if (result && result.status === 'success') {
+        console.log('✅ Message forwarded successfully:', result);
+        chatToast.success(`Message forwarded to ${roomIds.length} conversation${roomIds.length > 1 ? 's' : ''}`);
+        
+        // Update conversations to reflect the forwarded message as the last message
+        const forwardedText = `🔁 Forwarded: ${forwardMessage.text}`;
+        const currentTime = new Date();
+        
+        setConversations(prev => prev.map(conv => {
+          if (roomIds.includes(conv.room_id)) {
+            return {
+              ...conv,
+              lastMessage: {
+                text: forwardedText,
+                timestamp: currentTime
+              },
+              timestamp: currentTime,
+              unreadCount: conv.id === activeConversation?.id ? 0 : (conv.unreadCount || 0) + 1
+            };
+          }
+          return conv;
+        }));
+        
+        // If the user is viewing one of the target conversations, reload its messages
+        if (activeConversation && roomIds.includes(activeConversation.room_id)) {
+          console.log('📜 Reloading messages for active conversation after forward');
+          try {
+            const messagesResponse = await enhancedChatAPI.getRoomMessages(activeConversation.room_id);
+            if (messagesResponse.status === 'success' && Array.isArray(messagesResponse.data)) {
+              const formattedMessages = messagesResponse.data.map(msg => ({
+                id: msg.message_id,
+                message_id: msg.message_id,
+                senderId: msg.sender?.employee_id || msg.sender_id,
+                sender: msg.sender,
+                text: msg.content,
+                timestamp: new Date(msg.created_at),
+                read: true,
+                status: 'delivered',
+                type: msg.type || 'text',
+                fileUrls: msg.file_urls || [],
+                isForwarded: msg.is_forwarded || false,
+                ...(msg.reply_to_message_id && {
+                  replyTo: {
+                    id: msg.reply_to_message_id,
+                    text: msg.reply_content || 'Original message',
+                    senderName: msg.reply_sender_name || 'Unknown'
+                  }
+                })
+              }));
+              
+              setMessages(prev => ({
+                ...prev,
+                [activeConversation.id]: formattedMessages
+              }));
+            }
+          } catch (error) {
+            console.error('❌ Error reloading messages:', error);
+          }
+        }
+      } else {
+        console.error('❌ Failed to forward message:', result);
+        chatToast.error('Failed to forward message');
+      }
+      
       // Close the forward modal
       setShowForwardModal(false);
       setMessageToForward(null);
       
-      console.log('✅ Message forwarded to', conversationIds.length, 'conversations');
     } catch (error) {
       console.error('❌ Error forwarding message:', error);
+      chatToast.error('Failed to forward message');
     }
   };
 
