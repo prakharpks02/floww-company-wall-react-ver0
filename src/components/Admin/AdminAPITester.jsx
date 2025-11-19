@@ -25,10 +25,12 @@ const AdminAPITester = () => {
 
   const runTest = async (testName, testFn) => {
     try {
+     
       const result = await testFn();
       addResult(testName, 'success', result);
       return result;
     } catch (error) {
+      console.error(`❌ Test failed: ${testName}`, error);
       addResult(testName, 'error', null, error.message);
       throw error;
     }
