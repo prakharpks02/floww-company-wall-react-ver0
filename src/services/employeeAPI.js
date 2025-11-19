@@ -1,9 +1,15 @@
 // Employee API service for fetching real employee data
-const API_BASE_URL = 'https://dev.gofloww.co/api';
-const API_HEADERS = {
-  'Authorization': 'token-68VCKDcyqrds',
-  'employeeId': 'emp-k15sLcnjub9r',
-  'Content-Type': 'application/json'
+import { cookieUtils } from '../utils/cookieUtils';
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace('/wall', '') || 'https://console.gofloww.xyz/api';
+
+const getApiHeaders = () => {
+  const { employeeToken, employeeId } = cookieUtils.getAuthTokens();
+  return {
+    'Authorization': employeeToken || '',
+    'employeeId': employeeId || '',
+    'Content-Type': 'application/json'
+  };
 };
 
 /**
@@ -14,7 +20,7 @@ export const fetchAllEmployees = async () => {
   try {
     const response = await fetch(`${API_BASE_URL}/employee/get-all-employees/`, {
       method: 'GET',
-      headers: API_HEADERS
+      headers: getApiHeaders()
     });
 
     if (!response.ok) {
@@ -45,7 +51,6 @@ export const fetchAllEmployees = async () => {
       throw new Error('Invalid API response format');
     }
   } catch (error) {
-    console.error('Error fetching employees:', error);
     // Return empty array on error to prevent breaking the app
     return [];
   }

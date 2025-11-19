@@ -12,7 +12,7 @@ import AdminAPITester from './AdminAPITester';
 const CRMAdminApp = () => {
   const [activeTab, setActiveTab] = React.useState('dashboard');
 
-  console.log('🔧 CRMAdminApp: Rendering admin app with active tab:', activeTab);
+
 
   return (
     <AdminChatProvider>
@@ -76,7 +76,7 @@ const CRMAdminApp = () => {
             <h3 className="text-sm font-medium text-blue-900 mb-2">Environment Information</h3>
             <div className="text-xs text-blue-700 space-y-1">
               <div>• <strong>Environment:</strong> CRM Admin Dashboard (localhost:8000/crm)</div>
-              <div>• <strong>API Base:</strong> https://dev.gofloww.co/api/wall/chat/admin</div>
+              <div>• <strong>API Base:</strong> https://console.gofloww.xyz/api/wall/chat/admin</div>
               <div>• <strong>Context:</strong> AdminChatContext (No employee chat APIs)</div>
               <div>• <strong>Layout:</strong> AdminLayout (No employee chat components)</div>
               <div>• <strong>Purpose:</strong> Admin-only chat management with proper API isolation</div>

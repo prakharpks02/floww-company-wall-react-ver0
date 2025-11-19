@@ -58,7 +58,6 @@ export const usePostsData = () => {
       setNextCursor(null);
       setHasMore(false);
     } catch (error) {
-      console.error('Error in loadAllPosts:', error);
       setError(`Failed to load posts: ${error.message}`);
     } finally {
       setIsLoading(false);
@@ -82,7 +81,6 @@ export const usePostsData = () => {
       
       return pins; // Return for sequential loading
     } catch (error) {
-      console.error('❌ Error loading pinned posts:', error);
       setError(`Failed to load pinned posts: ${error.message}`);
       setPinnedPosts([]); // Set empty array on error
       return []; // Return empty array on error

@@ -32,11 +32,7 @@ const CreateGroupModal = ({ isOpen, onClose, onCreateGroup, currentUserId }) => 
     setIsCreating(true);
     
     try {
-      console.log('🔧 CreateGroupModal: Starting group creation...');
       await onCreateGroup(groupName.trim(), groupDescription.trim(), selectedParticipants, currentUserId);
-      
-      console.log('✅ CreateGroupModal: Group creation completed successfully');
-      
       // Reset form
       setGroupName('');
       setGroupDescription('');
@@ -44,7 +40,6 @@ const CreateGroupModal = ({ isOpen, onClose, onCreateGroup, currentUserId }) => 
       setSearchQuery('');
       onClose();
     } catch (error) {
-      console.error('❌ CreateGroupModal: Error creating group:', error);
       // Don't close modal on error, let user try again
     } finally {
       setIsCreating(false);

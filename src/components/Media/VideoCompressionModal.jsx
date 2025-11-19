@@ -57,7 +57,6 @@ const VideoCompressionModal = ({ isOpen, onClose, videoFile, onCompressionComple
       onCompressionComplete(compressedFile);
       onClose();
     } catch (error) {
-      console.error('Video compression failed:', error);
       alert('Video compression failed. The original video will be used.');
       onCompressionComplete(videoFile);
       onClose();

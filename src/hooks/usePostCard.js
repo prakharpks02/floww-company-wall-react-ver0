@@ -4,6 +4,8 @@ import { usePost } from './../contexts/PostContext';
 import { postsAPI } from '../services/api.jsx';
 import { debounce } from '../utils/requestUtils.jsx';
 
+const FALLBACK_AVATAR_URL = import.meta.env.VITE_FALLBACK_AVATAR_URL;
+
 export const usePostCard = (post, activeView = 'home') => {
   const { user } = useAuth();
   const { 
@@ -118,7 +120,7 @@ export const usePostCard = (post, activeView = 'home') => {
                   rawPost.username || 
                   (isCurrentUserPost ? (user?.name || user?.username) : (user?.is_admin ? 'Admin' : 'Employee User')),
       authorAvatar: rawPost.author?.avatar || rawPost.authorAvatar || rawPost.author_avatar || rawPost.avatar || 
-                    (isCurrentUserPost ? user?.profile_picture_link : 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80'),
+                    (isCurrentUserPost ? user?.profile_picture_link : FALLBACK_AVATAR_URL),
       authorPosition: rawPost.author?.position || 
                       rawPost.author?.job_title || 
                       rawPost.authorPosition || 

@@ -34,7 +34,6 @@ const API_CONFIG = {
   }
 };
 
-
 // Helper function to handle API responses
 const handleResponse = async (response) => {
   let data;
@@ -119,8 +118,6 @@ const fetchWithTimeout = async (url, options = {}) => {
   return requestPromise;
 };
 
-
-
 // =============================================================================
 // ADMIN API FUNCTIONS
 // =============================================================================
@@ -163,7 +160,6 @@ export const adminAPI = {
         raw: result
       };
     } catch (error) {
-      console.error('❌ Get all posts error:', error.message);
       throw error;
     }
   },
@@ -186,7 +182,6 @@ export const adminAPI = {
         raw: result
       };
     } catch (error) {
-      console.error('❌ Get broadcast posts error:', error.message);
       throw error;
     }
   },
@@ -205,7 +200,6 @@ export const adminAPI = {
       
       return result;
     } catch (error) {
-      console.error('❌ Create post error:', error.message);
       throw error;
     }
   },
@@ -224,7 +218,6 @@ export const adminAPI = {
       
       return result;
     } catch (error) {
-      console.error('❌ Broadcast post error:', error.message);
       throw error;
     }
   },
@@ -251,7 +244,6 @@ export const adminAPI = {
       
       return result;
     } catch (error) {
-      console.error('❌ Get pinned posts error:', error.message);
       throw error;
     }
   },
@@ -270,7 +262,6 @@ export const adminAPI = {
       
       return result;
     } catch (error) {
-      console.error('❌ Toggle pin post error:', error.message);
       throw error;
     }
   },
@@ -289,7 +280,6 @@ export const adminAPI = {
       
       return result;
     } catch (error) {
-      console.error('❌ Add comment error:', error.message);
       throw error;
     }
   },
@@ -308,7 +298,6 @@ export const adminAPI = {
       
       return result;
     } catch (error) {
-      console.error('❌ Get post comments error:', error.message);
       throw error;
     }
   },
@@ -341,7 +330,6 @@ export const adminAPI = {
       
       return result;
     } catch (error) {
-      console.error('❌ Delete post error:', error.message);
       throw error;
     }
   },
@@ -376,7 +364,6 @@ export const adminAPI = {
         new_status: newBlockStatus
       };
     } catch (error) {
-      console.error('❌ Toggle block user error:', error.message);
       throw error;
     }
   },
@@ -395,7 +382,6 @@ export const adminAPI = {
       
       return result;
     } catch (error) {
-      console.error('❌ Get blocked users error:', error.message);
       throw error;
     }
   },
@@ -423,7 +409,6 @@ export const adminAPI = {
       
       return result;
     } catch (error) {
-      console.error('❌ Broadcast message error:', error.message);
       throw error;
     }
   },
@@ -441,7 +426,6 @@ export const adminAPI = {
       
       return result;
     } catch (error) {
-      console.error('❌ Clear broadcasts error:', error.message);
       throw error;
     }
   },
@@ -464,7 +448,6 @@ export const adminAPI = {
       
       return result;
     } catch (error) {
-      console.error('❌ Create report error:', error.message);
       throw error;
     }
   },
@@ -483,7 +466,6 @@ export const adminAPI = {
       
       return result;
     } catch (error) {
-      console.error('❌ Get reported content error:', error.message);
       throw error;
     }
   },
@@ -502,7 +484,6 @@ export const adminAPI = {
       
       return result;
     } catch (error) {
-      console.error('❌ Resolve report error:', error.message);
       throw error;
     }
   },
@@ -525,7 +506,6 @@ export const adminAPI = {
       
       return result;
     } catch (error) {
-      console.error('❌ Delete comment error:', error.message);
       throw error;
     }
   },
@@ -544,7 +524,6 @@ export const adminAPI = {
       
       return result;
     } catch (error) {
-      console.error('❌ Toggle post comments error:', error.message);
       throw error;
     }
   },
@@ -568,7 +547,6 @@ export const adminAPI = {
       
       return result;
     } catch (error) {
-      console.error('❌ Upload file error:', error.message);
       throw error;
     }
   },
@@ -585,14 +563,12 @@ export const adminAPI = {
       // Check if response is actually JSON
       const contentType = response.headers.get('content-type');
       if (!contentType || !contentType.includes('application/json')) {
-        console.warn('Admin mention API endpoint not available yet, returning empty array');
         return { data: [] };
       }
       
       const result = await handleResponse(response);
       return result;
     } catch (error) {
-      console.warn('Admin mention API not available yet:', error.message);
       // Return empty array as fallback when API is not available
       return { data: [] };
     }

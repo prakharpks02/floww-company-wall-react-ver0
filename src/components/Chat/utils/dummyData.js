@@ -10,7 +10,6 @@ export const initializeEmployees = async () => {
     dummyEmployees = await fetchAllEmployees();
     return dummyEmployees;
   } catch (error) {
-    console.error('Failed to load employees:', error);
     dummyEmployees = [];
     return dummyEmployees;
   }
@@ -49,7 +48,6 @@ export const getEmployeeById = (id) => {
     }
   }
   
-  console.log(`❌ No employee found for ID: "${id}"`);
   return null;
 };
 

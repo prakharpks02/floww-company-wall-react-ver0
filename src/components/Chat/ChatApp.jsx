@@ -307,8 +307,6 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
 
   // Handler to start chat with a group member
   const handleStartChatWithMember = (member) => {
-    console.log('💬 Starting chat with member:', member);
-    
     // Close the chat info modal
     setShowChatInfo(false);
     
@@ -323,10 +321,8 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
     );
     
     if (existingConv) {
-      console.log('✅ Found existing conversation:', existingConv);
       navigationHandlers.handleSelectConversation(existingConv);
     } else {
-      console.log('🆕 Creating new conversation with member');
       navigationHandlers.handleStartNewChat(member);
     }
   };
@@ -484,21 +480,11 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                               String(message.senderId) === String(currentUserEmployeeId);
                             
                             // Debug logging
-                            console.log('🔍 [MOBILE] Message alignment check:', {
-                              messageId: message.id,
-                              messageSenderId: message.senderId,
-                              currentUserId: currentUser.id,
-                              currentUserEmployeeId: currentUserEmployeeId,
-                              isOwnMessage: isOwnMessage
-                            });
+                            
                             
                             // Debug logging for reply messages
                             if (message.replyTo) {
-                              console.log('🎯 [MOBILE] Rendering message with reply:', {
-                                messageId: message.id,
-                                content: message.text,
-                                replyTo: message.replyTo
-                              });
+                              
                             }
                             
                             return (
@@ -1935,13 +1921,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                             String(message.senderId) === String(currentUserEmployeeId);
                           
                           // Debug logging
-                          console.log('🔍 [DESKTOP] Message alignment check:', {
-                            messageId: message.id,
-                            messageSenderId: message.senderId,
-                            currentUserId: currentUser.id,
-                            currentUserEmployeeId: currentUserEmployeeId,
-                            isOwnMessage: isOwnMessage
-                          });
+                          
                           
                           return (
                             <div

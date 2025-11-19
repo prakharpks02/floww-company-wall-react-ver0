@@ -39,10 +39,7 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
   if (!isOpen || !conversation) return null;
 
   // Debug conversation object
-  console.log('🔍 ChatInfo conversation object:', conversation);
-  console.log('🔍 Description field:', conversation.description);
-  console.log('🔍 Room_desc field:', conversation.room_desc);
-
+  
   const isGroup = conversation.type === 'group';
   const currentUser = getEmployeeById(currentUserId);
   
@@ -94,16 +91,11 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
       // Use room_id if available, otherwise fallback to conversation id
       const roomId = conversation.room_id || conversation.id;
       
-      console.log('🔧 ChatInfo: Adding participants via admin API:', {
-        roomId,
-        participantIds: selectedParticipants
-      });
+      
 
       const response = await adminChatAPI.addParticipants(roomId, selectedParticipants);
       
       if (response && response.status === 'success') {
-        console.log('✅ Participants added successfully via admin API');
-        
         // Update local conversation data
         if (onUpdateGroup) {
           const updatedParticipants = [...(conversation.participants || []), ...selectedParticipants];
@@ -118,11 +110,9 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
         // Show success message
         chatToast.success('Participants added successfully!');
       } else {
-        console.error('❌ Failed to add participants:', response);
         chatToast.error('Failed to add participants. Please try again.');
       }
     } catch (error) {
-      console.error('❌ Error adding participants:', error);
       chatToast.error('Error adding participants: ' + error.message);
     }
   };
@@ -143,16 +133,11 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
       // Use room_id if available, otherwise fallback to conversation id
       const roomId = conversation.room_id || conversation.id;
       
-      console.log('🔧 ChatInfo: Removing participant via admin API:', {
-        roomId,
-        participantId: memberToRemove
-      });
+      
 
       const response = await adminChatAPI.removeParticipant(roomId, memberToRemove);
       
       if (response && response.status === 'success') {
-        console.log('✅ Participant removed successfully via admin API');
-        
         // Update local conversation data
         if (onUpdateGroup) {
           const updatedParticipants = (conversation.participants || []).filter(id => id !== memberToRemove);
@@ -176,11 +161,9 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
           icon: '👋'
         });
       } else {
-        console.error('❌ Failed to remove participant:', response);
         chatToast.error('Failed to remove participant. Please try again.');
       }
     } catch (error) {
-      console.error('❌ Error removing participant:', error);
       chatToast.error('Error removing participant: ' + error.message);
     } finally {
       // Close modal and reset state
@@ -200,16 +183,11 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
       // Use room_id if available, otherwise fallback to conversation id
       const roomId = conversation.room_id || conversation.id;
       
-      console.log('🔧 ChatInfo: Assigning admin rights via admin API:', {
-        roomId,
-        participantId
-      });
+      
 
       const response = await adminChatAPI.assignAdminRights(roomId, participantId);
       
       if (response && response.status === 'success') {
-        console.log('✅ Admin rights assigned successfully via admin API');
-        
         // Update local conversation data
         if (onUpdateGroup) {
           const updatedAdmins = [...(conversation.admins || []), participantId];
@@ -221,11 +199,9 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
         // Show success message
         chatToast.success(`Admin rights assigned to ${memberName} successfully!`);
       } else {
-        console.error('❌ Failed to assign admin rights:', response);
         chatToast.error('Failed to assign admin rights. Please try again.');
       }
     } catch (error) {
-      console.error('❌ Error assigning admin rights:', error);
       chatToast.error('Error assigning admin rights: ' + error.message);
     }
   };
@@ -241,16 +217,11 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
       // Use room_id if available, otherwise fallback to conversation id
       const roomId = conversation.room_id || conversation.id;
       
-      console.log('🔧 ChatInfo: Removing admin rights via admin API:', {
-        roomId,
-        participantId
-      });
+      
 
       const response = await adminChatAPI.removeAdminRights(roomId, participantId);
       
       if (response && response.status === 'success') {
-        console.log('✅ Admin rights removed successfully via admin API');
-        
         // Update local conversation data
         if (onUpdateGroup) {
           const updatedAdmins = (conversation.admins || []).filter(id => id !== participantId);
@@ -262,11 +233,9 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
         // Show success message
         chatToast.success(`Admin rights removed from ${memberName} successfully!`);
       } else {
-        console.error('❌ Failed to remove admin rights:', response);
         chatToast.error('Failed to remove admin rights. Please try again.');
       }
     } catch (error) {
-      console.error('❌ Error removing admin rights:', error);
       chatToast.error('Error removing admin rights: ' + error.message);
     }
   };
@@ -281,11 +250,7 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
       // Use room_id if available, otherwise fallback to conversation id
       const roomId = conversation.room_id || conversation.id;
       
-      console.log('🔧 ChatInfo: Editing group details via admin API:', {
-        roomId,
-        room_name: groupName.trim(),
-        room_desc: groupDescription.trim()
-      });
+      
       
       const response = await adminChatAPI.editRoomDetails(roomId, {
         room_name: groupName.trim(),
@@ -294,8 +259,6 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
       });
       
       if (response && response.status === 'success') {
-        console.log('✅ Group details updated successfully via admin API');
-        
         // Update local conversation data if onUpdateGroup callback is available
         if (onUpdateGroup) {
           onUpdateGroup(conversation.id, {
@@ -312,7 +275,6 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
         throw new Error(response?.message || 'Failed to update group details');
       }
     } catch (error) {
-      console.error('❌ Error updating group details:', error);
       chatToast.error('Failed to update group details. Please try again.');
     }
   };
@@ -340,7 +302,7 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
       formData.append('file', file);
 
       // Use correct admin API base URL
-      const baseURL = 'https://dev.gofloww.co';
+      const baseURL = 'https://console.gofloww.xyz';
       
       const response = await fetch(`${baseURL}/api/wall/admin/upload_file`, {
         method: 'POST',
@@ -366,43 +328,30 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
           });
           
           if (updateResponse && updateResponse.status === 'success') {
-            console.log('✅ Group icon updated successfully in backend');
-            console.log('📤 Calling onUpdateGroup with:', {
-              conversationId: conversation.id,
-              room_id: conversation.room_id,
-              icon: result.data.file_url
-            });
+            
             
             // Update local conversation state to reflect in sidebar
             if (onUpdateGroup) {
               onUpdateGroup(conversation.id, {
                 icon: result.data.file_url
               });
-              console.log('✅ onUpdateGroup called successfully');
             } else {
-              console.warn('⚠️ onUpdateGroup is not defined');
             }
             
             // Reload conversations from backend to refresh sidebar
             if (onReloadConversations) {
-              console.log('🔄 Reloading conversations from backend...');
               await onReloadConversations();
-              console.log('✅ Conversations reloaded successfully');
             } else {
-              console.warn('⚠️ onReloadConversations is not defined');
             }
           } else {
-            console.error('❌ Error updating group icon in backend:', updateResponse);
           }
         } catch (updateError) {
-          console.error('❌ Error updating group icon:', updateError);
         }
         
       } else {
         throw new Error(result.message || 'Upload failed');
       }
     } catch (error) {
-      console.error('❌ Error uploading group icon:', error);
       chatToast.error('Failed to upload group icon. Please try again.');
     } finally {
       setUploadingIcon(false);
@@ -648,7 +597,6 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
                   className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer"
                   onClick={() => {
                     if (memberId !== currentUserId && onStartChatWithMember) {
-                      console.log('🎯 Starting chat with member:', { memberId, member });
                       onStartChatWithMember(member);
                     }
                   }}

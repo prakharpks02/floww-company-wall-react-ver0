@@ -14,7 +14,6 @@ export const useChatUtilities = () => {
   const currentUser = (() => {
     // Check if we're in admin environment
     if (isAdminEnvironment()) {
-      console.log('🔧 Admin environment detected, using Admin user configuration');
       return {
         id: 'UAI5Tfzl3k4Y6NIp', // Use specific admin sender_id
         employeeId: 'UAI5Tfzl3k4Y6NIp', // Use specific admin sender_id for API calls
@@ -29,8 +28,6 @@ export const useChatUtilities = () => {
     
     // Get the logged-in user's employee ID from cookies/auth
     const { employeeId: loggedInEmployeeId } = cookieUtils.getAuthTokens();
-    console.log('🔑 Logged-in employee ID from cookies:', loggedInEmployeeId);
-    
     // If employees are available, find the logged-in user
     if (employees.length > 0) {
       // Try to find the current logged-in user by their employeeId from cookies
@@ -38,7 +35,6 @@ export const useChatUtilities = () => {
       
       // Fallback: if not found, use first employee with employeeId
       if (!emp) {
-        console.warn('⚠️ Could not find logged-in user in employees list, using fallback');
         emp = employees.find(emp => emp.employeeId) || employees[0];
       }
       
@@ -47,20 +43,12 @@ export const useChatUtilities = () => {
         id: emp.employeeId || emp.id || loggedInEmployeeId || 'emp-k15sLcnjub9r',
         employeeId: emp.employeeId || emp.id || loggedInEmployeeId || 'emp-k15sLcnjub9r'
       };
-      console.log('👤 Current user loaded:', {
-        name: user.name,
-        id: user.id,
-        employeeId: user.employeeId,
-        originalEmpId: emp.employeeId,
-        originalId: emp.id,
-        matchedLoggedInUser: emp.employeeId === loggedInEmployeeId
-      });
+      
       return user;
     }
     
     // Fallback current user when employees haven't loaded - use cookie value
     const fallbackId = loggedInEmployeeId || 'emp-k15sLcnjub9r';
-    console.log('👤 Using fallback current user with ID:', fallbackId);
     return {
       id: fallbackId,
       employeeId: fallbackId, 

@@ -30,7 +30,6 @@ const MyPosts = ({ filters = { tag: 'all', search: '' }, onPostsChange }) => {
   useEffect(() => {
     // Only log if not initial render
     if (userPosts.length > 0) {
-      console.log('MyPosts filters changed:', filters);
     }
   }, [filters, userPosts.length]);
 
@@ -134,7 +133,6 @@ const MyPosts = ({ filters = { tag: 'all', search: '' }, onPostsChange }) => {
         }
         
       } catch (error) {
-        console.error('Error loading user posts:', error);
         setError('Failed to load your posts');
       } finally {
         setLoading(false);
@@ -212,7 +210,6 @@ const MyPosts = ({ filters = { tag: 'all', search: '' }, onPostsChange }) => {
         onPostsChange(userFilteredPosts);
       }
     } catch (error) {
-      console.error('Error reloading user posts:', error);
     } finally {
       setIsLoadingRef(false);
     }
@@ -296,7 +293,6 @@ const MyPosts = ({ filters = { tag: 'all', search: '' }, onPostsChange }) => {
   </button>
 </div>
 
-
    {/* Stats */}
 <div className="max-w-6xl mx-auto mb-4 sm:mb-6 px-3 sm:px-4">
   <div className="flex flex-col sm:flex-row sm:space-x-4 space-y-4 sm:space-y-0">
@@ -346,10 +342,6 @@ const MyPosts = ({ filters = { tag: 'all', search: '' }, onPostsChange }) => {
 
   </div>
 </div>
-
-
-
-
 
       {/* Error Message */}
       {error && (

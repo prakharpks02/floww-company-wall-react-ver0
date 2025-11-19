@@ -366,7 +366,6 @@ const AdminPostCard = ({
                    
                       
                       if (!userIdToBlock) {
-                        console.error('❌ No valid user ID found for blocking');
                         alert('Error: Cannot identify user to block');
                         return;
                       }

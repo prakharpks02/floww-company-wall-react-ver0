@@ -12,10 +12,9 @@ const EmployeeAPITest = () => {
         setLoading(true);
         const result = await fetchAllEmployees();
         setEmployees(result);
-        console.log('API Test Results:', result);
+      
       } catch (err) {
         setError(err.message);
-        console.error('API Test Error:', err);
       } finally {
         setLoading(false);
       }

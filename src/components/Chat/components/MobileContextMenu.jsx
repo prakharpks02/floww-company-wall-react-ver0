@@ -37,7 +37,6 @@ const MobileContextMenu = ({
             {canEditMessage(contextMenu.message) && (
               <button
                 onClick={() => {
-                  console.log('🔥 Mobile Edit clicked');
                   messageHandlers.handleStartEdit(contextMenu.message);
                   contextMenuHandlers.setContextMenu({ show: false, x: 0, y: 0, message: null });
                 }}

@@ -13,14 +13,7 @@ const GroupDetailsModal = ({ isOpen, onClose, conversation, currentUserId, onUpd
 
   if (!isOpen || !conversation || !employees.length) return null;
 
-  console.log('🔍 GroupDetailsModal conversation object:', {
-    id: conversation.id,
-    name: conversation.name,
-    icon: conversation.icon,
-    hasIcon: !!conversation.icon,
-    groupIconState: groupIcon,
-    type: conversation.type
-  });
+  
 
   const currentUser = getEmployeeByIdFromList(currentUserId, employees);
   
@@ -29,14 +22,7 @@ const GroupDetailsModal = ({ isOpen, onClose, conversation, currentUserId, onUpd
   const isAdmin = conversation.admins?.includes(currentUserId) || isAdminEnvironment;
   const isCreator = conversation.createdBy === currentUserId;
   
-  console.log('🔧 GroupDetailsModal: Admin check:', {
-    currentUserId,
-    conversationAdmins: conversation.admins,
-    isAdminEnvironment,
-    isAdmin,
-    isCreator,
-    pathname: window.location.pathname
-  });
+  
 
   // Get available employees to add (not already in group)
   const availableEmployees = employees.filter(emp => 
@@ -72,7 +58,7 @@ const GroupDetailsModal = ({ isOpen, onClose, conversation, currentUserId, onUpd
       const formData = new FormData();
       formData.append('file', file);
 
-      const baseURL = 'https://dev.gofloww.co';
+      const baseURL = 'https://console.gofloww.xyz';
       const response = await fetch(`${baseURL}/api/wall/admin/upload_file`, {
         method: 'POST',
         body: formData,
@@ -101,16 +87,12 @@ const GroupDetailsModal = ({ isOpen, onClose, conversation, currentUserId, onUpd
           onUpdateGroup(conversation.id, {
             icon: result.data.file_url
           });
-          
-          console.log('✅ Group icon updated successfully');
         } catch (updateError) {
-          console.error('❌ Error updating group icon in backend:', updateError);
         }
       } else {
         throw new Error(result.message || 'Upload failed');
       }
     } catch (error) {
-      console.error('❌ Error uploading group icon:', error);
       alert('Failed to upload icon. Please try again.');
     } finally {
       setUploadingIcon(false);
@@ -181,7 +163,6 @@ const GroupDetailsModal = ({ isOpen, onClose, conversation, currentUserId, onUpd
                   {/* Upload button - DEFINITELY VISIBLE */}
                   <button
                     onClick={() => {
-                      console.log('🔧 Camera button clicked!');
                       fileInputRef.current?.click();
                     }}
                     disabled={uploadingIcon}

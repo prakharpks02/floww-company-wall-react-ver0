@@ -16,22 +16,17 @@ export const useChatPollAndGroupHandlers = ({
   // Handle creating a group (now async to support admin API)
   const handleCreateGroup = async (name, description, participants, createdBy) => {
     try {
-      console.log('🔧 useChatPollAndGroupHandlers: Creating group...', { name, participants });
-      
       const newGroup = await createGroup(name, description, participants, createdBy);
       
       if (newGroup) {
-        console.log('✅ Group created successfully, setting as active:', newGroup);
         setActiveConversation(newGroup);
         setGlobalActiveConversation(newGroup);
         setShowCreateGroup(false);
         chatToast.groupCreated(name);
       } else {
-        console.error('❌ Failed to create group - no group returned');
         chatToast.error('Failed to create group');
       }
     } catch (error) {
-      console.error('❌ Error in handleCreateGroup:', error);
       chatToast.error('Failed to create group. Please try again.');
       // Don't close the modal if there's an error, let user try again
     }
@@ -114,8 +109,6 @@ export const useChatPollAndGroupHandlers = ({
 
   // Handle updating group information
   const handleUpdateGroup = (groupId, updates) => {
-    console.log('Update group:', groupId, updates);
-    
     // Update the conversation in the context
     updateConversation(groupId, updates);
     
@@ -131,7 +124,6 @@ export const useChatPollAndGroupHandlers = ({
   // Handle leaving a group
   const handleLeaveGroup = (groupId) => {
     // Leave group logic would go here
-    console.log('Leave group:', groupId);
     setActiveConversation(null);
     chatToast.leftGroup();
   };
@@ -139,7 +131,6 @@ export const useChatPollAndGroupHandlers = ({
   // Handle removing a member from group
   const handleRemoveMember = (groupId, memberId) => {
     // Remove member logic would go here
-    console.log('Remove member:', groupId, memberId);
     chatToast.success('Member removed from group');
   };
 

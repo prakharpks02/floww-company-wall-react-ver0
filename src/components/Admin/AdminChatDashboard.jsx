@@ -21,14 +21,11 @@ const AdminChatDashboard = () => {
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [roomStats, setRoomStats] = useState(null);
 
-  // Load all rooms on component mount
-  useEffect(() => {
-    console.log('🔧 CRM Dashboard: Component mounted, rooms will be loaded by AdminChatContext');
-  }, []);
+ 
 
   const loadRoomDetails = async (roomId) => {
     try {
-      console.log('🔧 CRM: Loading room details for:', roomId);
+
       
       // Use context methods instead of direct API calls
       const [roomMessages, stats] = await Promise.all([
@@ -36,19 +33,18 @@ const AdminChatDashboard = () => {
         getRoomStats(roomId)
       ]);
 
-      console.log('🔧 CRM: Room details loaded via context');
+     
       setRoomStats(stats);
       setSelectedRoom(rooms.find(room => room.room_id === roomId));
       setActiveRoom(roomId);
     } catch (error) {
-      console.error('🔧 CRM: Error loading room details:', error);
       setError(error.message);
     }
   };
 
   const handleCreateGroup = async () => {
     try {
-      console.log('🔧 CRM: Creating new admin group...');
+    
       const groupData = {
         group_name: 'CRM Admin Group',
         group_description: 'Created from CRM dashboard',
@@ -59,23 +55,22 @@ const AdminChatDashboard = () => {
       const response = await createGroup(groupData);
       
       if (response && response.status === 'success') {
-        console.log('🔧 CRM: Group created successfully via context');
+     
       } else {
         setError('Failed to create group');
       }
     } catch (error) {
-      console.error('🔧 CRM: Error creating group:', error);
       setError(error.message);
     }
   };
 
   const handleEditMessage = async (messageId, newContent) => {
     try {
-      console.log('🔧 CRM: Editing message:', messageId);
+
       const response = await editMessage(messageId, newContent);
       
       if (response && response.status === 'success') {
-        console.log('🔧 CRM: Message edited successfully via context');
+
         // Reload messages to show the updated content
         if (selectedRoom) {
           loadRoomDetails(selectedRoom.room_id);
@@ -84,21 +79,20 @@ const AdminChatDashboard = () => {
         setError('Failed to edit message');
       }
     } catch (error) {
-      console.error('🔧 CRM: Error editing message:', error);
       setError(error.message);
     }
   };
 
   const handleEditRoomDetails = async (roomId, roomDetails) => {
     try {
-      console.log('🔧 CRM: Editing room details for:', roomId, roomDetails);
+
       
       // Import adminChatAPI directly for this operation
       const { adminChatAPI } = await import('../../services/adminChatAPI');
       const response = await adminChatAPI.editRoomDetails(roomId, roomDetails);
       
       if (response && response.status === 'success') {
-        console.log('🔧 CRM: Room details edited successfully');
+ 
         // Reload rooms to show updated details
         await loadRooms();
         // Reload room details if this room is currently selected
@@ -109,25 +103,23 @@ const AdminChatDashboard = () => {
         setError('Failed to edit room details');
       }
     } catch (error) {
-      console.error('🔧 CRM: Error editing room details:', error);
       setError(error.message);
     }
   };
 
   const handleAssignAdmin = async (roomId, employeeId) => {
     try {
-      console.log('🔧 CRM: Assigning admin rights to:', employeeId);
+
       const response = await assignAdminRights(roomId, employeeId);
       
       if (response && response.status === 'success') {
-        console.log('🔧 CRM: Admin rights assigned successfully via context');
+
         // Reload room details to show updated admin status
         loadRoomDetails(roomId);
       } else {
         setError('Failed to assign admin rights');
       }
     } catch (error) {
-      console.error('🔧 CRM: Error assigning admin rights:', error);
       setError(error.message);
     }
   };

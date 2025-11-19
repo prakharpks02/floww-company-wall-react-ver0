@@ -36,7 +36,6 @@ export const useBroadcastActions = (showSuccess, showError, showWarning) => {
       showSuccess('Broadcast message sent successfully to all users!');
       return true;
     } catch (error) {
-      console.error('❌ Error sending broadcast:', error);
       showError(`Failed to send broadcast: ${error.message}`);
       return false;
     } finally {
@@ -60,7 +59,6 @@ export const useBroadcastActions = (showSuccess, showError, showWarning) => {
       // Return only the URL string instead of object
       return response.data?.file_url || response.file_url || response.url;
     } catch (error) {
-      console.error(`❌ Error uploading ${type}:`, error);
       showError(`Failed to upload ${type}: ${error.message}`);
       return null;
     }

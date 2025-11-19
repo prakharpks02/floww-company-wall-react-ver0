@@ -41,7 +41,6 @@ export const transformPostMedia = (post) => {
             mediaUrl = mediaData.link;
           }
         } catch (e) {
-          console.error('Failed to parse media link:', item.link, e);
           // Try to extract URL with regex as fallback
           const urlMatch = item.link.match(/https?:\/\/[^\s'"]+/);
           if (urlMatch) {
@@ -85,7 +84,6 @@ export const transformPostMedia = (post) => {
         });
       }
     } else {
-      console.warn('⚠️ Failed to extract media URL from:', item);
     }
   });
 
@@ -162,7 +160,6 @@ export const fetchPinnedPosts = async (adminAPI) => {
    
     return posts.map(transformPostMedia);
   } catch (e) {
-    console.error('Error fetching pinned posts:', e);
     return [];
   }
 };

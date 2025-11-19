@@ -103,7 +103,6 @@ export const useMediaHandling = (uploadMedia, showError) => {
         setShowCropModal(false);
       }
     } catch (error) {
-      console.error('Error processing cropped image:', error);
       showError('Failed to process cropped image');
     }
   };

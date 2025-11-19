@@ -11,7 +11,6 @@ import {
 import { adminAPI } from '../../services/adminAPI.jsx';
 import { useAlert } from '../UI/Alert';
 
-
 // Simple media components
 const SimpleVideoPlayer = ({ src, className }) => (
   <video 
@@ -89,7 +88,6 @@ function normalizeMedia(mediaArr = []) {
   
   return { images, videos, documents, links };
 }
-
 
 const AdminReportedPostCard = ({ postData, onPostUpdate, onPostDelete }) => {
   const [processingDelete, setProcessingDelete] = useState(false);
@@ -195,7 +193,6 @@ const AdminReportedPostCard = ({ postData, onPostUpdate, onPostDelete }) => {
         showError('Resolution Failed', response.message || 'Failed to resolve report');
       }
     } catch (error) {
-      console.error('Error resolving report:', error);
       showError('Resolution Error', error.message || 'Failed to resolve report');
     }
   };
@@ -216,7 +213,6 @@ const AdminReportedPostCard = ({ postData, onPostUpdate, onPostDelete }) => {
         showError('Deletion Failed', response.message || 'Failed to delete post');
       }
     } catch (error) {
-      console.error('Error deleting post:', error);
       showError('Deletion Error', error.message || 'Failed to delete post');
     } finally {
       setProcessingDelete(false);

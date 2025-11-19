@@ -1,6 +1,8 @@
 // Admin API service for chat administration functionality
 // This service is designed to work specifically with the CRM admin panel at localhost:8000/crm
 
+import { cookieUtils } from '../utils/cookieUtils';
+
 // Detect if we're running in the CRM admin environment
 const getCurrentUserType = () => {
   const currentPath = window.location.pathname;
@@ -10,29 +12,25 @@ const getCurrentUserType = () => {
 // Different base URLs for different environments
 const getApiBaseUrl = () => {
   const userType = getCurrentUserType();
+  const chatBase = import.meta.env.VITE_CHAT_API_BASE || 'https://console.gofloww.xyz/api/wall/chat';
   if (userType === 'admin') {
     // Admin endpoints - these are the only ones that work in CRM dashboard
-    return 'https://dev.gofloww.co/api/wall/chat/admin';
+    return `${chatBase}/admin`;
   } else {
     // Employee endpoints (fallback, but shouldn't be used in admin context)
-    return 'https://dev.gofloww.co/api/wall/chat';
+    return chatBase;
   }
 };
 
 const API_BASE_URL = getApiBaseUrl();
-const ADMIN_AUTH_TOKEN = '7a3239c81974cdd6140c3162468500ba95d7d5823ea69658658c2986216b273e';
 
-const API_HEADERS = {
-  'Authorization': ADMIN_AUTH_TOKEN,
-  'Content-Type': 'application/json'
+const getApiHeaders = () => {
+  const { adminToken } = cookieUtils.getAuthTokens();
+  return {
+    'Authorization': adminToken || '',
+    'Content-Type': 'application/json'
+  };
 };
-
-// Log the current configuration
-console.log('🔧 Admin API Configuration:', {
-  userType: getCurrentUserType(),
-  baseUrl: API_BASE_URL,
-  path: window.location.pathname
-});
 
 /**
  * Handle API responses and errors consistently
@@ -67,7 +65,7 @@ export const createRoom = async (receiverEmployeeId) => {
   try {
     const response = await fetch(`${API_BASE_URL}/rooms/create`, {
       method: 'POST',
-      headers: API_HEADERS,
+      headers: getApiHeaders(),
       body: JSON.stringify({
         receiver_employee_id: receiverEmployeeId
       })
@@ -75,7 +73,6 @@ export const createRoom = async (receiverEmployeeId) => {
 
     return await handleResponse(response);
   } catch (error) {
-    console.error('Error creating room:', error);
     throw error;
   }
 };
@@ -93,7 +90,7 @@ export const createGroup = async (groupData) => {
   try {
     const response = await fetch(`${API_BASE_URL}/rooms/create_group`, {
       method: 'POST',
-      headers: API_HEADERS,
+      headers: getApiHeaders(),
       body: JSON.stringify({
         group_name: groupData.group_name,
         group_description: groupData.group_description,
@@ -104,7 +101,6 @@ export const createGroup = async (groupData) => {
 
     return await handleResponse(response);
   } catch (error) {
-    console.error('Error creating group:', error);
     throw error;
   }
 };
@@ -120,13 +116,12 @@ export const listAllRooms = async (lastCheckedAt = null) => {
     
     const response = await fetch(`${API_BASE_URL}/rooms/list_all_rooms`, {
       method: 'POST',
-      headers: API_HEADERS,
+      headers: getApiHeaders(),
       body: JSON.stringify(body)
     });
 
     return await handleResponse(response);
   } catch (error) {
-    console.error('Error listing rooms:', error);
     throw error;
   }
 };
@@ -147,7 +142,6 @@ export const getRoomDetails = async (roomId) => {
 
     return await handleResponse(response);
   } catch (error) {
-    console.error('Error getting room details:', error);
     throw error;
   }
 };
@@ -165,13 +159,12 @@ export const editRoomDetails = async (roomId, roomData) => {
   try {
     const response = await fetch(`${API_BASE_URL}/rooms/${roomId}/edit_details`, {
       method: 'POST',
-      headers: API_HEADERS,
+      headers: getApiHeaders(),
       body: JSON.stringify(roomData)
     });
 
     return await handleResponse(response);
   } catch (error) {
-    console.error('Error editing room details:', error);
     throw error;
   }
 };
@@ -190,7 +183,7 @@ export const addParticipants = async (roomId, participantIds) => {
   try {
     const response = await fetch(`${API_BASE_URL}/rooms/${roomId}/add_participants`, {
       method: 'POST',
-      headers: API_HEADERS,
+      headers: getApiHeaders(),
       body: JSON.stringify({
         participant_ids: participantIds
       })
@@ -198,7 +191,6 @@ export const addParticipants = async (roomId, participantIds) => {
 
     return await handleResponse(response);
   } catch (error) {
-    console.error('Error adding participants:', error);
     throw error;
   }
 };
@@ -213,7 +205,7 @@ export const removeParticipant = async (roomId, participantId) => {
   try {
     const response = await fetch(`${API_BASE_URL}/rooms/${roomId}/remove_participant`, {
       method: 'POST',
-      headers: API_HEADERS,
+      headers: getApiHeaders(),
       body: JSON.stringify({
         participant_id: participantId
       })
@@ -221,7 +213,6 @@ export const removeParticipant = async (roomId, participantId) => {
 
     return await handleResponse(response);
   } catch (error) {
-    console.error('Error removing participant:', error);
     throw error;
   }
 };
@@ -240,7 +231,7 @@ export const assignAdminRights = async (roomId, employeeId) => {
   try {
     const response = await fetch(`${API_BASE_URL}/rooms/${roomId}/assign_admin_rights`, {
       method: 'POST',
-      headers: API_HEADERS,
+      headers: getApiHeaders(),
       body: JSON.stringify({
         employee_id: employeeId
       })
@@ -248,7 +239,6 @@ export const assignAdminRights = async (roomId, employeeId) => {
 
     return await handleResponse(response);
   } catch (error) {
-    console.error('Error assigning admin rights:', error);
     throw error;
   }
 };
@@ -263,7 +253,7 @@ export const removeAdminRights = async (roomId, employeeId) => {
   try {
     const response = await fetch(`${API_BASE_URL}/rooms/${roomId}/remove_admin_rights`, {
       method: 'POST',
-      headers: API_HEADERS,
+      headers: getApiHeaders(),
       body: JSON.stringify({
         employee_id: employeeId
       })
@@ -271,7 +261,6 @@ export const removeAdminRights = async (roomId, employeeId) => {
 
     return await handleResponse(response);
   } catch (error) {
-    console.error('Error removing admin rights:', error);
     throw error;
   }
 };
@@ -296,7 +285,6 @@ export const getRoomMessages = async (roomId) => {
 
     return await handleResponse(response);
   } catch (error) {
-    console.error('Error getting room messages:', error);
     throw error;
   }
 };
@@ -311,7 +299,7 @@ export const editMessage = async (messageId, content) => {
   try {
     const response = await fetch(`${API_BASE_URL}/messages/${messageId}/edit`, {
       method: 'POST',
-      headers: API_HEADERS,
+      headers: getApiHeaders(),
       body: JSON.stringify({
         content: content
       })
@@ -319,7 +307,6 @@ export const editMessage = async (messageId, content) => {
 
     return await handleResponse(response);
   } catch (error) {
-    console.error('Error editing message:', error);
     throw error;
   }
 };
@@ -344,7 +331,6 @@ export const checkAdminRights = async (roomId, employeeId) => {
     }
     return false;
   } catch (error) {
-    console.error('Error checking admin rights:', error);
     return false;
   }
 };
@@ -377,7 +363,6 @@ export const getRoomStats = async (roomId) => {
     
     throw new Error('Failed to get room statistics');
   } catch (error) {
-    console.error('Error getting room stats:', error);
     throw error;
   }
 };

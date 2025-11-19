@@ -25,12 +25,10 @@ const AdminAPITester = () => {
 
   const runTest = async (testName, testFn) => {
     try {
-      console.log(`🧪 Running test: ${testName}`);
       const result = await testFn();
       addResult(testName, 'success', result);
       return result;
     } catch (error) {
-      console.error(`❌ Test failed: ${testName}`, error);
       addResult(testName, 'error', null, error.message);
       throw error;
     }
@@ -114,7 +112,7 @@ const AdminAPITester = () => {
           Test all admin API endpoints to ensure they work correctly in the CRM environment
         </p>
         <div className="mt-2 text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded">
-          Testing: https://dev.gofloww.co/api/wall/chat/admin/*
+          Testing: https://console.gofloww.xyz/api/wall/chat/admin/*
         </div>
       </div>
 

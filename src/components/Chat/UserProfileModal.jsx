@@ -37,7 +37,7 @@ const UserProfileModal = ({ isOpen, onClose, userId, onStartChat, currentUserId 
       const formData = new FormData();
       formData.append('file', file);
 
-      const baseURL = 'https://dev.gofloww.co';
+      const baseURL = 'https://console.gofloww.xyz';
       const response = await fetch(`${baseURL}/api/wall/admin/upload_file`, {
         method: 'POST',
         body: formData,
@@ -54,7 +54,6 @@ const UserProfileModal = ({ isOpen, onClose, userId, onStartChat, currentUserId 
         
         // Here you could update the user's profile picture in the backend
         // You might need to call a user update API endpoint
-        console.log('✅ Profile picture updated successfully:', result.data.file_url);
         
         // You could also update the local user data if needed
         // This would depend on your user management system
@@ -63,7 +62,6 @@ const UserProfileModal = ({ isOpen, onClose, userId, onStartChat, currentUserId 
         throw new Error(result.message || 'Upload failed');
       }
     } catch (error) {
-      console.error('❌ Error uploading profile picture:', error);
       alert('Failed to upload profile picture. Please try again.');
     } finally {
       setUploadingPicture(false);

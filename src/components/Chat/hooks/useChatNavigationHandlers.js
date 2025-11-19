@@ -26,10 +26,7 @@ export const useChatNavigationHandlers = ({
     setIsConnectingToChat(true);
     setConnectingChatId(employeeChatId);
     
-    console.log('🔍 Starting new chat with chat IDs:', {
-      employee: employeeChatId,
-      currentUser: currentUserChatId
-    });
+    
     
     // Check if conversation already exists locally
     const existingConv = conversations.find(conv => 
@@ -39,7 +36,6 @@ export const useChatNavigationHandlers = ({
     );
 
     if (existingConv) {
-      console.log('✅ Found existing conversation, setting as active:', existingConv.room_id);
       setActiveConversation(existingConv);
       setGlobalActiveConversation(existingConv);
       markConversationAsRead(existingConv.id);
@@ -47,17 +43,13 @@ export const useChatNavigationHandlers = ({
       // Connect to WebSocket room and load messages if room_id exists
       if (existingConv.room_id) {
         const { enhancedChatAPI } = await import('../chatapi');
-        console.log('🔗 Connecting to existing WebSocket room:', existingConv.room_id);
         enhancedChatAPI.connectToRoom(existingConv.room_id);
         
         // Load messages for existing room
         try {
-          console.log('📜 Loading messages for existing room:', existingConv.room_id);
           const messagesResponse = await enhancedChatAPI.getRoomMessages(existingConv.room_id);
           
           if (messagesResponse.status === 'success' && Array.isArray(messagesResponse.data)) {
-            console.log(`📜 Loaded ${messagesResponse.data.length} messages for existing conversation`);
-            
             const formattedMessages = messagesResponse.data.map(msg => ({
               id: msg.message_id,
               senderId: msg.sender?.employee_id || msg.sender_id,
@@ -86,7 +78,6 @@ export const useChatNavigationHandlers = ({
             }
           }
         } catch (error) {
-          console.error('❌ Error loading messages for existing room:', error);
         }
       }
       
@@ -94,21 +85,15 @@ export const useChatNavigationHandlers = ({
       setIsConnectingToChat(false);
       setConnectingChatId(null);
     } else {
-      console.log('🆕 Creating new conversation and room immediately');
-      
       // Create the conversation locally first
       const newConv = createConversation([currentUserChatId, employeeChatId], 'direct');
       
       // Immediately create the room and connect
       try {
         const { enhancedChatAPI } = await import('../chatapi');
-        console.log('🏠 Creating room immediately for new conversation with:', employeeChatId);
-        
         const roomResponse = await enhancedChatAPI.createRoomAndConnect(String(employeeChatId));
         
         if (roomResponse && roomResponse.room_id) {
-          console.log('✅ Room created immediately:', roomResponse.room_id);
-          
           // Update the conversation with room_id
           newConv.room_id = roomResponse.room_id;
           
@@ -123,12 +108,9 @@ export const useChatNavigationHandlers = ({
           
           // Load messages for the newly created room
           try {
-            console.log('📜 Loading messages for newly created room:', roomResponse.room_id);
             const messagesResponse = await enhancedChatAPI.getRoomMessages(roomResponse.room_id);
             
             if (messagesResponse.status === 'success' && Array.isArray(messagesResponse.data)) {
-              console.log(`📜 Loaded ${messagesResponse.data.length} messages for new room`);
-              
               const formattedMessages = messagesResponse.data.map(msg => ({
                 id: msg.message_id,
                 senderId: msg.sender?.employee_id || msg.sender_id,
@@ -165,7 +147,6 @@ export const useChatNavigationHandlers = ({
               }
             }
           } catch (error) {
-            console.error('❌ Error loading messages for new room:', error);
             // Initialize empty messages array on error
             if (setMessages) {
               setMessages(prev => ({
@@ -174,13 +155,9 @@ export const useChatNavigationHandlers = ({
               }));
             }
           }
-          
-          console.log('🔗 WebSocket connected to new room:', roomResponse.room_id);
         } else {
-          console.error('❌ Failed to create room immediately');
         }
       } catch (error) {
-        console.error('❌ Error creating room immediately:', error);
       }
       
       setActiveConversation(newConv);
@@ -207,8 +184,6 @@ export const useChatNavigationHandlers = ({
 
   // Handle selecting an existing conversation from the list
   const handleSelectConversation = async (conversation) => {
-    console.log('🔍 Selecting conversation:', conversation.id, 'Room ID:', conversation.room_id);
-    
     // Set loading state for existing conversations too
     if (conversation.participants && conversation.participants.length > 0) {
       const otherParticipant = conversation.participants.find(p => p !== (currentUser.employeeId || currentUser.id));
@@ -226,16 +201,12 @@ export const useChatNavigationHandlers = ({
     if (conversation.room_id) {
       try {
         const { enhancedChatAPI } = await import('../chatapi');
-        console.log('🔗 Connecting to WebSocket room:', conversation.room_id);
         enhancedChatAPI.connectToRoom(conversation.room_id);
         
         // Load messages for the conversation
-        console.log('📜 Loading messages for room:', conversation.room_id);
         const messagesResponse = await enhancedChatAPI.getRoomMessages(conversation.room_id);
         
         if (messagesResponse.status === 'success' && Array.isArray(messagesResponse.data)) {
-          console.log(`📜 Loaded ${messagesResponse.data.length} messages for conversation`);
-          
           const formattedMessages = messagesResponse.data.map(msg => {
             const message = {
               id: msg.message_id,
@@ -258,11 +229,7 @@ export const useChatNavigationHandlers = ({
                 senderName: msg.reply_to_message.sender?.employee_name || 'Unknown User',
                 timestamp: new Date(msg.reply_to_message.created_at)
               };
-              console.log('🔍 [NAV] Parsed reply in NavigationHandlers:', {
-                messageId: message.id,
-                content: message.text,
-                replyTo: message.replyTo
-              });
+              
             }
 
             return message;
@@ -275,10 +242,7 @@ export const useChatNavigationHandlers = ({
               [conversation.id]: formattedMessages
             }));
           }
-          
-          console.log('✅ Messages loaded and WebSocket connected for conversation');
         } else {
-          console.log('⚠️ No messages found for conversation');
           // Initialize empty messages array
           if (setMessages) {
             setMessages(prev => ({
@@ -288,7 +252,6 @@ export const useChatNavigationHandlers = ({
           }
         }
       } catch (error) {
-        console.error('❌ Error connecting to conversation room or loading messages:', error);
         // Initialize empty messages array on error
         if (setMessages) {
           setMessages(prev => ({
@@ -302,7 +265,6 @@ export const useChatNavigationHandlers = ({
         setConnectingChatId(null);
       }
     } else {
-      console.log('⚠️ Conversation has no room_id, initializing empty messages');
       // Initialize empty messages array for conversations without room_id
       if (setMessages) {
         setMessages(prev => ({
@@ -373,7 +335,6 @@ export const useChatNavigationHandlers = ({
         break;
         
       default:
-        console.log('Unknown attachment type:', type);
     }
   };
 

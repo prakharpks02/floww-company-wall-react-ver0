@@ -34,10 +34,8 @@ const Dashboard = () => {
   let chatContext;
   try {
     chatContext = useChat();
-    console.log('🔧 Dashboard: useChat() successful');
   } catch (error) {
-    console.error('🔧 Dashboard: useChat() failed:', error);
-    console.error('🔧 Dashboard: Location:', window.location.pathname);
+    
     // Provide fallback values to prevent crash
     chatContext = {
       isChatOpen: false,
@@ -45,8 +43,8 @@ const Dashboard = () => {
       isCompactMode: false,
       isFullScreenMobile: false,
       totalUnreadMessages: 0,
-      toggleChat: () => console.warn('Chat not available - context error'),
-      closeChat: () => console.warn('Chat not available - context error')
+      toggleChat: () => {},
+      closeChat: () => {}
     };
   }
   
@@ -111,7 +109,6 @@ const Dashboard = () => {
         // For myposts view, let MyPosts component handle its own data loading
         // For broadcast view, data is fetched by BroadcastView component
       } catch (error) {
-        console.error('Error loading data for view:', activeView, error);
       } finally {
         isLoadingRef.current = false;
       }

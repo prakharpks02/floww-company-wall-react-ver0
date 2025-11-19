@@ -6,6 +6,14 @@ import { useAuth } from '../../contexts/AuthContext';
 import PostCard from '../Posts/PostCard';
 import CreatePost from '../Posts/CreatePost';
 
+// Avatar URL generator helper
+const generateAvatarUrl = (name, options = {}) => {
+  const { background = 'random', color = 'white', size = 128 } = options;
+  const encodedName = encodeURIComponent(name);
+  const apiUrl = import.meta.env.VITE_DEFAULT_AVATAR_API;
+  return `${apiUrl}/?name=${encodedName}&background=${background}&color=${color}&size=${size}`;
+};
+
 const BroadcastView = () => {
   const { user } = useAuth();
   const [broadcasts, setBroadcasts] = useState([]);
@@ -151,12 +159,12 @@ const BroadcastView = () => {
             name: 'Admin',
             employee_name: 'Admin',
             email: 'admin@company.com',
-            avatar: `https://ui-avatars.com/api/?name=Admin&background=9f7aea&color=white&size=128`,
+            avatar: generateAvatarUrl('Admin', { background: '9f7aea', color: 'white', size: 128 }),
             position: 'Administrator',
             is_blocked: false
           },
           // Legacy fields for backward compatibility - always show admin user for broadcasts
-          authorAvatar: `https://ui-avatars.com/api/?name=Admin&background=9f7aea&color=white&size=128`,
+          authorAvatar: generateAvatarUrl('Admin', { background: '9f7aea', color: 'white', size: 128 }),
           authorPosition: 'Administrator',
           createdAt: broadcast.created_at,
           created_at: broadcast.created_at,

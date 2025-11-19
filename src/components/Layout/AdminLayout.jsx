@@ -7,7 +7,6 @@ import React from 'react';
  * employee API calls.
  */
 const AdminLayout = ({ children }) => {
-  console.log('🔧 AdminLayout: Rendering admin-only layout');
   
   return (
     <div className="admin-layout min-h-screen bg-gray-50">

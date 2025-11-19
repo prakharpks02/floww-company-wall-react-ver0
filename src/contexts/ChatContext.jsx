@@ -11,10 +11,8 @@ const isAdminEnvironment = () => {
 // Choose API based on environment
 const getChatAPI = () => {
   if (isAdminEnvironment()) {
-    console.log('🔧 ChatContext: Using ADMIN APIs (CRM environment detected)');
     return adminChatAPI;
   } else {
-    console.log('🔧 ChatContext: Using EMPLOYEE APIs (regular environment)');
     return enhancedChatAPI;
   }
 };
@@ -24,16 +22,13 @@ const ChatContext = createContext();
 export const useChat = () => {
   const context = useContext(ChatContext);
   if (!context) {
-    console.error('🔧 ChatContext: useChat called outside of ChatProvider!');
-    console.error('🔧 Current location:', window.location.pathname);
-    console.error('🔧 Stack trace:', new Error().stack);
+    
     throw new Error('useChat must be used within a ChatProvider');
   }
   return context;
 };
 
 export const ChatProvider = ({ children }) => {
-  console.log('🔧 ChatProvider: Component initialized');
   const [conversations, setConversations] = useState([]);
   const [messages, setMessages] = useState({});
   const [activeConversation, setActiveConversation] = useState(null);
@@ -50,8 +45,6 @@ export const ChatProvider = ({ children }) => {
     try {
       const currentAPI = getChatAPI();
       const envType = isAdminEnvironment() ? 'ADMIN' : 'EMPLOYEE';
-      
-      console.log(`🔧 ChatContext: Loading messages for conversation ${conversationId} using ${envType} API...`);
       const messagesResponse = await currentAPI.getRoomMessages(conversationId);
       
       if (messagesResponse.status === 'success' && Array.isArray(messagesResponse.data)) {
@@ -83,18 +76,11 @@ export const ChatProvider = ({ children }) => {
               senderAvatar: msg.reply_to_message.sender?.profile_picture_link,
               timestamp: new Date(msg.reply_to_message.created_at)
             };
-            console.log('🔍 [CONTEXT] Parsed reply in ChatContext:', {
-              messageId: message.id,
-              content: message.text,
-              replyTo: message.replyTo
-            });
+            
           }
 
           return message;
         });
-        
-        console.log(`Loaded ${apiMessages.length} messages for conversation ${conversationId}`);
-        
         // Update messages state
         setMessages(prev => ({
           ...prev,
@@ -103,7 +89,6 @@ export const ChatProvider = ({ children }) => {
         
         return apiMessages;
       } else {
-        console.log(`No messages found for conversation ${conversationId}`);
         setMessages(prev => ({
           ...prev,
           [conversationId]: []
@@ -111,7 +96,6 @@ export const ChatProvider = ({ children }) => {
         return [];
       }
     } catch (error) {
-      console.error(`Failed to load messages for conversation ${conversationId}:`, error);
       setMessages(prev => ({
         ...prev,
         [conversationId]: []
@@ -125,27 +109,13 @@ export const ChatProvider = ({ children }) => {
     try {
       const currentAPI = getChatAPI();
       const envType = isAdminEnvironment() ? 'ADMIN' : 'EMPLOYEE';
-      
-      console.log(`🔧 ChatContext: Loading conversations using ${envType} API...`);
       setConversationsLoading(true);
       
       const roomsResponse = await currentAPI.listAllRooms();
-      console.log('Rooms API response:', roomsResponse);
-      console.log('Response status:', roomsResponse?.status);
-      console.log('Response data:', roomsResponse?.data);
-      console.log('Is data array?', Array.isArray(roomsResponse?.data));
       
       if (roomsResponse.status === 'success' && Array.isArray(roomsResponse.data)) {
         const apiConversations = roomsResponse.data.map(room => {
-          console.log('Processing room:', room);
-          console.log('Room description (room_desc):', room.room_desc);
-          console.log('Room icon fields:', {
-            room_icon: room.room_icon,
-            icon: room.icon,
-            group_icon: room.group_icon,
-            image: room.image,
-            avatar: room.avatar
-          });
+          
           
           // Extract participants and filter out null/invalid values
           const participants = room.participants ? room.participants
@@ -158,12 +128,7 @@ export const ChatProvider = ({ children }) => {
           const adminIds = room.participants ? room.participants
             .filter(p => p.is_admin === true && p.employee_id && p.employee_id !== 'N/A')
             .map(p => p.employee_id) : [];
-
-          console.log('Room participants with admin status:', room.participants?.map(p => ({ id: p.employee_id, isAdmin: p.is_admin })));
-          console.log('Extracted admin IDs:', adminIds);
-          console.log('Room creator:', room.created_by, 'creator_id:', room.creator_id);
-          console.log('Last message type:', typeof room.last_message);
-          console.log('Last message value:', room.last_message);
+          
           
           const isGroup = room.is_group || participants.length > 2;
           
@@ -188,43 +153,29 @@ export const ChatProvider = ({ children }) => {
           }
           
 
-
           // Handle room_icon - can be string or array
           let iconUrl = null;
-          console.log(`🖼️ Processing icon for room: ${conversationName}`, {
-            room_icon: room.room_icon,
-            isArray: Array.isArray(room.room_icon),
-            type: typeof room.room_icon
-          });
+          
           
           if (room.room_icon) {
             if (Array.isArray(room.room_icon)) {
               // For direct chats, room_icon is an array - take first element
               const iconValue = room.room_icon[0];
-              console.log(`  📦 Array icon value: ${iconValue}`);
               // Only use if it's a valid URL (not abbreviations)
               if (iconValue && iconValue.startsWith('http')) {
                 iconUrl = iconValue;
-                console.log(`  ✅ Using array icon URL: ${iconUrl}`);
               } else {
-                console.log(`  ❌ Ignoring non-URL array value: ${iconValue}`);
               }
             } else if (typeof room.room_icon === 'string') {
               // For groups, room_icon is a string
-              console.log(`  📝 String icon value: ${room.room_icon}`);
               // Only use it if it's a valid URL (starts with http)
               if (room.room_icon.startsWith('http')) {
                 iconUrl = room.room_icon;
-                console.log(`  ✅ Using string icon URL: ${iconUrl}`);
               } else {
-                console.log(`  ❌ Ignoring non-URL string value: ${room.room_icon}`);
               }
               // Ignore abbreviations like "TE", "A", etc. - they should show as initials instead
             }
           }
-          
-          console.log(`  🎯 Final icon URL for ${conversationName}: ${iconUrl}`);
-
           return {
             id: room.room_id || room.id,
             room_id: room.room_id || room.id,
@@ -258,16 +209,12 @@ export const ChatProvider = ({ children }) => {
           };
         });
         
-        console.log('Converted conversations:', apiConversations);
-        console.log('Total conversations loaded:', apiConversations.length);
         setConversations(apiConversations);
         
       } else {
-        console.log('No conversations found or invalid response');
         setConversations([]);
       }
     } catch (error) {
-      console.error('Failed to load conversations:', error);
       setConversations([]);
     } finally {
       setConversationsLoading(false);
@@ -280,18 +227,12 @@ export const ChatProvider = ({ children }) => {
       try {
         setEmployeesLoading(true);
         const loadedEmployees = await initializeEmployees();
-        console.log('🔧 Employees loaded:', loadedEmployees?.length || 0, 'employees');
-        console.log('🔧 Sample employee IDs:', loadedEmployees?.slice(0, 3)?.map(emp => ({
-          id: emp.id,
-          employeeId: emp.employeeId,
-          name: emp.name
-        })));
+        
         setEmployees(loadedEmployees);
         
         // Load conversations after employees are loaded
         await loadConversations();
       } catch (error) {
-        console.error('Failed to load chat data:', error);
         setEmployees([]);
         setConversations([]);
       } finally {
@@ -307,15 +248,12 @@ export const ChatProvider = ({ children }) => {
     if (conversations.length === 0) return;
 
     const syncInterval = setInterval(async () => {
-      console.log('🔄 Performing periodic message sync for all conversations...');
-      
       // Sync messages for conversations that have room_id
       for (const conversation of conversations.slice(0, 3)) { // Limit to first 3 to avoid too many API calls
         if (conversation.room_id) {
           try {
             await loadMessagesForConversation(conversation.id);
           } catch (error) {
-            console.warn('Periodic sync failed for conversation:', conversation.id, error);
           }
         }
       }
@@ -385,8 +323,7 @@ export const ChatProvider = ({ children }) => {
 
   // Create new group using admin API
   const createGroup = async (name, description, participants, createdBy) => {
-    console.log('🔧 ChatContext: Creating group using admin API...');
-    console.log('🔧 Group data:', { name, description, participants, createdBy });
+    
     
     try {
       // Prepare participants for admin API (need employee IDs)
@@ -408,9 +345,6 @@ export const ChatProvider = ({ children }) => {
           }
         }
       }
-      
-      console.log('🔧 Converted participant IDs:', participantIds);
-      
       // Call admin API to create group
       const groupData = {
         group_name: name,
@@ -418,13 +352,9 @@ export const ChatProvider = ({ children }) => {
         group_icon: name.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2),
         participants_ids: participantIds
       };
-      
-      console.log('🔧 Calling admin API with:', groupData);
       const response = await adminChatAPI.createGroup(groupData);
       
       if (response && response.status === 'success') {
-        console.log('✅ Group created successfully via admin API:', response);
-        
         // Reload conversations to include the new group
         await loadConversations();
         
@@ -434,11 +364,9 @@ export const ChatProvider = ({ children }) => {
         );
         
         if (newGroup) {
-          console.log('✅ New group found in conversations:', newGroup);
           return newGroup;
         } else {
           // Create a temporary local group object for immediate UI update
-          console.log('📝 Creating temporary group object for UI');
           const tempGroup = createConversation(
             participants,
             'group',
@@ -453,15 +381,11 @@ export const ChatProvider = ({ children }) => {
           return tempGroup;
         }
       } else {
-        console.error('❌ Failed to create group via admin API:', response);
         throw new Error(response?.message || 'Failed to create group');
       }
       
     } catch (error) {
-      console.error('❌ Error creating group via admin API:', error);
-      
       // Fallback: create local group if API fails (for development)
-      console.log('🔄 Falling back to local group creation');
       const avatar = name.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2);
       const fallbackGroup = createConversation(
         participants,
@@ -470,24 +394,17 @@ export const ChatProvider = ({ children }) => {
       );
       
       // Show error to user (you might want to add error state to context)
-      console.warn('⚠️ Group created locally only - API creation failed:', error.message);
-      
       return fallbackGroup;
     }
   };
 
   // Update existing conversation
   const updateConversation = (conversationId, updates) => {
-    console.log('🔄 ChatContext: updateConversation called', {
-      conversationId,
-      updates,
-      currentConversationsCount: conversations.length
-    });
+    
     
     setConversations(prev => {
       const updated = prev.map(conv => {
         if (conv.id === conversationId) {
-          console.log('✅ Found and updating conversation:', conv.name || conv.id);
           return { ...conv, ...updates };
         }
         return conv;

@@ -2,6 +2,14 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { userAPI } from '../services/api.jsx';
 import { cookieUtils } from '../utils/cookieUtils';
 
+// Avatar URL generator helper
+const generateAvatarUrl = (name, options = {}) => {
+  const { background = 'random', color = 'white', size = 128 } = options;
+  const encodedName = encodeURIComponent(name);
+  const apiUrl = import.meta.env.VITE_DEFAULT_AVATAR_API;
+  return `${apiUrl}/?name=${encodedName}&background=${background}&color=${color}&size=${size}`;
+};
+
 // Create the Auth Context
 const AuthContext = createContext();
 
@@ -44,9 +52,8 @@ const fetchUser = async () => {
   
     
     if (!token) {
-   
       // No token found, redirect to main Floww application
-      window.location.href = "https://employee.gofloww.co";
+      window.location.href = import.meta.env.VITE_EMPLOYEE_LOGIN_URL;
       return;
     }
 
@@ -73,7 +80,7 @@ const fetchUser = async () => {
               is_blocked: userData.is_blocked || false,
               authenticated: true,
               token: token,
-              profile_picture_link: userData.profile_picture_link || `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.employee_name)}&background=9f7aea&color=white&size=128`,
+              profile_picture_link: userData.profile_picture_link || generateAvatarUrl(userData.employee_name, { background: '9f7aea', color: 'white', size: 128 }),
               position: userData.job_title || 'Administrator',
               department: 'Administration',
               is_admin: true
@@ -102,7 +109,7 @@ const fetchUser = async () => {
           is_blocked: false,
           authenticated: true,
           token: token,
-          profile_picture_link: `https://ui-avatars.com/api/?name=Admin&background=9f7aea&color=white&size=128`,
+          profile_picture_link: generateAvatarUrl('Admin', { background: '9f7aea', color: 'white', size: 128 }),
           position: 'Administrator',
           department: 'Administration',
           is_admin: true
@@ -140,7 +147,7 @@ const fetchUser = async () => {
           is_blocked: userData.is_blocked || false,
           authenticated: true,
           token: token,
-          profile_picture_link: userData.profile_picture_link || `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.employee_name)}&background=9f7aea&color=white&size=128`,
+          profile_picture_link: userData.profile_picture_link || generateAvatarUrl(userData.employee_name, { background: '9f7aea', color: 'white', size: 128 }),
           position: userData.job_title, // Using job_title instead of 'Employee'
           department: 'General',
           is_admin: false
@@ -168,7 +175,7 @@ const fetchUser = async () => {
           is_blocked: false,
           authenticated: true,
           token: token,
-          profile_picture_link: `https://ui-avatars.com/api/?name=Employee&background=9f7aea&color=white&size=128`,
+          profile_picture_link: generateAvatarUrl('Employee', { background: '9f7aea', color: 'white', size: 128 }),
           position: 'Employee',
           department: 'General',
           is_admin: false
@@ -280,7 +287,6 @@ const fetchUser = async () => {
     try {
       await fetchUser();
     } catch (error) {
-      console.error('Failed to refresh user data:', error);
       // Clear invalid tokens and redirect
       clearAuthTokens();
       window.location.href = import.meta.env.VITE_APP_BASE_URL ;
@@ -292,7 +298,7 @@ const fetchUser = async () => {
   const logout = () => {
     setUser(null);
     clearAuthTokens(); // Clear cookies instead of just redirecting
-    window.location.href = 'https://console.gofloww.co/employee/';
+    window.location.href = import.meta.env.VITE_CONSOLE_URL;
   };
 
   const value = {
