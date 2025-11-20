@@ -195,7 +195,6 @@ const fetchWithTimeout = async (url, options = {}) => {
   return requestPromise;
 };
 
-
 // =============================================================================
 // LOCAL STORAGE MANAGEMENT
 // =============================================================================
@@ -216,7 +215,6 @@ const StorageManager = {
       const item = localStorage.getItem(key);
       return item ? JSON.parse(item) : null;
     } catch (error) {
-      console.error(`Storage error getting ${key}:`, error);
       return null;
     }
   },
@@ -227,7 +225,6 @@ const StorageManager = {
       localStorage.setItem(key, JSON.stringify(value));
       return true;
     } catch (error) {
-      console.error(`Storage error setting ${key}:`, error);
       return false;
     }
   },
@@ -238,7 +235,6 @@ const StorageManager = {
       localStorage.removeItem(key);
       return true;
     } catch (error) {
-      console.error(`Storage error removing ${key}:`, error);
       return false;
     }
   },
@@ -312,7 +308,6 @@ export const userAPI = {
       const result = await handleResponse(response);
       return result;
     } catch (error) {
-      console.error('❌ Get user by ID error:', error.message);
       throw error;
     }
   },
@@ -331,7 +326,6 @@ export const userAPI = {
       const result = await handleResponse(response);
       return result;
     } catch (error) {
-      console.error('❌ Get current user error:', error.message);
       throw error;
     }
   },
@@ -354,7 +348,6 @@ export const userAPI = {
       const result = await handleResponse(response);
       return result;
     } catch (error) {
-      console.error('❌ Get users for mentions error:', error.message);
       throw error;
     }
   }
@@ -378,7 +371,6 @@ export const postsAPI = {
       const result = await handleResponse(response);
       return result;
     } catch (error) {
-      console.error('❌ Create post error:', error.message);
       throw error;
     }
   },
@@ -413,7 +405,6 @@ export const postsAPI = {
         raw: result
       };
     } catch (error) {
-      console.error('❌ Get posts error:', error.message);
       throw error;
     }
   },
@@ -434,7 +425,6 @@ export const postsAPI = {
       const result = await handleResponse(response);
       return result;
     } catch (error) {
-      console.error('❌ Get my posts error:', error.message);
       throw error;
     }
   },
@@ -453,7 +443,6 @@ export const postsAPI = {
       const result = await handleResponse(response);
       return result;
     } catch (error) {
-      console.error('❌ Get user posts error:', error.message);
       throw error;
     }
   },
@@ -471,7 +460,6 @@ export const postsAPI = {
       const result = await handleResponse(response);
       return result;
     } catch (error) {
-      console.error('❌ Get post by ID error:', error.message);
       throw error;
     }
   },
@@ -517,7 +505,6 @@ export const postsAPI = {
       const result = await handleResponse(response);
       return result;
     } catch (error) {
-      console.error('❌ Update post error:', error.message);
       throw error;
     }
   },
@@ -539,7 +526,6 @@ export const postsAPI = {
       const result = await handleResponse(response);
       return result;
     } catch (error) {
-      console.error('❌ Delete post error:', error.message);
       throw error;
     }
   },
@@ -564,7 +550,6 @@ export const postsAPI = {
       const result = await handleResponse(response);
       return result;
     } catch (error) {
-      console.error('❌ Toggle like error:', error.message);
       throw error;
     }
   },
@@ -597,8 +582,7 @@ export const postsAPI = {
       const result = await handleResponse(response);
       return result;
     } catch (error) {
-      console.error('❌ Add reaction error:', error.message);
-      console.error('❌ Request body was:', requestBody);
+      
       throw error;
     }
   },
@@ -625,8 +609,7 @@ export const postsAPI = {
       const result = await handleResponse(response);
       return result;
     } catch (error) {
-      console.error('❌ Remove reaction error:', error.message);
-      console.error('❌ Request body was:', requestBody);
+      
       throw error;
     }
   },
@@ -645,7 +628,6 @@ export const postsAPI = {
       const result = await handleResponse(response);
       return result;
     } catch (error) {
-      console.error('❌ Add comment error:', error.message);
       throw error;
     }
   },
@@ -663,7 +645,6 @@ export const postsAPI = {
       const result = await handleResponse(response);
       return result;
     } catch (error) {
-      console.error('❌ Get comments error:', error.message);
       throw error;
     }
   },
@@ -682,7 +663,6 @@ export const postsAPI = {
       const result = await handleResponse(response);
       return result;
     } catch (error) {
-      console.error('❌ Add reply error:', error.message);
       throw error;
     }
   },
@@ -701,7 +681,6 @@ export const postsAPI = {
       const result = await handleResponse(response);
       return result;
     } catch (error) {
-      console.error('❌ Get replies error:', error.message);
       throw error;
     }
   },
@@ -720,7 +699,6 @@ export const postsAPI = {
       const result = await handleResponse(response);
       return result;
     } catch (error) {
-      console.error('❌ Delete comment (legacy) error:', error.message);
       throw error;
     }
   },
@@ -738,7 +716,6 @@ export const postsAPI = {
       const result = await handleResponse(response);
       return result;
     } catch (error) {
-      console.error('❌ Delete reply error:', error.message);
       throw error;
     }
   },
@@ -769,8 +746,7 @@ export const postsAPI = {
       const result = await handleResponse(response);
       return result;
     } catch (error) {
-      console.error('❌ Add comment reaction error:', error.message);
-      console.error('❌ Request body was:', requestBody);
+      
       throw error;
     }
   },
@@ -795,8 +771,7 @@ export const postsAPI = {
       const result = await handleResponse(response);
       return result;
     } catch (error) {
-      console.error('❌ Delete comment reaction error:', error.message);
-      console.error('❌ Request body was:', requestBody);
+      
       throw error;
     }
   },
@@ -814,7 +789,6 @@ export const postsAPI = {
       const result = await handleResponse(response);
       return result;
     } catch (error) {
-      console.error('❌ Delete comment error:', error.message);
       throw error;
     }
   },
@@ -850,7 +824,6 @@ export const postsAPI = {
       const result = await handleResponse(response);
       return result;
     } catch (error) {
-      console.error('❌ Edit comment error:', error.message);
       throw error;
     }
   },
@@ -880,7 +853,6 @@ export const postsAPI = {
       const result = await handleResponse(response);
       return result;
     } catch (error) {
-      console.error('❌ Add comment reply error:', error.message);
       throw error;
     }
   },
@@ -899,7 +871,6 @@ export const postsAPI = {
       const result = await handleResponse(response);
       return result;
     } catch (error) {
-      console.error('❌ Report post error:', error.message);
       throw error;
     }
   },
@@ -917,7 +888,6 @@ export const postsAPI = {
       const result = await handleResponse(response);
       return result;
     } catch (error) {
-      console.error('❌ Report comment error:', error.message);
       throw error;
     }
   },
@@ -934,7 +904,6 @@ export const postsAPI = {
       const result = await handleResponse(response);
       return result;
     } catch (error) {
-      console.error('❌ Get broadcast posts error:', error.message);
       throw error;
     }
   },
@@ -951,7 +920,6 @@ export const postsAPI = {
       const result = await handleResponse(response);
       return result;
     } catch (error) {
-      console.error('❌ Get pinned posts error:', error.message);
       throw error;
     }
   }
@@ -979,7 +947,6 @@ export const mediaAPI = {
       const result = await handleResponse(response);
       return result;
     } catch (error) {
-      console.error('❌ Upload file error:', error.message);
       throw error;
     }
   },
@@ -991,7 +958,6 @@ export const mediaAPI = {
       const results = await Promise.all(uploadPromises);
       return results;
     } catch (error) {
-      console.error('❌ Upload multiple files error:', error.message);
       throw error;
     }
   },
@@ -1010,7 +976,6 @@ export const mediaAPI = {
       const result = await handleResponse(response);
       return result;
     } catch (error) {
-      console.error('❌ Delete file error:', error.message);
       throw error;
     }
   }
@@ -1034,7 +999,6 @@ export const notificationsAPI = {
       const result = await handleResponse(response);
       return result;
     } catch (error) {
-      console.error('❌ Get notifications error:', error.message);
       throw error;
     }
   },
@@ -1053,7 +1017,6 @@ export const notificationsAPI = {
       const result = await handleResponse(response);
       return result;
     } catch (error) {
-      console.error('❌ Mark notification as read error:', error.message);
       throw error;
     }
   },
@@ -1072,7 +1035,6 @@ export const notificationsAPI = {
       const result = await handleResponse(response);
       return result;
     } catch (error) {
-      console.error('❌ Mark all notifications as read error:', error.message);
       throw error;
     }
   }
@@ -1097,7 +1059,6 @@ export const adminAPI = {
       const result = await handleResponse(response);
       return result;
     } catch (error) {
-      console.error('❌ Get all users error:', error.message);
       throw error;
     }
   },
@@ -1117,7 +1078,6 @@ export const adminAPI = {
       const result = await handleResponse(response);
       return result;
     } catch (error) {
-      console.error('❌ Toggle user block error:', error.message);
       throw error;
     }
   },
@@ -1138,7 +1098,6 @@ export const adminAPI = {
       const result = await handleResponse(response);
       return result;
     } catch (error) {
-      console.error('❌ Admin delete post error:', error.message);
       throw error;
     }
   },
@@ -1157,7 +1116,6 @@ export const adminAPI = {
       const result = await handleResponse(response);
       return result;
     } catch (error) {
-      console.error('❌ Get blocked users error:', error.message);
       throw error;
     }
   },
@@ -1177,7 +1135,6 @@ export const adminAPI = {
       const result = await handleResponse(response);
       return result;
     } catch (error) {
-      console.error('❌ Admin delete comment error:', error.message);
       throw error;
     }
   },
@@ -1197,7 +1154,6 @@ export const adminAPI = {
       const result = await handleResponse(response);
       return result;
     } catch (error) {
-      console.error('❌ Admin delete reply error:', error.message);
       throw error;
     }
   }
@@ -1221,7 +1177,6 @@ export const utilityAPI = {
       const result = await handleResponse(response);
       return result;
     } catch (error) {
-      console.error('❌ Get server info error:', error.message);
       throw error;
     }
   },
@@ -1276,7 +1231,6 @@ const api = {
       try {
         return checkAuthToken();
       } catch (error) {
-        console.error('❌ Auth check failed:', error.message);
         return false;
       }
     }

@@ -72,7 +72,6 @@ const AdminReportedCommentCard = ({ commentData, onCommentUpdate, onCommentDelet
         showError('Deletion Failed', response.message || 'Failed to delete comment');
       }
     } catch (error) {
-      console.error('Error deleting comment:', error);
       showError('Deletion Error', error.message || 'Failed to delete comment');
     } finally {
       setProcessingDelete(false);
@@ -94,7 +93,6 @@ const AdminReportedCommentCard = ({ commentData, onCommentUpdate, onCommentDelet
         showError('Resolution Failed', response.message || 'Failed to resolve report');
       }
     } catch (error) {
-      console.error('Error resolving report:', error);
       showError('Resolution Error', error.message || 'Failed to resolve report');
     }
   };

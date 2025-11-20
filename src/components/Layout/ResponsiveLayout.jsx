@@ -1,20 +1,39 @@
 import React, { useState, useEffect } from 'react';
-import { Home, Plus, FileText, Megaphone } from 'lucide-react';
+import { Home, Plus, FileText, Megaphone, MessageCircle } from 'lucide-react';
 import { useChat } from '../../contexts/ChatContext';
 
 const MobileBottomNav = ({ activeView, onViewChange, onCreatePost, user, isScrolledDown }) => {
   const isAdmin = user?.is_admin;
+  const { isChatOpen, isChatMinimized, toggleChat, conversations } = useChat();
+  
+  // Calculate total unread messages
+  const totalUnreadMessages = conversations.reduce((total, conv) => total + conv.unreadCount, 0);
+  
+  // Scroll to top function
+  const scrollToTop = () => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth',
+    });
+  };
+
+  // Handle home button click - scroll to top if already on home, otherwise navigate to home
+  const handleHomeClick = () => {
+    if (activeView === 'home') {
+      scrollToTop();
+    } else {
+      onViewChange('home');
+    }
+  };
   
   // For non-admin users, create a layout with Create Post in the center
   if (!isAdmin) {
     return (
       <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-gradient-to-t from-white via-white to-gray-50/80 border-t border-gray-200 safe-area-inset-bottom z-40 shadow-lg backdrop-blur-sm">
-        <div className={`flex items-center transition-all duration-300 py-3 ${
-          isScrolledDown ? 'px-2 pr-16' : 'px-1'
-        }`}>
+        <div className="flex items-center py-3 px-1">
           {/* Home Feed */}
           <button
-            onClick={() => onViewChange('home')}
+            onClick={handleHomeClick}
             className={`flex flex-col items-center justify-center p-2 rounded-lg transition-all duration-200 touch-friendly flex-1 mx-1 ${
               activeView === 'home'
                 ? 'text-purple-600 bg-purple-50 scale-105'
@@ -59,6 +78,24 @@ const MobileBottomNav = ({ activeView, onViewChange, onCreatePost, user, isScrol
             <FileText className="h-5 w-5 mb-1" />
             <span className="text-xs font-medium">My Posts</span>
           </button>
+
+          {/* Chat */}
+          <button
+            onClick={toggleChat}
+            className={`relative flex flex-col items-center justify-center p-2 rounded-lg transition-all duration-200 touch-friendly flex-1 mx-1 ${
+              isChatOpen && !isChatMinimized
+                ? 'text-purple-600 bg-purple-50 scale-105'
+                : 'text-gray-500 hover:text-purple-600 hover:bg-purple-50'
+            }`}
+          >
+            <MessageCircle className="h-5 w-5 mb-1" />
+            <span className="text-xs font-medium">Chat</span>
+            {totalUnreadMessages > 0 && (
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                {totalUnreadMessages > 99 ? '99+' : totalUnreadMessages}
+              </span>
+            )}
+          </button>
         </div>
       </div>
     );
@@ -67,9 +104,7 @@ const MobileBottomNav = ({ activeView, onViewChange, onCreatePost, user, isScrol
   // For admin users, simpler layout with just broadcast
   return (
     <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-gradient-to-t from-white via-white to-gray-50/80 border-t border-gray-200 safe-area-inset-bottom z-40 shadow-lg backdrop-blur-sm">
-      <div className={`flex items-center justify-center transition-all duration-300 py-3 ${
-        isScrolledDown ? 'px-2 pr-16' : 'px-4'
-      }`}>
+      <div className="flex items-center justify-center py-3 px-4">
         <button
           onClick={() => onViewChange('broadcast')}
           className={`flex flex-col items-center justify-center p-3 rounded-lg transition-all duration-200 touch-friendly w-full max-w-xs ${

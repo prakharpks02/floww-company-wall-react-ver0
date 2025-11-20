@@ -1,5 +1,8 @@
+import chatToast from '../utils/toastUtils';
+
 export const useChatPollAndGroupHandlers = ({
   createGroup,
+  updateConversation,
   setActiveConversation,
   setGlobalActiveConversation,
   setShowCreateGroup,
@@ -10,12 +13,23 @@ export const useChatPollAndGroupHandlers = ({
   currentUser
 }) => {
 
-  // Handle creating a group
-  const handleCreateGroup = (name, description, participants, createdBy) => {
-    const newGroup = createGroup(name, description, participants, createdBy);
-    setActiveConversation(newGroup);
-    setGlobalActiveConversation(newGroup);
-    setShowCreateGroup(false);
+  // Handle creating a group (now async to support admin API)
+  const handleCreateGroup = async (name, description, participants, createdBy) => {
+    try {
+      const newGroup = await createGroup(name, description, participants, createdBy);
+      
+      if (newGroup) {
+        setActiveConversation(newGroup);
+        setGlobalActiveConversation(newGroup);
+        setShowCreateGroup(false);
+        chatToast.groupCreated(name);
+      } else {
+        chatToast.error('Failed to create group');
+      }
+    } catch (error) {
+      chatToast.error('Failed to create group. Please try again.');
+      // Don't close the modal if there's an error, let user try again
+    }
   };
 
   // Handle creating a poll
@@ -95,21 +109,29 @@ export const useChatPollAndGroupHandlers = ({
 
   // Handle updating group information
   const handleUpdateGroup = (groupId, updates) => {
-    // Group update logic would go here
-    console.log('Update group:', groupId, updates);
+    // Update the conversation in the context
+    updateConversation(groupId, updates);
+    
+    // If this is the active conversation, update it too
+    if (activeConversation && activeConversation.id === groupId) {
+      setActiveConversation(prev => ({
+        ...prev,
+        ...updates
+      }));
+    }
   };
 
   // Handle leaving a group
   const handleLeaveGroup = (groupId) => {
     // Leave group logic would go here
-    console.log('Leave group:', groupId);
     setActiveConversation(null);
+    chatToast.leftGroup();
   };
 
   // Handle removing a member from group
   const handleRemoveMember = (groupId, memberId) => {
     // Remove member logic would go here
-    console.log('Remove member:', groupId, memberId);
+    chatToast.success('Member removed from group');
   };
 
   return {

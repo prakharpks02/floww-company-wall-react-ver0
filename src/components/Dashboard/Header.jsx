@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { Search, LogOut, Users, X } from 'lucide-react';
+import { Search, LogOut, X } from 'lucide-react';
 import NotificationDropdown from '../Notifications/NotificationDropdown';
 
 const Header = ({ onSearchChange, searchValue }) => {
@@ -24,15 +24,19 @@ const Header = ({ onSearchChange, searchValue }) => {
           <div className="flex items-center justify-between">
             {/* Logo and Title */}
             <div className="flex items-center space-x-3 sm:space-x-4 min-w-0 flex-shrink-0">
-              <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#9f7aea' }}>
-                <Users className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
+              <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg flex items-center justify-center flex-shrink-0">
+                <img 
+                  src="/logo.svg" 
+                  alt="Atom Buzz Logo" 
+                  className="h-8 w-8 sm:h-10 sm:w-10 object-contain"
+                />
               </div>
               <div className="block min-w-0">
                 <h1 className="text-base sm:text-lg lg:text-xl font-semibold text-gray-900 truncate">
                   Atom Buzz
                 </h1>
                 <p className="text-xs sm:text-sm text-gray-500 truncate hidden sm:block">
-                  Human Resources Department
+                 Buzz Together. Work Smarter.
                 </p>
               </div>
            

@@ -23,7 +23,6 @@ export const useTagsAndMentions = (tags, getAllEmployees, showError) => {
       const users = response.data || response.users || [];
       setMentionSuggestions(users);
     } catch (error) {
-      console.error('Error fetching admin mention suggestions:', error);
       setMentionSuggestions([]);
     } finally {
       setLoadingMentions(false);
@@ -67,7 +66,6 @@ export const useTagsAndMentions = (tags, getAllEmployees, showError) => {
           return;
         }
       } catch (error) {
-        console.error('Error searching for user:', error);
         showError('Failed to search for user. Please try again.');
         return;
       }

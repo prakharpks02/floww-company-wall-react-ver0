@@ -36,7 +36,6 @@ export const useCommentActions = (posts, setPosts, pinnedPosts, setPinnedPosts, 
       setPosts(prev => updateComments(prev));
       setPinnedPosts(prev => updateComments(prev));
     } catch (error) {
-      console.error('Error adding comment:', error);
       setError(`Failed to add comment: ${error.message}`);
     }
   };
@@ -62,7 +61,6 @@ export const useCommentActions = (posts, setPosts, pinnedPosts, setPinnedPosts, 
       
     
     } catch (error) {
-      console.error('❌ Admin delete comment error:', error);
       setError(`Failed to delete comment: ${error.message}`);
     }
   };
@@ -97,7 +95,6 @@ export const useCommentActions = (posts, setPosts, pinnedPosts, setPinnedPosts, 
       
     
     } catch (error) {
-      console.error('❌ Admin delete reply error:', error);
       setError(`Failed to delete reply: ${error.message}`);
     }
   };

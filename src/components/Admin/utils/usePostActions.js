@@ -30,7 +30,6 @@ export const usePostActions = (posts, setPosts, pinnedPosts, setPinnedPosts, set
         return prev;
       });
     } catch (error) {
-      console.error('Error toggling pin status:', error);
       setError(`Failed to toggle pin status: ${error.message}`);
     }
   };
@@ -54,7 +53,6 @@ export const usePostActions = (posts, setPosts, pinnedPosts, setPinnedPosts, set
       setPinnedPosts(prev => updateComments(prev));
       
     } catch (error) {
-      console.error('Error toggling comments:', error);
       setError(`Failed to toggle comments: ${error.message}`);
     }
   };
@@ -87,7 +85,6 @@ export const usePostActions = (posts, setPosts, pinnedPosts, setPinnedPosts, set
       setPosts(prev => updateReactions(prev));
       setPinnedPosts(prev => updateReactions(prev));
     } catch (error) {
-      console.error('Error liking post:', error);
       setError(`Failed to like post: ${error.message}`);
     }
   };
@@ -130,7 +127,6 @@ export const usePostActions = (posts, setPosts, pinnedPosts, setPinnedPosts, set
       setPosts(prev => updateReactions(prev));
       setPinnedPosts(prev => updateReactions(prev));
     } catch (error) {
-      console.error('Error reacting to post:', error);
       setError(`Failed to react to post: ${error.message}`);
     }
   };
@@ -151,7 +147,6 @@ export const usePostActions = (posts, setPosts, pinnedPosts, setPinnedPosts, set
         }, 3000);
       }
     } catch (error) {
-      console.error('Error sharing post:', error);
       // Even if clipboard API fails, show success message
       if (setSuccessMessage) {
         setSuccessMessage('Link copied to clipboard!');
@@ -170,7 +165,6 @@ export const usePostActions = (posts, setPosts, pinnedPosts, setPinnedPosts, set
       setPosts(prev => prev.filter(post => post.post_id !== postId));
       setPinnedPosts(prev => prev.filter(post => post.post_id !== postId));
     } catch (error) {
-      console.error('Error deleting post:', error);
       setError(`Failed to delete post: ${error.message}`);
     }
   };

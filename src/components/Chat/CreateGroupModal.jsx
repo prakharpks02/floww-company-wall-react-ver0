@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
 import { X, Users, Search, Plus } from 'lucide-react';
-import { dummyEmployees } from './utils/dummyData';
+import { useChat } from '../../contexts/ChatContext';
 
 const CreateGroupModal = ({ isOpen, onClose, onCreateGroup, currentUserId }) => {
+  const { employees } = useChat();
   const [groupName, setGroupName] = useState('');
   const [groupDescription, setGroupDescription] = useState('');
   const [selectedParticipants, setSelectedParticipants] = useState([currentUserId]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
 
-  const availableEmployees = dummyEmployees.filter(emp => emp.id !== currentUserId);
+  const availableEmployees = employees.filter(emp => emp.id !== currentUserId);
   const filteredEmployees = availableEmployees.filter(emp =>
     emp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     emp.role.toLowerCase().includes(searchQuery.toLowerCase())
@@ -24,20 +26,27 @@ const CreateGroupModal = ({ isOpen, onClose, onCreateGroup, currentUserId }) => 
     });
   };
 
-  const handleCreateGroup = () => {
+  const handleCreateGroup = async () => {
     if (!groupName.trim() || selectedParticipants.length < 2) return;
-
-    onCreateGroup(groupName.trim(), groupDescription.trim(), selectedParticipants, currentUserId);
     
-    // Reset form
-    setGroupName('');
-    setGroupDescription('');
-    setSelectedParticipants([currentUserId]);
-    setSearchQuery('');
-    onClose();
+    setIsCreating(true);
+    
+    try {
+      await onCreateGroup(groupName.trim(), groupDescription.trim(), selectedParticipants, currentUserId);
+      // Reset form
+      setGroupName('');
+      setGroupDescription('');
+      setSelectedParticipants([currentUserId]);
+      setSearchQuery('');
+      onClose();
+    } catch (error) {
+      // Don't close modal on error, let user try again
+    } finally {
+      setIsCreating(false);
+    }
   };
 
-  const getEmployeeById = (id) => dummyEmployees.find(emp => emp.id === id);
+  const getEmployeeById = (id) => employees.find(emp => emp.id === id);
 
   if (!isOpen) return null;
 
@@ -188,10 +197,17 @@ const CreateGroupModal = ({ isOpen, onClose, onCreateGroup, currentUserId }) => 
           </button>
           <button
             onClick={handleCreateGroup}
-            disabled={!groupName.trim() || selectedParticipants.length < 2}
-            className="flex-1 px-4 py-3 bg-gradient-to-r from-[#6d28d9] to-[#7c3aed] text-white rounded-xl hover:from-[#7c3aed] hover:to-[#a855f7] disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_4px_16px_rgba(109,40,217,0.3)] hover:shadow-[0_6px_20px_rgba(109,40,217,0.4)] transition-all duration-300 hover:scale-105 font-medium"
+            disabled={!groupName.trim() || selectedParticipants.length < 2 || isCreating}
+            className="flex-1 px-4 py-3 bg-gradient-to-r from-[#6d28d9] to-[#7c3aed] text-white rounded-xl hover:from-[#7c3aed] hover:to-[#a855f7] disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_4px_16px_rgba(109,40,217,0.3)] hover:shadow-[0_6px_20px_rgba(109,40,217,0.4)] transition-all duration-300 hover:scale-105 font-medium flex items-center justify-center gap-2"
           >
-            Create Group
+            {isCreating ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                Creating...
+              </>
+            ) : (
+              'Create Group'
+            )}
           </button>
         </div>
       </div>

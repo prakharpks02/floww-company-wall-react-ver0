@@ -1,12 +1,72 @@
-import React from 'react';
-import { X, Phone, Video, Mail, MapPin, Calendar, Building, User, MessageCircle } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { X, Phone, Video, Mail, MapPin, Calendar, Building, User, MessageCircle, Camera } from 'lucide-react';
 import { getEmployeeById } from './utils/dummyData';
 
-const UserProfileModal = ({ isOpen, onClose, userId, onStartChat }) => {
+const UserProfileModal = ({ isOpen, onClose, userId, onStartChat, currentUserId }) => {
+  const [profilePicture, setProfilePicture] = useState(null);
+  const [uploadingPicture, setUploadingPicture] = useState(false);
+  const fileInputRef = useRef(null);
+
   if (!isOpen || !userId) return null;
 
   const user = getEmployeeById(userId);
   if (!user) return null;
+
+  // Check if this is the current user's own profile
+  const isOwnProfile = userId === currentUserId;
+
+  const handleProfilePictureUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('File size must be less than 5MB');
+      return;
+    }
+
+    setUploadingPicture(true);
+    
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const baseURL = 'https://console.gofloww.xyz';
+      const response = await fetch(`${baseURL}/api/wall/admin/upload_file`, {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+        headers: {
+          'Authorization': '7a3239c81974cdd6140c3162468500ba95d7d5823ea69658658c2986216b273e'
+        }
+      });
+
+      const result = await response.json();
+      
+      if (result.status === 'success' && result.data?.file_url) {
+        setProfilePicture(result.data.file_url);
+        
+        // Here you could update the user's profile picture in the backend
+        // You might need to call a user update API endpoint
+        
+        // You could also update the local user data if needed
+        // This would depend on your user management system
+        
+      } else {
+        throw new Error(result.message || 'Upload failed');
+      }
+    } catch (error) {
+      alert('Failed to upload profile picture. Please try again.');
+    } finally {
+      setUploadingPicture(false);
+    }
+  };
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -42,11 +102,46 @@ const UserProfileModal = ({ isOpen, onClose, userId, onStartChat }) => {
           {/* Profile Picture */}
           <div className="absolute -bottom-12 left-6">
             <div className="relative">
-              <div className="w-24 h-24 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white text-3xl font-bold shadow-lg border-4 border-white">
-                {user.avatar}
-              </div>
+              {profilePicture || employee?.photo_url ? (
+                <img
+                  src={profilePicture || employee?.photo_url}
+                  alt={`${user.name}'s profile`}
+                  className="w-24 h-24 rounded-full object-cover shadow-lg border-4 border-white"
+                />
+              ) : (
+                <div className="w-24 h-24 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white text-3xl font-bold shadow-lg border-4 border-white">
+                  {user.avatar}
+                </div>
+              )}
+              
+              {/* Camera overlay for own profile */}
+              {isOwnProfile && (
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingPicture}
+                  className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-full opacity-0 hover:opacity-100 transition-opacity duration-200"
+                >
+                  {uploadingPicture ? (
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+                  ) : (
+                    <Camera className="w-6 h-6 text-white" />
+                  )}
+                </button>
+              )}
+              
               <div className={`absolute bottom-2 right-2 w-6 h-6 rounded-full border-4 border-white ${getStatusColor(user.status)}`}></div>
             </div>
+            
+            {/* Hidden file input */}
+            {isOwnProfile && (
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleProfilePictureUpload}
+                className="hidden"
+              />
+            )}
           </div>
         </div>
 

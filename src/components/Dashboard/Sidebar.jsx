@@ -329,24 +329,6 @@ const Sidebar = ({ filters, setFilters, onCreatePost, activeView, onViewChange, 
             </div>
           )}
         </div>
-
-        {/* User Section */}
-  <div className="user-section" style={{ position: "sticky", bottom: 0, left: 0, right: 0, zIndex: 10 }}>
-          <div className="user-info">
-            <div className="user-avatar">
-              {user?.employee_name ? user.employee_name.charAt(0).toUpperCase() : "U"}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-white font-semibold text-sm truncate">
-                {user?.name || "User"}
-              </div>
-              <div className="text-xs text-green-400">
-                ● Active
-              </div>
-            </div>
-            <MoreHorizontal className="w-4 h-4 text-gray-400" />
-          </div>
-        </div>
       </aside>
     </>
   )

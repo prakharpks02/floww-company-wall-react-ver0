@@ -38,7 +38,7 @@ const DesktopSidebar = ({
       <div className="p-3 border-b border-white/30">
         <div className="flex items-center justify-between mb-3">
           <div>
-            <h2 className="text-base text-[#1f2937]">Atom Link</h2>
+            <h2 className="text-base text-[#1f2937]">Chat</h2>
             <p className="text-xs text-[#6b7280]">Stay connected with your team</p>
           </div>
           <div className="relative" ref={compactPlusMenuRef}>
@@ -123,8 +123,18 @@ const DesktopSidebar = ({
                   >
                     <div className="flex items-center gap-2">
                       <div className="relative">
-                        <div className="w-8 h-8 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-xl flex items-center justify-center text-white font-normal text-xs">
-                          {partner?.avatar}
+                        <div className="w-8 h-8 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-xl flex items-center justify-center text-white font-normal text-xs overflow-hidden">
+                          {conversation.type === 'group' && conversation.icon ? (
+                            <img 
+                              src={conversation.icon} 
+                              alt="Group Icon" 
+                              className="w-full h-full object-cover"
+                            />
+                          ) : conversation.type === 'group' ? (
+                            conversation.name ? conversation.name.substring(0, 2).toUpperCase() : 'GR'
+                          ) : (
+                            partner?.avatar
+                          )}
                         </div>
                         <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border border-white shadow-sm ${getStatusColor(partner?.status)}`}></div>
                       </div>
@@ -171,7 +181,27 @@ const DesktopSidebar = ({
                       {filteredEmployees.map(employee => (
                         <button
                           key={employee.id}
-                          onClick={() => navigationHandlers.handleStartNewChat(employee)}
+                          onClick={() => {
+                            // Create or find conversation, then select it like clicking on conversation list
+                            const employeeChatId = employee.employeeId || employee.id;
+                            const currentUserChatId = currentUser.employeeId || currentUser.id;
+                            
+                            // Check if conversation already exists
+                            const existingConv = filteredConversations.find(conv => 
+                              conv.type === 'direct' && 
+                              conv.participants.includes(employeeChatId) && 
+                              conv.participants.includes(currentUserChatId)
+                            );
+                            
+                            if (existingConv) {
+                              // Use same logic as clicking on conversation list
+                              navigationHandlers.handleSelectConversation(existingConv);
+                            } else {
+                              // Create new conversation and select it
+                              navigationHandlers.handleStartNewChat(employee);
+                            }
+                            setSearchQuery(''); // Clear search after selection
+                          }}
                           className="w-full p-4 bg-white/70 backdrop-blur-sm rounded-2xl hover:bg-white/80 hover:scale-105 shadow-[inset_0_0_20px_rgba(255,255,255,0.8),0_8px_32px_rgba(109,40,217,0.1)] transition-all duration-300"
                         >
                           <div className="flex items-center gap-3">
@@ -270,8 +300,18 @@ const DesktopSidebar = ({
                           >
                             <div className="flex items-center gap-3">
                               <div className="relative">
-                                <div className="w-12 h-12 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-2xl flex items-center justify-center text-white font-normal shadow-[0_8px_32px_rgba(192,132,252,0.3)]">
-                                  {partner?.avatar}
+                                <div className="w-12 h-12 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-2xl flex items-center justify-center text-white font-normal shadow-[0_8px_32px_rgba(192,132,252,0.3)] overflow-hidden">
+                                  {conversation.type === 'group' && conversation.icon ? (
+                                    <img 
+                                      src={conversation.icon} 
+                                      alt="Group Icon" 
+                                      className="w-full h-full object-cover"
+                                    />
+                                  ) : conversation.type === 'group' ? (
+                                    conversation.name ? conversation.name.substring(0, 2).toUpperCase() : 'GR'
+                                  ) : (
+                                    partner?.avatar
+                                  )}
                                 </div>
                                 <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white shadow-sm ${getStatusColor(partner?.status)}`}></div>
                               </div>
@@ -328,8 +368,18 @@ const DesktopSidebar = ({
                   >
                     <div className="flex items-center gap-3">
                       <div className="relative">
-                        <div className="w-12 h-12 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-2xl flex items-center justify-center text-white font-normal shadow-[0_8px_32px_rgba(192,132,252,0.3)]">
-                          {partner?.avatar}
+                        <div className="w-12 h-12 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-2xl flex items-center justify-center text-white font-normal shadow-[0_8px_32px_rgba(192,132,252,0.3)] overflow-hidden">
+                          {conversation.type === 'group' && conversation.icon ? (
+                            <img 
+                              src={conversation.icon} 
+                              alt="Group Icon" 
+                              className="w-full h-full object-cover"
+                            />
+                          ) : conversation.type === 'group' ? (
+                            conversation.name ? conversation.name.substring(0, 2).toUpperCase() : 'GR'
+                          ) : (
+                            partner?.avatar
+                          )}
                         </div>
                         <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white shadow-sm ${getStatusColor(partner?.status)}`}></div>
                       </div>

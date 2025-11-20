@@ -35,21 +35,17 @@ export const useChatState = () => {
   const [messageToPin, setMessageToPin] = useState(null);
   const [pinType, setPinType] = useState('message'); // 'message' or 'chat'
   const [pinnedMessages, setPinnedMessages] = useState({});
-  const [pinnedChats, setPinnedChats] = useState([
-    // Add some initial dummy pinned chats for testing
-    { id: 1, expiry: null }, // Conversation with Sakshi
-    { id: 3, expiry: null }  // Conversation with Samrat
-  ]);
-  const [favouriteChats, setFavouriteChats] = useState([
-    // Add some initial dummy favourite chats for testing
-    { id: 2 }, // Conversation with Aman
-    { id: 4 }  // Design Team group
-  ]);
+  const [pinnedChats, setPinnedChats] = useState([]);
+  const [favouriteChats, setFavouriteChats] = useState([]);
   
   // Filter states
   const [chatFilter, setChatFilter] = useState('all'); // 'all', 'direct', 'groups'
   const [showGroupFilter, setShowGroupFilter] = useState(false);
   const [showFavouritesFilter, setShowFavouritesFilter] = useState(false);
+  
+  // Loading states
+  const [isConnectingToChat, setIsConnectingToChat] = useState(false);
+  const [connectingChatId, setConnectingChatId] = useState(null);
   
   // Refs
   const mobilePlusMenuRef = useRef(null);
@@ -130,6 +126,12 @@ export const useChatState = () => {
     setShowGroupFilter,
     showFavouritesFilter,
     setShowFavouritesFilter,
+    
+    // Loading states
+    isConnectingToChat,
+    setIsConnectingToChat,
+    connectingChatId,
+    setConnectingChatId,
     
     // Refs
     mobilePlusMenuRef,

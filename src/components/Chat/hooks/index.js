@@ -7,3 +7,4 @@ export { useChatContextMenuHandlers } from './useChatContextMenuHandlers';
 export { useChatPinAndFavoriteHandlers } from './useChatPinAndFavoriteHandlers';
 export { useChatPollAndGroupHandlers } from './useChatPollAndGroupHandlers';
 export { useChatNavigationHandlers } from './useChatNavigationHandlers';
+export { useChatWebSocketMessages } from './useChatWebSocketMessages';

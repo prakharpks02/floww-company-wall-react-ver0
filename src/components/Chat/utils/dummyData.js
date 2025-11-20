@@ -1,361 +1,139 @@
-// Dummy employee data for chat functionality
-export const dummyEmployees = [
-  {
-    id: 1,
-    name: "Shreyansh Shandilya",
-    email: "shreyansh@gofloww.co",
-    phone: "+91 98765 43210",
-    role: "Tester",
-    department: "Quality Assurance",
-    location: "Mumbai, India",
-    employeeId: "EMP001",
-    joinDate: "Jan 15, 2023",
-    bio: "Passionate QA engineer with 3+ years of experience in manual and automated testing. Love ensuring software quality and user satisfaction.",
-    avatar: "SS",
-    status: "online",
-    lastSeen: new Date()
-  },
-  {
-    id: 2,
-    name: "Sakshi Jadhav",
-    email: "sakshi@gofloww.co",
-    phone: "+91 98765 43211",
-    role: "Developer",
-    department: "Engineering",
-    location: "Pune, India",
-    employeeId: "EMP002",
-    joinDate: "Feb 20, 2023",
-    bio: "Full-stack developer specializing in React and Node.js. Always excited to learn new technologies and solve complex problems.",
-    avatar: "SJ",
-    status: "online",
-    lastSeen: new Date(Date.now() - 5 * 60 * 1000) // 5 minutes ago
-  },
-  {
-    id: 3,
-    name: "Aman Yadav",
-    email: "aman@gofloww.co",
-    phone: "+91 98765 43212",
-    role: "Developer",
-    department: "Engineering",
-    location: "Delhi, India",
-    employeeId: "EMP003",
-    joinDate: "Mar 10, 2023",
-    bio: "Backend developer with expertise in microservices and cloud architecture. Enjoys building scalable and efficient systems.",
-    avatar: "AY",
-    status: "away",
-    lastSeen: new Date(Date.now() - 15 * 60 * 1000) // 15 minutes ago
-  },
-  {
-    id: 4,
-    name: "John Smith",
-    email: "john.smith@gofloww.co",
-    phone: "+91 98765 43213",
-    role: "Product Manager",
-    department: "Product",
-    location: "Bangalore, India",
-    employeeId: "EMP004",
-    joinDate: "Jan 5, 2023",
-    bio: "Product manager with 5+ years of experience in SaaS products. Passionate about user experience and data-driven decisions.",
-    avatar: "JS",
-    status: "offline",
-    lastSeen: new Date(Date.now() - 2 * 60 * 60 * 1000) // 2 hours ago
-  },
-  {
-    id: 5,
-    name: "Samrat Singh",
-    email: "samrat.singh@gofloww.co",
-    phone: "+91 98765 43214",
-    role: "Designer",
-    department: "Design",
-    location: "Mumbai, India",
-    employeeId: "EMP005",
-    joinDate: "Apr 12, 2023",
-    bio: "UI/UX designer focused on creating beautiful and intuitive user interfaces. Love working on mobile and web experiences.",
-    avatar: "SS",
-    status: "online",
-    lastSeen: new Date()
-  },
-  {
-    id: 6,
-    name: "Mike Wilson",
-    email: "mike.wilson@gofloww.co",
-    role: "DevOps Engineer",
-    department: "Engineering",
-    avatar: "MW",
-    status: "busy",
-    lastSeen: new Date(Date.now() - 30 * 60 * 1000) // 30 minutes ago
-  },
-  {
-    id: 7,
-    name: "Lisa Chen",
-    email: "lisa.chen@gofloww.co",
-    role: "HR Manager",
-    department: "Human Resources",
-    avatar: "LC",
-    status: "online",
-    lastSeen: new Date()
-  },
-  {
-    id: 8,
-    name: "David Brown",
-    email: "david.brown@gofloww.co",
-    role: "Sales Manager",
-    department: "Sales",
-    avatar: "DB",
-    status: "offline",
-    lastSeen: new Date(Date.now() - 4 * 60 * 60 * 1000) // 4 hours ago
-  },
-  {
-    id: 9,
-    name: "Emily Davis",
-    email: "emily.davis@gofloww.co",
-    role: "Marketing Specialist",
-    department: "Marketing",
-    avatar: "ED",
-    status: "away",
-    lastSeen: new Date(Date.now() - 45 * 60 * 1000) // 45 minutes ago
-  },
-  {
-    id: 10,
-    name: "Alex Rodriguez",
-    email: "alex.rodriguez@gofloww.co",
-    role: "Senior Developer",
-    department: "Engineering",
-    avatar: "AR",
-    status: "online",
-    lastSeen: new Date()
-  }
-];
+﻿// Import real employee API
+import { fetchAllEmployees, findEmployeeById as findEmployeeByIdAPI, findEmployeeByEmployeeId } from '../../../services/employeeAPI.js';
 
-// Dummy chat conversations
-export const dummyConversations = [
-  {
-    id: 1,
-    participants: [1, 2], // Shreyansh and Sakshi
-    type: 'direct', // direct or group
-    lastMessage: {
-      id: 1,
-      senderId: 2,
-      text: "Hey Shreyansh! Can you help me test the new feature?",
-      timestamp: new Date(Date.now() - 5 * 60 * 1000),
-      read: false
-    },
-    unreadCount: 1
-  },
-  {
-    id: 2,
-    participants: [1, 3], // Shreyansh and Aman
-    type: 'direct',
-    lastMessage: {
-      id: 2,
-      senderId: 3,
-      text: "The API integration is complete. Ready for testing!",
-      timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
-      read: true
-    },
-    unreadCount: 0
-  },
-  {
-    id: 3,
-    participants: [1, 5], // Shreyansh and Samrat
-    type: 'direct',
-    lastMessage: {
-      id: 3,
-      senderId: 5,
-      text: "I've updated the UI designs. Please check when you get a chance.",
-      timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000),
-      read: true
-    },
-    unreadCount: 0
-  },
-  {
-    id: 4,
-    participants: [1, 2, 3, 5], // Engineering Team Group
-    type: 'group',
-    name: 'Engineering Team',
-    description: 'Main engineering discussion group',
-    avatar: 'ET',
-    createdBy: 1,
-    createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // 7 days ago
-    lastMessage: {
-      id: 4,
-      senderId: 3,
-      text: "Great work everyone on the new release! 🎉",
-      timestamp: new Date(Date.now() - 3 * 60 * 60 * 1000),
-      read: true
-    },
-    unreadCount: 2
-  },
-  {
-    id: 5,
-    participants: [1, 4, 5, 8], // Project Alpha Group
-    type: 'group',
-    name: 'Project Alpha',
-    description: 'Discussion for Project Alpha development',
-    avatar: 'PA',
-    createdBy: 4,
-    createdAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000), // 14 days ago
-    lastMessage: {
-      id: 5,
-      senderId: 8,
-      text: "The deadline has been moved to next week",
-      timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000),
-      read: false
-    },
-    unreadCount: 1
-  }
-];
+// Employee data - will be populated from API
+export let dummyEmployees = [];
 
-// Dummy messages for conversations
-export const dummyMessages = {
-  1: [ // Conversation between Shreyansh and Sakshi
-    {
-      id: 1,
-      senderId: 2,
-      text: "Hey Shreyansh! Can you help me test the new feature?",
-      timestamp: new Date(Date.now() - 5 * 60 * 1000),
-      read: false
-    },
-    {
-      id: 2,
-      senderId: 1,
-      text: "Sure! What feature are we testing?",
-      timestamp: new Date(Date.now() - 4 * 60 * 1000),
-      read: true
-    },
-    {
-      id: 3,
-      senderId: 2,
-      text: "The new chat functionality in the company wall app",
-      timestamp: new Date(Date.now() - 3 * 60 * 1000),
-      read: false
-    }
-  ],
-  2: [ // Conversation between Shreyansh and Aman
-    {
-      id: 4,
-      senderId: 3,
-      text: "The API integration is complete. Ready for testing!",
-      timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
-      read: true
-    },
-    {
-      id: 5,
-      senderId: 1,
-      text: "Great work! I'll start testing it now.",
-      timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000),
-      read: true
-    }
-  ],
-  3: [ // Conversation between Shreyansh and Samrat
-    {
-      id: 6,
-      senderId: 5,
-      text: "I've updated the UI designs. Please check when you get a chance.",
-      timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000),
-      read: true
-    },
-    {
-      id: 7,
-      senderId: 1,
-      text: "Thanks Samrat! The designs look great.",
-      timestamp: new Date(Date.now() - 5 * 60 * 60 * 1000),
-      read: true
-    }
-  ],
-  4: [ // Engineering Team Group
-    {
-      id: 8,
-      senderId: 1,
-      text: "Hey team! How's everyone doing with the new features?",
-      timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000),
-      read: true
-    },
-    {
-      id: 9,
-      senderId: 2,
-      text: "Going well! The testing is almost complete.",
-      timestamp: new Date(Date.now() - 3.5 * 60 * 60 * 1000),
-      read: true
-    },
-    {
-      id: 10,
-      senderId: 3,
-      text: "Great work everyone on the new release! 🎉",
-      timestamp: new Date(Date.now() - 3 * 60 * 60 * 1000),
-      read: true
-    },
-    {
-      id: 11,
-      senderId: 5,
-      text: "The UI updates are ready for review!",
-      timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
-      read: false
-    }
-  ],
-  5: [ // Project Alpha Group
-    {
-      id: 12,
-      senderId: 4,
-      text: "Welcome to Project Alpha team!",
-      timestamp: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000),
-      read: true
-    },
-    {
-      id: 13,
-      senderId: 1,
-      text: "Thanks! Excited to work on this project.",
-      timestamp: new Date(Date.now() - 13 * 24 * 60 * 60 * 1000),
-      read: true
-    },
-    {
-      id: 14,
-      senderId: 8,
-      text: "The deadline has been moved to next week",
-      timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000),
-      read: false
-    },
-    {
-      id: 16,
-      senderId: 1,
-      text: "I think UI improvements will have the most impact for our next sprint.",
-      timestamp: new Date(Date.now() - 1.5 * 60 * 60 * 1000),
-      read: false
-    }
-  ]
+// Initialize employees from API
+export const initializeEmployees = async () => {
+  try {
+    dummyEmployees = await fetchAllEmployees();
+    return dummyEmployees;
+  } catch (error) {
+    dummyEmployees = [];
+    return dummyEmployees;
+  }
 };
 
+// Empty chat conversations and messages - will be populated from API
+export const dummyConversations = [];
+export const dummyMessages = {};
+
+// Helper functions
 export const getEmployeeById = (id) => {
-  return dummyEmployees.find(emp => emp.id === id);
+
+  
+  // Handle both numeric IDs and employee IDs (emp-xxx format)
+  if (typeof id === 'number') {
+    const result = findEmployeeByIdAPI(id, dummyEmployees);
+
+    return result;
+  } else if (typeof id === 'string' && id.startsWith('emp-')) {
+    const result = findEmployeeByEmployeeId(id, dummyEmployees);
+  
+    return result;
+  } else if (typeof id === 'string') {
+    // Try to find by employeeId first, then by numeric conversion
+    const byEmployeeId = findEmployeeByEmployeeId(id, dummyEmployees);
+    if (byEmployeeId) {
+
+      return byEmployeeId;
+    }
+    
+    const numericId = parseInt(id);
+    if (!isNaN(numericId)) {
+      const result = findEmployeeByIdAPI(numericId, dummyEmployees);
+   
+      return result;
+    }
+  }
+  
+  return null;
+};
+
+export const getAllEmployees = () => {
+  return dummyEmployees;
+};
+
+export const getEmployeeByIdFromList = (id, employeesList) => {
+  // Handle both numeric IDs and employee IDs (emp-xxx format)
+  if (typeof id === 'number') {
+    return findEmployeeByIdAPI(id, employeesList);
+  } else if (typeof id === 'string' && id.startsWith('emp-')) {
+    return findEmployeeByEmployeeId(id, employeesList);
+  } else if (typeof id === 'string') {
+    // Try to find by employeeId first, then by numeric conversion
+    const byEmployeeId = findEmployeeByEmployeeId(id, employeesList);
+    if (byEmployeeId) return byEmployeeId;
+    
+    const numericId = parseInt(id);
+    if (!isNaN(numericId)) {
+      return findEmployeeByIdAPI(numericId, employeesList);
+    }
+  }
+  return null;
 };
 
 export const getConversationPartner = (conversation, currentUserId) => {
-  // Add comprehensive null and undefined checks
   if (!conversation || typeof conversation !== 'object') {
     return null;
   }
   
-  // Check if conversation has the required properties
   if (conversation.type === undefined) {
     return null;
   }
   
+
+  
   if (conversation.type === 'group') {
     return {
       name: conversation.name || 'Group Chat',
-      avatar: conversation.avatar || '👥',
+      avatar: conversation.avatar || '',
       status: 'group',
       id: conversation.id
     };
   }
   
-  // Check if participants array exists
   if (!conversation.participants || !Array.isArray(conversation.participants)) {
     return null;
   }
   
-  const partnerId = conversation.participants.find(id => id !== currentUserId);
-  return getEmployeeById(partnerId);
+  // Ensure currentUserId is a string and handle both employee ID formats
+  if (!currentUserId || typeof currentUserId !== 'string') {
+    // If no valid currentUserId, return the first participant as partner
+    const partnerId = conversation.participants[0];
+    const partner = getEmployeeById(partnerId);
+    return partner || {
+      name: partnerId ? `Employee ${partnerId}` : 'Unknown User',
+      avatar: partnerId ? partnerId.charAt(0).toUpperCase() : 'U',
+      status: 'offline',
+      id: partnerId || 'unknown'
+    };
+  }
+  
+  const currentUserEmpId = currentUserId.startsWith('emp-') ? currentUserId : `emp-${currentUserId}`;
+  const partnerId = conversation.participants.find(id => 
+    id !== currentUserId && 
+    id !== currentUserEmpId &&
+    (!currentUserId.startsWith('emp-') ? id !== `emp-${currentUserId}` : true)
+  );
+  
+  if (!partnerId) {
+    return {
+      name: 'Unknown User',
+      avatar: '',
+      status: 'offline',
+      id: 'unknown'
+    };
+  }
+  
+  const partner = getEmployeeById(partnerId);
+  return partner || {
+    name: `Employee ${partnerId}`,
+    avatar: partnerId ? partnerId.charAt(0).toUpperCase() : 'U',
+    status: 'offline', 
+    id: partnerId
+  };
 };
 
 export const getConversationTitle = (conversation, currentUserId) => {
@@ -386,7 +164,21 @@ export const formatMessageTime = (timestamp) => {
   const isToday = now.toDateString() === messageDate.toDateString();
   
   if (isToday) {
-    return messageDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return messageDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+  } else {
+    // For previous days, always show time in AM/PM format
+    return messageDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+  }
+};
+
+// New function to get date headers
+export const getDateHeader = (timestamp) => {
+  const now = new Date();
+  const messageDate = new Date(timestamp);
+  const isToday = now.toDateString() === messageDate.toDateString();
+  
+  if (isToday) {
+    return 'Today';
   } else {
     const yesterday = new Date(now);
     yesterday.setDate(yesterday.getDate() - 1);
@@ -395,7 +187,42 @@ export const formatMessageTime = (timestamp) => {
     if (isYesterday) {
       return 'Yesterday';
     } else {
-      return messageDate.toLocaleDateString([], { month: 'short', day: 'numeric' });
+      // Calculate how many days ago the message was sent
+      const daysDifference = Math.floor((now - messageDate) / (1000 * 60 * 60 * 24));
+      
+      // For messages within the last 5 days (including today and yesterday), show day names only
+      if (daysDifference <= 5) {
+        return messageDate.toLocaleDateString([], { weekday: 'long' });
+      } else {
+        // For messages older than 5 days, show date only (no day name)
+        return messageDate.toLocaleDateString([], { 
+          year: 'numeric', 
+          month: 'short', 
+          day: 'numeric' 
+        });
+      }
     }
   }
+};
+
+// Function to group messages by date
+export const groupMessagesByDate = (messages) => {
+  const groups = [];
+  let currentGroup = null;
+  
+  messages.forEach(message => {
+    const dateHeader = getDateHeader(message.timestamp);
+    
+    if (!currentGroup || currentGroup.date !== dateHeader) {
+      currentGroup = {
+        date: dateHeader,
+        messages: [message]
+      };
+      groups.push(currentGroup);
+    } else {
+      currentGroup.messages.push(message);
+    }
+  });
+  
+  return groups;
 };

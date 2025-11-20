@@ -21,6 +21,7 @@ import {
   Forward,
   MoreVertical
 } from 'lucide-react';
+import { Toaster } from 'react-hot-toast';
 import { useChat } from '../../contexts/ChatContext';
 import ChatSidebar from './ChatSidebar';
 import ChatInfo from './ChatInfo';
@@ -59,7 +60,8 @@ import {
   useChatContextMenuHandlers,
   useChatPinAndFavoriteHandlers,
   useChatPollAndGroupHandlers,
-  useChatNavigationHandlers
+  useChatNavigationHandlers,
+  useChatWebSocketMessages
 } from './hooks';
 
 const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = false }) => {
@@ -80,7 +82,10 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
     toggleFullScreenMobile,
     closeChat,
     setConversations,
-    setMessages
+    setMessages,
+    updateConversation,
+    loadConversations,
+    conversationsLoading
   } = useChat();
   
   // Use utilities hook
@@ -93,7 +98,9 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
     getStatusColor,
     canEditMessage,
     getEmployeeById,
-    formatMessageTime
+    formatMessageTime,
+    getDateHeader,
+    groupMessagesByDate
   } = useChatUtilities();
 
   // Use effects hook
@@ -172,6 +179,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
   // Use poll and group handlers hook
   const pollAndGroupHandlers = useChatPollAndGroupHandlers({
     createGroup,
+    updateConversation,
     setActiveConversation: chatState.setActiveConversation,
     setGlobalActiveConversation,
     setShowCreateGroup: chatState.setShowCreateGroup,
@@ -194,7 +202,20 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
     setShowChatInfo: chatState.setShowChatInfo,
     setShowAttachmentMenu: chatState.setShowAttachmentMenu,
     setShowPollModal: chatState.setShowPollModal,
-    currentUser
+    setMessages,
+    setConversations,
+    currentUser,
+    setIsConnectingToChat: chatState.setIsConnectingToChat,
+    setConnectingChatId: chatState.setConnectingChatId
+  });
+
+  // Use WebSocket messages hook for real-time messaging
+  const { isConnected, loadingInitialMessages } = useChatWebSocketMessages({
+    activeConversation: chatState.activeConversation,
+    setMessages,
+    currentUser,
+    getEmployeeById,
+    messages
   });
 
   // Destructure state variables for easier access in JSX
@@ -284,13 +305,50 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
     pinAndFavoriteHandlers.handlePinConfirm(duration, messageToPinOrChat, pinType);
   };
 
-  // Check if we're on mobile/small screen
-  const isMobile = window.innerWidth < 1024;
+  // Handler to start chat with a group member
+  const handleStartChatWithMember = (member) => {
+    // Close the chat info modal
+    setShowChatInfo(false);
+    
+    // Check if a direct conversation already exists with this member
+    const currentUserChatId = currentUser.employeeId || currentUser.id;
+    const memberChatId = member.employeeId || member.id;
+    
+    const existingConv = conversations.find(conv => 
+      conv.type === 'direct' && 
+      conv.participants.includes(memberChatId) && 
+      conv.participants.includes(currentUserChatId)
+    );
+    
+    if (existingConv) {
+      navigationHandlers.handleSelectConversation(existingConv);
+    } else {
+      navigationHandlers.handleStartNewChat(member);
+    }
+  };
 
-  // Minimized state - just the toggle button
+  // Check if we're on mobile/small screen with proper state management
+  const [isMobile, setIsMobile] = React.useState(window.innerWidth < 1024);
+
+  React.useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Minimized state - hide on mobile entirely, show floating button only on desktop
   if (isMinimized) {
+    // On mobile, don't show any floating button (chat is in navigation)
+    if (isMobile) {
+      return null;
+    }
+    
+    // On desktop, show floating button
     return (
-      <div className="fixed bottom-20 right-4 z-50">
+      <div className="fixed bottom-24 right-4 z-50">
         <button
           onClick={onToggleMinimize}
           className="relative p-4 bg-gradient-to-br from-[#6d28d9] to-[#7c3aed] hover:from-[#7c3aed] hover:to-[#8b5cf6] text-white rounded-2xl shadow-[0_16px_64px_rgba(109,40,217,0.4)] hover:shadow-[0_20px_80px_rgba(109,40,217,0.5)] transition-all duration-300 hover:scale-110 backdrop-blur-xl"
@@ -310,6 +368,9 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
   if (isFullScreenMobile && isMobile) {
     return (
       <>
+        {/* Toast Notifications */}
+        <Toaster />
+        
         <div className="fixed inset-0 bg-white z-50 flex flex-col">
           {/* Mobile Chat Header */}
           <MobileChatHeader
@@ -353,6 +414,9 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                     getStatusColor={getStatusColor}
                     formatMessageTime={formatMessageTime}
                     currentUser={currentUser}
+                    conversations={conversations}
+                    isConnectingToChat={chatState.isConnectingToChat}
+                    connectingChatId={chatState.connectingChatId}
                     setSearchQuery={setSearchQuery}
                   />
                 ) : (
@@ -365,8 +429,10 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                     formatMessageTime={formatMessageTime}
                     getStatusColor={getStatusColor}
                     messageHandlers={messageHandlers}
+                    navigationHandlers={navigationHandlers}
                     contextMenuHandlers={contextMenuHandlers}
                     setSearchQuery={setSearchQuery}
+                    conversationsLoading={conversationsLoading}
                   />
                 )}
               </div>
@@ -385,20 +451,101 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
 
                   {/* Messages Area */}
                   <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
-                    {(messages[activeConversation.id] || []).map(message => {
-                      const isOwnMessage = message.senderId === currentUser.id;
-                      const sender = getEmployeeById(message.senderId);
-                      
-                      return (
-                        <div
-                          key={message.id}
-                          className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
-                        >
-                          <div className={`max-w-[280px] ${isOwnMessage ? 'order-2' : 'order-1'}`}>
-                            {!isOwnMessage && activeConversation.type === 'group' && (
-                              <div className="text-xs text-purple-600 mb-1 ml-3">{sender?.name}</div>
-                            )}
-                            <div
+                    {chatState.isConnectingToChat ? (
+                      <div className="flex items-center justify-center h-full">
+                        <div className="text-center">
+                          <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                          <p className="text-sm text-gray-500">Connecting to chat...</p>
+                        </div>
+                      </div>
+                    ) : (
+                      groupMessagesByDate(messages[activeConversation.id] || []).map((group, groupIndex) => (
+                        <div key={groupIndex} className="space-y-4">
+                          {/* Date Header */}
+                          <div className="flex justify-center">
+                            <div className="bg-gray-100 text-gray-600 text-xs px-3 py-1 rounded-full">
+                              {group.date}
+                            </div>
+                          </div>
+                          
+                          {/* Messages for this date */}
+                          {group.messages.map(message => {
+                            const currentUserEmployeeId = currentUser?.employeeId || `emp-${currentUser?.id}`;
+                            // More comprehensive sender ID comparison
+                            const isOwnMessage = 
+                              message.senderId === currentUser.id || 
+                              message.senderId === currentUserEmployeeId ||
+                              message.senderId === currentUser?.employeeId ||
+                              String(message.senderId) === String(currentUser.id) ||
+                              String(message.senderId) === String(currentUserEmployeeId);
+                            
+                            // Debug logging
+                            
+                            
+                            // Debug logging for reply messages
+                            if (message.replyTo) {
+                              
+                            }
+                            
+                            return (
+                              <div
+                                key={message.id}
+                                className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
+                              >
+                                {/* Profile picture for group chats (left side for others' messages) */}
+                                {!isOwnMessage && activeConversation.type === 'group' && (
+                                  <div 
+                                    className="flex-shrink-0 mr-2 cursor-pointer hover:opacity-80 transition-opacity"
+                                    onClick={() => {
+                                      const senderEmployee = getEmployeeById(message.senderId);
+                                      if (senderEmployee) {
+                                        handleStartChatWithMember(senderEmployee);
+                                      }
+                                    }}
+                                    title="Click to start chat"
+                                  >
+                                    {(() => {
+                                      const senderEmployee = getEmployeeById(message.senderId);
+                                      const profilePic = message.sender?.profile_picture_link || 
+                                                       message.sender?.avatar || 
+                                                       senderEmployee?.profile_picture_link ||
+                                                       senderEmployee?.avatar;
+                                      
+                                     
+                                      
+                                      return profilePic && profilePic.startsWith('http') ? (
+                                        <div className="w-8 h-8 bg-gray-100 rounded-full overflow-hidden">
+                                          <img 
+                                            src={profilePic} 
+                                            alt={message.sender?.name || senderEmployee?.name}
+                                            className="w-full h-full object-cover"
+                                          />
+                                        </div>
+                                      ) : (
+                                        <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                                          {(message.sender?.name || senderEmployee?.name || 'U').charAt(0)}
+                                        </div>
+                                      );
+                                    })()}
+                                  </div>
+                                )}
+                                
+                                <div className={`max-w-[280px] ${isOwnMessage ? 'order-2' : 'order-1'}`}>
+                                  {!isOwnMessage && activeConversation.type === 'group' && (
+                                    <div 
+                                      className="text-xs text-purple-600 mb-1 ml-3 font-medium cursor-pointer hover:underline"
+                                      onClick={() => {
+                                        const senderEmployee = getEmployeeById(message.senderId);
+                                        if (senderEmployee) {
+                                          handleStartChatWithMember(senderEmployee);
+                                        }
+                                      }}
+                                      title="Click to start chat"
+                                    >
+                                      {message.sender?.name || getEmployeeById(message.senderId)?.name || 'Unknown User'}
+                                    </div>
+                                  )}
+                                  <div
                               className={`px-4 py-3 rounded-2xl transition-all duration-200 ${
                                 isOwnMessage
                                   ? `bg-gradient-to-br from-purple-500 to-purple-600 text-white ${isOwnMessage ? 'rounded-br-lg' : ''}`
@@ -426,6 +573,14 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                                 </div>
                               )}
                               
+                              {message.isForwarded && (
+                                <div className={`text-xs mb-1 flex items-center gap-1 ${isOwnMessage ? 'text-purple-200' : 'text-gray-500'}`}>
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                                  </svg>
+                                  <span className="italic">Forwarded</span>
+                                </div>
+                              )}
                               {message.type === 'poll' ? (
                                 <PollMessage
                                   poll={message.poll}
@@ -449,6 +604,9 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                         </div>
                       );
                     })}
+                        </div>
+                      ))
+                    )}
                     <div ref={messagesEndRef} />
                   </div>
 
@@ -496,6 +654,8 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                     onUpdateGroup={pollAndGroupHandlers.handleUpdateGroup}
                     onLeaveGroup={pollAndGroupHandlers.handleLeaveGroup}
                     onRemoveMember={pollAndGroupHandlers.handleRemoveMember}
+                    onReloadConversations={loadConversations}
+                    onStartChatWithMember={handleStartChatWithMember}
                     isCompact={false}
                     isInline={true}
                   />
@@ -553,7 +713,16 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
   if ((isCompactMode || (isMobile && !isFullScreenMobile)) && !isIntegratedMode) {
     return (
       <>
-        <div className="fixed bottom-4 right-4 w-[420px] h-[500px] bg-white rounded-xl shadow-2xl border border-gray-200 z-50 flex flex-col transform transition-all duration-500 ease-out animate-slideUp chat-window-glass">
+        {/* Toast Notifications */}
+        <Toaster />
+        
+        <div 
+          className="fixed bottom-4 right-4 w-[420px] bg-white rounded-xl shadow-2xl border border-gray-200 z-50 flex flex-col transform transition-all duration-500 ease-out animate-slideUp chat-window-glass overflow-hidden"
+          style={{
+            height: 'min(500px, calc(100vh - 32px))',
+            maxWidth: 'calc(100vw - 32px)'
+          }}
+        >
           
           {/* Compact Header */}
           <CompactHeader
@@ -587,7 +756,22 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
           />
 
           {/* Compact Chat Content */}
-          {!activeConversation ? (
+          {showChatInfo ? (
+            // Show Group Info inline
+            <ChatInfo
+              isOpen={true}
+              onClose={() => setShowChatInfo(false)}
+              conversation={activeConversation}
+              currentUserId={currentUser.id}
+              onUpdateGroup={pollAndGroupHandlers.handleUpdateGroup}
+              onLeaveGroup={pollAndGroupHandlers.handleLeaveGroup}
+              onRemoveMember={pollAndGroupHandlers.handleRemoveMember}
+              onReloadConversations={loadConversations}
+              onStartChatWithMember={handleStartChatWithMember}
+              isCompact={true}
+              isInline={false}
+            />
+          ) : !activeConversation ? (
             <div className="flex-1 flex flex-col">
               {/* Search and Filters */}
               <div className="p-2 border-b border-gray-200">
@@ -635,11 +819,15 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
               </div>
 
               {/* Conversations List or Search Results */}
-              <div className="flex-1 overflow-y-auto" style={{ 
-                maxHeight: 'calc(100% - 80px)',
-                scrollbarWidth: 'thin',
-                scrollbarColor: '#cbd5e1 #f1f5f9'
-              }}>
+              <div 
+                className="flex-1 overflow-y-auto" 
+                style={{ 
+                  height: 'calc(100% - 80px)',
+                  minHeight: '200px',
+                  scrollbarWidth: 'thin',
+                  scrollbarColor: '#cbd5e1 #f1f5f9'
+                }}
+              >
                 {searchQuery ? (
                   <div className="p-2 space-y-1">
                     {/* Contacts Section */}
@@ -650,12 +838,40 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                           Contacts ({filteredEmployees.length})
                         </h4>
                         <div className="space-y-1">
-                          {filteredEmployees.map(employee => (
-                            <button
-                              key={employee.id}
-                              onClick={() => navigationHandlers.handleStartNewChat(employee)}
-                              className="w-full flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg transition-all duration-200 transform hover:scale-[1.02]"
-                            >
+                          {filteredEmployees.map(employee => {
+                            const employeeChatId = employee.employeeId || employee.id;
+                            const isConnecting = chatState.isConnectingToChat && chatState.connectingChatId === employeeChatId;
+                            
+                            return (
+                              <button
+                                key={employee.id}
+                                onClick={() => {
+                                  // Create or find conversation, then select it like clicking on conversation list
+                                  const currentUserChatId = currentUser.employeeId || currentUser.id;
+                                  
+                                  // Check if conversation already exists
+                                  const existingConv = conversations.find(conv => 
+                                    conv.type === 'direct' && 
+                                    conv.participants.includes(employeeChatId) && 
+                                    conv.participants.includes(currentUserChatId)
+                                  );
+                                  
+                                  if (existingConv) {
+                                    // Use same logic as clicking on conversation list
+                                    navigationHandlers.handleSelectConversation(existingConv);
+                                  } else {
+                                    // Create new conversation and select it
+                                    navigationHandlers.handleStartNewChat(employee);
+                                  }
+                                  setSearchQuery(''); // Clear search after selection
+                                }}
+                                disabled={isConnecting}
+                                className={`w-full flex items-center gap-3 p-2 rounded-lg transition-all duration-200 ${
+                                  isConnecting 
+                                    ? 'bg-purple-50 cursor-not-allowed' 
+                                    : 'hover:bg-gray-50'
+                                }`}
+                              >
                               <div className="relative">
                                 <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md">
                                   {employee.avatar}
@@ -666,8 +882,14 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                                 <div className="text-sm truncate">{employee.name}</div>
                                 <div className="text-xs text-gray-500 truncate">{employee.role}</div>
                               </div>
+                              {isConnecting && (
+                                <div className="w-4 h-4">
+                                  <div className="w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+                                </div>
+                              )}
                             </button>
-                          ))}
+                          );
+                        })}
                         </div>
                       </div>
                     )}
@@ -684,7 +906,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                             <button
                               key={result.id}
                               onClick={() => {
-                                messageHandlers.handleSelectConversation(result.conversation);
+                                navigationHandlers.handleSelectConversation(result.conversation);
                                 setSearchQuery('');
                               }}
                               className="w-full p-2 hover:bg-gray-50 rounded-lg transition-all duration-200"
@@ -753,18 +975,28 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                             return (
                               <button
                                 key={`pinned-${conversation.id}`}
-                                onClick={() => messageHandlers.handleSelectConversation(conversation)}
+                                onClick={() => navigationHandlers.handleSelectConversation(conversation)}
                                 onContextMenu={(e) => contextMenuHandlers.handleChatContextMenu(e, conversation)}
-                                className={`w-full flex items-center gap-3 p-2 rounded-lg transition-all duration-200 transform hover:scale-[1.02] bg-purple-50 border-l-2 border-purple-600 ${
+                                className={`w-full flex items-center gap-3 p-2 rounded-lg transition-all duration-200 bg-purple-50 border-l-2 border-purple-600 ${
                                   isActive 
                                     ? 'bg-purple-100 hover:bg-purple-200' 
                                     : 'hover:bg-purple-100'
                                 }`}
                               >
                                 <div className="relative">
-                                  <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md">
-                                    {partner?.avatar}
-                                  </div>
+                                  {conversation.icon ? (
+                                    <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center overflow-hidden shadow-md">
+                                      <img 
+                                        src={conversation.icon} 
+                                        alt={conversation.name || partner?.name}
+                                        className="w-full h-full object-cover"
+                                      />
+                                    </div>
+                                  ) : (
+                                    <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md">
+                                      {partner?.avatar}
+                                    </div>
+                                  )}
                                   <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-white ${getStatusColor(partner?.status)} transition-all duration-200`}></div>
                                 </div>
                                 <div className="flex-1 text-left min-w-0">
@@ -809,7 +1041,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                         return (
                           <button
                             key={conversation.id}
-                            onClick={() => messageHandlers.handleSelectConversation(conversation)}
+                            onClick={() => navigationHandlers.handleSelectConversation(conversation)}
                             onContextMenu={(e) => contextMenuHandlers.handleChatContextMenu(e, conversation)}
                             className={`w-full flex items-center gap-3 p-2 rounded-lg transition-all duration-200 ${
                               isActive 
@@ -818,9 +1050,19 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                             }`}
                           >
                             <div className="relative">
-                              <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md">
-                                {partner?.avatar}
-                              </div>
+                              {conversation.icon ? (
+                                <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center overflow-hidden shadow-md">
+                                  <img 
+                                    src={conversation.icon} 
+                                    alt={conversation.name || partner?.name}
+                                    className="w-full h-full object-cover"
+                                  />
+                                </div>
+                              ) : (
+                                <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md">
+                                  {partner?.avatar}
+                                </div>
+                              )}
                               <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-white ${getStatusColor(partner?.status)} transition-all duration-200`}></div>
                             </div>
                             <div className="flex-1 text-left min-w-0">
@@ -867,55 +1109,158 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
               <div 
                 className="flex-1 overflow-y-auto p-2 space-y-2" 
                 style={{ 
-                  maxHeight: activeConversation && pinnedMessages[activeConversation.id] 
-                    ? 'calc(100% - 140px)' // Account for pinned message height (reduced from 160px)
-                    : 'calc(100% - 100px)', // Reduced from 120px
+                  height: activeConversation && pinnedMessages[activeConversation.id] 
+                    ? 'calc(100% - 140px)' // Account for header + pinned message + input area
+                    : 'calc(100% - 100px)', // Account for header + input area
+                  minHeight: '200px',
                   scrollbarWidth: 'thin',
                   scrollbarColor: '#cbd5e1 #f1f5f9'
                 }}
               >
-                {(messages[activeConversation.id] || []).map(message => {
-                  const isOwnMessage = message.senderId === currentUser.id;
-                  
-                  return (
-                    <div
-                      key={message.id}
-                      className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
-                    >
-                      <div
-                        className={`max-w-[280px] px-2 py-1.5 rounded-lg text-xs transition-all duration-200 hover:shadow-md ${
-                          isOwnMessage
-                            ? 'bg-gradient-to-br from-purple-500 to-purple-600 text-white'
-                            : 'bg-gray-100 text-gray-900 border border-gray-200'
-                        }`}
-                        onContextMenu={(e) => contextMenuHandlers.handleContextMenu(e, message)}
-                      >
-                        {message.type === 'poll' ? (
-                          <PollMessage
-                            poll={message.poll}
-                            currentUserId={currentUser.id}
-                            onVote={(optionIndexes) => pollAndGroupHandlers.handlePollVote(message.id, optionIndexes)}
-                            isOwnMessage={isOwnMessage}
-                            isCompact={true}
-                          />
-                        ) : (
-                          <p className="leading-relaxed">{message.text}</p>
-                        )}
-                        <div className={`text-xs mt-1 ${isOwnMessage ? 'text-purple-100' : 'text-gray-500'}`}>
-                          {formatMessageTime(message.timestamp)}
-                          {message.edited && (
-                            <span className="ml-1 italic opacity-75">edited</span>
-                          )}
-                        </div>
+                {groupMessagesByDate(messages[activeConversation.id] || []).map((group, groupIndex) => (
+                  <div key={groupIndex} className="space-y-2">
+                    {/* Date Header */}
+                    <div className="flex justify-center">
+                      <div className="bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-full">
+                        {group.date}
                       </div>
                     </div>
-                  );
-                })}
+                    
+                    {/* Messages for this date */}
+                    {group.messages.map(message => {
+                      const currentUserEmployeeId = currentUser?.employeeId || `emp-${currentUser?.id}`;
+                      // More comprehensive sender ID comparison
+                      const isOwnMessage = 
+                        message.senderId === currentUser.id || 
+                        message.senderId === currentUserEmployeeId ||
+                        message.senderId === currentUser?.employeeId ||
+                        String(message.senderId) === String(currentUser.id) ||
+                        String(message.senderId) === String(currentUserEmployeeId);
+                  
+                      
+                   
+                      return (
+                        <div
+                          key={message.id}
+                          className={`flex gap-1.5 ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
+                        >
+                          {/* Profile picture for group chats (left side for others' messages) */}
+                          {!isOwnMessage && activeConversation.type === 'group' && (
+                            <div 
+                              className="flex-shrink-0 self-end mb-1 cursor-pointer hover:opacity-80 transition-opacity"
+                              onClick={() => {
+                                const senderEmployee = getEmployeeById(message.senderId);
+                                if (senderEmployee) {
+                                  handleStartChatWithMember(senderEmployee);
+                                }
+                              }}
+                              title="Click to start chat"
+                            >
+                              {(() => {
+                                const senderEmployee = getEmployeeById(message.senderId);
+                                const profilePic = message.sender?.profile_picture_link || 
+                                                 message.sender?.avatar || 
+                                                 senderEmployee?.profile_picture_link ||
+                                                 senderEmployee?.avatar;
+                                
+                               
+                                return profilePic && profilePic.startsWith('http') ? (
+                                  <div className="w-6 h-6 bg-gray-100 rounded-full overflow-hidden">
+                                    <img 
+                                      src={profilePic} 
+                                      alt={message.sender?.name || senderEmployee?.name}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  </div>
+                                ) : (
+                                  <div className="w-6 h-6 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                                    {(message.sender?.name || senderEmployee?.name || 'U').charAt(0)}
+                                  </div>
+                                );
+                              })()}
+                            </div>
+                          )}
+                          
+                          <div className={`flex flex-col max-w-[280px]`}>
+                            {!isOwnMessage && activeConversation.type === 'group' && (
+                              <div 
+                                className="text-xs text-purple-600 mb-0.5 font-medium cursor-pointer hover:underline"
+                                onClick={() => {
+                                  const senderEmployee = getEmployeeById(message.senderId);
+                                  if (senderEmployee) {
+                                    handleStartChatWithMember(senderEmployee);
+                                  }
+                                }}
+                                title="Click to start chat"
+                              >
+                                {message.sender?.name || getEmployeeById(message.senderId)?.name || 'Unknown User'}
+                              </div>
+                            )}
+                            <div
+                              className={`px-2 py-1.5 rounded-lg text-xs transition-all duration-200 hover:shadow-md ${
+                                isOwnMessage
+                                  ? `bg-gradient-to-br from-purple-500 to-purple-600 text-white ${isOwnMessage ? 'rounded-br-md' : ''}`
+                                  : `bg-gray-100 text-gray-900 border border-gray-200 ${!isOwnMessage ? 'rounded-bl-md' : ''}`
+                              }`}
+                              onContextMenu={(e) => contextMenuHandlers.handleContextMenu(e, message)}
+                            >
+                              {/* Reply indicator */}
+                              {message.replyTo && (
+                                <div className={`mb-1 p-1 rounded border-l-2 ${
+                                  isOwnMessage 
+                                    ? 'bg-white/20 border-white/40' 
+                                    : 'bg-purple-50 border-purple-300'
+                                }`}>
+                                  <div className={`text-xs mb-0.5 ${
+                                    isOwnMessage ? 'text-white/90' : 'text-purple-700'
+                                  }`}>
+                                    {message.replyTo.senderName}
+                                  </div>
+                                  <div className={`text-xs ${
+                                    isOwnMessage ? 'text-white/80' : 'text-gray-600'
+                                  }`}>
+                                    {message.replyTo.text}
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {message.isForwarded && (
+                                <div className={`text-xs mb-1 flex items-center gap-1 ${isOwnMessage ? 'text-purple-200' : 'text-gray-500'}`}>
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                                  </svg>
+                                  <span className="italic">Forwarded</span>
+                                </div>
+                              )}
+                              {message.type === 'poll' ? (
+                                <PollMessage
+                                  poll={message.poll}
+                                  currentUserId={currentUser.id}
+                                  onVote={(optionIndexes) => pollAndGroupHandlers.handlePollVote(message.id, optionIndexes)}
+                                  isOwnMessage={isOwnMessage}
+                                  isCompact={true}
+                                />
+                              ) : (
+                                <p className="leading-relaxed">{message.text}</p>
+                              )}
+                              <div className={`text-xs mt-1 ${isOwnMessage ? 'text-purple-100' : 'text-gray-500'}`}>
+                                {formatMessageTime(message.timestamp)}
+                                {message.edited && (
+                                  <span className="ml-1 italic opacity-75">edited</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
                 <div ref={messagesEndRef} />
               </div>
               
               {/* Input Area */}
-              <div className="p-3 border-t border-gray-200 bg-gray-50 relative">
+              <div className="p-3 border-t border-gray-200 bg-gray-50 relative" style={{ minHeight: '80px' }}>
                 {/* Reply UI */}
                 {replyToMessage && (
                   <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
@@ -941,7 +1286,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                 <div className="flex gap-2">
                   <button
                     onClick={() => setShowAttachmentMenu(true)}
-                    className="p-2 text-gray-500 hover:bg-gray-200 rounded-lg transition-all duration-200 transform hover:scale-110"
+                    className="p-2 text-gray-500 hover:bg-gray-200 rounded-lg transition-all duration-200"
                   >
                     <Paperclip className="h-4 w-4" />
                   </button>
@@ -961,14 +1306,14 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                     <div className="flex gap-1">
                       <button
                         onClick={messageHandlers.handleCancelEdit}
-                        className="p-2 text-red-500 hover:bg-red-100 rounded-lg transition-all duration-200 transform hover:scale-110"
+                        className="p-2 text-red-500 hover:bg-red-100 rounded-lg transition-all duration-200"
                       >
                         <X className="h-4 w-4" />
                       </button>
                       <button
                         onClick={messageHandlers.handleSaveEdit}
                         disabled={!editMessageText.trim()}
-                        className="p-2 bg-green-500 text-white hover:bg-green-600 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-110"
+                        className="p-2 bg-green-500 text-white hover:bg-green-600 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                       >
                         <Check className="h-4 w-4" />
                       </button>
@@ -977,7 +1322,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                     <button
                       onClick={messageHandlers.handleSendMessage}
                       disabled={!newMessage.trim()}
-                      className="p-2 bg-purple-500 text-white hover:bg-purple-600 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-110"
+                      className="p-2 bg-purple-500 text-white hover:bg-purple-600 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                     >
                       <Send className="h-4 w-4" />
                     </button>
@@ -1042,6 +1387,9 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
   // Desktop expanded layout (popup or integrated)
   return (
     <>
+      {/* Toast Notifications */}
+      <Toaster />
+      
       <div className={`bg-gradient-to-br from-[#f7f4ff] to-[#ede7f6] flex font-['Inter',sans-serif] overflow-hidden neo-glassmorphism ${
         isIntegratedMode ? 'h-full' : 'fixed bottom-4 right-4 w-[790px] h-[790px] max-w-[85vw] max-h-[85vh] z-40 rounded-3xl shadow-[0_25px_80px_rgba(109,40,217,0.25)] border border-white/40 backdrop-blur-xl animate-in zoom-in-95 duration-300'
       }`}>
@@ -1142,7 +1490,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                       return (
                         <button
                           key={`pinned-${conversation.id}`}
-                          onClick={() => messageHandlers.handleSelectConversation(conversation)}
+                          onClick={() => navigationHandlers.handleSelectConversation(conversation)}
                           onContextMenu={(e) => contextMenuHandlers.handleChatContextMenu(e, conversation)}
                           className={`w-full p-1.5 rounded-lg transition-all duration-200 ${
                             isActive 
@@ -1152,9 +1500,19 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                         >
                           <div className="flex items-center gap-1.5">
                             <div className="relative">
-                              <div className="w-8 h-8 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-lg flex items-center justify-center text-white font-bold text-xs">
-                                {partner?.avatar}
-                              </div>
+                              {conversation.icon ? (
+                                <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden">
+                                  <img 
+                                    src={conversation.icon} 
+                                    alt={conversation.name || partner?.name}
+                                    className="w-full h-full object-cover"
+                                  />
+                                </div>
+                              ) : (
+                                <div className="w-8 h-8 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-lg flex items-center justify-center text-white font-bold text-xs">
+                                  {partner?.avatar}
+                                </div>
+                              )}
                               <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-[#86efac] rounded-full flex items-center justify-center">
                                 <Pin className="h-1.5 w-1.5 text-white" />
                               </div>
@@ -1207,7 +1565,27 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                             {filteredEmployees.map(employee => (
                               <button
                                 key={employee.id}
-                                onClick={() => navigationHandlers.handleStartNewChat(employee)}
+                                onClick={() => {
+                                  // Create or find conversation, then select it like clicking on conversation list
+                                  const employeeChatId = employee.employeeId || employee.id;
+                                  const currentUserChatId = currentUser.employeeId || currentUser.id;
+                                  
+                                  // Check if conversation already exists
+                                  const existingConv = conversations.find(conv => 
+                                    conv.type === 'direct' && 
+                                    conv.participants.includes(employeeChatId) && 
+                                    conv.participants.includes(currentUserChatId)
+                                  );
+                                  
+                                  if (existingConv) {
+                                    // Use same logic as clicking on conversation list
+                                    navigationHandlers.handleSelectConversation(existingConv);
+                                  } else {
+                                    // Create new conversation and select it
+                                    navigationHandlers.handleStartNewChat(employee);
+                                  }
+                                  setSearchQuery(''); // Clear search after selection
+                                }}
                                 className="w-full p-2 bg-white/70 backdrop-blur-sm rounded-lg hover:bg-white/80 hover:scale-[1.02] shadow-[inset_0_0_10px_rgba(255,255,255,0.8),0_4px_16px_rgba(109,40,217,0.1)] transition-all duration-300"
                               >
                                 <div className="flex items-center gap-2">
@@ -1240,7 +1618,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                               <button
                                 key={result.id}
                                 onClick={() => {
-                                  messageHandlers.handleSelectConversation(result.conversation);
+                                  navigationHandlers.handleSelectConversation(result.conversation);
                                   setSearchQuery('');
                                 }}
                                 className="w-full p-2 bg-white/70 backdrop-blur-sm rounded-lg hover:bg-white/80 transition-all duration-200"
@@ -1296,7 +1674,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                               return (
                                 <button
                                   key={conversation.id}
-                                  onClick={() => messageHandlers.handleSelectConversation(conversation)}
+                                  onClick={() => navigationHandlers.handleSelectConversation(conversation)}
                                   onContextMenu={(e) => contextMenuHandlers.handleChatContextMenu(e, conversation)}
                                   className={`w-full p-1.5 rounded-lg transition-all duration-200 ${
                                     isActive 
@@ -1306,9 +1684,19 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                                 >
                                   <div className="flex items-center gap-1.5">
                                     <div className="relative">
-                                      <div className="w-8 h-8 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-lg flex items-center justify-center text-white font-bold text-xs">
-                                        {partner?.avatar}
-                                      </div>
+                                      {conversation.icon ? (
+                                        <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden">
+                                          <img 
+                                            src={conversation.icon} 
+                                            alt={conversation.name || partner?.name}
+                                            className="w-full h-full object-cover"
+                                          />
+                                        </div>
+                                      ) : (
+                                        <div className="w-8 h-8 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-lg flex items-center justify-center text-white font-bold text-xs">
+                                          {partner?.avatar}
+                                        </div>
+                                      )}
                                       <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white shadow-sm ${getStatusColor(partner?.status)}`}></div>
                                     </div>
                                     <div className="flex-1 text-left min-w-0">
@@ -1358,7 +1746,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                       return (
                         <button
                           key={conversation.id}
-                          onClick={() => messageHandlers.handleSelectConversation(conversation)}
+                          onClick={() => navigationHandlers.handleSelectConversation(conversation)}
                           onContextMenu={(e) => contextMenuHandlers.handleChatContextMenu(e, conversation)}
                           className={`w-full p-2 rounded-xl transition-all duration-200 ${
                             isActive 
@@ -1368,9 +1756,19 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                         >
                           <div className="flex items-center gap-2">
                             <div className="relative">
-                              <div className="w-9 h-9 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-xl flex items-center justify-center text-white font-bold text-sm">
-                                {partner?.avatar}
-                              </div>
+                              {conversation.icon ? (
+                                <div className="w-9 h-9 bg-gray-100 rounded-xl flex items-center justify-center overflow-hidden">
+                                  <img 
+                                    src={conversation.icon} 
+                                    alt={conversation.name || partner?.name}
+                                    className="w-full h-full object-cover"
+                                  />
+                                </div>
+                              ) : (
+                                <div className="w-9 h-9 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-xl flex items-center justify-center text-white font-bold text-sm">
+                                  {partner?.avatar}
+                                </div>
+                              )}
                               <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white shadow-sm ${getStatusColor(partner?.status)}`}></div>
                             </div>
                             <div className="flex-1 text-left min-w-0">
@@ -1413,14 +1811,24 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="relative">
-                      <div className="w-12 h-12 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-2xl flex items-center justify-center text-white font-bold text-base shadow-[0_8px_32px_rgba(192,132,252,0.3)]">
-                        {getConversationPartner(activeConversation, currentUser.id)?.avatar}
-                      </div>
+                      {activeConversation.icon ? (
+                        <div className="w-12 h-12 bg-gray-100 rounded-2xl flex items-center justify-center overflow-hidden shadow-[0_8px_32px_rgba(192,132,252,0.3)]">
+                          <img 
+                            src={activeConversation.icon} 
+                            alt={activeConversation.name || getConversationPartner(activeConversation, currentUser.id)?.name}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      ) : (
+                        <div className="w-12 h-12 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-2xl flex items-center justify-center text-white font-bold text-base shadow-[0_8px_32px_rgba(192,132,252,0.3)]">
+                          {getConversationPartner(activeConversation, currentUser.id)?.avatar}
+                        </div>
+                      )}
                       {/* <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white shadow-sm ${getStatusColor(getConversationPartner(activeConversation, currentUser.id)?.status)}`}></div> */}
                     </div>
                     <div>
                       <h2 className="text-sm font-normal text-[#1f2937]">
-                        {getConversationPartner(activeConversation, currentUser.id)?.name}
+                        {activeConversation.name || getConversationPartner(activeConversation, currentUser.id)?.name}
                       </h2>
                       <p className="text-sm text-[#6b7280] flex items-center gap-2">
                         <span className={`w-2 h-2 rounded-full ${getStatusColor(getConversationPartner(activeConversation, currentUser.id)?.status)}`}></span>
@@ -1492,20 +1900,88 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                       </div>
                     )}
 
-                    {(messages[activeConversation.id] || []).map(message => {
-                      const isOwnMessage = message.senderId === currentUser.id;
-                      const sender = getEmployeeById(message.senderId);
-                      
-                      return (
-                        <div
-                          key={message.id}
-                          className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
-                        >
-                          <div className={`max-w-md ${isOwnMessage ? 'order-2' : 'order-1'}`}>
-                            {!isOwnMessage && activeConversation.type === 'group' && (
-                              <div className="text-xs text-[#6d28d9] mb-2 ml-2">{sender?.name}</div>
-                            )}
+                    {groupMessagesByDate(messages[activeConversation.id] || []).map((group, groupIndex) => (
+                      <div key={groupIndex} className="space-y-2">
+                        {/* Date Header */}
+                        <div className="flex justify-center">
+                          <div className="bg-white/60 backdrop-blur-sm text-[#6b7280] text-xs px-3 py-1 rounded-full border border-white/40">
+                            {group.date}
+                          </div>
+                        </div>
+                        
+                        {/* Messages for this date */}
+                        {group.messages.map(message => {
+                          const currentUserEmployeeId = currentUser?.employeeId || `emp-${currentUser?.id}`;
+                          // More comprehensive sender ID comparison
+                          const isOwnMessage = 
+                            message.senderId === currentUser.id || 
+                            message.senderId === currentUserEmployeeId ||
+                            message.senderId === currentUser?.employeeId ||
+                            String(message.senderId) === String(currentUser.id) ||
+                            String(message.senderId) === String(currentUserEmployeeId);
+                          
+                          // Debug logging
+                          
+                          
+                          return (
                             <div
+                              key={message.id}
+                              className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
+                            >
+                              {/* Profile picture for group chats (left side for others' messages) */}
+                              {!isOwnMessage && activeConversation.type === 'group' && (
+                                <div 
+                                  className="flex-shrink-0 mr-2 cursor-pointer hover:opacity-80 transition-opacity"
+                                  onClick={() => {
+                                    const senderEmployee = getEmployeeById(message.senderId);
+                                    if (senderEmployee) {
+                                      handleStartChatWithMember(senderEmployee);
+                                    }
+                                  }}
+                                  title="Click to start chat"
+                                >
+                                  {(() => {
+                                    const senderEmployee = getEmployeeById(message.senderId);
+                                    const profilePic = message.sender?.profile_picture_link || 
+                                                     message.sender?.avatar || 
+                                                     senderEmployee?.profile_picture_link ||
+                                                     senderEmployee?.avatar;
+                                    
+                                 
+                                    
+                                    return profilePic && profilePic.startsWith('http') ? (
+                                      <div className="w-6 h-6 bg-gray-100 rounded-full overflow-hidden">
+                                        <img 
+                                          src={profilePic} 
+                                          alt={message.sender?.name || senderEmployee?.name}
+                                          className="w-full h-full object-cover"
+                                        />
+                                      </div>
+                                    ) : (
+                                      <div className="w-6 h-6 bg-gradient-to-br from-[#6d28d9] to-[#7c3aed] rounded-full flex items-center justify-center text-white text-xs font-bold">
+                                        {(message.sender?.name || senderEmployee?.name || 'U').charAt(0)}
+                                      </div>
+                                    );
+                                  })()}
+                                </div>
+                              )}
+                              
+                              <div className={`max-w-md ${isOwnMessage ? 'order-2' : 'order-1'}`}>
+                                {!isOwnMessage && activeConversation.type === 'group' && (
+                                  <div 
+                                    className="text-xs text-[#6d28d9] mb-1 ml-2 font-medium cursor-pointer hover:underline"
+                                    onClick={() => {
+                                      const senderEmployee = getEmployeeById(message.senderId);
+                                      if (senderEmployee) {
+                                        handleStartChatWithMember(senderEmployee);
+                                      }
+                                    }}
+                                    title="Click to start chat"
+                                  >
+                                    {message.sender?.name || getEmployeeById(message.senderId)?.name || 'Unknown User'}
+                                  </div>
+                                )}
+                                <div
                               className={`relative group ${message.type === 'poll' ? 'p-2' : 'px-3 py-2'} rounded-lg transition-all duration-300 hover:scale-[1.02] ${
                                 isOwnMessage
                                   ? `bg-gradient-to-br from-[#6d28d9] to-[#7c3aed] text-white shadow-[0_4px_16px_rgba(109,40,217,0.3)] ${isOwnMessage ? 'rounded-br-md' : ''}`
@@ -1533,6 +2009,14 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                                 </div>
                               )}
                               
+                              {message.isForwarded && (
+                                <div className={`text-[10px] mb-1 flex items-center gap-1 ${isOwnMessage ? 'text-purple-200' : 'text-gray-500'}`}>
+                                  <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                                  </svg>
+                                  <span className="italic">Forwarded</span>
+                                </div>
+                              )}
                               {message.type === 'poll' ? (
                                 <PollMessage
                                   poll={message.poll}
@@ -1555,6 +2039,8 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                         </div>
                       );
                     })}
+                      </div>
+                    ))}
                     <div ref={messagesEndRef} />
                   </div>
 
@@ -1647,6 +2133,8 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                     onUpdateGroup={pollAndGroupHandlers.handleUpdateGroup}
                     onLeaveGroup={pollAndGroupHandlers.handleLeaveGroup}
                     onRemoveMember={pollAndGroupHandlers.handleRemoveMember}
+                    onReloadConversations={loadConversations}
+                    onStartChatWithMember={handleStartChatWithMember}
                     isCompact={false}
                     isInline={true}
                   />

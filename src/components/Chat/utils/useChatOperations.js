@@ -32,19 +32,23 @@ export const useChatOperations = () => {
   }, [setGlobalActiveConversation, markConversationAsRead]);
 
   const handleStartNewConversation = useCallback((employee) => {
+    // Use employeeId for chat system compatibility, fallback to id
+    const employeeChatId = employee.employeeId || employee.id;
+    const currentUserChatId = currentUser.employeeId || currentUser.id;
+    
     // Check if conversation already exists
     const existingConv = conversations.find(conv => 
-      conv.participants.includes(employee.id) && conv.participants.includes(currentUser.id)
+      conv.participants.includes(employeeChatId) && conv.participants.includes(currentUserChatId)
     );
 
     if (existingConv) {
       handleSelectConversation(existingConv);
     } else {
-      // Create new conversation
-      const newConv = createConversation([currentUser.id, employee.id]);
+      // Create new conversation using chat-compatible IDs
+      const newConv = createConversation([currentUserChatId, employeeChatId]);
       handleSelectConversation(newConv);
     }
-  }, [conversations, currentUser.id, createConversation, handleSelectConversation]);
+  }, [conversations, currentUser, createConversation, handleSelectConversation]);
 
   const handleBackToList = useCallback(() => {
     setActiveConversation(null);

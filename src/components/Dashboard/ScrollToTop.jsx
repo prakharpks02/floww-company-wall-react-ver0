@@ -3,6 +3,21 @@ import { ChevronUp } from 'lucide-react';
 
 const ScrollToTop = () => {
   const [isVisible, setIsVisible] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Check if device is mobile
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+    };
+  }, []);
 
   // Show button when page is scrolled up to given distance
   const toggleVisibility = () => {
@@ -28,6 +43,11 @@ const ScrollToTop = () => {
       behavior: 'smooth',
     });
   };
+
+  // Don't render on mobile devices
+  if (isMobile) {
+    return null;
+  }
 
   return (
     <>

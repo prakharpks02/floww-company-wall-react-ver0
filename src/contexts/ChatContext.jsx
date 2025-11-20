@@ -1,24 +1,266 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { dummyConversations, dummyMessages } from '../components/Chat/utils/dummyData';
+import { initializeEmployees, getEmployeeById } from '../components/Chat/utils/dummyData';
+import { enhancedChatAPI } from '../components/Chat/chatapi';
+import adminChatAPI from '../services/adminChatAPI';
+
+// Environment detection
+const isAdminEnvironment = () => {
+  return window.location.pathname.includes('/crm');
+};
+
+// Choose API based on environment
+const getChatAPI = () => {
+  if (isAdminEnvironment()) {
+    return adminChatAPI;
+  } else {
+    return enhancedChatAPI;
+  }
+};
 
 const ChatContext = createContext();
 
 export const useChat = () => {
   const context = useContext(ChatContext);
   if (!context) {
+    
     throw new Error('useChat must be used within a ChatProvider');
   }
   return context;
 };
 
 export const ChatProvider = ({ children }) => {
-  const [conversations, setConversations] = useState(dummyConversations);
-  const [messages, setMessages] = useState(dummyMessages);
+  const [conversations, setConversations] = useState([]);
+  const [messages, setMessages] = useState({});
   const [activeConversation, setActiveConversation] = useState(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isChatMinimized, setIsChatMinimized] = useState(false);
   const [isCompactMode, setIsCompactMode] = useState(true); // Start in compact mode
   const [isFullScreenMobile, setIsFullScreenMobile] = useState(false); // Full screen mobile mode
+  const [employees, setEmployees] = useState([]);
+  const [employeesLoading, setEmployeesLoading] = useState(true);
+  const [conversationsLoading, setConversationsLoading] = useState(true);
+
+  // Load messages for a specific conversation (environment-aware)
+  const loadMessagesForConversation = async (conversationId) => {
+    try {
+      const currentAPI = getChatAPI();
+      const envType = isAdminEnvironment() ? 'ADMIN' : 'EMPLOYEE';
+      const messagesResponse = await currentAPI.getRoomMessages(conversationId);
+      
+      if (messagesResponse.status === 'success' && Array.isArray(messagesResponse.data)) {
+        const apiMessages = messagesResponse.data.map(msg => {
+          const message = {
+            id: msg.message_id,
+            senderId: msg.sender?.employee_id || msg.sender_id,
+            text: msg.content,
+            timestamp: new Date(msg.created_at),
+            read: true,
+            isStarred: msg.is_starred || false,
+            fileUrls: msg.file_urls || [],
+            // Store sender information from API
+            sender: msg.sender ? {
+              id: msg.sender.employee_id,
+              name: msg.sender.employee_name,
+              avatar: msg.sender.profile_picture_link,
+              jobTitle: msg.sender.job_title
+            } : null
+          };
+
+          // Parse reply data properly
+          if (msg.reply_to_message) {
+            message.replyTo = {
+              id: msg.reply_to_message.message_id,
+              text: msg.reply_to_message.content,
+              senderId: msg.reply_to_message.sender?.employee_id,
+              senderName: msg.reply_to_message.sender?.employee_name || 'Unknown User',
+              senderAvatar: msg.reply_to_message.sender?.profile_picture_link,
+              timestamp: new Date(msg.reply_to_message.created_at)
+            };
+            
+          }
+
+          return message;
+        });
+        // Update messages state
+        setMessages(prev => ({
+          ...prev,
+          [conversationId]: apiMessages
+        }));
+        
+        return apiMessages;
+      } else {
+        setMessages(prev => ({
+          ...prev,
+          [conversationId]: []
+        }));
+        return [];
+      }
+    } catch (error) {
+      setMessages(prev => ({
+        ...prev,
+        [conversationId]: []
+      }));
+      return [];
+    }
+  };
+
+  // Load conversations from API (environment-aware)
+  const loadConversations = async () => {
+    try {
+      const currentAPI = getChatAPI();
+      const envType = isAdminEnvironment() ? 'ADMIN' : 'EMPLOYEE';
+      setConversationsLoading(true);
+      
+      const roomsResponse = await currentAPI.listAllRooms();
+      
+      if (roomsResponse.status === 'success' && Array.isArray(roomsResponse.data)) {
+        const apiConversations = roomsResponse.data.map(room => {
+          
+          
+          // Extract participants and filter out null/invalid values
+          const participants = room.participants ? room.participants
+            .map(p => p.employee_id && p.employee_id !== 'N/A' ? p.employee_id : p.id)
+            .filter(id => id && id !== null && id !== undefined) : 
+            (room.receiver_employee_id && room.sender_employee_id ? 
+             [room.receiver_employee_id, room.sender_employee_id] : []);
+
+          // Extract admin IDs from participants with is_admin: true
+          const adminIds = room.participants ? room.participants
+            .filter(p => p.is_admin === true && p.employee_id && p.employee_id !== 'N/A')
+            .map(p => p.employee_id) : [];
+          
+          
+          const isGroup = room.is_group || participants.length > 2;
+          
+          // Handle both possible timestamp formats
+          const parseDate = (dateStr) => {
+            if (!dateStr) return new Date();
+            const parsed = new Date(dateStr);
+            return isNaN(parsed.getTime()) ? new Date() : parsed;
+          };
+          
+          // Simply use room_name directly from API - handle both string and array formats
+          let conversationName;
+          if (Array.isArray(room.room_name)) {
+            // If API returns array, take first element
+            conversationName = room.room_name[0] || 'Unnamed Chat';
+          } else if (typeof room.room_name === 'string') {
+            // If API returns string, use directly
+            conversationName = room.room_name;
+          } else {
+            // Fallback for invalid room_name
+            conversationName = isGroup ? 'Group Chat' : 'Direct Chat';
+          }
+          
+
+          // Handle room_icon - can be string or array
+          let iconUrl = null;
+          
+          
+          if (room.room_icon) {
+            if (Array.isArray(room.room_icon)) {
+              // For direct chats, room_icon is an array - take first element
+              const iconValue = room.room_icon[0];
+              // Only use if it's a valid URL (not abbreviations)
+              if (iconValue && iconValue.startsWith('http')) {
+                iconUrl = iconValue;
+              } else {
+              }
+            } else if (typeof room.room_icon === 'string') {
+              // For groups, room_icon is a string
+              // Only use it if it's a valid URL (starts with http)
+              if (room.room_icon.startsWith('http')) {
+                iconUrl = room.room_icon;
+              } else {
+              }
+              // Ignore abbreviations like "TE", "A", etc. - they should show as initials instead
+            }
+          }
+          return {
+            id: room.room_id || room.id,
+            room_id: room.room_id || room.id,
+            participants: participants,
+            type: isGroup ? 'group' : 'direct',
+            name: conversationName,
+            description: room.room_desc || room.description || '', // Map room_desc to description
+            icon: iconUrl, // Map icon field (handles both string and array)
+            admins: adminIds, // Extract from participants with is_admin: true
+            createdBy: room.created_by || room.creator_id || null, // Map creator ID
+            lastMessage: room.last_message && room.last_message !== 'N/A' ? (
+              typeof room.last_message === 'string' ? {
+                // If last_message is just a string
+                id: 'last_msg_' + room.room_id,
+                senderId: 'unknown',
+                text: room.last_message,
+                timestamp: parseDate(room.updated_at || room.created_at),
+                read: true
+              } : {
+                // If last_message is an object
+                id: room.last_message.message_id || room.last_message.id,
+                senderId: room.last_message.sender?.employee_id || room.last_message.sender_id,
+                text: room.last_message.content || room.last_message.text || room.last_message,
+                timestamp: parseDate(room.last_message.created_at || room.last_message.timestamp),
+                read: true
+              }
+            ) : null,
+            unreadCount: room.unread_count || room.unreadCount || 0,
+            createdAt: parseDate(room.created_at),
+            updatedAt: parseDate(room.updated_at || room.created_at)
+          };
+        });
+        
+        setConversations(apiConversations);
+        
+      } else {
+        setConversations([]);
+      }
+    } catch (error) {
+      setConversations([]);
+    } finally {
+      setConversationsLoading(false);
+    }
+  };
+
+  // Initialize employees and conversations from API on component mount
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setEmployeesLoading(true);
+        const loadedEmployees = await initializeEmployees();
+        
+        setEmployees(loadedEmployees);
+        
+        // Load conversations after employees are loaded
+        await loadConversations();
+      } catch (error) {
+        setEmployees([]);
+        setConversations([]);
+      } finally {
+        setEmployeesLoading(false);
+      }
+    };
+
+    loadData();
+  }, []);
+
+  // Periodic sync to catch messages that may have been persisted after WebSocket send
+  useEffect(() => {
+    if (conversations.length === 0) return;
+
+    const syncInterval = setInterval(async () => {
+      // Sync messages for conversations that have room_id
+      for (const conversation of conversations.slice(0, 3)) { // Limit to first 3 to avoid too many API calls
+        if (conversation.room_id) {
+          try {
+            await loadMessagesForConversation(conversation.id);
+          } catch (error) {
+          }
+        }
+      }
+    }, 60000); // Sync every 60 seconds
+
+    return () => clearInterval(syncInterval);
+  }, [conversations]);
 
   // Calculate total unread messages
   const totalUnreadMessages = conversations.reduce((total, conv) => total + conv.unreadCount, 0);
@@ -79,14 +321,96 @@ export const ChatProvider = ({ children }) => {
     return newConversation;
   };
 
-  // Create new group
-  const createGroup = (name, description, participants, createdBy) => {
-    const avatar = name.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2);
-    return createConversation(
-      participants,
-      'group',
-      { name, description, avatar, createdBy }
-    );
+  // Create new group using admin API
+  const createGroup = async (name, description, participants, createdBy) => {
+    
+    
+    try {
+      // Prepare participants for admin API (need employee IDs)
+      const participantIds = [];
+      
+      // Convert participants to employee IDs if needed
+      for (const participant of participants) {
+        if (typeof participant === 'string') {
+          // If it's already an employee ID string
+          participantIds.push(participant);
+        } else if (participant.employeeId) {
+          // If it's an employee object with employeeId
+          participantIds.push(participant.employeeId);
+        } else if (participant.id) {
+          // If it's an employee object with id, try to find the employeeId
+          const employee = employees.find(emp => emp.id === participant.id);
+          if (employee && employee.employeeId) {
+            participantIds.push(employee.employeeId);
+          }
+        }
+      }
+      // Call admin API to create group
+      const groupData = {
+        group_name: name,
+        group_description: description,
+        group_icon: name.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2),
+        participants_ids: participantIds
+      };
+      const response = await adminChatAPI.createGroup(groupData);
+      
+      if (response && response.status === 'success') {
+        // Reload conversations to include the new group
+        await loadConversations();
+        
+        // Find the newly created group in the conversations
+        const newGroup = conversations.find(conv => 
+          conv.name === name && conv.type === 'group'
+        );
+        
+        if (newGroup) {
+          return newGroup;
+        } else {
+          // Create a temporary local group object for immediate UI update
+          const tempGroup = createConversation(
+            participants,
+            'group',
+            { 
+              name, 
+              description, 
+              avatar: groupData.group_icon, 
+              createdBy,
+              _adminCreated: true // Flag to indicate it was created via admin API
+            }
+          );
+          return tempGroup;
+        }
+      } else {
+        throw new Error(response?.message || 'Failed to create group');
+      }
+      
+    } catch (error) {
+      // Fallback: create local group if API fails (for development)
+      const avatar = name.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2);
+      const fallbackGroup = createConversation(
+        participants,
+        'group',
+        { name, description, avatar, createdBy, _fallback: true }
+      );
+      
+      // Show error to user (you might want to add error state to context)
+      return fallbackGroup;
+    }
+  };
+
+  // Update existing conversation
+  const updateConversation = (conversationId, updates) => {
+    
+    
+    setConversations(prev => {
+      const updated = prev.map(conv => {
+        if (conv.id === conversationId) {
+          return { ...conv, ...updates };
+        }
+        return conv;
+      });
+      return updated;
+    });
   };
 
   // Chat controls
@@ -151,6 +475,9 @@ export const ChatProvider = ({ children }) => {
     isCompactMode,
     isFullScreenMobile,
     totalUnreadMessages,
+    employees,
+    employeesLoading,
+    conversationsLoading,
 
     // Actions
     setConversations,
@@ -160,6 +487,9 @@ export const ChatProvider = ({ children }) => {
     sendMessage,
     createConversation,
     createGroup,
+    updateConversation,
+    loadConversations,
+    loadMessagesForConversation,
 
     // Chat controls
     openChat,

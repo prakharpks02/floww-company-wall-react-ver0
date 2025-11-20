@@ -61,6 +61,7 @@ const ChatModals = ({
         conversations={conversations.filter(conv => conv.id !== activeConversation?.id)}
         currentUserId={currentUserId}
         message={messageToForward}
+        isCompactMode={isCompactMode}
       />
 
       <PinModal

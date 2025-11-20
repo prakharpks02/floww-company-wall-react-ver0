@@ -1,7 +1,23 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { MessageCircle } from 'lucide-react';
 
 const ChatToggleButton = ({ onClick, hasUnreadMessages = false, unreadCount = 0 }) => {
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Don't render on mobile - chat button is in navigation
+  if (isMobile) {
+    return null;
+  }
+
   return (
     <button
       onClick={onClick}

@@ -5,6 +5,16 @@ import { postsAPI } from '../services/api.jsx';
 import { adminAPI } from '../services/adminAPI.jsx';
 import { extractMentionsFromText, processCommentData } from '../utils/htmlUtils';
 
+// Avatar URL generator helper
+const generateAvatarUrl = (name, options = {}) => {
+  const { background = 'random', color = 'white', size = 128 } = options;
+  const encodedName = encodeURIComponent(name);
+  const apiUrl = import.meta.env.VITE_DEFAULT_AVATAR_API;
+  return `${apiUrl}/?name=${encodedName}&background=${background}&color=${color}&size=${size}`;
+};
+
+const FALLBACK_AVATAR_URL = import.meta.env.VITE_FALLBACK_AVATAR_URL;
+
 const PostContext = createContext();
 
 export const usePost = () => {
@@ -79,7 +89,6 @@ export const PostProvider = ({ children }) => {
           const userId = reaction.user_id;
           
           if (!reactionType || !userId) {
-            console.warn(`⚠️ Invalid reaction at index ${index}:`, reaction);
             return;
           }
 
@@ -96,13 +105,11 @@ export const PostProvider = ({ children }) => {
             reactionsObject[reactionType].count++;
           }
         } catch (error) {
-          console.warn(`⚠️ Error processing reaction at index ${index}:`, error);
         }
       });
 
       return reactionsObject;
     } catch (error) {
-      console.warn('⚠️ Error in normalizeReactions:', error);
       return {};
     }
   };
@@ -128,7 +135,6 @@ export const PostProvider = ({ children }) => {
       
       return reactionsObject;
     } catch (error) {
-      console.warn('⚠️ Error in normalizeReactionCounts:', error);
       return {};
     }
   };
@@ -159,7 +165,6 @@ export const PostProvider = ({ children }) => {
         }
       }
     } catch (error) {
-      console.warn('⚠️ Error normalizing post reactions:', error);
       normalizedReactions = {};
     }
     
@@ -182,7 +187,7 @@ export const PostProvider = ({ children }) => {
                                user?.name || 
                                (user?.is_admin ? 'Admin' : 'Employee User');
       const commentAuthorAvatar = comment.author?.avatar || comment.authorAvatar || 
-                                 'https://ui-avatars.com/api/?name=' + encodeURIComponent(commentAuthorName) + '&background=random';
+                                 generateAvatarUrl(commentAuthorName, { background: 'random' });
       
       return {
         ...comment,
@@ -228,7 +233,6 @@ export const PostProvider = ({ children }) => {
               return {};
             }
           } catch (error) {
-            console.warn('⚠️ Error normalizing comment reactions:', error);
             return {};
           }
         })(),
@@ -270,7 +274,6 @@ export const PostProvider = ({ children }) => {
                 return {};
               }
             } catch (error) {
-              console.warn('⚠️ Error normalizing reply reactions:', error);
               return {};
             }
           })()
@@ -322,7 +325,6 @@ export const PostProvider = ({ children }) => {
                 const parsed = JSON.parse(fixed);
                 url = parsed.link || url;
               } catch (e) {
-                console.warn('🔍 Could not parse stringified URL object:', url);
               }
             }
             
@@ -403,7 +405,6 @@ export const PostProvider = ({ children }) => {
       try {
         localStorage.setItem('userReactions', JSON.stringify(updated));
       } catch (error) {
-        console.error('Failed to save user reactions to localStorage:', error);
       }
       
       return updated;
@@ -426,7 +427,6 @@ export const PostProvider = ({ children }) => {
       try {
         localStorage.setItem('userReactions', JSON.stringify(updated));
       } catch (error) {
-        console.error('Failed to save user reactions to localStorage:', error);
       }
       
       return updated;
@@ -458,7 +458,6 @@ export const PostProvider = ({ children }) => {
       try {
         localStorage.setItem('userReactions', JSON.stringify(updated));
       } catch (error) {
-        console.error('Failed to save user reactions to localStorage:', error);
       }
       
       return updated;
@@ -481,7 +480,6 @@ export const PostProvider = ({ children }) => {
       try {
         localStorage.setItem('userReactions', JSON.stringify(updated));
       } catch (error) {
-        console.error('Failed to save user reactions to localStorage:', error);
       }
       
       return updated;
@@ -560,7 +558,6 @@ export const PostProvider = ({ children }) => {
         setIsInitialized(true);
         setLastLoadUser(user?.employee_id);
       } catch (error) {
-        console.error('❌ PostContext - Failed to load user posts from backend:', error.message);
         setPosts([]);
         setNextCursor(null);
         setHasMorePosts(false);
@@ -619,7 +616,6 @@ export const PostProvider = ({ children }) => {
       const normalizedPosts = postsData.map(normalizePost);
       setPosts(normalizedPosts);
     } catch (error) {
-      console.error('❌ Failed to reload user posts from backend:', error.message);
       setPosts([]);
     }
   };
@@ -726,7 +722,6 @@ export const PostProvider = ({ children }) => {
         });
       }
     } catch (error) {
-      console.error('❌ Error loading posts:', error);
       setHasMorePosts(false);
     } finally {
       setLoading(false);
@@ -791,7 +786,6 @@ export const PostProvider = ({ children }) => {
 
       setLastRefreshTime(Date.now());
     } catch (error) {
-      console.error('❌ Failed to refresh reactions:', error.message);
     }
   };
 
@@ -823,7 +817,6 @@ export const PostProvider = ({ children }) => {
         });
       }
     } catch (error) {
-      console.error('❌ Failed to refresh specific post reactions:', error.message);
       // Fallback to full refresh if specific post fetch fails
       await refreshReactions();
     }
@@ -831,13 +824,12 @@ export const PostProvider = ({ children }) => {
 
   const createPost = async (postData) => {
     if (!user) {
-      console.error('No authenticated user found. Cannot create post.');
       throw new Error('You must be logged in to create a post');
     }
 
     // Use token-based authentication - backend will handle user identification
     const authorName = user?.name || user?.username || (user?.is_admin ? 'Admin' : 'Employee User');
-    const authorAvatar = user?.profile_picture_link || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80';
+    const authorAvatar = user?.profile_picture_link || FALLBACK_AVATAR_URL;
 
     try {
       // Optimistically create the post object first for immediate UI update
@@ -962,8 +954,6 @@ export const PostProvider = ({ children }) => {
       return finalPost;
 
     } catch (error) {
-      console.error('❌ Post creation failed:', error.message);
-      
       // Remove optimistic post if backend call failed
       setPosts(prevPosts => 
         prevPosts.filter(post => !post.isOptimistic || post.id !== tempId)
@@ -1014,8 +1004,6 @@ export const PostProvider = ({ children }) => {
       );
       
     } catch (error) {
-      console.error('❌ Edit post error:', error);
-      
       // Revert optimistic update if API call failed
       setPosts(prevPosts => 
         prevPosts.map(post => 
@@ -1043,8 +1031,6 @@ export const PostProvider = ({ children }) => {
       await postsAPI.deletePost(postId);
       
     } catch (error) {
-      console.error('❌ Delete post failed:', error.message);
-      
       // Restore the post if deletion failed
       if (postToDelete) {
         setPosts(prevPosts => [postToDelete, ...prevPosts]);
@@ -1060,9 +1046,7 @@ export const PostProvider = ({ children }) => {
   const addComment = async (postId, commentData) => {
 
     if (!user) {
-      console.error('❌ No user found for adding comment - user object is:', user);
       // Instead of throwing an error, let's wait for the user to load
-      console.warn('⚠️ User not loaded yet, please try again');
       return;
     }
 
@@ -1099,7 +1083,6 @@ export const PostProvider = ({ children }) => {
         replies: [],
         reactions: []
       };
-
 
     setPosts(prevPosts =>
       prevPosts.map(post =>
@@ -1162,7 +1145,6 @@ export const PostProvider = ({ children }) => {
         })
       );
     } catch (error) {
-      console.error('❌ Add reply error:', error);
       throw error;
     }
   };
@@ -1214,7 +1196,6 @@ export const PostProvider = ({ children }) => {
         })
       );
     } catch (error) {
-      console.error('❌ Delete comment error:', error);
       throw error;
     }
   };
@@ -1251,7 +1232,6 @@ export const PostProvider = ({ children }) => {
         })
       );
     } catch (error) {
-      console.error('❌ Delete reply error:', error);
       throw error;
     }
   };
@@ -1335,7 +1315,6 @@ export const PostProvider = ({ children }) => {
       // Also check if we need to refresh from server
       
     } catch (error) {
-      console.error('❌ Edit comment error:', error);
       throw error;
     }
   };
@@ -1361,7 +1340,6 @@ export const PostProvider = ({ children }) => {
             mentions: replyContent.mentions || extractMentionsFromText(replyContent.content || '')
           };
       
-
 
       const response = await postsAPI.addCommentReply(backendPostId, backendCommentId, processedData);
 
@@ -1400,7 +1378,6 @@ export const PostProvider = ({ children }) => {
 
       return response;
     } catch (error) {
-      console.error('❌ Add comment reply error:', error);
       throw error;
     }
   };
@@ -1446,7 +1423,6 @@ export const PostProvider = ({ children }) => {
     });
 
     if (!targetComment) {
-      console.error('Comment/Reply not found:', commentId);
       return;
     }
 
@@ -1469,7 +1445,6 @@ export const PostProvider = ({ children }) => {
         }
       }
     }
-
 
     try {
       // Optimistically update the UI first for immediate feedback
@@ -1710,7 +1685,6 @@ export const PostProvider = ({ children }) => {
       await refreshSpecificPostReactions(postId);
 
     } catch (error) {
-      console.error('❌ Failed to add/remove reaction:', error.message);
       // Revert optimistic update on error by reloading that specific post
       await refreshSpecificPostReactions(postId);
       throw error;
@@ -1774,7 +1748,6 @@ export const PostProvider = ({ children }) => {
       await refreshSpecificPostReactions(postId);
 
     } catch (error) {
-      console.error('❌ Failed to remove reaction:', error.message);
       // Revert optimistic update on error
       await refreshSpecificPostReactions(postId);
       throw error;
@@ -1796,7 +1769,6 @@ export const PostProvider = ({ children }) => {
       
       return [];
     } catch (error) {
-      console.error('❌ Failed to get user posts:', error);
       return [];
     }
   };

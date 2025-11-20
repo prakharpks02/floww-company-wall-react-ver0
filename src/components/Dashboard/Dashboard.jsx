@@ -8,7 +8,7 @@ import BroadcastView from './BroadcastView';
 import ResponsiveLayout from '../Layout/ResponsiveLayout';
 import ScrollToTop from './ScrollToTop';
 import ChatApp from '../Chat/ChatApp';
-// import ChatToggleButton from '../Chat/ChatToggleButton';
+import ChatToggleButton from '../Chat/ChatToggleButton';
 import { usePost } from '../../contexts/PostContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useChat } from '../../contexts/ChatContext';
@@ -29,7 +29,26 @@ const Dashboard = () => {
   const [userPosts, setUserPosts] = useState([]); // Store user posts for sidebar count updates
   const { posts, getFilteredPosts, loadAllPosts, reloadPosts, loading, setIsDashboardManaged } = usePost();
   const { user } = useAuth();
-  const { isChatOpen, isChatMinimized, isCompactMode, isFullScreenMobile, totalUnreadMessages, toggleChat, closeChat } = useChat();
+  
+  // Debug: Add error handling for useChat
+  let chatContext;
+  try {
+    chatContext = useChat();
+  } catch (error) {
+    
+    // Provide fallback values to prevent crash
+    chatContext = {
+      isChatOpen: false,
+      isChatMinimized: false,
+      isCompactMode: false,
+      isFullScreenMobile: false,
+      totalUnreadMessages: 0,
+      toggleChat: () => {},
+      closeChat: () => {}
+    };
+  }
+  
+  const { isChatOpen, isChatMinimized, isCompactMode, isFullScreenMobile, totalUnreadMessages, toggleChat, closeChat } = chatContext;
   
   // Add refs to prevent multiple API calls
   const lastActiveView = useRef(activeView);
@@ -90,7 +109,6 @@ const Dashboard = () => {
         // For myposts view, let MyPosts component handle its own data loading
         // For broadcast view, data is fetched by BroadcastView component
       } catch (error) {
-        console.error('Error loading data for view:', activeView, error);
       } finally {
         isLoadingRef.current = false;
       }
@@ -259,21 +277,22 @@ const Dashboard = () => {
         {/* Scroll to Top Button - Hide when chat is taking up layout space */}
         {!(isChatOpen && !isChatMinimized && !isCompactMode) && <ScrollToTop />}
 
-        {/* Chat Components - Only render compact mode and mobile toggle */}
-        {isChatOpen && !isFullScreenMobile && (isCompactMode || isChatMinimized) ? (
-          <ChatApp 
-            isMinimized={isChatMinimized} 
-            onToggleMinimize={toggleChat}
-            onClose={closeChat}
-          />
-        ) : (
-          !isChatOpen && null
-          /* <ChatToggleButton 
+      {/* Chat Components - Only render compact mode and mobile toggle */}
+      {isChatOpen && !isFullScreenMobile && (isCompactMode || isChatMinimized) ? (
+        <ChatApp 
+          isMinimized={isChatMinimized} 
+          onToggleMinimize={toggleChat}
+          onClose={closeChat}
+        />
+      ) : (
+        !isChatOpen && (
+          <ChatToggleButton 
             onClick={toggleChat}
             hasUnreadMessages={totalUnreadMessages > 0}
             unreadCount={totalUnreadMessages}
-          /> */
-        )}
+          />
+        )
+      )}
       </ResponsiveLayout>
     </>
   );

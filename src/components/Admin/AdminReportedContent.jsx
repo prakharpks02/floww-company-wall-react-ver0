@@ -51,7 +51,6 @@ const AdminReportedContent = ({ activeView }) => {
         setError(response.message || 'Failed to load reported content');
       }
     } catch (err) {
-      console.error('Error loading reported content:', err);
       setError(err.message || 'Failed to load reported content');
     } finally {
       setLoading(false);
@@ -115,7 +114,6 @@ const AdminReportedContent = ({ activeView }) => {
       await loadReportedContent();
       
     } catch (error) {
-      console.error('Error resolving reports:', error);
       showError('Bulk Resolution Failed', 'Failed to resolve some reports. Please try again.');
     } finally {
       setLoading(false);

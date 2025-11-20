@@ -86,17 +86,34 @@ const MobileChatHeader = ({
           <ArrowLeft className="h-5 w-5" />
         </button>
         <div className="relative">
-          <div className="w-10 h-10 bg-white bg-opacity-20 rounded-full flex items-center justify-center text-white">
-            {partner?.avatar}
-          </div>
+          {activeConversation.icon ? (
+            <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center overflow-hidden">
+              <img 
+                src={activeConversation.icon} 
+                alt={activeConversation.type === 'group' ? 'Group Icon' : 'Profile Picture'} 
+                className="w-full h-full object-cover"
+              />
+            </div>
+          ) : (
+            <div className="w-10 h-10 bg-white bg-opacity-20 rounded-full flex items-center justify-center text-white overflow-hidden">
+              {activeConversation.type === 'group' ? (
+                <span className="text-white">{activeConversation.name?.substring(0, 2).toUpperCase() || 'GR'}</span>
+              ) : (
+                partner?.avatar
+              )}
+            </div>
+          )}
           <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${getStatusColor(partner?.status)}`}></div>
         </div>
         <div>
           <h3 className="text-white font-normal">
-            {partner?.name}
+            {activeConversation.type === 'group' ? activeConversation.name : partner?.name}
           </h3>
           <p className="text-sm text-purple-200">
-            {partner?.status === 'online' ? 'Active now' : partner?.status}
+            {activeConversation.type === 'group' 
+              ? `${activeConversation.participants?.length || 0} members`
+              : (partner?.status === 'online' ? 'Active now' : partner?.status)
+            }
           </p>
         </div>
       </div>

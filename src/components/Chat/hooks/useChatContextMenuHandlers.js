@@ -36,8 +36,6 @@ export const useChatContextMenuHandlers = ({
       y: y,
       message: message
     };
-    
-    console.log('🔥 Setting context menu state:', menuState);
     setContextMenu(menuState);
   };
 

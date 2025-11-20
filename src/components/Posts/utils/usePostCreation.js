@@ -86,7 +86,6 @@ export const usePostCreation = (createPost, editPost, editingPost, onClose) => {
       setMentions([]);
       onClose();
     } catch (error) {
-      console.error('❌ Error submitting post:', error);
     } finally {
       setIsSubmitting(false);
     }

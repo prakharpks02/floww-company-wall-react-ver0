@@ -20,8 +20,6 @@ const PinModal = ({ isOpen, onClose, onPin, type, item, isCompact = false }) => 
     if (typeof onPin === 'function') {
       
       onPin(selectedDuration);
-    } else {
-      console.error('PinModal - onPin is not a function:', onPin);
     }
     
     onClose();

@@ -1,29 +1,90 @@
-import { dummyEmployees, getConversationPartner as getPartner, formatMessageTime, getEmployeeById } from '../utils/dummyData';
+import { getConversationPartner as getPartner, formatMessageTime, getEmployeeByIdFromList, getDateHeader, groupMessagesByDate } from '../utils/dummyData';
+import { useChat } from '../../../contexts/ChatContext';
+import { cookieUtils } from '../../../utils/cookieUtils';
 
 export const useChatUtilities = () => {
-  const currentUser = dummyEmployees[0]; // Shreyansh Shandilya
+  const { employees } = useChat();
+  
+  // Detect if we're in admin environment
+  const isAdminEnvironment = () => {
+    return window.location.pathname.includes('/crm');
+  };
+  
+  // Always provide a current user, even if employees haven't loaded yet
+  const currentUser = (() => {
+    // Check if we're in admin environment
+    if (isAdminEnvironment()) {
+      return {
+        id: 'UAI5Tfzl3k4Y6NIp', // Use specific admin sender_id
+        employeeId: 'UAI5Tfzl3k4Y6NIp', // Use specific admin sender_id for API calls
+        name: 'Admin',
+        email: 'admin@company.com',
+        status: 'online',
+        avatar: 'AD',
+        role: 'Administrator',
+        isAdmin: true
+      };
+    }
+    
+    // Get the logged-in user's employee ID from cookies/auth
+    const { employeeId: loggedInEmployeeId } = cookieUtils.getAuthTokens();
+    // If employees are available, find the logged-in user
+    if (employees.length > 0) {
+      // Try to find the current logged-in user by their employeeId from cookies
+      let emp = employees.find(emp => emp.employeeId === loggedInEmployeeId);
+      
+      // Fallback: if not found, use first employee with employeeId
+      if (!emp) {
+        emp = employees.find(emp => emp.employeeId) || employees[0];
+      }
+      
+      const user = {
+        ...emp,
+        id: emp.employeeId || emp.id || loggedInEmployeeId || 'emp-k15sLcnjub9r',
+        employeeId: emp.employeeId || emp.id || loggedInEmployeeId || 'emp-k15sLcnjub9r'
+      };
+      
+      return user;
+    }
+    
+    // Fallback current user when employees haven't loaded - use cookie value
+    const fallbackId = loggedInEmployeeId || 'emp-k15sLcnjub9r';
+    return {
+      id: fallbackId,
+      employeeId: fallbackId, 
+      name: 'Current User',
+      email: 'current@company.com',
+      status: 'online'
+    };
+  })();
+
+  // Create a local getEmployeeById function that uses the current employees list
+  const getEmployeeById = (id) => {
+    return getEmployeeByIdFromList(id, employees);
+  };
 
   // Filter employees for search
   const getFilteredEmployees = (searchQuery) => {
-    return dummyEmployees.filter(emp => 
-      emp.id !== currentUser.id && 
+    if (!employees.length) return [];
+    return employees.filter(emp => 
+      emp.id !== currentUser?.id && 
       emp.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
   };
 
   // Global search: search both conversations and messages
   const getMessageSearchResults = (searchQuery, conversations, messages) => {
-    if (!searchQuery.trim()) return [];
+    if (!searchQuery.trim() || !employees.length) return [];
     
     const results = [];
     conversations.forEach(conv => {
       const conversationMessages = messages[conv.id] || [];
       conversationMessages.forEach(msg => {
         if ((msg.text || '').toLowerCase().includes(searchQuery.toLowerCase())) {
-          const sender = dummyEmployees.find(emp => emp.id === msg.senderId);
+          const sender = employees.find(emp => emp.id === msg.senderId);
           const partner = conv.type === 'group' ? 
             { name: conv.name, avatar: '👥' } : 
-            dummyEmployees.find(emp => emp.id !== currentUser.id && conv.participants.includes(emp.id));
+            employees.find(emp => emp.id !== currentUser?.id && conv.participants.includes(emp.id));
           
           results.push({
             id: `${conv.id}-${msg.id}`,
@@ -100,7 +161,7 @@ export const useChatUtilities = () => {
   // Get conversation partner helper
   const getConversationPartner = (conversation, currentUserId) => {
     // Add null check to prevent errors
-    if (!conversation) {
+    if (!conversation || !employees.length) {
       return null;
     }
     
@@ -109,7 +170,7 @@ export const useChatUtilities = () => {
     }
     
     const partnerId = conversation.participants.find(id => id !== currentUserId);
-    return dummyEmployees.find(emp => emp.id === partnerId);
+    return employees.find(emp => emp.id === partnerId);
   };
 
   // Get status color utility
@@ -129,7 +190,7 @@ export const useChatUtilities = () => {
 
   // Helper function to check if a message can be edited (within 5 minutes)
   const canEditMessage = (message) => {
-    if (!message || message.senderId !== currentUser.id) return false;
+    if (!message || !currentUser || message.senderId !== currentUser.id) return false;
     const messageTime = new Date(message.timestamp);
     const currentTime = new Date();
     const timeDifference = currentTime - messageTime;
@@ -146,6 +207,8 @@ export const useChatUtilities = () => {
     getStatusColor,
     canEditMessage,
     getEmployeeById,
-    formatMessageTime
+    formatMessageTime,
+    getDateHeader,
+    groupMessagesByDate
   };
 };

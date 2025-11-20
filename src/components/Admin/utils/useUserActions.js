@@ -75,7 +75,6 @@ export const useUserActions = (posts, setPosts, pinnedPosts, setPinnedPosts, set
      
       
     } catch (error) {
-      console.error('Error blocking user:', error);
       setError(`Failed to toggle user block status: ${error.message}`);
       
       // Revert optimistic update on error - check both user_id and employee_id

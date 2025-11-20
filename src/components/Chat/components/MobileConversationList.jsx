@@ -11,9 +11,21 @@ const MobileConversationList = ({
   formatMessageTime,
   getStatusColor,
   messageHandlers,
+  navigationHandlers,
   contextMenuHandlers,
-  setSearchQuery
+  setSearchQuery,
+  conversationsLoading
 }) => {
+  // Show loading state
+  if (conversationsLoading || !currentUser) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-center p-8">
+        <div className="w-8 h-8 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin mb-4"></div>
+        <p className="text-gray-500">Loading conversations...</p>
+      </div>
+    );
+  }
+
   if (filteredConversations.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center p-8">
@@ -36,7 +48,7 @@ const MobileConversationList = ({
     <div className="p-4">
       <div className="space-y-3">
         {filteredConversations.map(conversation => {
-          const partner = getConversationPartner(conversation, currentUser.id);
+          const partner = getConversationPartner(conversation, currentUser?.id || currentUser?.employeeId);
           const isPinned = pinnedChats.find(p => p.id === conversation.id);
           const isFavorite = favouriteChats.find(f => f.id === conversation.id);
           
@@ -47,7 +59,7 @@ const MobileConversationList = ({
               partner={partner}
               isPinned={isPinned}
               isFavorite={isFavorite}
-              onSelect={messageHandlers.handleSelectConversation}
+              onSelect={navigationHandlers.handleSelectConversation}
               onContextMenu={contextMenuHandlers.handleChatContextMenu}
               formatMessageTime={formatMessageTime}
               getStatusColor={getStatusColor}

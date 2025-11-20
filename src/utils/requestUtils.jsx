@@ -163,7 +163,10 @@ export const logRequest = (method, url, data = null) => {
 
 // Utility to handle API errors consistently
 export const handleApiError = (error, context = '') => {
-  console.error(`❌ API Error ${context}:`, error.message || error);
+  // In production, you might want to send errors to a logging service
+  if (import.meta.env.VITE_ENABLE_DEBUG === 'true') {
+    // Only log in debug mode
+  }
   
   // Return standardized error format
   return {
