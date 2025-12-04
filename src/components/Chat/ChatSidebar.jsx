@@ -299,7 +299,7 @@ const ChatSidebar = ({ onSelectConversation, onStartNewChat, activeConversation,
                 const partner = getConversationPartner(conversation, currentUser.id);
                 const isActive = activeConversation?.id === conversation.id;
                 
-                // Use conversation.name if available (from admin API), otherwise fall back to partner name
+                // Use conversation.name (from room_name)
                 const displayName = conversation.name || partner?.name || 'Unknown User';
                 
                 const displayAvatar = conversation.type === 'group' 

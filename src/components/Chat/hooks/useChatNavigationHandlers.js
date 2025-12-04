@@ -40,34 +40,54 @@ export const useChatNavigationHandlers = ({
       setGlobalActiveConversation(existingConv);
       markConversationAsRead(existingConv.id);
       
-      // Connect to WebSocket room and load messages if room_id exists
+      // WebSocket connect karna hai
       if (existingConv.room_id) {
         const { enhancedChatAPI } = await import('../chatapi');
-        enhancedChatAPI.connectToRoom(existingConv.room_id);
+        
+        // Pehle purana disconnect karo
+        enhancedChatAPI.disconnectFromRoom();
+        
+        // Naya connect karo
+        await enhancedChatAPI.connectToRoom(existingConv.room_id);
         
         // Load messages for existing room
         try {
           const messagesResponse = await enhancedChatAPI.getRoomMessages(existingConv.room_id);
           
           if (messagesResponse.status === 'success' && Array.isArray(messagesResponse.data)) {
-            const formattedMessages = messagesResponse.data.map(msg => ({
-              id: msg.message_id,
-              senderId: msg.sender?.employee_id || msg.sender_id,
-              sender: msg.sender, // 🔑 Preserve full sender object with profile_picture_link
-              text: msg.content,
-              timestamp: new Date(msg.created_at),
-              read: true,
-              status: 'delivered',
-              type: msg.type || 'text',
-              isForwarded: msg.is_forwarded || false, // 🔁 Include forwarded flag
-              ...(msg.reply_to_message_id && {
-                replyTo: {
-                  id: msg.reply_to_message_id,
-                  text: msg.reply_content || 'Original message',
-                  senderName: msg.reply_sender_name || 'Unknown'
-                }
-              })
-            }));
+            const formattedMessages = messagesResponse.data.map(msg => {
+              // 🔥 Fix: Override server's wrong admin sender_id
+              let senderId = msg.sender?.employee_id || msg.sender_id;
+              if (senderId === '2Zt363ClFSPBz1NW' && msg.sender?.employee_name === 'Admin') {
+                senderId = 'N/A'; // Use correct admin ID
+              }
+              
+              return {
+                id: msg.message_id,
+                senderId: senderId,
+                sender: msg.sender, // 🔑 Preserve full sender object with profile_picture_link
+                text: msg.content,
+                timestamp: new Date(msg.created_at),
+                read: true,
+                status: 'delivered',
+                type: msg.type || 'text',
+                isForwarded: msg.is_forwarded || false, // 🔁 Include forwarded flag
+                sender: msg.sender, // 🔑 Preserve full sender object with profile_picture_link
+                text: msg.content,
+                timestamp: new Date(msg.created_at),
+                read: true,
+                status: 'delivered',
+                type: msg.type || 'text',
+                isForwarded: msg.is_forwarded || false, // 🔁 Include forwarded flag
+                ...(msg.reply_to_message_id && {
+                  replyTo: {
+                    id: msg.reply_to_message_id,
+                    text: msg.reply_content || 'Original message',
+                    senderName: msg.reply_sender_name || 'Unknown'
+                  }
+                })
+              };
+            });
 
             // Set messages using the setMessages function from the parent context
             if (setMessages) {
@@ -197,20 +217,31 @@ export const useChatNavigationHandlers = ({
     setGlobalActiveConversation(conversation);
     markConversationAsRead(conversation.id);
     
-    // If conversation has room_id, connect and load messages
+    // WebSocket connect karne ka logic
     if (conversation.room_id) {
       try {
         const { enhancedChatAPI } = await import('../chatapi');
-        enhancedChatAPI.connectToRoom(conversation.room_id);
+        
+        // Pehle purana disconnect karo
+        enhancedChatAPI.disconnectFromRoom();
+        
+        // Naya connect karo
+        await enhancedChatAPI.connectToRoom(conversation.room_id);
         
         // Load messages for the conversation
         const messagesResponse = await enhancedChatAPI.getRoomMessages(conversation.room_id);
         
         if (messagesResponse.status === 'success' && Array.isArray(messagesResponse.data)) {
           const formattedMessages = messagesResponse.data.map(msg => {
+            // 🔥 Fix: Override server's wrong admin sender_id
+            let senderId = msg.sender?.employee_id || msg.sender_id;
+            if (senderId === '2Zt363ClFSPBz1NW' && msg.sender?.employee_name === 'Admin') {
+              senderId = 'N/A'; // Use correct admin ID
+            }
+            
             const message = {
               id: msg.message_id,
-              senderId: msg.sender?.employee_id || msg.sender_id,
+              senderId: senderId,
               sender: msg.sender, // 🔑 Preserve full sender object with profile_picture_link
               text: msg.content,
               timestamp: new Date(msg.created_at),

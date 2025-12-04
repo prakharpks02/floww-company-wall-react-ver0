@@ -1,6 +1,6 @@
 import { cookieUtils } from '../../utils/cookieUtils';
 
-const BASE_URL = import.meta.env.VITE_APP_BASE_URL;
+const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 // Helper function to get authorization headers for employee API
 const getEmployeeApiHeaders = () => {
@@ -45,13 +45,11 @@ const getChatApiBaseUrl = (endpoint = '') => {
 
 // Helper function to get authorization headers for chat API
 const getChatApiHeaders = () => {
-  // Use admin token in admin environment, employee token otherwise
-  const token = isAdminEnvironment() 
-    ? '7a3239c81974cdd6140c3162468500ba95d7d5823ea69658658c2986216b273e' // Admin token (floww-admin-token)
-    : '53877bef529b8a4568656eb14968158d91a7118cbf0de7e1b2ef3783d9ccef68'; // Employee token
+  // Get tokens from cookies
+  const { adminToken, employeeToken } = cookieUtils.getAuthTokens();
   
-  const userType = isAdminEnvironment() ? 'admin' : 'employee';
-
+  // Use admin token in admin environment, employee token otherwise
+  const token = isAdminEnvironment() ? adminToken : employeeToken;
   
   return {
     'Content-Type': 'application/json',
@@ -404,31 +402,26 @@ export const chatAPI = {
 };
 
 // Test function to verify API connectivity
-const testChatAPI = async () => {
+// const testChatAPI = async () => {
  
   
-  try {
+//   try {
 
-    const roomsResponse = await chatAPI.listAllRooms();
+//     const roomsResponse = await chatAPI.listAllRooms();
  
     
-    // Test creating a room (if no rooms exist)
-    if (roomsResponse.status === 'success' && roomsResponse.data && roomsResponse.data.length === 0) {
+//     // Test creating a room (if no rooms exist)
+//     if (roomsResponse.status === 'success' && roomsResponse.data && roomsResponse.data.length === 0) {
      
-      const createResponse = await chatAPI.createRoom('emp-k15sLcnjub9r');
+//       const createResponse = await chatAPI.createRoom('emp-k15sLcnjub9r');
    
-    }
+//     }
     
-    return true;
-  } catch (error) {
-    return false;
-  }
-};
-
-// Export test function for debugging
-if (typeof window !== 'undefined') {
-  window.testChatAPI = testChatAPI;
-}
+//     return true;
+//   } catch (error) {
+//     return false;
+//   }
+// };
 
 // WebSocket Chat Manager Class
 export class ChatWebSocketManager {
@@ -436,6 +429,7 @@ export class ChatWebSocketManager {
     this.ws = null;
     this.roomId = null;
     this.isConnected = false;
+    this.isConnecting = false;
     this.messageCallbacks = [];
     this.connectionCallbacks = [];
     this.errorCallbacks = [];
@@ -446,56 +440,72 @@ export class ChatWebSocketManager {
 
   // Connect to WebSocket for a specific room
   connect(roomId) {
-
-    
-    if (this.ws && this.ws.readyState === WebSocket.OPEN && this.roomId === roomId) {
-
+    // Prevent multiple simultaneous connection attempts
+    if (this.isConnecting) {
       return;
     }
-
-    // Close existing connection if any
-    if (this.ws) {
     
+    // If already connected to the same room, don't reconnect
+    if (this.ws && this.roomId === roomId) {
+      // Check if connection is open or connecting
+      if (this.ws.readyState === WebSocket.OPEN) {
+        return;
+      }
+      if (this.ws.readyState === WebSocket.CONNECTING) {
+        return;
+      }
+    }
+
+    // Close existing connection if connecting to a different room
+    if (this.ws && this.roomId !== roomId) {
       this.ws.close();
+      this.isConnected = false;
     }
 
     this.roomId = roomId;
+    this.isConnecting = true;
     
     try {
-      // WebSocket uses the same path for both admin and employee environments
-      // Only the HTTP API endpoints differ between admin and employee
-      const wsUrl = `wss://console.gofloww.xyz/ws/chat/${roomId}/`;
-    
+      // Determine if this is admin or employee environment
+      const isAdmin = isAdminEnvironment();
+      const authType = isAdmin ? 'admin' : 'employee';
+      
+      // Get the appropriate authorization token
+      const { adminToken, employeeToken } = cookieUtils.getAuthTokens();
+      const authToken = isAdmin ? adminToken : employeeToken;
+      
+      if (!authToken) {
+        throw new Error('No authentication token available');
+      }
+      
+      // WebSocket URL with authorization and auth-type as query parameters
+      const wsUrl = `wss://console.gofloww.xyz/ws/chat/${roomId}/?authorization=${authToken}&floww-socket-auth-type=${authType}`;
       
       this.ws = new WebSocket(wsUrl);
       
       this.ws.onopen = (event) => {
-       
         this.isConnected = true;
+        this.isConnecting = false;
         this.reconnectAttempts = 0;
         this.notifyConnectionCallbacks(true);
       };
 
       this.ws.onmessage = (event) => {
         try {
-        
-          
           const messageData = JSON.parse(event.data);
-
-          
           this.notifyMessageCallbacks(messageData);
         } catch (error) {
+          console.error('[WebSocket] Error parsing message:', error);
         }
       };
 
       this.ws.onclose = (event) => {
-   
         this.isConnected = false;
+        this.isConnecting = false;
         this.notifyConnectionCallbacks(false);
         
         // Attempt to reconnect if not a clean close
         if (!event.wasClean && this.reconnectAttempts < this.maxReconnectAttempts) {
-        
           setTimeout(() => {
             this.reconnectAttempts++;
             this.connect(this.roomId);
@@ -504,18 +514,20 @@ export class ChatWebSocketManager {
       };
 
       this.ws.onerror = (error) => {
+        console.error('[WebSocket] Connection error:', error);
+        this.isConnecting = false;
         this.notifyErrorCallbacks(error);
       };
       
     } catch (error) {
+      console.error('[WebSocket] Failed to create connection:', error);
+      this.isConnecting = false;
       this.notifyErrorCallbacks(error);
     }
   }
 
   // Disconnect from WebSocket
   disconnect() {
- 
-    
     if (this.ws) {
       this.ws.close();
       this.ws = null;
@@ -523,15 +535,14 @@ export class ChatWebSocketManager {
     
     this.roomId = null;
     this.isConnected = false;
+    this.isConnecting = false;
     this.reconnectAttempts = 0;
   }
 
   // Send message via WebSocket
   sendMessage(content, senderId, fileUrls = [], replyToMessageId = null) {
-
-
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
- 
+      console.error('[WebSocket] Cannot send - not connected. ReadyState:', this.ws?.readyState);
       throw new Error('WebSocket not connected');
     }
 
@@ -542,39 +553,32 @@ export class ChatWebSocketManager {
       reply_to_message_id: replyToMessageId
     };
 
-
     try {
       const messageJson = JSON.stringify(message);
-    
       this.ws.send(messageJson);
-     
       return true; // Return success
     } catch (error) {
+      console.error('[WebSocket] Failed to send message:', error);
       return false; // Return failure
     }
   }
 
   // Get connection status
   getConnectionStatus() {
-    const status = {
+    return {
       isConnected: this.isConnected,
       roomId: this.roomId,
       readyState: this.ws ? this.ws.readyState : null,
       reconnectAttempts: this.reconnectAttempts
     };
-    
-  
-    return status;
   }
 
   // Subscribe to message events
   onMessage(callback) {
-
     this.messageCallbacks.push(callback);
     
     // Return unsubscribe function
     return () => {
-    
       const index = this.messageCallbacks.indexOf(callback);
       if (index > -1) {
         this.messageCallbacks.splice(index, 1);
@@ -584,12 +588,10 @@ export class ChatWebSocketManager {
 
   // Subscribe to connection events
   onConnection(callback) {
- 
     this.connectionCallbacks.push(callback);
     
     // Return unsubscribe function
     return () => {
-
       const index = this.connectionCallbacks.indexOf(callback);
       if (index > -1) {
         this.connectionCallbacks.splice(index, 1);
@@ -599,12 +601,10 @@ export class ChatWebSocketManager {
 
   // Subscribe to error events
   onError(callback) {
-  
     this.errorCallbacks.push(callback);
     
     // Return unsubscribe function
     return () => {
-     
       const index = this.errorCallbacks.indexOf(callback);
       if (index > -1) {
         this.errorCallbacks.splice(index, 1);
@@ -614,7 +614,6 @@ export class ChatWebSocketManager {
 
   // Notify message callbacks
   notifyMessageCallbacks(messageData) {
-  
     this.messageCallbacks.forEach(callback => {
       try {
         callback(messageData);
@@ -625,7 +624,6 @@ export class ChatWebSocketManager {
 
   // Notify connection callbacks
   notifyConnectionCallbacks(isConnected) {
-   
     this.connectionCallbacks.forEach(callback => {
       try {
         callback(isConnected);
@@ -636,7 +634,6 @@ export class ChatWebSocketManager {
 
   // Notify error callbacks
   notifyErrorCallbacks(error) {
-  
     this.errorCallbacks.forEach(callback => {
       try {
         callback(error);
@@ -651,37 +648,32 @@ export const chatWebSocket = new ChatWebSocketManager();
 
 // Enhanced Chat API with WebSocket integration
 export const enhancedChatAPI = {
-  // Create room and establish WebSocket connection
+  /**
+   * Create room and establish WebSocket connection
+   * WARNING: This function connects WebSocket automatically. 
+   * If using useChatWebSocket hook, the hook will handle connections.
+   * Only call this when not using the hook to avoid duplicate connections.
+   */
   createRoomAndConnect: async (receiverEmployeeId) => {
-   
     const participantId = String(receiverEmployeeId); // Ensure it's a string
   
-    
     try {
-    
       const resolvedEmployee = await chatAPI.resolveEmployeeId(participantId);
-   
       
       // Use the resolved employee ID if available, otherwise use the original
       const targetEmployeeId = resolvedEmployee?.fullEmployeeId || participantId;
-   
       
       // First, try to find existing room
- 
       const existingRoom = await chatAPI.findRoomWithParticipant(targetEmployeeId);
       
       let finalRoomResponse;
       
       if (existingRoom && existingRoom.room_id) {
-
         finalRoomResponse = existingRoom;
       } else {
- 
         const newRoomResponse = await chatAPI.createRoom(targetEmployeeId);
         
         if (newRoomResponse.status === 'success') {
-         
-         
           await new Promise(resolve => setTimeout(resolve, 1000)); // Wait a bit for room to be created
      
           const newRoom = await chatAPI.findRoomWithParticipant(targetEmployeeId);
@@ -692,22 +684,16 @@ export const enhancedChatAPI = {
             throw new Error('Failed to find newly created room');
           }
         } else if (newRoomResponse.status === 'failure' && newRoomResponse.message === 'Chat room already exists.') {
-         
-          
           // If room already exists, try multiple times to find it with delays
           let existingRoom = null;
           for (let attempt = 1; attempt <= 3; attempt++) {
-         
-            
             existingRoom = await chatAPI.findRoomWithParticipant(targetEmployeeId);
             
             if (existingRoom && existingRoom.room_id) {
-          
               break;
             }
             
             if (attempt < 3) {
-           
               await new Promise(resolve => setTimeout(resolve, attempt * 1000));
             }
           }
@@ -715,13 +701,6 @@ export const enhancedChatAPI = {
           if (existingRoom && existingRoom.room_id) {
             finalRoomResponse = existingRoom;
           } else {
-            // Debug: List all rooms to see what's available
-            try {
-              const allRoomsResponse = await chatAPI.listAllRooms();
-            
-            } catch (debugError) {
-            }
-            
             throw new Error(`Room exists but could not be found after 3 attempts. Participant ID: ${targetEmployeeId} (original: ${participantId})`);
           }
         } else {
@@ -731,13 +710,35 @@ export const enhancedChatAPI = {
       
       // Connect WebSocket to the room
       if (finalRoomResponse.room_id) {
-      
+        // Verify room exists by getting its details
+        try {
+          await chatAPI.getRoomDetails(finalRoomResponse.room_id);
+        } catch (error) {
+          console.error('[API] Failed to get room details:', error);
+          // Continue anyway, as room might still be valid
+        }
+        
+        // Wait a bit before connecting to ensure room is fully created
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
         chatWebSocket.connect(finalRoomResponse.room_id);
         
- 
+        // Wait for connection to establish
+        for (let i = 0; i < 15; i++) {
+          await new Promise(resolve => setTimeout(resolve, 200));
+          const status = chatWebSocket.getConnectionStatus();
+          
+          if (status.isConnected) {
+            return {
+              ...finalRoomResponse,
+              websocketConnected: true
+            };
+          }
+        }
+        
         return {
           ...finalRoomResponse,
-          websocketConnected: true
+          websocketConnected: false
         };
       } else {
         return finalRoomResponse;
@@ -750,18 +751,13 @@ export const enhancedChatAPI = {
 
   // Send message via WebSocket with retry logic and persistence verification
   sendMessage: async (content, senderId, fileUrls = [], replyToMessageId = null, roomId = null) => {
-  
-    
     const maxRetries = 3;
     const retryDelay = 1000; // 1 second
     
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-       
-        
         // Check connection status
         const status = chatWebSocket.getConnectionStatus();
-
         
         if (status.isConnected) {
           // Send via WebSocket
@@ -785,11 +781,9 @@ export const enhancedChatAPI = {
             _sendTimestamp: Date.now()
           };
           
-         
-          
           // If we have roomId, schedule verification after delay
           if (roomId) {
-          setTimeout(async () => {
+            setTimeout(async () => {
               await enhancedChatAPI.verifyMessagePersistence(roomId, content, senderId, messageForStorage._sendTimestamp);
             }, 3000);
           }
@@ -800,8 +794,6 @@ export const enhancedChatAPI = {
             requiresVerification: !!roomId
           };
         } else {
-     
-          
           if (attempt < maxRetries) {
             // Wait before retry
             await new Promise(resolve => setTimeout(resolve, retryDelay));
@@ -809,21 +801,16 @@ export const enhancedChatAPI = {
             // Check connection again after waiting
             const newStatus = chatWebSocket.getConnectionStatus();
             if (newStatus.isConnected) {
-             
               continue;
             }
           }
           
           if (attempt === maxRetries) {
-          
-            throw new Error('WebSocket connection failed after retries');
+            throw new Error('WebSocket not connected. Please ensure you\'re connected to the chat room.');
           }
         }
       } catch (error) {
-       
-        
         if (attempt === maxRetries) {
-        
           throw error;
         }
         
@@ -836,8 +823,6 @@ export const enhancedChatAPI = {
   // Verify if message was persisted in database and handle if not
   verifyMessagePersistence: async (roomId, content, senderId, sendTimestamp) => {
     try {
- 
-      
       // Get latest messages from API
       const messagesResponse = await chatAPI.getRoomMessages(roomId);
       
@@ -856,7 +841,6 @@ export const enhancedChatAPI = {
         );
         
         if (foundMessage) {
-     
           return { persisted: true, message: foundMessage };
         } else {
           return { persisted: false, reason: 'Message not found in database after WebSocket send' };
@@ -912,88 +896,6 @@ export const enhancedChatAPI = {
   onError: (callback) => chatWebSocket.onError(callback)
 };
 
-// =============================================================================
-// ADMIN API INTEGRATION EXAMPLE
-// =============================================================================
-/*
-  To use the admin API functions in your components, import them like this:
 
-  import adminAPI from '../../services/adminAPI';
-
-  Example usage:
-
-  // List all rooms as admin
-  const loadAdminRooms = async () => {
-    try {
-      const response = await adminAPI.listAllRooms();
-      if (response.status === 'success') {
-        setRooms(response.data);
-      }
-    } catch (error) {
-    }
-  };
-
-  // Create a group as admin
-  const createAdminGroup = async () => {
-    try {
-      const groupData = {
-        group_name: 'Admin Group',
-        group_description: 'Created by admin',
-        group_icon: 'admin-icon',
-        participants_ids: ['emp-K6m82p2AJ6bd', 'emp-Hfpxcxh1L612']
-      };
-      
-      const response = await adminAPI.createGroup(groupData);
-      if (response.status === 'success') {
-        loadAdminRooms(); // Refresh the list
-      }
-    } catch (error) {
-    }
-  };
-
-  // Get room messages as admin
-  const loadRoomMessages = async (roomId) => {
-    try {
-      const response = await adminAPI.getRoomMessages(roomId);
-      if (response.status === 'success') {
-        setMessages(response.data);
-      }
-    } catch (error) {
-    }
-  };
-
-  // Edit a message as admin
-  const editMessage = async (messageId, newContent) => {
-    try {
-      const response = await adminAPI.editMessage(messageId, newContent);
-      if (response.status === 'success') {
-        loadRoomMessages(currentRoomId); // Refresh messages
-      }
-    } catch (error) {
-    }
-  };
-
-  // Manage participants
-  const addParticipant = async (roomId, participantIds) => {
-    try {
-      const response = await adminAPI.addParticipants(roomId, participantIds);
-      if (response.status === 'success') {
-      }
-    } catch (error) {
-    }
-  };
-
-  // Assign admin rights
-  const giveAdminRights = async (roomId, employeeId) => {
-    try {
-      const response = await adminAPI.assignAdminRights(roomId, employeeId);
-      if (response.status === 'success') {
-      }
-    } catch (error) {
-    }
-  };
-
-  For a complete working example, see: src/components/Admin/AdminChatDashboard.jsx
-*/
 
 export default enhancedChatAPI;

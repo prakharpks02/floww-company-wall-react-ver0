@@ -109,12 +109,12 @@ const MobileChatHeader = ({
           <h3 className="text-white font-normal">
             {activeConversation.type === 'group' ? activeConversation.name : partner?.name}
           </h3>
-          <p className="text-sm text-purple-200">
+          {/* <p className="text-sm text-purple-200">
             {activeConversation.type === 'group' 
               ? `${activeConversation.participants?.length || 0} members`
               : (partner?.status === 'online' ? 'Active now' : partner?.status)
             }
-          </p>
+          </p> */}
         </div>
       </div>
       

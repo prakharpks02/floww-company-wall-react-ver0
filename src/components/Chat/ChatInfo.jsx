@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { X, Phone, Video, Mail, MapPin, Calendar, Building, User, MessageCircle, Users, Settings, Image, FileText, Link, Clock, Crown, Shield, UserPlus, UserMinus, Edit2, VolumeX, Search, Camera } from 'lucide-react';
 import { getEmployeeById, getAllEmployees } from './utils/dummyData';
 import chatToast from './utils/toastUtils';
+import { cookieUtils } from '../../utils/cookieUtils';
 
 const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup, onLeaveGroup, onRemoveMember, onStartCall, onStartVideoCall, onReloadConversations, onStartChatWithMember, isCompact = false, isInline = false }) => {
   const [activeSection, setActiveSection] = useState('overview');
@@ -48,8 +49,46 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
   const isAdmin = isGroup ? (conversation.admins?.includes(currentUserId) || isAdminEnvironment) : false;
   const isCreator = isGroup ? conversation.createdBy === currentUserId : false;
   
-  // For direct chats
-  const otherUser = !isGroup ? getEmployeeById(conversation.participants.find(id => id !== currentUserId)) : null;
+  // For direct chats - use participantDetails if available
+  let otherUser = null;
+  if (!isGroup) {
+    const otherUserId = conversation.participants.find(id => id !== currentUserId);
+    
+    // Try to get from participantDetails first
+    if (conversation.participantDetails && Array.isArray(conversation.participantDetails)) {
+      const participantDetail = conversation.participantDetails.find(p => p.id === otherUserId);
+      if (participantDetail) {
+        otherUser = {
+          id: participantDetail.id,
+          name: participantDetail.name,
+          avatar: participantDetail.name ? participantDetail.name.charAt(0).toUpperCase() : 'U',
+          status: 'online',
+          position: 'Employee',
+          email: 'N/A',
+          department: 'N/A',
+          profile_picture_link: participantDetail.avatar
+        };
+      }
+    }
+    
+    // Fallback to getEmployeeById
+    if (!otherUser) {
+      otherUser = getEmployeeById(otherUserId);
+    }
+    
+    // Last resort - create basic user object
+    if (!otherUser && otherUserId) {
+      otherUser = {
+        id: otherUserId,
+        name: `Employee ${otherUserId}`,
+        avatar: otherUserId.charAt(0).toUpperCase(),
+        status: 'offline',
+        position: 'Employee',
+        email: 'N/A',
+        department: 'N/A'
+      };
+    }
+  }
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -301,15 +340,15 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
       const formData = new FormData();
       formData.append('file', file);
 
-      // Use correct admin API base URL
-      const baseURL = 'https://console.gofloww.xyz';
+      const { adminToken } = cookieUtils.getAuthTokens();
+      const baseURL = import.meta.env.VITE_API_BASE_URL || 'https://console.gofloww.xyz';
       
       const response = await fetch(`${baseURL}/api/wall/admin/upload_file`, {
         method: 'POST',
         body: formData,
         credentials: 'include',
         headers: {
-          'Authorization': '7a3239c81974cdd6140c3162468500ba95d7d5823ea69658658c2986216b273e'
+          'Authorization': adminToken
         }
       });
 
@@ -493,22 +532,48 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
       );
     } else {
       // Direct chat profile
-      if (!otherUser) return null;
+      if (!otherUser) {
+        return (
+          <div className="space-y-6">
+            <div className="text-center">
+              <div className="relative inline-block">
+                <div className="w-32 h-32 bg-gradient-to-br from-gray-400 to-gray-600 rounded-full flex items-center justify-center text-white text-4xl font-bold shadow-lg">
+                  ?
+                </div>
+              </div>
+              <div className="mt-4 space-y-1">
+                <h2 className="text-2xl font-bold text-gray-900">Unknown User</h2>
+                <p className="text-sm text-gray-600">User information not available</p>
+              </div>
+            </div>
+          </div>
+        );
+      }
       
       return (
         <div className="space-y-6">
           {/* User Header */}
           <div className="text-center">
             <div className="relative inline-block">
-              <div className="w-32 h-32 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white text-4xl font-bold shadow-lg">
-                {otherUser.avatar}
-              </div>
+              {otherUser.profile_picture_link && otherUser.profile_picture_link.startsWith('http') ? (
+                <div className="w-32 h-32 bg-gray-100 rounded-full overflow-hidden shadow-lg">
+                  <img 
+                    src={otherUser.profile_picture_link} 
+                    alt={otherUser.name}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              ) : (
+                <div className="w-32 h-32 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white text-4xl font-bold shadow-lg">
+                  {otherUser.avatar}
+                </div>
+              )}
               <div className={`absolute bottom-2 right-2 w-8 h-8 rounded-full border-4 border-white ${getStatusColor(otherUser.status)}`}></div>
             </div>
             <div className="mt-4 space-y-1">
               <h2 className="text-2xl font-bold text-gray-900">{otherUser.name}</h2>
-              <p className="text-sm text-gray-600">{otherUser.position}</p>
-              <p className="text-sm text-[#FFAD46]">{getStatusText(otherUser.status)}</p>
+              <p className="text-sm text-gray-600">{otherUser.position || 'Employee'}</p>
+              {/* <p className="text-sm text-[#FFAD46]">{getStatusText(otherUser.status)}</p> */}
             </div>
           </div>
 
@@ -732,8 +797,8 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
               </>
             ) : (
               <>
-                <User className="h-5 w-5" />
-                <span>Block Contact</span>
+                {/* <User className="h-5 w-5" />
+                <span>Block Contact</span> */}
               </>
             )}
           </button>

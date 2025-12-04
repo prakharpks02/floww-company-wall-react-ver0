@@ -21,7 +21,7 @@ export const useChatPinAndFavoriteHandlers = ({
     // Force the type to be 'chat' if we're pinning a conversation object
     const actualPinType = messageToPinOrChat?.participants || messageToPinOrChat?.type ? 'chat' : pinType;
     
-    const pinExpiry = new Date();
+    let pinExpiry = new Date();
     switch (duration) {
       case '1hour':
         pinExpiry.setHours(pinExpiry.getHours() + 1);

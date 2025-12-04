@@ -47,13 +47,13 @@ const DesktopChatHeader = ({
             <h2 className="text-lg font-normal text-[#1f2937]">
               {activeConversation.type === 'group' ? activeConversation.name : partner?.name}
             </h2>
-            <p className="text-sm text-[#6b7280] flex items-center gap-2">
+            {/* <p className="text-sm text-[#6b7280] flex items-center gap-2">
               <span className={`w-2 h-2 rounded-full ${getStatusColor(partner?.status)}`}></span>
               {activeConversation.type === 'group' 
                 ? `${activeConversation.participants?.length || 0} members`
                 : (partner?.status === 'online' ? 'Active now' : partner?.status)
               }
-            </p>
+            </p> */}
           </div>
         </div>
         

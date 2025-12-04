@@ -1,6 +1,7 @@
 import { enhancedChatAPI } from '../chatapi';
 import adminChatAPI from '../../../services/adminChatAPI';
 import chatToast from '../utils/toastUtils';
+import { cookieUtils } from '../../../utils/cookieUtils';
 
 // For admin environment, we only use admin APIs for group creation
 // All other chat operations (messaging, room connections) use existing WebSocket infrastructure
@@ -101,18 +102,41 @@ export const useChatMessageHandlers = ({
         chatToast.error('Group conversation setup not supported');
         return;
       }
-    } else {
-      // Ensure WebSocket is connected to the room
+    }
+    
+    // Ensure WebSocket is connected for the room
+    const connectionStatus = enhancedChatAPI.getConnectionStatus();
+    
+    if (!connectionStatus.isConnected || connectionStatus.roomId !== activeConversation.room_id) {
       enhancedChatAPI.connectToRoom(activeConversation.room_id);
+      
+      // Wait for connection with multiple checks
+      let connected = false;
+      for (let i = 0; i < 10; i++) {
+        await new Promise(resolve => setTimeout(resolve, 200)); // Check every 200ms
+        const status = enhancedChatAPI.getConnectionStatus();
+        
+        if (status.isConnected && status.roomId === activeConversation.room_id) {
+          connected = true;
+          break;
+        }
+      }
+      
+      if (!connected) {
+        console.error('[Message] Failed to establish WebSocket connection after waiting');
+        chatToast.error('Could not connect to chat. Please refresh and try again.');
+        return;
+      }
     }
     
     try {
       // Determine sender_id based on environment and user type
       let senderEmployeeId;
       
-      // Check if we're in admin environment - always use admin sender_id
+      // Check if we're in admin environment - use current user's actual ID
       if (currentUser.isAdmin) {
-        senderEmployeeId = 'UAI5Tfzl3k4Y6NIp';
+        // Use actual admin ID from currentUser (should be "N/A")
+        senderEmployeeId = currentUser.employeeId || currentUser.id || 'N/A';
       } else {
         // Always use current user's employee ID as sender (you are sending the message!)
         senderEmployeeId = currentUser.employeeId || 'emp-' + currentUser.id;
@@ -167,10 +191,12 @@ export const useChatMessageHandlers = ({
         
         setNewMessage('');
       } else {
+        console.error('[Message] Send result indicates failure:', sendResult);
         chatToast.sendMessageFailed();
       }
     } catch (error) {
-      chatToast.sendMessageFailed();
+      console.error('[Message] Error sending message:', error);
+      chatToast.error(error.message || 'Failed to send message');
       setNewMessage('');
     }
   };
@@ -233,10 +259,13 @@ export const useChatMessageHandlers = ({
     try {
       // Call admin API to edit the message
       if (currentUser.isAdmin && editingMessage.id) {
-        const response = await fetch(`https://console.gofloww.xyz/api/wall/chat/admin/messages/${editingMessage.id}/edit`, {
+        const { adminToken } = cookieUtils.getAuthTokens();
+        const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://console.gofloww.xyz';
+        
+        const response = await fetch(`${apiBaseUrl}/api/wall/chat/admin/messages/${editingMessage.id}/edit`, {
           method: 'POST',
           headers: {
-            'Authorization': '7a3239c81974cdd6140c3162468500ba95d7d5823ea69658658c2986216b273e',
+            'Authorization': adminToken,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
@@ -622,7 +651,7 @@ export const useChatMessageHandlers = ({
       const pinnedMessage = {
         ...message,
         pinnedAt: new Date(),
-        pinnedBy: currentUser.isAdmin ? 'UAI5Tfzl3k4Y6NIp' : (currentUser.employeeId || 'emp-' + currentUser.id),
+        pinnedBy: currentUser.id || currentUser.employeeId || 'N/A',
         duration: duration
       };
 

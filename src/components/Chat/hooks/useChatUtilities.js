@@ -15,8 +15,8 @@ export const useChatUtilities = () => {
     // Check if we're in admin environment
     if (isAdminEnvironment()) {
       return {
-        id: 'UAI5Tfzl3k4Y6NIp', // Use specific admin sender_id
-        employeeId: 'UAI5Tfzl3k4Y6NIp', // Use specific admin sender_id for API calls
+        id: 'N/A', // Match API response for Admin user
+        employeeId: 'N/A', // Match API response for Admin user
         name: 'Admin',
         email: 'admin@company.com',
         status: 'online',
