@@ -472,15 +472,17 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                           {group.messages.map(message => {
                             const currentUserEmployeeId = currentUser?.employeeId || `emp-${currentUser?.id}`;
                             
-                            // Comprehensive sender ID comparison with special handling for "N/A" admin user
+                            // Fix: Use sender.employee_id from API response, fallback to sender_id for sent messages
+                            const messageSenderId = message.sender?.employee_id || message.sender_id || message.senderId;
+                            
+                            // Comprehensive sender ID comparison with API structure
                             const isOwnMessage = 
-                              message.senderId === currentUser.id || 
-                              message.senderId === currentUserEmployeeId ||
-                              message.senderId === currentUser?.employeeId ||
-                              String(message.senderId) === String(currentUser.id) ||
-                              String(message.senderId) === String(currentUserEmployeeId) ||
-                              (String(message.senderId) === 'N/A' && String(currentUser.id) === 'N/A') ||
-                              (message.sender?.employee_id === 'N/A' && currentUser.id === 'N/A');
+                              messageSenderId === currentUser.id || 
+                              messageSenderId === currentUserEmployeeId ||
+                              messageSenderId === currentUser?.employeeId ||
+                              String(messageSenderId) === String(currentUser.id) ||
+                              String(messageSenderId) === String(currentUserEmployeeId) ||
+                              messageSenderId === `emp-${currentUser.id}`;
                             
                             return (
                               <div
@@ -530,14 +532,14 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                                     <div 
                                       className="text-xs text-purple-600 mb-1 ml-3 font-medium cursor-pointer hover:underline"
                                       onClick={() => {
-                                        const senderEmployee = getEmployeeById(message.senderId);
+                                        const senderEmployee = getEmployeeById(messageSenderId);
                                         if (senderEmployee) {
                                           handleStartChatWithMember(senderEmployee);
                                         }
                                       }}
                                       title="Click to start chat"
                                     >
-                                      {message.sender?.name || getEmployeeById(message.senderId)?.name || 'Unknown User'}
+                                      {message.sender?.employee_name || getEmployeeById(messageSenderId)?.name || 'Unknown User'}
                                     </div>
                                   )}
                                   <div
@@ -712,7 +714,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
         <Toaster />
         
         <div 
-          className="fixed bottom-4 right-4 w-[420px] bg-white rounded-xl shadow-2xl border border-gray-200 z-50 flex flex-col transform transition-all duration-500 ease-out animate-slideUp chat-window-glass overflow-hidden"
+          className="fixed bottom-4 right-4 w-[420px] bg-white rounded-xl shadow-2xl border border-gray-200 z-50 flex flex-col chat-window-glass overflow-hidden"
           style={{
             height: 'min(500px, calc(100vh - 32px))',
             maxWidth: 'calc(100vw - 32px)'
@@ -1124,13 +1126,17 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                     {/* Messages for this date */}
                     {group.messages.map(message => {
                       const currentUserEmployeeId = currentUser?.employeeId || `emp-${currentUser?.id}`;
+                      
+                      // Fix: Use sender.employee_id from API response, fallback to sender_id for sent messages
+                      const messageSenderId = message.sender?.employee_id || message.sender_id || message.senderId;
+                      
                       // More comprehensive sender ID comparison
                       const isOwnMessage = 
-                        message.senderId === currentUser.id || 
-                        message.senderId === currentUserEmployeeId ||
-                        message.senderId === currentUser?.employeeId ||
-                        String(message.senderId) === String(currentUser.id) ||
-                        String(message.senderId) === String(currentUserEmployeeId);
+                        messageSenderId === currentUser.id || 
+                        messageSenderId === currentUserEmployeeId ||
+                        messageSenderId === currentUser?.employeeId ||
+                        String(messageSenderId) === String(currentUser.id) ||
+                        String(messageSenderId) === String(currentUserEmployeeId);
                   
                       
                    
@@ -1907,13 +1913,17 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                         {/* Messages for this date */}
                         {group.messages.map(message => {
                           const currentUserEmployeeId = currentUser?.employeeId || `emp-${currentUser?.id}`;
+                          
+                          // Fix: Use sender.employee_id from API response, fallback to sender_id for sent messages
+                          const messageSenderId = message.sender?.employee_id || message.sender_id || message.senderId;
+                          
                           // More comprehensive sender ID comparison
                           const isOwnMessage = 
-                            message.senderId === currentUser.id || 
-                            message.senderId === currentUserEmployeeId ||
-                            message.senderId === currentUser?.employeeId ||
-                            String(message.senderId) === String(currentUser.id) ||
-                            String(message.senderId) === String(currentUserEmployeeId);
+                            messageSenderId === currentUser.id || 
+                            messageSenderId === currentUserEmployeeId ||
+                            messageSenderId === currentUser?.employeeId ||
+                            String(messageSenderId) === String(currentUser.id) ||
+                            String(messageSenderId) === String(currentUserEmployeeId);
                           
                           // Debug logging
                           

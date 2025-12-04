@@ -132,8 +132,14 @@ const DesktopSidebar = ({
                             />
                           ) : conversation.type === 'group' ? (
                             conversation.name ? conversation.name.substring(0, 2).toUpperCase() : 'GR'
+                          ) : partner?.avatar && partner.avatar.startsWith('http') ? (
+                            <img 
+                              src={partner.avatar} 
+                              alt={partner.name} 
+                              className="w-full h-full object-cover"
+                            />
                           ) : (
-                            partner?.avatar
+                            <span className="font-semibold">{partner?.name?.substring(0, 2).toUpperCase() || 'U'}</span>
                           )}
                         </div>
                         <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border border-white shadow-sm ${getStatusColor(partner?.status)}`}></div>
@@ -241,9 +247,19 @@ const DesktopSidebar = ({
                         >
                           <div className="flex items-start gap-3">
                             <div className="relative flex-shrink-0">
-                              <div className="w-10 h-10 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-2xl flex items-center justify-center text-white font-normal text-sm">
-                                {result.partner?.avatar}
-                              </div>
+                              {result.partner?.avatar && result.partner.avatar.startsWith('http') ? (
+                                <div className="w-10 h-10 rounded-2xl overflow-hidden">
+                                  <img 
+                                    src={result.partner.avatar} 
+                                    alt={result.partner.name} 
+                                    className="w-full h-full object-cover"
+                                  />
+                                </div>
+                              ) : (
+                                <div className="w-10 h-10 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-2xl flex items-center justify-center text-white font-normal text-sm">
+                                  <span className="font-semibold">{result.partner?.name?.substring(0, 2).toUpperCase() || 'U'}</span>
+                                </div>
+                              )}
                               <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white shadow-sm ${getStatusColor(result.partner?.status)}`}></div>
                             </div>
                             <div className="flex-1 text-left min-w-0">
@@ -309,8 +325,14 @@ const DesktopSidebar = ({
                                     />
                                   ) : conversation.type === 'group' ? (
                                     conversation.name ? conversation.name.substring(0, 2).toUpperCase() : 'GR'
+                                  ) : partner?.avatar && partner.avatar.startsWith('http') ? (
+                                    <img 
+                                      src={partner.avatar} 
+                                      alt={partner.name} 
+                                      className="w-full h-full object-cover"
+                                    />
                                   ) : (
-                                    partner?.avatar
+                                    <span className="font-semibold">{partner?.name?.substring(0, 2).toUpperCase() || 'U'}</span>
                                   )}
                                 </div>
                                 <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white shadow-sm ${getStatusColor(partner?.status)}`}></div>
@@ -377,8 +399,14 @@ const DesktopSidebar = ({
                             />
                           ) : conversation.type === 'group' ? (
                             conversation.name ? conversation.name.substring(0, 2).toUpperCase() : 'GR'
+                          ) : partner?.avatar && partner.avatar.startsWith('http') ? (
+                            <img 
+                              src={partner.avatar} 
+                              alt={partner.name} 
+                              className="w-full h-full object-cover"
+                            />
                           ) : (
-                            partner?.avatar
+                            <span className="font-semibold">{partner?.name?.substring(0, 2).toUpperCase() || 'U'}</span>
                           )}
                         </div>
                         <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white shadow-sm ${getStatusColor(partner?.status)}`}></div>

@@ -65,8 +65,14 @@ const CompactHeader = ({
                 <div className="w-8 h-8 bg-gradient-to-br from-purple-400 to-purple-500 rounded-full flex items-center justify-center text-white font-normal text-sm shadow-lg overflow-hidden">
                   {activeConversation.type === 'group' ? (
                     <span className="text-white text-xs">{activeConversation.name?.substring(0, 2).toUpperCase() || 'GR'}</span>
+                  ) : partner?.avatar && partner.avatar.startsWith('http') ? (
+                    <img 
+                      src={partner.avatar} 
+                      alt={partner.name} 
+                      className="w-full h-full object-cover"
+                    />
                   ) : (
-                    partner?.avatar
+                    <span className="text-xs font-semibold">{partner?.name?.substring(0, 2).toUpperCase() || 'U'}</span>
                   )}
                 </div>
               )}

@@ -36,8 +36,14 @@ const DesktopChatHeader = ({
               <div className="w-12 h-12 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-2xl flex items-center justify-center text-white text-base shadow-[0_8px_32px_rgba(192,132,252,0.3)] overflow-hidden">
                 {activeConversation.type === 'group' ? (
                   <span className="text-white">{activeConversation.name?.substring(0, 2).toUpperCase() || 'GR'}</span>
+                ) : partner?.avatar && partner.avatar.startsWith('http') ? (
+                  <img 
+                    src={partner.avatar} 
+                    alt={partner.name} 
+                    className="w-full h-full object-cover"
+                  />
                 ) : (
-                  partner?.avatar
+                  <span className="font-semibold">{partner?.name?.substring(0, 2).toUpperCase() || 'U'}</span>
                 )}
               </div>
             )}

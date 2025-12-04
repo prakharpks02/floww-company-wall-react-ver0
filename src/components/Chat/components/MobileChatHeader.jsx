@@ -43,18 +43,6 @@ const MobileChatHeader = ({
               <div className="py-2">
                 <button
                   onClick={() => {
-                    setSearchQuery('contacts');
-                    setShowMobilePlusMenu(false);
-                  }}
-                  className="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-3 text-sm text-gray-700"
-                >
-                  <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-                    <Plus className="h-4 w-4 text-white" />
-                  </div>
-                  <span>New Chat</span>
-                </button>
-                <button
-                  onClick={() => {
                     setShowCreateGroup(true);
                     setShowMobilePlusMenu(false);
                   }}
@@ -99,7 +87,9 @@ const MobileChatHeader = ({
               {activeConversation.type === 'group' ? (
                 <span className="text-white">{activeConversation.name?.substring(0, 2).toUpperCase() || 'GR'}</span>
               ) : (
-                partner?.avatar
+                <span className="text-white text-sm font-semibold">
+                  {partner?.name?.substring(0, 2).toUpperCase() || 'U'}
+                </span>
               )}
             </div>
           )}

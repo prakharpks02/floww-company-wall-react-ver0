@@ -185,7 +185,7 @@ const PostActions = ({
           {showMobileReactions && !isDisabled && isMobile && (
             <>
               {/* Backdrop */}
-              <div className="fixed inset-0 bg-black bg-opacity-50 z-40" />
+              <div className="fixed inset-0 bg-black bg-opacity-25 z-40" />
               
               {/* Modal */}
               <div className="fixed inset-x-0 bottom-0 bg-white rounded-t-3xl p-6 z-50 mobile-reactions animate-slide-up">

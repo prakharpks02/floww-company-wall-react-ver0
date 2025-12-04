@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Home, Plus, FileText, Megaphone, MessageCircle } from 'lucide-react';
+import { Home, Plus, FileText, Megaphone, MessageCircle, Menu, X } from 'lucide-react';
 import { useChat } from '../../contexts/ChatContext';
 
-const MobileBottomNav = ({ activeView, onViewChange, onCreatePost, user, isScrolledDown }) => {
+const MobileBottomNav = ({ activeView, onViewChange, onCreatePost, user, isScrolledDown, onToggleSidebar }) => {
   const isAdmin = user?.is_admin;
   const { isChatOpen, isChatMinimized, toggleChat, conversations } = useChat();
   
@@ -101,20 +101,48 @@ const MobileBottomNav = ({ activeView, onViewChange, onCreatePost, user, isScrol
     );
   }
 
-  // For admin users, simpler layout with just broadcast
+  // For admin users, include menu and chat
   return (
     <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-gradient-to-t from-white via-white to-gray-50/80 border-t border-gray-200 safe-area-inset-bottom z-40 shadow-lg backdrop-blur-sm">
-      <div className="flex items-center justify-center py-3 px-4">
+      <div className="flex items-center py-3 px-1">
+        {/* Menu Button */}
+        <button
+          onClick={onToggleSidebar}
+          className="flex flex-col items-center justify-center p-2 rounded-lg transition-all duration-200 touch-friendly flex-1 mx-1 text-gray-500 hover:text-purple-600 hover:bg-purple-50"
+        >
+          <Menu className="h-5 w-5 mb-1" />
+          <span className="text-xs font-medium">Menu</span>
+        </button>
+
+        {/* Community Broadcast */}
         <button
           onClick={() => onViewChange('broadcast')}
-          className={`flex flex-col items-center justify-center p-3 rounded-lg transition-all duration-200 touch-friendly w-full max-w-xs ${
+          className={`flex flex-col items-center justify-center p-2 rounded-lg transition-all duration-200 touch-friendly flex-1 mx-1 ${
             activeView === 'broadcast'
               ? 'text-purple-600 bg-purple-50 scale-105'
               : 'text-gray-500 hover:text-purple-600 hover:bg-purple-50'
           }`}
         >
-          <Megaphone className="h-6 w-6 mb-1" />
-          <span className="text-sm font-medium">Community Broadcast</span>
+          <Megaphone className="h-5 w-5 mb-1" />
+          <span className="text-xs font-medium">Broadcast</span>
+        </button>
+
+        {/* Chat */}
+        <button
+          onClick={toggleChat}
+          className={`relative flex flex-col items-center justify-center p-2 rounded-lg transition-all duration-200 touch-friendly flex-1 mx-1 ${
+            isChatOpen && !isChatMinimized
+              ? 'text-purple-600 bg-purple-50 scale-105'
+              : 'text-gray-500 hover:text-purple-600 hover:bg-purple-50'
+          }`}
+        >
+          <MessageCircle className="h-5 w-5 mb-1" />
+          <span className="text-xs font-medium">Chat</span>
+          {totalUnreadMessages > 0 && (
+            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+              {totalUnreadMessages > 99 ? '99+' : totalUnreadMessages}
+            </span>
+          )}
         </button>
       </div>
     </div>
@@ -124,6 +152,7 @@ const MobileBottomNav = ({ activeView, onViewChange, onCreatePost, user, isScrol
 const ResponsiveLayout = ({ header, sidebar, children, activeView, onViewChange, onCreatePost, user, chatContent }) => {
   const [isMobile, setIsMobile] = useState(false);
   const [isScrolledDown, setIsScrolledDown] = useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const { isChatOpen, isChatMinimized, isCompactMode, isFullScreenMobile } = useChat();
 
   // Chat is visible when it's open AND not minimized AND not in compact mode (for layout purposes)
@@ -159,10 +188,19 @@ const ResponsiveLayout = ({ header, sidebar, children, activeView, onViewChange,
     };
   }, []);
 
+  // Close mobile sidebar when route changes
+  useEffect(() => {
+    setIsMobileSidebarOpen(false);
+  }, [activeView]);
+
   // Don't render layout components when in full-screen mobile chat mode
   if (isFullScreenMobile && isMobile) {
     return null;
   }
+
+  const toggleMobileSidebar = () => {
+    setIsMobileSidebarOpen(!isMobileSidebarOpen);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -178,6 +216,33 @@ const ResponsiveLayout = ({ header, sidebar, children, activeView, onViewChange,
             {sidebar}
           </div>
         </div>
+
+        {/* Mobile Sidebar Overlay */}
+        {isMobileSidebarOpen && isMobile && (
+          <>
+            {/* Backdrop */}
+            <div 
+              className="lg:hidden fixed inset-0 backdrop-blur-md z-40 transition-opacity"
+              onClick={toggleMobileSidebar}
+            />
+            
+            {/* Sidebar */}
+            <div className="lg:hidden fixed top-6 bottom-30 left-0 w-64 bg-white border-r border-gray-200 z-50 overflow-y-auto transform transition-transform duration-300 ease-in-out shadow-lg rounded-r-lg">
+              <div className="flex justify-between items-center p-4 border-b border-gray-200">
+                <h2 className="text-lg font-semibold text-gray-900">Menu</h2>
+                <button
+                  onClick={toggleMobileSidebar}
+                  className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                >
+                  <X className="h-5 w-5 text-gray-700" />
+                </button>
+              </div>
+              <div className="pb-4">
+                {sidebar}
+              </div>
+            </div>
+          </>
+        )}
         
         {/* Main Content */}
         <main className={`flex-1 lg:ml-64 min-h-screen transition-all duration-300 ${
@@ -211,6 +276,7 @@ const ResponsiveLayout = ({ header, sidebar, children, activeView, onViewChange,
         onCreatePost={onCreatePost}
         user={user}
         isScrolledDown={isScrolledDown}
+        onToggleSidebar={toggleMobileSidebar}
       />
     </div>
   );

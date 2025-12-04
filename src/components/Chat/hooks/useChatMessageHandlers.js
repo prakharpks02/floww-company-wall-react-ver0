@@ -130,16 +130,29 @@ export const useChatMessageHandlers = ({
     }
     
     try {
-      // Determine sender_id based on environment and user type
+      // Determine sender_id based on current user's actual employee ID
       let senderEmployeeId;
       
-      // Check if we're in admin environment - use current user's actual ID
-      if (currentUser.isAdmin) {
-        // Use actual admin ID from currentUser (should be "N/A")
-        senderEmployeeId = currentUser.employeeId || currentUser.id || 'N/A';
+      // Try to get employee ID from multiple sources
+      if (currentUser.employeeId && currentUser.employeeId !== 'N/A') {
+        senderEmployeeId = currentUser.employeeId; // Should be like "emp-26WoIrooxdVU"
+      } else if (currentUser.id && currentUser.id !== 'N/A' && currentUser.id.startsWith('emp-')) {
+        senderEmployeeId = currentUser.id; // Already in correct format
+      } else if (currentUser.id && currentUser.id !== 'N/A') {
+        senderEmployeeId = `emp-${currentUser.id}`; // Add emp- prefix
       } else {
-        // Always use current user's employee ID as sender (you are sending the message!)
-        senderEmployeeId = currentUser.employeeId || 'emp-' + currentUser.id;
+        // Last resort: try to get from localStorage
+        const userData = localStorage.getItem('user');
+        if (userData) {
+          try {
+            const parsedUser = JSON.parse(userData);
+            senderEmployeeId = parsedUser.employeeId || parsedUser.employee_id || parsedUser.id || 'emp-unknown';
+          } catch (e) {
+            senderEmployeeId = 'emp-unknown';
+          }
+        } else {
+          senderEmployeeId = 'emp-unknown';
+        }
       }
       
       const replyToMessageId = replyToMessage ? replyToMessage.id : null;

@@ -22,7 +22,7 @@ const MobileContextMenu = ({
     <>
       {/* Message Context Menu */}
       {contextMenu.show && (
-        <div className="fixed inset-0 bg-black/50 z-[60] flex items-end">
+        <div className="fixed inset-0 bg-black/30 z-[60] flex items-end">
           <div className="w-full bg-white rounded-t-2xl p-4 space-y-2">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold">Message Options</h3>
@@ -97,7 +97,7 @@ const MobileContextMenu = ({
 
       {/* Chat Context Menu */}
       {chatContextMenu.show && (
-        <div className="fixed inset-0 bg-black/50 z-[60] flex items-end">
+        <div className="fixed inset-0 bg-black/30 z-[60] flex items-end">
           <div className="w-full bg-white rounded-t-2xl p-4 space-y-2">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold">Chat Options</h3>

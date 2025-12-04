@@ -100,9 +100,19 @@ const MobileSearchResults = ({
               >
                 <div className="flex items-start gap-4">
                   <div className="relative flex-shrink-0">
-                    <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white text-lg font-bold shadow-md">
-                      {result.partner?.avatar}
-                    </div>
+                    {result.partner?.avatar && result.partner.avatar.startsWith('http') ? (
+                      <div className="w-12 h-12 rounded-full overflow-hidden shadow-md">
+                        <img 
+                          src={result.partner.avatar} 
+                          alt={result.partner.name} 
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white text-lg font-bold shadow-md">
+                        <span className="font-semibold">{result.partner?.name?.substring(0, 2).toUpperCase() || 'U'}</span>
+                      </div>
+                    )}
                     <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${getStatusColor(result.partner?.status)}`}></div>
                   </div>
                   <div className="flex-1 text-left min-w-0">
