@@ -1,5 +1,5 @@
 // Custom hook for media handling in posts
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { mediaAPI } from '../../../services/api.jsx';
 import { formatFileSize } from '../../../utils/helpers';
 
@@ -13,6 +13,11 @@ export const usePostMediaHandling = () => {
   const [linkUrl, setLinkUrl] = useState('');
   const [showLinkInput, setShowLinkInput] = useState(false);
 
+  // Debug: log images state changes
+  useEffect(() => {
+    console.log('Images state updated:', images);
+  }, [images]);
+
   const fileInputRef = useRef(null);
   const videoInputRef = useRef(null);
   const documentInputRef = useRef(null);
@@ -21,9 +26,13 @@ export const usePostMediaHandling = () => {
     try {
       // Use the correct API method - mediaAPI.uploadFile
       const response = await mediaAPI.uploadFile(file, type);
-      // Return only the URL string
-      return response.file_url || response.url;
+      console.log('Upload response:', response);
+      // Return only the URL string - check nested data structure
+      const url = response.data?.file_url || response.file_url || response.data?.url || response.url;
+      console.log('Extracted URL:', url);
+      return url;
     } catch (error) {
+      console.error('Upload error:', error);
       throw error;
     }
   };
@@ -76,12 +85,18 @@ export const usePostMediaHandling = () => {
         type: originalFile.type,
       });
       
+      console.log('Starting image upload...', croppedFile.name);
       const uploadedImage = await uploadMedia(croppedFile, 'image');
-      setImages(prev => [...prev, uploadedImage]);
+      console.log('Image uploaded successfully:', uploadedImage);
+      setImages(prev => {
+        const newImages = [...prev, uploadedImage];
+        console.log('Updated images state:', newImages);
+        return newImages;
+      });
       setShowCropModal(false);
       setImageToProcess(null);
     } catch (error) {
-     
+      console.error('Error uploading image:', error);
     }
   };
 

@@ -122,36 +122,66 @@ const PostCard = ({
                     ? 'grid-cols-2'
                     : 'grid-cols-2 sm:grid-cols-3'
           }`}>
-            {normalizedPost.images.slice(0, 8).map((image, idx) => (
-              <div key={image.id || image.url || idx} className="relative group overflow-hidden min-w-0">
-                {/* Show "+X more" overlay for additional images */}
-                {idx === 7 && normalizedPost.images.length > 8 && (
-                  <div className="absolute inset-0 bg-black bg-opacity-75 flex items-center justify-center z-10 text-white font-semibold text-xs">
-                    +{normalizedPost.images.length - 8} more
+            {normalizedPost.images.slice(0, 8).map((image, idx) => {
+              // Smart URL encoding - check if already encoded to avoid double encoding
+              let encodedUrl = image.url;
+              try {
+                // If URL can be decoded and is different, it means it's already encoded
+                const decoded = decodeURIComponent(image.url);
+                if (decoded !== image.url) {
+                  // Already encoded - use as is
+                  encodedUrl = image.url;
+                  console.log('URL already encoded:', image.url);
+                } else {
+                  // Not encoded - encode only if needed
+                  const needsEncoding = decoded.includes(' ') || decoded.includes('(') || decoded.includes(')');
+                  encodedUrl = needsEncoding ? encodeURI(decoded) : decoded;
+                  console.log('URL encoded:', { original: decoded, final: encodedUrl });
+                }
+              } catch (e) {
+                // If decoding fails, URL might have special characters - use encodeURI
+                encodedUrl = encodeURI(image.url);
+                console.log('URL encoding fallback:', { original: image.url, final: encodedUrl });
+              }
+              
+              return (
+                <div key={image.id || image.url || idx} className="relative group overflow-hidden min-w-0">
+                  {/* Show "+X more" overlay for additional images */}
+                  {idx === 7 && normalizedPost.images.length > 8 && (
+                    <div className="absolute inset-0 bg-black bg-opacity-75 flex items-center justify-center z-10 text-white font-semibold text-xs">
+                      +{normalizedPost.images.length - 8} more
+                    </div>
+                  )}
+                  <img
+                    src={encodedUrl}
+                    alt={image.name || `Image ${idx + 1}`}
+                    className={`w-full h-full object-cover rounded cursor-pointer hover:opacity-90 transition-all duration-200 hover:scale-105 ${
+                      normalizedPost.images.length === 1 
+                        ? 'aspect-video max-h-48 sm:max-h-64' 
+                        : normalizedPost.images.length === 2
+                          ? 'aspect-square max-h-32 sm:max-h-40'
+                          : 'aspect-square max-h-24 sm:max-h-32'
+                    }`}
+                    onClick={() => window.open(encodedUrl, '_blank')}
+                    loading="lazy"
+                    onError={(e) => {
+                      console.error('Image failed to load:', encodedUrl, e);
+                      e.target.style.display = 'none';
+                    }}
+                    onLoad={(e) => {
+                      console.log('Image loaded successfully:', encodedUrl);
+                    }}
+                  />
+                  {/* Image overlay with name */}
+                  <div className="absolute top-1 right-1 bg-black bg-opacity-60 text-white px-1 py-0.5 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity max-w-[80%]">
+                    <Image className="h-2 w-2 inline mr-1" />
+                    <span className="hidden sm:inline truncate">
+                      {image.name || `Image ${idx + 1}`}
+                    </span>
                   </div>
-                )}
-                <img
-                  src={image.url}
-                  alt={image.name || `Image ${idx + 1}`}
-                  className={`w-full h-full object-cover rounded cursor-pointer hover:opacity-90 transition-all duration-200 hover:scale-105 ${
-                    normalizedPost.images.length === 1 
-                      ? 'aspect-video max-h-48 sm:max-h-64' 
-                      : normalizedPost.images.length === 2
-                        ? 'aspect-square max-h-32 sm:max-h-40'
-                        : 'aspect-square max-h-24 sm:max-h-32'
-                  }`}
-                  onClick={() => window.open(image.url, '_blank')}
-                  loading="lazy"
-                />
-                {/* Image overlay with name */}
-                <div className="absolute top-1 right-1 bg-black bg-opacity-60 text-white px-1 py-0.5 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity max-w-[80%]">
-                  <Image className="h-2 w-2 inline mr-1" />
-                  <span className="hidden sm:inline truncate">
-                    {image.name || `Image ${idx + 1}`}
-                  </span>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 

@@ -70,6 +70,13 @@ export const usePostCard = (post, activeView = 'home') => {
 
   // Normalize post data to handle different field names from backend
   const normalizePost = (rawPost) => {
+    // Skip normalization for optimistic posts that are already properly formatted
+    if (rawPost.isOptimistic && rawPost.images && Array.isArray(rawPost.images) && 
+        rawPost.images.length > 0 && rawPost.images[0].url) {
+      console.log('Skipping normalization for optimistic post:', rawPost.id);
+      return rawPost; // Return as-is since it's already properly formatted
+    }
+    
     // CRITICAL: Handle reactions normalization properly
     let normalizedReactions = {};
     
@@ -138,9 +145,9 @@ export const usePostCard = (post, activeView = 'home') => {
       tags: rawPost.tags || [],
       // Handle media array - split into different types
       images: (() => {
-        const images = rawPost.images || [];
+        const images = (rawPost.images || []).filter(Boolean); // Filter out null/undefined elements
         const mediaImages = (rawPost.media || []).filter(item => {
-          if (!item.link) return false;
+          if (!item || !item.link) return false;
           
           // Parse JSON-encoded links from backend or handle simple URLs
           let actualUrl = item.link;
@@ -162,10 +169,24 @@ export const usePostCard = (post, activeView = 'home') => {
           
           // Decode URL to handle encoded characters like %20
           const decodedUrl = decodeURIComponent(actualUrl);
-          const isImageByExtension = decodedUrl.match(/\.(jpeg|jpg|gif|png|webp|bmp|svg)$/i);
+          // More robust image detection - handle URLs with query parameters and spaces
+          const urlWithoutQuery = decodedUrl.split('?')[0].split('#')[0];
+          // Normalize spaces and special characters for extension matching
+          const normalizedUrl = urlWithoutQuery.toLowerCase().trim();
+          const isImageByExtension = normalizedUrl.match(/\.(jpeg|jpg|gif|png|webp|bmp|svg)$/i);
           const isImageByType = item.type === 'image';
           const isImageByMimeType = item.mime_type && item.mime_type.startsWith('image/');
-          return isImageByExtension || isImageByType || isImageByMimeType;
+          
+          // Additional check: if the URL contains image-related patterns
+          const hasImagePattern = normalizedUrl.includes('image') || 
+                                 normalizedUrl.includes('photo') || 
+                                 normalizedUrl.includes('pic');
+          
+          // If no explicit type is set but URL looks like an image, assume it's an image
+          const likelyImage = !item.type && (isImageByExtension || hasImagePattern);
+          
+          
+          return isImageByExtension || isImageByType || isImageByMimeType || likelyImage;
         }).map(item => {
           let actualUrl = item.link;
           if (typeof item.link === 'string') {
@@ -190,20 +211,20 @@ export const usePostCard = (post, activeView = 'home') => {
             id: item.id,
             type: item.type || 'image'
           };
-        });
+        }).filter(img => img && img.url); // Filter out any items without valid URLs
         
         // Combine images and media images, removing duplicates by URL
         const allImages = [...images, ...mediaImages];
         const uniqueImages = allImages.filter((image, index, self) => 
-          index === self.findIndex(img => img.url === image.url)
+          image && image.url && index === self.findIndex(img => img && img.url === image.url)
         );
         
         return uniqueImages;
       })(),
       videos: (() => {
-        const videos = rawPost.videos || [];
+        const videos = (rawPost.videos || []).filter(Boolean); // Filter out null/undefined elements
         const mediaVideos = (rawPost.media || []).filter(item => {
-          if (!item.link) return false;
+          if (!item || !item.link) return false;
           
           // Parse JSON-encoded links from backend
           let actualUrl = item.link;
@@ -241,20 +262,20 @@ export const usePostCard = (post, activeView = 'home') => {
             type: item.type || 'video',
             thumbnail: item.thumbnail
           };
-        });
+        }).filter(vid => vid && vid.url); // Filter out any items without valid URLs
         
         // Combine videos and media videos, removing duplicates by URL
         const allVideos = [...videos, ...mediaVideos];
         const uniqueVideos = allVideos.filter((video, index, self) => 
-          index === self.findIndex(vid => vid.url === video.url)
+          video && video.url && index === self.findIndex(vid => vid && vid.url === video.url)
         );
         
         return uniqueVideos;
       })(),
       documents: (() => {
-        const documents = rawPost.documents || [];
+        const documents = (rawPost.documents || []).filter(Boolean); // Filter out null/undefined elements
         const mediaDocuments = (rawPost.media || []).filter(item => {
-          if (!item.link) return false;
+          if (!item || !item.link) return false;
           
           // Parse JSON-encoded links from backend
           let actualUrl = item.link;
@@ -298,20 +319,20 @@ export const usePostCard = (post, activeView = 'home') => {
             isPDF: actualUrl.toLowerCase().includes('.pdf'),
             size: item.size
           };
-        });
+        }).filter(doc => doc && doc.url); // Filter out any items without valid URLs
         
         // Combine documents and media documents, removing duplicates by URL
         const allDocuments = [...documents, ...mediaDocuments];
         const uniqueDocuments = allDocuments.filter((doc, index, self) => 
-          index === self.findIndex(d => d.url === doc.url)
+          doc && doc.url && index === self.findIndex(d => d && d.url === doc.url)
         );
         
         return uniqueDocuments;
       })(),
       links: (() => {
-        const links = rawPost.links || [];
+        const links = (rawPost.links || []).filter(Boolean); // Filter out null/undefined elements
         const mediaLinks = (rawPost.media || []).filter(item => {
-          if (!item.link) return false;
+          if (!item || !item.link) return false;
           
           // Parse JSON-encoded links from backend
           let actualUrl = item.link;
@@ -351,12 +372,12 @@ export const usePostCard = (post, activeView = 'home') => {
             title: item.title,
             description: item.description
           };
-        });
+        }).filter(link => link && link.url); // Filter out any items without valid URLs
         
         // Combine links and media links, removing duplicates by URL
         const allLinks = [...links, ...mediaLinks];
         const uniqueLinks = allLinks.filter((link, index, self) => 
-          index === self.findIndex(l => l.url === link.url)
+          link && link.url && index === self.findIndex(l => l && l.url === link.url)
         );
         
         return uniqueLinks;
