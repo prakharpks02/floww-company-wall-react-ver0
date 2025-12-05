@@ -117,17 +117,28 @@ export const ChatProvider = ({ children }) => {
         const apiConversations = roomsResponse.data.map(room => {
           
           
-          // Extract participants and filter out null/invalid values
-          const participants = room.participants ? room.participants
-            .map(p => p.employee_id && p.employee_id !== 'N/A' ? p.employee_id : p.id)
-            .filter(id => id && id !== null && id !== undefined) : 
-            (room.receiver_employee_id && room.sender_employee_id ? 
-             [room.receiver_employee_id, room.sender_employee_id] : []);
+          // Extract participants with their full details
+          const participantDetails = room.participants ? room.participants
+            .filter(p => p && p.employee_id) // ⚠️ Allow N/A for Admin users
+            .map(p => {
+              // 🔥 Special handling for Admin users
+              const isAdmin = p.employee_id === 'N/A' && p.employee_name === 'Admin';
+              
+              return {
+                id: isAdmin ? 'admin' : p.employee_id,
+                name: p.employee_name || `Employee ${p.employee_id}`,
+                avatar: p.profile_picture_link || '',
+                isAdmin: p.is_admin === true || isAdmin
+              };
+            }) : [];
+          
+          // Extract just the IDs for backwards compatibility
+          const participants = participantDetails.map(p => p.id);
 
           // Extract admin IDs from participants with is_admin: true
-          const adminIds = room.participants ? room.participants
-            .filter(p => p.is_admin === true && p.employee_id && p.employee_id !== 'N/A')
-            .map(p => p.employee_id) : [];
+          const adminIds = participantDetails
+            .filter(p => p.isAdmin)
+            .map(p => p.id);
           
           
           const isGroup = room.is_group || participants.length > 2;
@@ -180,8 +191,10 @@ export const ChatProvider = ({ children }) => {
             id: room.room_id || room.id,
             room_id: room.room_id || room.id,
             participants: participants,
+            participantDetails: participantDetails, // Store full participant details
             type: isGroup ? 'group' : 'direct',
-            name: conversationName,
+            name: conversationName, // ⚠️ This should be "Prakhar Singh" from room_name
+            room_name: room.room_name, // 🔑 Preserve original room_name for reference
             description: room.room_desc || room.description || '', // Map room_desc to description
             icon: iconUrl, // Map icon field (handles both string and array)
             admins: adminIds, // Extract from participants with is_admin: true

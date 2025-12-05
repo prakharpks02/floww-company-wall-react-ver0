@@ -58,13 +58,10 @@ export const cookieUtils = {
 
   // Get authentication tokens from cookies
   getAuthTokens: () => {
-    // Hardcoded values for testing/development
-
-        const employeeToken = cookieUtils.getCookie('floww-employee-token');
-    const employeeId = cookieUtils.getCookie('floww-employee-id')  ; 
-  
-const adminToken = cookieUtils.getCookie('floww-admin-token');
-    // 
+    const employeeToken = cookieUtils.getCookie('floww-employee-token');
+    const employeeId = cookieUtils.getCookie('floww-employee-id');
+    const adminToken = cookieUtils.getCookie('floww-admin-token');
+    
     return {
       employeeToken,
       employeeId,
@@ -91,10 +88,16 @@ const adminToken = cookieUtils.getCookie('floww-admin-token');
 
   // Set authentication tokens in cookies
   setAuthTokens: (employeeToken, adminToken, employeeId = null, options = {}) => {
+    // Determine if we should use domain-wide cookies
+    const hostname = window.location.hostname;
+    const isGoflowwDomain = hostname.includes('gofloww.xyz');
+    
     const defaultOptions = {
       maxAge: 7 * 24 * 60 * 60, // 7 days
       secure: window.location.protocol === 'https:',
-      sameSite: 'lax'
+      sameSite: 'lax',
+      // Set domain for gofloww.xyz subdomains
+      ...(isGoflowwDomain && { domain: '.gofloww.xyz' })
     };
 
     if (employeeToken) {
@@ -126,3 +129,4 @@ const adminToken = cookieUtils.getCookie('floww-admin-token');
     cookieUtils.removeCookie('floww-admin-token');
   }
 };
+ 

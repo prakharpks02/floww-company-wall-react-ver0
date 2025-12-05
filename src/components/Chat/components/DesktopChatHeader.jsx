@@ -36,8 +36,14 @@ const DesktopChatHeader = ({
               <div className="w-12 h-12 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-2xl flex items-center justify-center text-white text-base shadow-[0_8px_32px_rgba(192,132,252,0.3)] overflow-hidden">
                 {activeConversation.type === 'group' ? (
                   <span className="text-white">{activeConversation.name?.substring(0, 2).toUpperCase() || 'GR'}</span>
+                ) : partner?.avatar && partner.avatar.startsWith('http') ? (
+                  <img 
+                    src={partner.avatar} 
+                    alt={partner.name} 
+                    className="w-full h-full object-cover"
+                  />
                 ) : (
-                  partner?.avatar
+                  <span className="font-semibold">{partner?.name?.substring(0, 2).toUpperCase() || 'U'}</span>
                 )}
               </div>
             )}
@@ -47,13 +53,13 @@ const DesktopChatHeader = ({
             <h2 className="text-lg font-normal text-[#1f2937]">
               {activeConversation.type === 'group' ? activeConversation.name : partner?.name}
             </h2>
-            <p className="text-sm text-[#6b7280] flex items-center gap-2">
+            {/* <p className="text-sm text-[#6b7280] flex items-center gap-2">
               <span className={`w-2 h-2 rounded-full ${getStatusColor(partner?.status)}`}></span>
               {activeConversation.type === 'group' 
                 ? `${activeConversation.participants?.length || 0} members`
                 : (partner?.status === 'online' ? 'Active now' : partner?.status)
               }
-            </p>
+            </p> */}
           </div>
         </div>
         

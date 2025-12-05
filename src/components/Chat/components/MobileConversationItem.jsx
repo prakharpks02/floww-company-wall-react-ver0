@@ -36,6 +36,8 @@ const MobileConversationItem = ({
     e.stopPropagation();
     onContextMenu(e, conversation);
   };
+  
+ 
 
   return (
     <div className="relative">
@@ -46,9 +48,35 @@ const MobileConversationItem = ({
         className="w-full flex items-center gap-4 p-3 hover:bg-white rounded-lg transition-all duration-200"
       >
         <div className="relative">
-          <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white text-lg shadow-md">
-            {partner?.avatar}
-          </div>
+          {partner?.avatar && (partner.avatar.startsWith('http') || partner.avatar.startsWith('https')) ? (
+            <div className="w-12 h-12 rounded-full overflow-hidden shadow-md">
+              <img 
+                src={partner.avatar} 
+                alt={partner.name} 
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  // Fallback to initials if image fails to load
+                  e.target.style.display = 'none';
+                }}
+              />
+            </div>
+          ) : conversation?.icon && (conversation.icon.startsWith('http') || conversation.icon.startsWith('https')) ? (
+            <div className="w-12 h-12 rounded-full overflow-hidden shadow-md">
+              <img 
+                src={conversation.icon} 
+                alt={conversation.name || partner?.name} 
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  // Fallback to initials if image fails to load
+                  e.target.style.display = 'none';
+                }}
+              />
+            </div>
+          ) : (
+            <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white text-lg shadow-md">
+              <span className="font-semibold">{partner?.name?.substring(0, 2).toUpperCase() || conversation?.name?.substring(0, 2).toUpperCase() || 'U'}</span>
+            </div>
+          )}
           <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${getStatusColor(partner?.status)}`}></div>
         </div>
         

@@ -1,7 +1,7 @@
 // Employee API service for fetching real employee data
 import { cookieUtils } from '../utils/cookieUtils';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace('/wall', '') || 'https://console.gofloww.xyz/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://console.gofloww.xyz';
 
 const getApiHeaders = () => {
   const { employeeToken, employeeId } = cookieUtils.getAuthTokens();
@@ -18,7 +18,7 @@ const getApiHeaders = () => {
  */
 export const fetchAllEmployees = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/employee/get-all-employees/`, {
+    const response = await fetch(`${API_BASE_URL}/api/employee/get-all-employees/`, {
       method: 'GET',
       headers: getApiHeaders()
     });

@@ -444,8 +444,8 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                 <>
                   {/* Pinned Message */}
                   <PinnedMessageDisplay
-                    pinnedMessage={activeConversation && pinnedMessages[activeConversation.id]}
-                    onUnpin={() => pinAndFavoriteHandlers.handleUnpin('message', activeConversation.id)}
+                    pinnedMessage={activeConversation && pinnedMessages[activeConversation.room_id || activeConversation.id]}
+                    onUnpin={() => pinAndFavoriteHandlers.handleUnpin('message', activeConversation.room_id || activeConversation.id)}
                     isDesktop={false}
                   />
 
@@ -459,7 +459,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                         </div>
                       </div>
                     ) : (
-                      groupMessagesByDate(messages[activeConversation.id] || []).map((group, groupIndex) => (
+                      groupMessagesByDate(messages[activeConversation.room_id || activeConversation.id] || []).map((group, groupIndex) => (
                         <div key={groupIndex} className="space-y-4">
                           {/* Date Header */}
                           <div className="flex justify-center">
@@ -471,21 +471,18 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                           {/* Messages for this date */}
                           {group.messages.map(message => {
                             const currentUserEmployeeId = currentUser?.employeeId || `emp-${currentUser?.id}`;
-                            // More comprehensive sender ID comparison
+                            
+                            // Fix: Use sender.employee_id from API response, fallback to sender_id for sent messages
+                            const messageSenderId = message.sender?.employee_id || message.sender_id || message.senderId;
+                            
+                            // Comprehensive sender ID comparison with API structure
                             const isOwnMessage = 
-                              message.senderId === currentUser.id || 
-                              message.senderId === currentUserEmployeeId ||
-                              message.senderId === currentUser?.employeeId ||
-                              String(message.senderId) === String(currentUser.id) ||
-                              String(message.senderId) === String(currentUserEmployeeId);
-                            
-                            // Debug logging
-                            
-                            
-                            // Debug logging for reply messages
-                            if (message.replyTo) {
-                              
-                            }
+                              messageSenderId === currentUser.id || 
+                              messageSenderId === currentUserEmployeeId ||
+                              messageSenderId === currentUser?.employeeId ||
+                              String(messageSenderId) === String(currentUser.id) ||
+                              String(messageSenderId) === String(currentUserEmployeeId) ||
+                              messageSenderId === `emp-${currentUser.id}`;
                             
                             return (
                               <div
@@ -514,7 +511,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                                      
                                       
                                       return profilePic && profilePic.startsWith('http') ? (
-                                        <div className="w-8 h-8 bg-gray-100 rounded-full overflow-hidden">
+                                        <div className="w-8 h-8 rounded-full overflow-hidden">
                                           <img 
                                             src={profilePic} 
                                             alt={message.sender?.name || senderEmployee?.name}
@@ -535,14 +532,14 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                                     <div 
                                       className="text-xs text-purple-600 mb-1 ml-3 font-medium cursor-pointer hover:underline"
                                       onClick={() => {
-                                        const senderEmployee = getEmployeeById(message.senderId);
+                                        const senderEmployee = getEmployeeById(messageSenderId);
                                         if (senderEmployee) {
                                           handleStartChatWithMember(senderEmployee);
                                         }
                                       }}
                                       title="Click to start chat"
                                     >
-                                      {message.sender?.name || getEmployeeById(message.senderId)?.name || 'Unknown User'}
+                                      {message.sender?.employee_name || getEmployeeById(messageSenderId)?.name || 'Unknown User'}
                                     </div>
                                   )}
                                   <div
@@ -717,7 +714,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
         <Toaster />
         
         <div 
-          className="fixed bottom-4 right-4 w-[420px] bg-white rounded-xl shadow-2xl border border-gray-200 z-50 flex flex-col transform transition-all duration-500 ease-out animate-slideUp chat-window-glass overflow-hidden"
+          className="fixed bottom-4 right-4 w-[420px] bg-white rounded-xl shadow-2xl border border-gray-200 z-50 flex flex-col chat-window-glass overflow-hidden"
           style={{
             height: 'min(500px, calc(100vh - 32px))',
             maxWidth: 'calc(100vw - 32px)'
@@ -985,7 +982,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                               >
                                 <div className="relative">
                                   {conversation.icon ? (
-                                    <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center overflow-hidden shadow-md">
+                                    <div className="w-8 h-8 rounded-full flex items-center justify-center overflow-hidden shadow-md">
                                       <img 
                                         src={conversation.icon} 
                                         alt={conversation.name || partner?.name}
@@ -1051,7 +1048,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                           >
                             <div className="relative">
                               {conversation.icon ? (
-                                <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center overflow-hidden shadow-md">
+                                <div className="w-8 h-8 rounded-full flex items-center justify-center overflow-hidden shadow-md">
                                   <img 
                                     src={conversation.icon} 
                                     alt={conversation.name || partner?.name}
@@ -1100,8 +1097,8 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
             <div className="flex-1 flex flex-col">
               {/* Pinned Message Display */}
               <PinnedMessageDisplay
-                pinnedMessage={activeConversation && pinnedMessages[activeConversation.id]}
-                onUnpin={() => pinAndFavoriteHandlers.handleUnpin('message', activeConversation.id)}
+                pinnedMessage={activeConversation && pinnedMessages[activeConversation.room_id || activeConversation.id]}
+                onUnpin={() => pinAndFavoriteHandlers.handleUnpin('message', activeConversation.room_id || activeConversation.id)}
                 isCompact={true}
               />
               
@@ -1109,7 +1106,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
               <div 
                 className="flex-1 overflow-y-auto p-2 space-y-2" 
                 style={{ 
-                  height: activeConversation && pinnedMessages[activeConversation.id] 
+                  height: activeConversation && pinnedMessages[activeConversation.room_id || activeConversation.id] 
                     ? 'calc(100% - 140px)' // Account for header + pinned message + input area
                     : 'calc(100% - 100px)', // Account for header + input area
                   minHeight: '200px',
@@ -1117,7 +1114,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                   scrollbarColor: '#cbd5e1 #f1f5f9'
                 }}
               >
-                {groupMessagesByDate(messages[activeConversation.id] || []).map((group, groupIndex) => (
+                {groupMessagesByDate(messages[activeConversation.room_id || activeConversation.id] || []).map((group, groupIndex) => (
                   <div key={groupIndex} className="space-y-2">
                     {/* Date Header */}
                     <div className="flex justify-center">
@@ -1129,13 +1126,17 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                     {/* Messages for this date */}
                     {group.messages.map(message => {
                       const currentUserEmployeeId = currentUser?.employeeId || `emp-${currentUser?.id}`;
+                      
+                      // Fix: Use sender.employee_id from API response, fallback to sender_id for sent messages
+                      const messageSenderId = message.sender?.employee_id || message.sender_id || message.senderId;
+                      
                       // More comprehensive sender ID comparison
                       const isOwnMessage = 
-                        message.senderId === currentUser.id || 
-                        message.senderId === currentUserEmployeeId ||
-                        message.senderId === currentUser?.employeeId ||
-                        String(message.senderId) === String(currentUser.id) ||
-                        String(message.senderId) === String(currentUserEmployeeId);
+                        messageSenderId === currentUser.id || 
+                        messageSenderId === currentUserEmployeeId ||
+                        messageSenderId === currentUser?.employeeId ||
+                        String(messageSenderId) === String(currentUser.id) ||
+                        String(messageSenderId) === String(currentUserEmployeeId);
                   
                       
                    
@@ -1165,7 +1166,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                                 
                                
                                 return profilePic && profilePic.startsWith('http') ? (
-                                  <div className="w-6 h-6 bg-gray-100 rounded-full overflow-hidden">
+                                  <div className="w-6 h-6 rounded-full overflow-hidden">
                                     <img 
                                       src={profilePic} 
                                       alt={message.sender?.name || senderEmployee?.name}
@@ -1284,12 +1285,12 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                 )}
                 
                 <div className="flex gap-2">
-                  <button
+                  {/* <button
                     onClick={() => setShowAttachmentMenu(true)}
                     className="p-2 text-gray-500 hover:bg-gray-200 rounded-lg transition-all duration-200"
                   >
                     <Paperclip className="h-4 w-4" />
-                  </button>
+                  </button> */}
                   
                   <div className="flex-1">
                     <input
@@ -1501,7 +1502,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                           <div className="flex items-center gap-1.5">
                             <div className="relative">
                               {conversation.icon ? (
-                                <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden">
+                                <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden">
                                   <img 
                                     src={conversation.icon} 
                                     alt={conversation.name || partner?.name}
@@ -1685,7 +1686,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                                   <div className="flex items-center gap-1.5">
                                     <div className="relative">
                                       {conversation.icon ? (
-                                        <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden">
+                                        <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden">
                                           <img 
                                             src={conversation.icon} 
                                             alt={conversation.name || partner?.name}
@@ -1757,7 +1758,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                           <div className="flex items-center gap-2">
                             <div className="relative">
                               {conversation.icon ? (
-                                <div className="w-9 h-9 bg-gray-100 rounded-xl flex items-center justify-center overflow-hidden">
+                                <div className="w-9 h-9 rounded-xl flex items-center justify-center overflow-hidden">
                                   <img 
                                     src={conversation.icon} 
                                     alt={conversation.name || partner?.name}
@@ -1812,7 +1813,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                   <div className="flex items-center gap-3">
                     <div className="relative">
                       {activeConversation.icon ? (
-                        <div className="w-12 h-12 bg-gray-100 rounded-2xl flex items-center justify-center overflow-hidden shadow-[0_8px_32px_rgba(192,132,252,0.3)]">
+                        <div className="w-12 h-12 rounded-2xl flex items-center justify-center overflow-hidden shadow-[0_8px_32px_rgba(192,132,252,0.3)]">
                           <img 
                             src={activeConversation.icon} 
                             alt={activeConversation.name || getConversationPartner(activeConversation, currentUser.id)?.name}
@@ -1830,11 +1831,11 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                       <h2 className="text-sm font-normal text-[#1f2937]">
                         {activeConversation.name || getConversationPartner(activeConversation, currentUser.id)?.name}
                       </h2>
-                      <p className="text-sm text-[#6b7280] flex items-center gap-2">
+                      {/* <p className="text-sm text-[#6b7280] flex items-center gap-2">
                         <span className={`w-2 h-2 rounded-full ${getStatusColor(getConversationPartner(activeConversation, currentUser.id)?.status)}`}></span>
                         {getConversationPartner(activeConversation, currentUser.id)?.status === 'online' ? 'Active now' : 
                          getConversationPartner(activeConversation, currentUser.id)?.status}
-                      </p>
+                      </p> */}
                     </div>
                   </div>
                   
@@ -1878,7 +1879,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                     scrollbarColor: '#cbd5e1 #f1f5f9'
                   }}>
                     {/* Pinned Message */}
-                    {activeConversation && pinnedMessages[activeConversation.id] && (
+                    {activeConversation && pinnedMessages[activeConversation.room_id || activeConversation.id] && (
                       <div className="bg-gradient-to-r from-[#86efac]/20 to-[#4ade80]/20 backdrop-blur-sm border border-[#86efac]/30 p-4 rounded-2xl shadow-[inset_0_0_20px_rgba(134,239,172,0.2)]">
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
@@ -1887,11 +1888,11 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                               <span className="text-sm font-semibold text-[#86efac]">Pinned Message</span>
                             </div>
                             <p className="text-[#1f2937]">
-                              {pinnedMessages[activeConversation.id].message.text}
+                              {pinnedMessages[activeConversation.room_id || activeConversation.id].message.text}
                             </p>
                           </div>
                           <button
-                            onClick={() => pinAndFavoriteHandlers.handleUnpin('message', activeConversation.id)}
+                            onClick={() => pinAndFavoriteHandlers.handleUnpin('message', activeConversation.room_id || activeConversation.id)}
                             className="p-2 hover:bg-white/30 rounded-xl transition-colors"
                           >
                             <X className="h-4 w-4 text-[#6b7280]" />
@@ -1900,7 +1901,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                       </div>
                     )}
 
-                    {groupMessagesByDate(messages[activeConversation.id] || []).map((group, groupIndex) => (
+                    {groupMessagesByDate(messages[activeConversation.room_id || activeConversation.id] || []).map((group, groupIndex) => (
                       <div key={groupIndex} className="space-y-2">
                         {/* Date Header */}
                         <div className="flex justify-center">
@@ -1912,13 +1913,17 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                         {/* Messages for this date */}
                         {group.messages.map(message => {
                           const currentUserEmployeeId = currentUser?.employeeId || `emp-${currentUser?.id}`;
+                          
+                          // Fix: Use sender.employee_id from API response, fallback to sender_id for sent messages
+                          const messageSenderId = message.sender?.employee_id || message.sender_id || message.senderId;
+                          
                           // More comprehensive sender ID comparison
                           const isOwnMessage = 
-                            message.senderId === currentUser.id || 
-                            message.senderId === currentUserEmployeeId ||
-                            message.senderId === currentUser?.employeeId ||
-                            String(message.senderId) === String(currentUser.id) ||
-                            String(message.senderId) === String(currentUserEmployeeId);
+                            messageSenderId === currentUser.id || 
+                            messageSenderId === currentUserEmployeeId ||
+                            messageSenderId === currentUser?.employeeId ||
+                            String(messageSenderId) === String(currentUser.id) ||
+                            String(messageSenderId) === String(currentUserEmployeeId);
                           
                           // Debug logging
                           
@@ -1950,7 +1955,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                                  
                                     
                                     return profilePic && profilePic.startsWith('http') ? (
-                                      <div className="w-6 h-6 bg-gray-100 rounded-full overflow-hidden">
+                                      <div className="w-6 h-6 rounded-full overflow-hidden">
                                         <img 
                                           src={profilePic} 
                                           alt={message.sender?.name || senderEmployee?.name}
@@ -2069,12 +2074,12 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                     )}
                     
                     <div className="flex items-center gap-2">
-                      <button
+                      {/* <button
                         onClick={() => setShowAttachmentMenu(true)}
                         className="p-1.5 bg-white/70 backdrop-blur-sm hover:bg-white/90 rounded-lg shadow-[inset_0_0_10px_rgba(255,255,255,0.8)] hover:shadow-[0_2px_8px_rgba(109,40,217,0.2)] transition-all duration-300 hover:scale-105"
                       >
                         <Paperclip className="h-3.5 w-3.5 text-[#6d28d9]" />
-                      </button>
+                      </button> */}
                       
                       <div className="flex-1">
                         <input

@@ -2,7 +2,6 @@ import React from 'react';
 import { AdminChatProvider } from '../../contexts/AdminChatContext';
 import AdminLayout from '../Layout/AdminLayout';
 import AdminChatDashboard from './AdminChatDashboard';
-import AdminAPITester from './AdminAPITester';
 
 /**
  * CRM Admin App - Complete admin application wrapper
@@ -10,66 +9,17 @@ import AdminAPITester from './AdminAPITester';
  * and only uses admin API endpoints.
  */
 const CRMAdminApp = () => {
-  const [activeTab, setActiveTab] = React.useState('dashboard');
-
-
-
   return (
     <AdminChatProvider>
       <AdminLayout>
         <div className="crm-admin-app">
-          {/* Tab Navigation */}
-          <div className="mb-6">
-            <nav className="flex space-x-8">
-              <button
-                onClick={() => setActiveTab('dashboard')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === 'dashboard'
-                    ? 'border-purple-500 text-purple-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                Chat Dashboard
-              </button>
-              <button
-                onClick={() => setActiveTab('tester')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === 'tester'
-                    ? 'border-purple-500 text-purple-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                API Tester
-              </button>
-            </nav>
+          <div className="mb-4">
+            <h2 className="text-lg font-medium text-gray-900">Admin Chat Management</h2>
+            <p className="text-sm text-gray-600">
+              Manage chat rooms, participants, and messages using admin-only API endpoints.
+            </p>
           </div>
-
-          {/* Tab Content */}
-          <div className="tab-content">
-            {activeTab === 'dashboard' && (
-              <div>
-                <div className="mb-4">
-                  <h2 className="text-lg font-medium text-gray-900">Admin Chat Management</h2>
-                  <p className="text-sm text-gray-600">
-                    Manage chat rooms, participants, and messages using admin-only API endpoints.
-                  </p>
-                </div>
-                <AdminChatDashboard />
-              </div>
-            )}
-
-            {activeTab === 'tester' && (
-              <div>
-                <div className="mb-4">
-                  <h2 className="text-lg font-medium text-gray-900">Admin API Testing</h2>
-                  <p className="text-sm text-gray-600">
-                    Test all admin API endpoints to ensure they work correctly in the CRM environment.
-                  </p>
-                </div>
-                <AdminAPITester />
-              </div>
-            )}
-          </div>
+          <AdminChatDashboard />
 
           {/* Environment Info */}
           <div className="mt-8 p-4 bg-blue-50 rounded-lg">

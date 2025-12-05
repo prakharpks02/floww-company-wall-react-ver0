@@ -48,7 +48,7 @@ const getAuthHeaders = () => {
 const FLOWW_TOKEN = getAuthToken();
 
 const API_CONFIG = {
-  BASE_URL: import.meta.env.VITE_API_BASE_URL,
+  BASE_URL: import.meta.env.VITE_API_BASE_URL + '/api/wall',
   TIMEOUT: 10000, // 10 seconds
 };
 
@@ -68,8 +68,11 @@ const checkAuthToken = (userType = null) => {
   
   if (!currentToken) {
     if (typeof window !== 'undefined') {
-      if (window.location.hostname === "localhost") {
-        throw new Error(`Missing ${currentUserType} authentication token for localhost development`);
+      const hostname = window.location.hostname;
+      const isLocalDev = hostname === "localhost" || hostname.includes('local.gofloww.xyz');
+      
+      if (isLocalDev) {
+        throw new Error(`Missing ${currentUserType} authentication token for local development`);
       } else {
         if (currentUserType === 'admin') {
           window.location.href = import.meta.env.VITE_ADMIN_DASHBOARD_URL || 'http://localhost:8000/crm/dashboard';

@@ -26,7 +26,7 @@ const getAdminToken = () => {
 };
 
 const API_CONFIG = {
-  BASE_URL: import.meta.env.VITE_API_BASE_URL,
+  BASE_URL: `${import.meta.env.VITE_API_BASE_URL || 'https://console.gofloww.xyz'}/api/wall`,
   TIMEOUT: 30000, // Increased timeout to 30 seconds
   HEADERS: {
     'Authorization': getAdminToken(),

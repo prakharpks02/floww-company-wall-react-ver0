@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { X, Phone, Video, Mail, MapPin, Calendar, Building, User, MessageCircle, Camera } from 'lucide-react';
 import { getEmployeeById } from './utils/dummyData';
+import { cookieUtils } from '../../utils/cookieUtils';
 
 const UserProfileModal = ({ isOpen, onClose, userId, onStartChat, currentUserId }) => {
   const [profilePicture, setProfilePicture] = useState(null);
@@ -37,13 +38,14 @@ const UserProfileModal = ({ isOpen, onClose, userId, onStartChat, currentUserId 
       const formData = new FormData();
       formData.append('file', file);
 
-      const baseURL = 'https://console.gofloww.xyz';
+      const { adminToken } = cookieUtils.getAuthTokens();
+      const baseURL = import.meta.env.VITE_API_BASE_URL ;
       const response = await fetch(`${baseURL}/api/wall/admin/upload_file`, {
         method: 'POST',
         body: formData,
         credentials: 'include',
         headers: {
-          'Authorization': '7a3239c81974cdd6140c3162468500ba95d7d5823ea69658658c2986216b273e'
+          'Authorization': adminToken
         }
       });
 
@@ -87,7 +89,7 @@ const UserProfileModal = ({ isOpen, onClose, userId, onStartChat, currentUserId 
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl max-w-md w-full max-h-[90vh] overflow-hidden shadow-2xl">
         {/* Header */}
         <div className="relative">

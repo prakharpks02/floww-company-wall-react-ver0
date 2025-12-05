@@ -12,11 +12,43 @@ export const useChatUtilities = () => {
   
   // Always provide a current user, even if employees haven't loaded yet
   const currentUser = (() => {
+    // Get the logged-in user's employee ID from cookies/auth
+    const { employeeId: loggedInEmployeeId } = cookieUtils.getAuthTokens();
+    
     // Check if we're in admin environment
     if (isAdminEnvironment()) {
+      // Even in admin environment, use the actual employee ID from cookies if available
+      if (loggedInEmployeeId && loggedInEmployeeId !== 'N/A') {
+        // Find the employee in the list to get full details
+        if (employees.length > 0) {
+          const emp = employees.find(emp => emp.employeeId === loggedInEmployeeId);
+          if (emp) {
+            return {
+              ...emp,
+              id: emp.employeeId || emp.id || loggedInEmployeeId,
+              employeeId: emp.employeeId || emp.id || loggedInEmployeeId,
+              isAdmin: true
+            };
+          }
+        }
+        
+        // If not found in employees list, create user object with cookie ID
+        return {
+          id: loggedInEmployeeId,
+          employeeId: loggedInEmployeeId,
+          name: 'Admin',
+          email: 'admin@company.com',
+          status: 'online',
+          avatar: 'AD',
+          role: 'Administrator',
+          isAdmin: true
+        };
+      }
+      
+      // Only use N/A as last resort in admin environment
       return {
-        id: 'UAI5Tfzl3k4Y6NIp', // Use specific admin sender_id
-        employeeId: 'UAI5Tfzl3k4Y6NIp', // Use specific admin sender_id for API calls
+        id: 'N/A',
+        employeeId: 'N/A',
         name: 'Admin',
         email: 'admin@company.com',
         status: 'online',
@@ -26,8 +58,6 @@ export const useChatUtilities = () => {
       };
     }
     
-    // Get the logged-in user's employee ID from cookies/auth
-    const { employeeId: loggedInEmployeeId } = cookieUtils.getAuthTokens();
     // If employees are available, find the logged-in user
     if (employees.length > 0) {
       // Try to find the current logged-in user by their employeeId from cookies

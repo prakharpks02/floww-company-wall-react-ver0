@@ -83,15 +83,64 @@ export const getConversationPartner = (conversation, currentUserId) => {
     return null;
   }
   
-
+  // 🔥 Priority 1: Check if room_name exists (from API response)
+  // room_name can be string or array - handle both cases
+  let roomName = null;
+  if (conversation.room_name) {
+    if (Array.isArray(conversation.room_name) && conversation.room_name.length > 0) {
+      roomName = conversation.room_name[0]; // Take first element from array
+    } else if (typeof conversation.room_name === 'string') {
+      roomName = conversation.room_name;
+    }
+  }
   
+  // If we have a valid room_name, use it
+  if (roomName && roomName.trim()) {
+    // Don't show "Admin" if current user IS admin - show the other participant instead
+    const isCurrentUserAdmin = currentUserId === 'UAI5Tfzl3k4Y6NIp' || currentUserId === 'admin' || currentUserId === 'N/A';
+    const isRoomNameAdmin = roomName === 'Admin' || roomName.toLowerCase() === 'admin';
+    
+    // If current user is admin and room name is "Admin", skip to participant logic below
+    if (!isCurrentUserAdmin || !isRoomNameAdmin) {
+      return {
+        name: roomName,
+        avatar: roomName.charAt(0).toUpperCase(),
+        status: 'online',
+        id: conversation.room_id || conversation.id,
+        isAdmin: isRoomNameAdmin
+      };
+    }
+  }
+  
+  // For group conversations, return group info
   if (conversation.type === 'group') {
     return {
       name: conversation.name || 'Group Chat',
-      avatar: conversation.avatar || '',
+      avatar: conversation.avatar || conversation.icon || '',
       status: 'group',
       id: conversation.id
     };
+  }
+  
+  // Use participantDetails if available (from API with full participant info)
+  if (conversation.participantDetails && Array.isArray(conversation.participantDetails)) {
+    const currentUserEmpId = currentUserId?.startsWith('emp-') ? currentUserId : `emp-${currentUserId}`;
+    
+    const partner = conversation.participantDetails.find(p => 
+      p.id !== currentUserId && 
+      p.id !== currentUserEmpId &&
+      (!currentUserId?.startsWith('emp-') ? p.id !== `emp-${currentUserId}` : true)
+    );
+    
+    if (partner) {
+      return {
+        name: partner.name,
+        avatar: partner.avatar || '',
+        status: 'online', // Default status
+        id: partner.id,
+        isAdmin: partner.isAdmin
+      };
+    }
   }
   
   if (!conversation.participants || !Array.isArray(conversation.participants)) {
@@ -101,7 +150,22 @@ export const getConversationPartner = (conversation, currentUserId) => {
   // Ensure currentUserId is a string and handle both employee ID formats
   if (!currentUserId || typeof currentUserId !== 'string') {
     // If no valid currentUserId, return the first participant as partner
-    const partnerId = conversation.participants[0];
+    const firstParticipant = conversation.participants[0];
+    
+    // Check if this is an Admin user (employee_id === "N/A")
+    if (firstParticipant && typeof firstParticipant === 'object') {
+      if (firstParticipant.employee_id === 'N/A' && firstParticipant.employee_name === 'Admin') {
+        return {
+          name: firstParticipant.employee_name,
+          avatar: firstParticipant.profile_picture_link || 'A',
+          status: 'online',
+          id: 'admin',
+          isAdmin: true
+        };
+      }
+    }
+    
+    const partnerId = typeof firstParticipant === 'object' ? firstParticipant.employee_id : firstParticipant;
     const partner = getEmployeeById(partnerId);
     return partner || {
       name: partnerId ? `Employee ${partnerId}` : 'Unknown User',
@@ -112,13 +176,16 @@ export const getConversationPartner = (conversation, currentUserId) => {
   }
   
   const currentUserEmpId = currentUserId.startsWith('emp-') ? currentUserId : `emp-${currentUserId}`;
-  const partnerId = conversation.participants.find(id => 
-    id !== currentUserId && 
-    id !== currentUserEmpId &&
-    (!currentUserId.startsWith('emp-') ? id !== `emp-${currentUserId}` : true)
-  );
   
-  if (!partnerId) {
+  // Find the partner (the other participant who is not the current user)
+  const partnerParticipant = conversation.participants.find(participant => {
+    const participantId = typeof participant === 'object' ? participant.employee_id : participant;
+    return participantId !== currentUserId && 
+           participantId !== currentUserEmpId &&
+           (!currentUserId.startsWith('emp-') ? participantId !== `emp-${currentUserId}` : true);
+  });
+  
+  if (!partnerParticipant) {
     return {
       name: 'Unknown User',
       avatar: '',
@@ -127,6 +194,30 @@ export const getConversationPartner = (conversation, currentUserId) => {
     };
   }
   
+  // Handle Admin user with employee_id === "N/A"
+  if (typeof partnerParticipant === 'object') {
+    if (partnerParticipant.employee_id === 'N/A' && partnerParticipant.employee_name === 'Admin') {
+      return {
+        name: partnerParticipant.employee_name,
+        avatar: partnerParticipant.profile_picture_link || 'A',
+        status: 'online',
+        id: 'admin',
+        isAdmin: true
+      };
+    }
+    
+    // Return participant object data if available
+    return {
+      name: partnerParticipant.employee_name || 'Unknown User',
+      avatar: partnerParticipant.profile_picture_link || (partnerParticipant.employee_name ? partnerParticipant.employee_name.charAt(0).toUpperCase() : 'U'),
+      status: 'online',
+      id: partnerParticipant.employee_id,
+      isAdmin: partnerParticipant.is_admin || false
+    };
+  }
+  
+  // Legacy: partner is just an ID string
+  const partnerId = partnerParticipant;
   const partner = getEmployeeById(partnerId);
   return partner || {
     name: `Employee ${partnerId}`,

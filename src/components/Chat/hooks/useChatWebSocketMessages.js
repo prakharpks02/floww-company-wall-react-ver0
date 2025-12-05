@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { enhancedChatAPI } from '../chatapi';
 
 /**
@@ -18,25 +18,32 @@ export const useChatWebSocketMessages = ({
   const [loadedRooms, setLoadedRooms] = useState(new Set());
 
   // WebSocket message handler
-  const handleWebSocketMessage = (messageData) => {
+  const handleWebSocketMessage = useCallback((messageData) => {
     if (!activeConversation) {
       return;
     }
 
-    
+    // Use room_id if available, otherwise fall back to id
+    const conversationKey = activeConversation.room_id || activeConversation.id;
 
     // Extract message details
-    const senderEmployeeId = messageData.sender?.employee_id || messageData.sender_id;
+    let senderEmployeeId = messageData.sender?.employee_id || messageData.sender_id;
     const currentUserEmployeeId = currentUser?.employeeId || `emp-${currentUser?.id}`;
     const messageContent = messageData.content || messageData.message;
     const messageId = messageData.message_id;
     
+    // Fix: If server returns wrong sender_id for admin, use correct one
+    const isLikelyOwnMessage = 
+      senderEmployeeId === '2Zt363ClFSPBz1NW' && 
+      currentUser?.isAdmin && 
+      currentUser?.employeeId === 'N/A';
     
+    if (isLikelyOwnMessage) {
+      senderEmployeeId = currentUser.employeeId;
+    }
     
     // Check if message already exists to prevent duplicates (optimistic UI)
-    const existingMessages = messages[activeConversation.id] || [];
-    
-    
+    const existingMessages = messages[conversationKey] || [];
     
     // Check for duplicate by message_id
     const messageExists = existingMessages.some(msg => msg.id === messageData.message_id);
@@ -48,8 +55,6 @@ export const useChatWebSocketMessages = ({
     // Check for optimistic message that matches this WebSocket message
     const messageTime = new Date(messageData.timestamp || messageData.created_at || Date.now());
     
-    
-    
     // Find optimistic message that matches
     const optimisticMessage = existingMessages.find(msg => {
       const isOptimistic = msg._optimistic === true;
@@ -58,17 +63,13 @@ export const useChatWebSocketMessages = ({
       const timeDiff = Math.abs(messageTime - msg.timestamp);
       const timeWithinWindow = timeDiff < 10000;
       
-      
-      
       return isOptimistic && senderMatches && textMatches && timeWithinWindow;
     });
     
     if (optimisticMessage) {
-      
-      
       // Replace optimistic message with real message
       setMessages(prev => {
-        const updated = prev[activeConversation.id].map(msg => {
+        const updated = prev[conversationKey].map(msg => {
           if (msg.id === optimisticMessage.id) {
             return {
               ...msg,
@@ -84,7 +85,7 @@ export const useChatWebSocketMessages = ({
         });
         return {
           ...prev,
-          [activeConversation.id]: updated
+          [conversationKey]: updated
         };
       });
       return; // CRITICAL: Stop here, don't add the message again
@@ -106,39 +107,33 @@ export const useChatWebSocketMessages = ({
       isForwarded: messageData.is_forwarded || false // 🔁 Include forwarded flag
     };
     
-    // Verify sender data is preserved
-    
-
-    // Add reply information if present
-    if (messageData.reply_to_message_id || messageData.reply_to) {
-      const replyData = messageData.reply_to || messageData;
+    // Add reply information if present (comprehensive handling)
+    if (messageData.reply_to_message_id || messageData.reply_to_message) {
+      
+      const replyData = messageData.reply_to_message || messageData;
       incomingMessage.replyTo = {
-        id: messageData.reply_to_message_id || replyData.reply_to_message_id,
-        text: replyData.reply_content || 'Original message',
-        senderName: replyData.reply_sender_name || 'Unknown'
+        id: messageData.reply_to_message_id || replyData.message_id,
+        text: replyData.content || replyData.reply_content || 'Original message',
+        senderId: replyData.sender?.employee_id || replyData.reply_sender_id,
+        senderName: replyData.sender?.employee_name || replyData.reply_sender_name || 'Unknown',
+        timestamp: replyData.created_at ? new Date(replyData.created_at) : null
       };
     }
     
-    
     // Add message to the active conversation
     setMessages(prev => {
-      const previousMessages = prev[activeConversation.id] || [];
-      const updatedMessages = {
+      const previousMessages = prev[conversationKey] || [];
+      return {
         ...prev,
-        [activeConversation.id]: [...previousMessages, incomingMessage]
+        [conversationKey]: [...previousMessages, incomingMessage]
       };
-      const newMessages = updatedMessages[activeConversation.id];
-      
-      
-      
-      return updatedMessages;
     });
-  };
+  }, [activeConversation, messages, setMessages, currentUser]); // Add all dependencies
 
   // WebSocket connection handler
-  const handleWebSocketConnection = (connected) => {
+  const handleWebSocketConnection = useCallback((connected) => {
     setIsConnected(connected);
-  };
+  }, []);
 
   // Load initial messages only when absolutely necessary (e.g., when switching to a conversation)
   const loadInitialMessages = async (roomId) => {
@@ -174,44 +169,35 @@ export const useChatWebSocketMessages = ({
         // Set initial messages for the conversation
         setMessages(prev => ({
           ...prev,
-          [activeConversation.id]: formattedMessages
+          [activeConversation.room_id || activeConversation.id]: formattedMessages
         }));
       } else {
         // Set empty array to indicate messages were loaded (prevents re-loading)
         setMessages(prev => ({
           ...prev,
-          [activeConversation.id]: []
+          [activeConversation.room_id || activeConversation.id]: []
         }));
       }
     } catch (error) {
       // Set empty array on error to prevent retry loops
       setMessages(prev => ({
         ...prev,
-        [activeConversation.id]: []
+        [activeConversation.room_id || activeConversation.id]: []
       }));
     } finally {
       setLoadingInitialMessages(false);
     }
   };
 
-  // Effect to handle active conversation changes
+  // Effect to handle active conversation changes - disconnect when no active conversation
   useEffect(() => {
     if (!activeConversation) {
       enhancedChatAPI.disconnectFromRoom();
       setIsConnected(false);
-      return;
     }
-
-    
-
-    // The navigation handlers now handle WebSocket connection and message loading
-    // This hook now only handles incoming real-time messages
-    // Cleanup function
-    return () => {
-    };
   }, [activeConversation?.id, activeConversation?.room_id]);
 
-  // Effect to subscribe to WebSocket events - ONLY ONCE
+  // Effect to subscribe to WebSocket events
   useEffect(() => {
     const unsubscribeMessage = enhancedChatAPI.onMessage(handleWebSocketMessage);
     const unsubscribeConnection = enhancedChatAPI.onConnection(handleWebSocketConnection);
@@ -220,7 +206,7 @@ export const useChatWebSocketMessages = ({
       unsubscribeMessage();
       unsubscribeConnection();
     };
-  }, []); // Empty dependency array - subscribe only once!
+  }, [handleWebSocketMessage, handleWebSocketConnection]); // Add dependencies so it updates with fresh closures
 
   return {
     isConnected,
