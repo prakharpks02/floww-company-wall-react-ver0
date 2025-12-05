@@ -348,6 +348,25 @@ export const adminChatAPI = {
     } catch (error) {
       return [];
     }
+  },
+
+  /**
+   * Get users for mentions (Admin endpoint)
+   */
+  getUsersForMentions: async (query = '', limit = 10) => {
+    try {
+      const endpoint = `${import.meta.env.VITE_API_BASE_URL}/api/wall/admin/get_user_for_mentions?query=${encodeURIComponent(query)}&limit=${limit}`;
+      
+      const response = await fetch(endpoint, {
+        method: 'GET',
+        headers: getAdminHeaders()
+      });
+      
+      return await handleAdminResponse(response);
+    } catch (error) {
+      console.error('Error fetching users for mentions (admin):', error);
+      throw error;
+    }
   }
 };
 

@@ -26,6 +26,7 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [hasRedirected, setHasRedirected] = useState(false);
 
 // Get appropriate token and determine user type based on current URL
 const getTokenAndUserType = () => {
@@ -52,8 +53,15 @@ const fetchUser = async () => {
   
     
     if (!token) {
-      // No token found, redirect to main Floww application
-      window.location.href = import.meta.env.VITE_EMPLOYEE_LOGIN_URL;
+      // Prevent infinite redirects
+      if (!hasRedirected) {
+        setHasRedirected(true);
+        // Add a small delay to prevent immediate redirect loops
+        setTimeout(() => {
+          window.location.href = import.meta.env.VITE_EMPLOYEE_LOGIN_URL;
+        }, 1000);
+      }
+      setLoading(false);
       return;
     }
 
