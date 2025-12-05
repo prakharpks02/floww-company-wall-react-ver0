@@ -29,7 +29,7 @@ const CreatePost = ({ onClose, editingPost = null }) => {
       documents: mediaHandling.documents,
       links: mediaHandling.links
     };
-    console.log('Submitting post with media data:', mediaData);
+ 
     await postCreation.handleSubmit(mediaData);
   };
 

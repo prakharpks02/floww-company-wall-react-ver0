@@ -50,7 +50,6 @@ export const PostProvider = ({ children }) => {
   const [posts, setPosts] = useState(() => {
     // Initialize with localStorage data
     const savedPosts = loadPostsFromLocalStorage();
-    console.log('Loaded posts from localStorage:', savedPosts.length);
     return savedPosts;
   });
   const [loading, setLoading] = useState(false);
@@ -76,7 +75,6 @@ export const PostProvider = ({ children }) => {
   useEffect(() => {
     if (posts.length > 0) {
       savePostsToLocalStorage(posts);
-      console.log('Saved posts to localStorage:', posts.length);
     }
   }, [posts]);
   const [tags] = useState([
@@ -940,9 +938,6 @@ export const PostProvider = ({ children }) => {
       };
 
       // Add optimistic post to UI immediately
-      console.log('Creating optimistic post with processed images:', processedImages);
-      console.log('Original postData:', postData);
-      console.log('Full optimistic post images array:', optimisticPost.images);
       setPosts(prevPosts => {
         const newPosts = [optimisticPost, ...prevPosts];
         // Immediately save to localStorage
@@ -977,40 +972,26 @@ export const PostProvider = ({ children }) => {
         tags: postData.tags || []
       });
       
-      console.log('Full backend response:', backendResult);
-      console.log('Backend result media:', backendResult.media);
-      console.log('Backend result images:', backendResult.images);
-      console.log('Backend result all fields:', Object.keys(backendResult));
-      
       // Check if backend returned actual post data or just success message
       const hasPostData = backendResult.post_id || backendResult.id || 
                           backendResult.media || backendResult.images || 
                           backendResult.content !== undefined;
       
-      console.log('Backend has post data:', hasPostData);
-      
       if (!hasPostData) {
         // Backend only returned success message, keep optimistic post
-        console.log('Backend only returned success message, keeping optimistic post');
-        console.log('Looking for optimistic post with tempId:', tempId);
-        
         // Use functional state update to access the latest state
         let foundPost = null;
         setPosts(prevPosts => {
-          console.log('Current posts in functional update:', prevPosts.map(p => ({ id: p.id, isOptimistic: p.isOptimistic })));
           const existingOptimisticPost = prevPosts.find(p => p.id === tempId);
-          console.log('Found existing optimistic post:', existingOptimisticPost?.id);
           
           if (existingOptimisticPost) {
             foundPost = existingOptimisticPost;
             // Just remove the isOptimistic flag to mark it as successfully created
             const finalPost = { ...existingOptimisticPost, isOptimistic: false };
-            console.log('Early return - keeping optimistic post with images:', finalPost.images?.length);
             const updatedPosts = prevPosts.map(p => p.id === tempId ? finalPost : p);
             savePostsToLocalStorage(updatedPosts);
             return updatedPosts;
           } else {
-            console.log('ERROR: Optimistic post not found! This should not happen.');
             return prevPosts; // No changes if post not found
           }
         });
@@ -1022,34 +1003,25 @@ export const PostProvider = ({ children }) => {
       
       // Create final post object with backend data - process media array from backend
       const processMediaFromBackend = (mediaArray) => {
-        console.log('Processing media from backend:', mediaArray);
         const mediaArrays = { images: [], videos: [], documents: [], links: [] };
         
         (mediaArray || []).forEach((item, index) => {
-          console.log(`Processing media item ${index}:`, item);
           let actualUrl = item;
           if (typeof item === 'object' && item.link) {
             actualUrl = item.link;
           }
           
-          console.log('Actual URL before decoding:', actualUrl);
-          
           // Decode URL to handle encoded characters
           const decodedUrl = decodeURIComponent(actualUrl);
-          console.log('Decoded URL:', decodedUrl);
           
           // Use same robust detection logic as usePostCard hook
           const urlWithoutQuery = decodedUrl.split('?')[0].split('#')[0];
           const normalizedUrl = urlWithoutQuery.toLowerCase().trim();
           
-          console.log('URL processing:', { urlWithoutQuery, normalizedUrl });
-          
           // Categorize by file extension with improved matching
           const isImage = normalizedUrl.match(/\.(jpeg|jpg|gif|png|webp|bmp|svg)$/i);
           const isVideo = normalizedUrl.match(/\.(mp4|avi|mov|wmv|flv|webm|mkv)$/i);
           const isDocument = normalizedUrl.match(/\.(pdf|doc|docx|xls|xlsx|ppt|pptx|txt)$/i);
-          
-          console.log('File type detection:', { isImage, isVideo, isDocument });
           
           if (isImage) {
             const imageObj = { 
@@ -1058,7 +1030,6 @@ export const PostProvider = ({ children }) => {
               id: `media-${index}-${Date.now()}`,
               type: 'image'
             };
-            console.log('Adding image:', imageObj);
             mediaArrays.images.push(imageObj);
           } else if (isVideo) {
             mediaArrays.videos.push({ 
@@ -1085,7 +1056,6 @@ export const PostProvider = ({ children }) => {
           }
         });
         
-        console.log('Final processed media arrays:', mediaArrays);
         return mediaArrays;
       };
 
@@ -1096,16 +1066,6 @@ export const PostProvider = ({ children }) => {
       const shouldPreserveOptimisticMedia = (!backendResult.media || backendResult.media.length === 0) && 
                                            existingOptimisticPost && 
                                            (existingOptimisticPost.images?.length > 0 || existingOptimisticPost.videos?.length > 0 || existingOptimisticPost.documents?.length > 0);
-      
-      console.log('Should preserve optimistic media:', shouldPreserveOptimisticMedia);
-      if (shouldPreserveOptimisticMedia) {
-        console.log('Preserving optimistic media:', {
-          images: existingOptimisticPost.images,
-          videos: existingOptimisticPost.videos,
-          documents: existingOptimisticPost.documents,
-          links: existingOptimisticPost.links
-        });
-      }
       
       const finalPost = {
         id: backendResult.post_id || backendResult.id || tempId,
@@ -1133,10 +1093,6 @@ export const PostProvider = ({ children }) => {
       };
 
       // Replace optimistic post with real post data
-      console.log('Replacing optimistic post with final post');
-      console.log('Final post images:', finalPost.images);
-      console.log('Processed media from backend:', processedMedia);
-      
       setPosts(prevPosts => {
         const updatedPosts = prevPosts.map(post => 
           post.id === tempId ? finalPost : post

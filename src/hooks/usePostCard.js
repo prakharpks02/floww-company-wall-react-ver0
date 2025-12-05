@@ -73,7 +73,7 @@ export const usePostCard = (post, activeView = 'home') => {
     // Skip normalization for optimistic posts that are already properly formatted
     if (rawPost.isOptimistic && rawPost.images && Array.isArray(rawPost.images) && 
         rawPost.images.length > 0 && rawPost.images[0].url) {
-      console.log('Skipping normalization for optimistic post:', rawPost.id);
+   
       return rawPost; // Return as-is since it's already properly formatted
     }
     

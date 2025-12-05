@@ -131,17 +131,17 @@ const PostCard = ({
                 if (decoded !== image.url) {
                   // Already encoded - use as is
                   encodedUrl = image.url;
-                  console.log('URL already encoded:', image.url);
+                
                 } else {
                   // Not encoded - encode only if needed
                   const needsEncoding = decoded.includes(' ') || decoded.includes('(') || decoded.includes(')');
                   encodedUrl = needsEncoding ? encodeURI(decoded) : decoded;
-                  console.log('URL encoded:', { original: decoded, final: encodedUrl });
+               
                 }
               } catch (e) {
                 // If decoding fails, URL might have special characters - use encodeURI
                 encodedUrl = encodeURI(image.url);
-                console.log('URL encoding fallback:', { original: image.url, final: encodedUrl });
+            
               }
               
               return (
@@ -169,7 +169,7 @@ const PostCard = ({
                       e.target.style.display = 'none';
                     }}
                     onLoad={(e) => {
-                      console.log('Image loaded successfully:', encodedUrl);
+                  
                     }}
                   />
                   {/* Image overlay with name */}

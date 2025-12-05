@@ -13,11 +13,6 @@ export const usePostMediaHandling = () => {
   const [linkUrl, setLinkUrl] = useState('');
   const [showLinkInput, setShowLinkInput] = useState(false);
 
-  // Debug: log images state changes
-  useEffect(() => {
-    console.log('Images state updated:', images);
-  }, [images]);
-
   const fileInputRef = useRef(null);
   const videoInputRef = useRef(null);
   const documentInputRef = useRef(null);
@@ -26,10 +21,10 @@ export const usePostMediaHandling = () => {
     try {
       // Use the correct API method - mediaAPI.uploadFile
       const response = await mediaAPI.uploadFile(file, type);
-      console.log('Upload response:', response);
+    
       // Return only the URL string - check nested data structure
       const url = response.data?.file_url || response.file_url || response.data?.url || response.url;
-      console.log('Extracted URL:', url);
+    
       return url;
     } catch (error) {
       console.error('Upload error:', error);
@@ -85,14 +80,8 @@ export const usePostMediaHandling = () => {
         type: originalFile.type,
       });
       
-      console.log('Starting image upload...', croppedFile.name);
       const uploadedImage = await uploadMedia(croppedFile, 'image');
-      console.log('Image uploaded successfully:', uploadedImage);
-      setImages(prev => {
-        const newImages = [...prev, uploadedImage];
-        console.log('Updated images state:', newImages);
-        return newImages;
-      });
+      setImages(prev => [...prev, uploadedImage]);
       setShowCropModal(false);
       setImageToProcess(null);
     } catch (error) {
