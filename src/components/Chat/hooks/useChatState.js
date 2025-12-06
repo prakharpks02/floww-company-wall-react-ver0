@@ -4,6 +4,8 @@ export const useChatState = () => {
   // Conversation and UI state
   const [activeConversation, setActiveConversation] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [filteredEmployees, setFilteredEmployees] = useState([]);
+  const [employeesLoading, setEmployeesLoading] = useState(false);
   const [showUserList, setShowUserList] = useState(false);
   const [showCreateGroup, setShowCreateGroup] = useState(false);
   const [showChatInfo, setShowChatInfo] = useState(false);
@@ -60,6 +62,10 @@ export const useChatState = () => {
     setActiveConversation,
     searchQuery,
     setSearchQuery,
+    filteredEmployees,
+    setFilteredEmployees,
+    employeesLoading,
+    setEmployeesLoading,
     showUserList,
     setShowUserList,
     showCreateGroup,

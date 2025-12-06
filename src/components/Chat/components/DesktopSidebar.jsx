@@ -54,15 +54,6 @@ const DesktopSidebar = ({
               <div className="absolute right-0 top-full mt-2 w-40 bg-white/90 backdrop-blur-xl border border-white/30 rounded-2xl shadow-[0_16px_64px_rgba(109,40,217,0.2)] z-50 overflow-hidden">
                 <div className="py-1">
                   <button
-                    onClick={onNewChat}
-                    className="w-full text-left px-3 py-3 hover:bg-[#6d28d9]/10 flex items-center gap-2 text-xs text-[#1f2937] transition-colors"
-                  >
-                    <div className="w-6 h-6 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-xl flex items-center justify-center">
-                      <Plus className="h-3 w-3 text-white" />
-                    </div>
-                    <span>New Chat</span>
-                  </button>
-                  <button
                     onClick={onCreateGroup}
                     className="w-full text-left px-3 py-3 hover:bg-[#6d28d9]/10 flex items-center gap-2 text-xs text-[#1f2937] transition-colors"
                   >
@@ -84,7 +75,7 @@ const DesktopSidebar = ({
           </div>
           <input
             type="text"
-            placeholder="Search conversations..."
+           placeholder="Start a new chat or search..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-10 pr-3 py-2.5 bg-white/70 backdrop-blur-sm border border-white/30 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#6d28d9]/30 focus:border-[#6d28d9]/50 text-sm text-[#1f2937] placeholder-[#6b7280] shadow-[inset_0_0_15px_rgba(255,255,255,0.5)] transition-all duration-300"
@@ -212,8 +203,16 @@ const DesktopSidebar = ({
                         >
                           <div className="flex items-center gap-3">
                             <div className="relative">
-                              <div className="w-12 h-12 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-2xl flex items-center justify-center text-white font-normal shadow-[0_8px_32px_rgba(192,132,252,0.3)]">
-                                {employee.avatar}
+                              <div className="w-12 h-12 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-2xl flex items-center justify-center text-white font-normal shadow-[0_8px_32px_rgba(192,132,252,0.3)] overflow-hidden">
+                                {employee.avatar && employee.avatar.startsWith('http') ? (
+                                  <img 
+                                    src={employee.avatar} 
+                                    alt={employee.name} 
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <span>{employee.avatar || employee.name.substring(0, 2).toUpperCase()}</span>
+                                )}
                               </div>
                               <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white shadow-sm ${getStatusColor(employee.status)}`}></div>
                             </div>

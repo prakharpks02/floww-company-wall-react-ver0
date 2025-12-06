@@ -101,19 +101,6 @@ const ChatSidebar = ({ onSelectConversation, onStartNewChat, activeConversation,
                   <div className="py-1">
                     <button
                       onClick={() => {
-                        setSearchQuery('');
-                        setShowUserSearch(true);
-                        setShowPlusDropdown(false);
-                      }}
-                      className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center gap-3 text-sm"
-                    >
-                      <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-                        <Plus className="h-4 w-4 text-white" />
-                      </div>
-                      <span>New Chat</span>
-                    </button>
-                    <button
-                      onClick={() => {
                         onCreateGroup();
                         setShowPlusDropdown(false);
                       }}
@@ -199,8 +186,16 @@ const ChatSidebar = ({ onSelectConversation, onStartNewChat, activeConversation,
                 className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 transition-colors"
               >
                 <div className="relative flex-shrink-0">
-                  <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-md">
-                    {employee.avatar}
+                  <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-md overflow-hidden">
+                    {employee.avatar && employee.avatar.startsWith('http') ? (
+                      <img 
+                        src={employee.avatar} 
+                        alt={employee.name} 
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span>{employee.avatar || employee.name.substring(0, 2).toUpperCase()}</span>
+                    )}
                   </div>
                   <div className={`absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-white ${getStatusColor(employee.status)}`}></div>
                 </div>

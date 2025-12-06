@@ -1,9 +1,16 @@
+import React from 'react';
 import { getConversationPartner as getPartner, formatMessageTime, getEmployeeByIdFromList, getDateHeader, groupMessagesByDate } from '../utils/dummyData';
 import { useChat } from '../../../contexts/ChatContext';
 import { cookieUtils } from '../../../utils/cookieUtils';
+import { userAPI } from '../../../services/api.jsx';
+import adminChatAPI from '../../../services/adminChatAPI.js';
 
 export const useChatUtilities = () => {
   const { employees } = useChat();
+  
+  // Cache for API results to avoid repeated calls
+  const [searchCache, setSearchCache] = React.useState(new Map());
+  const [lastSearchTime, setLastSearchTime] = React.useState(new Map());
   
   // Detect if we're in admin environment
   const isAdminEnvironment = () => {
@@ -93,13 +100,99 @@ export const useChatUtilities = () => {
     return getEmployeeByIdFromList(id, employees);
   };
 
-  // Filter employees for search
-  const getFilteredEmployees = (searchQuery) => {
-    if (!employees.length) return [];
-    return employees.filter(emp => 
+  // Filter employees for search - includes both local employees and API search results
+  const getFilteredEmployees = async (searchQuery) => {
+    if (!searchQuery.trim()) return [];
+    
+    const trimmedQuery = searchQuery.trim().toLowerCase();
+    
+    // Get local employees first
+    const localResults = employees.filter(emp => 
       emp.id !== currentUser?.id && 
-      emp.name.toLowerCase().includes(searchQuery.toLowerCase())
+      emp.name.toLowerCase().includes(trimmedQuery)
     );
+    
+    // If search query is less than 2 characters, only return local results
+    if (trimmedQuery.length < 2) {
+      return localResults;
+    }
+    
+    // Check cache first (cache for 30 seconds)
+    const now = Date.now();
+    const cacheKey = trimmedQuery;
+    const cachedResult = searchCache.get(cacheKey);
+    const lastSearch = lastSearchTime.get(cacheKey);
+    
+    if (cachedResult && lastSearch && (now - lastSearch < 30000)) {
+      // Combine cached API results with fresh local results
+      const combinedResults = [...localResults];
+      cachedResult.forEach(apiUser => {
+        const exists = combinedResults.find(local => 
+          local.id === apiUser.id || local.employeeId === apiUser.employeeId
+        );
+        if (!exists) {
+          combinedResults.push(apiUser);
+        }
+      });
+      return combinedResults;
+    }
+    
+    // Rate limiting: don't make API calls more than once every 500ms per query
+    if (lastSearch && (now - lastSearch < 500)) {
+      return localResults;
+    }
+    
+    try {
+      // Update last search time before making the call
+      setLastSearchTime(prev => new Map(prev.set(cacheKey, now)));
+      
+      // Choose appropriate API based on environment
+      const isAdmin = isAdminEnvironment();
+      const apiResponse = isAdmin 
+        ? await adminChatAPI.getUsersForMentions(trimmedQuery, 10)
+        : await userAPI.getUsersForMentions(trimmedQuery, 10);
+      
+      if (apiResponse.status === 'success' && apiResponse.data) {
+        // Transform API results to match employee structure
+        const apiResults = apiResponse.data
+          .filter(user => {
+            // Filter out current user and users already in local employees
+            return user.employee_id !== currentUser?.id && 
+                   !employees.find(emp => emp.employeeId === user.employee_id || emp.id === user.employee_id);
+          })
+          .map(user => ({
+            id: user.employee_id,
+            employeeId: user.employee_id,
+            name: user.employee_name,
+            email: user.company_email || user.personal_email,
+            avatar: user.profile_picture_link || user.employee_name.substring(0, 2).toUpperCase(),
+            status: 'offline', // New contacts default to offline
+            role: user.job_title || 'Employee',
+            isNewContact: true // Flag to indicate this is a new contact
+          }));
+        
+        // Cache the API results
+        setSearchCache(prev => new Map(prev.set(cacheKey, apiResults)));
+        
+        // Combine local and API results, removing duplicates
+        const combinedResults = [...localResults];
+        apiResults.forEach(apiUser => {
+          const exists = combinedResults.find(local => 
+            local.id === apiUser.id || local.employeeId === apiUser.employeeId
+          );
+          if (!exists) {
+            combinedResults.push(apiUser);
+          }
+        });
+        
+        return combinedResults;
+      }
+    } catch (error) {
+      console.error('Error fetching users from API:', error);
+      // Return local results on API failure
+    }
+    
+    return localResults;
   };
 
   // Global search: search both conversations and messages

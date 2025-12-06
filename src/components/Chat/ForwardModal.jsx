@@ -97,7 +97,7 @@ const ForwardModal = ({ isOpen, onClose, onForward, conversations, currentUserId
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search conversations..."
+              placeholder="Start a new chat or search..."
                 className={`w-full bg-white/80 backdrop-blur-sm border border-white/40 rounded-lg focus:ring-2 focus:ring-[#c084fc]/50 focus:border-[#c084fc] transition-all duration-200 text-[#6d28d9] placeholder-gray-400 ${
                   isCompactMode ? 'pl-6 lg:pl-8 pr-2 py-1 lg:py-1.5 text-xs' : 'pl-8 pr-3 py-1.5 lg:py-2 text-xs lg:text-sm'
                 }`}

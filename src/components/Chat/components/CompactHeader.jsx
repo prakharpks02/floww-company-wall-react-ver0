@@ -201,15 +201,6 @@ const CompactHeader = ({
               >
                 <div className="py-1 overflow-y-auto">
                   <button
-                    onClick={onNewChat}
-                    className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center gap-2 text-xs text-gray-700"
-                  >
-                    <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
-                      <Plus className="h-3 w-3 text-white" />
-                    </div>
-                    <span>New Chat</span>
-                  </button>
-                  <button
                     onClick={onCreateGroup}
                     className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center gap-2 text-xs text-gray-700"
                   >

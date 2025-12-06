@@ -10,7 +10,7 @@ import { useMentionsHandling } from './utils/useMentionsHandling';
 import TagsSection from './CreatePostComponents/TagsSection';
 import MentionsSection from './CreatePostComponents/MentionsSection';
 import MediaUploadSection from './CreatePostComponents/MediaUploadSection';
-import MediaPreviews from '../Admin/BroadcastComponents/MediaPreviews';
+import ImprovedMediaPreviews from './CreatePostComponents/ImprovedMediaPreviews';
 
 const CreatePost = ({ onClose, editingPost = null }) => {
   const { createPost, editPost, tags } = usePost();
@@ -29,6 +29,7 @@ const CreatePost = ({ onClose, editingPost = null }) => {
       documents: mediaHandling.documents,
       links: mediaHandling.links
     };
+ 
     await postCreation.handleSubmit(mediaData);
   };
 
@@ -101,7 +102,7 @@ const CreatePost = ({ onClose, editingPost = null }) => {
             />
 
             {/* Media Previews */}
-            <MediaPreviews
+            <ImprovedMediaPreviews
               images={mediaHandling.images}
               videos={mediaHandling.videos}
               documents={mediaHandling.documents}

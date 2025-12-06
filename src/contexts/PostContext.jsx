@@ -5,6 +5,26 @@ import { postsAPI } from '../services/api.jsx';
 import { adminAPI } from '../services/adminAPI.jsx';
 import { extractMentionsFromText, processCommentData } from '../utils/htmlUtils';
 
+// localStorage utilities for posts
+const LOCAL_STORAGE_KEY = 'floww_posts';
+const savePostsToLocalStorage = (posts) => {
+  try {
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(posts));
+  } catch (error) {
+    console.warn('Failed to save posts to localStorage:', error);
+  }
+};
+
+const loadPostsFromLocalStorage = () => {
+  try {
+    const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
+    return saved ? JSON.parse(saved) : [];
+  } catch (error) {
+    console.warn('Failed to load posts from localStorage:', error);
+    return [];
+  }
+};
+
 // Avatar URL generator helper
 const generateAvatarUrl = (name, options = {}) => {
   const { background = 'random', color = 'white', size = 128 } = options;
@@ -27,7 +47,11 @@ export const usePost = () => {
 
 export const PostProvider = ({ children }) => {
   const { user } = useAuth();
-  const [posts, setPosts] = useState([]);
+  const [posts, setPosts] = useState(() => {
+    // Initialize with localStorage data
+    const savedPosts = loadPostsFromLocalStorage();
+    return savedPosts;
+  });
   const [loading, setLoading] = useState(false);
   const [nextCursor, setNextCursor] = useState(null);
   const [hasMorePosts, setHasMorePosts] = useState(true);
@@ -43,10 +67,16 @@ export const PostProvider = ({ children }) => {
       const stored = localStorage.getItem('userReactions');
       return stored ? JSON.parse(stored) : {};
     } catch (error) {
-      
       return {};
     }
   }); // Track user's reactions locally
+  
+  // Save posts to localStorage whenever posts change
+  useEffect(() => {
+    if (posts.length > 0) {
+      savePostsToLocalStorage(posts);
+    }
+  }, [posts]);
   const [tags] = useState([
     'Announcements',
     'Achievements',
@@ -834,6 +864,38 @@ export const PostProvider = ({ children }) => {
     try {
       // Optimistically create the post object first for immediate UI update
       const tempId = `temp-${Date.now()}`;
+      
+      // Create media array in the same format as backend for consistency
+      const allMediaForOptimistic = [
+        // Images as media objects
+        ...(postData.images || []).filter(img => img && (img.url || typeof img === 'string')).map(img => ({ 
+          link: typeof img === 'string' ? img : img.url 
+        })),
+        // Videos as media objects  
+        ...(postData.videos || []).filter(vid => vid && (vid.url || typeof vid === 'string')).map(vid => ({ 
+          link: typeof vid === 'string' ? vid : vid.url 
+        })),
+        // Documents as media objects
+        ...(postData.documents || []).filter(doc => doc && (doc.url || typeof doc === 'string')).map(doc => ({ 
+          link: typeof doc === 'string' ? doc : doc.url 
+        })),
+        // Links as media objects
+        ...(postData.links || []).filter(link => link && (typeof link === 'string' || link.url)).map(link => ({ 
+          link: typeof link === 'string' ? link : link.url 
+        }))
+      ];
+      
+      // Process the images for immediate display (same logic as the normalization)
+      const processedImages = (postData.images || []).filter(img => img && (img.url || typeof img === 'string')).map((img, index) => {
+        const url = typeof img === 'string' ? img : img.url;
+        return {
+          url: encodeURI(url), // Encode URL to handle spaces
+          name: `Image ${index + 1}`,
+          id: `temp-img-${tempId}-${index}`,
+          type: 'image'
+        };
+      });
+      
       const optimisticPost = {
         id: tempId,
         post_id: tempId,
@@ -841,10 +903,26 @@ export const PostProvider = ({ children }) => {
         authorAvatar: authorAvatar,
         authorPosition: user?.position || user?.job_title || (user?.is_admin ? 'Administrator' : 'Employee'),
         content: postData.content,
-        images: postData.images || [],
-        videos: postData.videos || [],
-        documents: postData.documents || [],
-        links: postData.links || [],
+        images: processedImages, // Use processed images for immediate display
+        videos: (postData.videos || []).filter(vid => vid && (vid.url || typeof vid === 'string')).map((vid, index) => ({
+          url: typeof vid === 'string' ? vid : vid.url,
+          name: `Video ${index + 1}`,
+          id: `temp-vid-${index}`,
+          type: 'video'
+        })),
+        documents: (postData.documents || []).filter(doc => doc && (doc.url || typeof doc === 'string')).map((doc, index) => ({
+          url: typeof doc === 'string' ? doc : doc.url,
+          name: `Document ${index + 1}`,
+          id: `temp-doc-${index}`,
+          type: 'document'
+        })),
+        links: (postData.links || []).filter(link => link && (typeof link === 'string' || link.url)).map((link, index) => ({
+          url: typeof link === 'string' ? link : link.url,
+          title: typeof link === 'string' ? link : link.title || link.url,
+          id: `temp-link-${index}`,
+          type: 'link'
+        })),
+        media: allMediaForOptimistic, // Add media array for backend compatibility
         tags: postData.tags || [],
         mentions: postData.mentions || [],
         timestamp: new Date().toISOString(),
@@ -860,7 +938,12 @@ export const PostProvider = ({ children }) => {
       };
 
       // Add optimistic post to UI immediately
-      setPosts(prevPosts => [optimisticPost, ...prevPosts]);
+      setPosts(prevPosts => {
+        const newPosts = [optimisticPost, ...prevPosts];
+        // Immediately save to localStorage
+        savePostsToLocalStorage(newPosts);
+        return newPosts;
+      });
 
       // Call backend API - combine all media into one array with proper format
       const allMedia = [
@@ -889,11 +972,40 @@ export const PostProvider = ({ children }) => {
         tags: postData.tags || []
       });
       
+      // Check if backend returned actual post data or just success message
+      const hasPostData = backendResult.post_id || backendResult.id || 
+                          backendResult.media || backendResult.images || 
+                          backendResult.content !== undefined;
+      
+      if (!hasPostData) {
+        // Backend only returned success message, keep optimistic post
+        // Use functional state update to access the latest state
+        let foundPost = null;
+        setPosts(prevPosts => {
+          const existingOptimisticPost = prevPosts.find(p => p.id === tempId);
+          
+          if (existingOptimisticPost) {
+            foundPost = existingOptimisticPost;
+            // Just remove the isOptimistic flag to mark it as successfully created
+            const finalPost = { ...existingOptimisticPost, isOptimistic: false };
+            const updatedPosts = prevPosts.map(p => p.id === tempId ? finalPost : p);
+            savePostsToLocalStorage(updatedPosts);
+            return updatedPosts;
+          } else {
+            return prevPosts; // No changes if post not found
+          }
+        });
+        
+        if (foundPost) {
+          return { ...foundPost, isOptimistic: false };
+        }
+      }
+      
       // Create final post object with backend data - process media array from backend
       const processMediaFromBackend = (mediaArray) => {
         const mediaArrays = { images: [], videos: [], documents: [], links: [] };
         
-        (mediaArray || []).forEach(item => {
+        (mediaArray || []).forEach((item, index) => {
           let actualUrl = item;
           if (typeof item === 'object' && item.link) {
             actualUrl = item.link;
@@ -902,15 +1014,45 @@ export const PostProvider = ({ children }) => {
           // Decode URL to handle encoded characters
           const decodedUrl = decodeURIComponent(actualUrl);
           
-          // Categorize by file extension
-          if (decodedUrl.match(/\.(jpeg|jpg|gif|png|webp|bmp|svg)$/i)) {
-            mediaArrays.images.push({ url: actualUrl, name: 'Image' });
-          } else if (decodedUrl.match(/\.(mp4|avi|mov|wmv|flv|webm|mkv)$/i)) {
-            mediaArrays.videos.push({ url: actualUrl, name: 'Video' });
-          } else if (decodedUrl.match(/\.(pdf|doc|docx|xls|xlsx|ppt|pptx|txt)$/i)) {
-            mediaArrays.documents.push({ url: actualUrl, name: 'Document', isPDF: decodedUrl.match(/\.pdf$/i) });
+          // Use same robust detection logic as usePostCard hook
+          const urlWithoutQuery = decodedUrl.split('?')[0].split('#')[0];
+          const normalizedUrl = urlWithoutQuery.toLowerCase().trim();
+          
+          // Categorize by file extension with improved matching
+          const isImage = normalizedUrl.match(/\.(jpeg|jpg|gif|png|webp|bmp|svg)$/i);
+          const isVideo = normalizedUrl.match(/\.(mp4|avi|mov|wmv|flv|webm|mkv)$/i);
+          const isDocument = normalizedUrl.match(/\.(pdf|doc|docx|xls|xlsx|ppt|pptx|txt)$/i);
+          
+          if (isImage) {
+            const imageObj = { 
+              url: decodedUrl, // Use decoded URL to prevent double encoding
+              name: 'Image',
+              id: `media-${index}-${Date.now()}`,
+              type: 'image'
+            };
+            mediaArrays.images.push(imageObj);
+          } else if (isVideo) {
+            mediaArrays.videos.push({ 
+              url: decodedUrl, // Use decoded URL
+              name: 'Video',
+              id: `media-${index}-${Date.now()}`,
+              type: 'video'
+            });
+          } else if (isDocument) {
+            mediaArrays.documents.push({ 
+              url: decodedUrl, // Use decoded URL
+              name: 'Document', 
+              isPDF: normalizedUrl.match(/\.pdf$/i),
+              id: `media-${index}-${Date.now()}`,
+              type: 'document'
+            });
           } else {
-            mediaArrays.links.push({ url: actualUrl, title: actualUrl });
+            mediaArrays.links.push({ 
+              url: decodedUrl, // Use decoded URL
+              title: decodedUrl,
+              id: `media-${index}-${Date.now()}`,
+              type: 'link'
+            });
           }
         });
         
@@ -918,6 +1060,12 @@ export const PostProvider = ({ children }) => {
       };
 
       const processedMedia = processMediaFromBackend(backendResult.media);
+      
+      // If backend didn't return media but we have optimistic media, preserve it
+      const existingOptimisticPost = posts.find(p => p.id === tempId);
+      const shouldPreserveOptimisticMedia = (!backendResult.media || backendResult.media.length === 0) && 
+                                           existingOptimisticPost && 
+                                           (existingOptimisticPost.images?.length > 0 || existingOptimisticPost.videos?.length > 0 || existingOptimisticPost.documents?.length > 0);
       
       const finalPost = {
         id: backendResult.post_id || backendResult.id || tempId,
@@ -927,10 +1075,10 @@ export const PostProvider = ({ children }) => {
         authorAvatar: authorAvatar,
         authorPosition: user?.position || user?.job_title || (user?.is_admin ? 'Administrator' : 'Employee'),
         content: postData.content,
-        images: processedMedia.images,
-        videos: processedMedia.videos,
-        documents: processedMedia.documents,
-        links: processedMedia.links,
+        images: shouldPreserveOptimisticMedia ? existingOptimisticPost.images : processedMedia.images,
+        videos: shouldPreserveOptimisticMedia ? existingOptimisticPost.videos : processedMedia.videos,
+        documents: shouldPreserveOptimisticMedia ? existingOptimisticPost.documents : processedMedia.documents,
+        links: shouldPreserveOptimisticMedia ? existingOptimisticPost.links : processedMedia.links,
         tags: postData.tags || [],
         mentions: postData.mentions || [],
         timestamp: backendResult.created_at || new Date().toISOString(),
@@ -945,11 +1093,13 @@ export const PostProvider = ({ children }) => {
       };
 
       // Replace optimistic post with real post data
-      setPosts(prevPosts => 
-        prevPosts.map(post => 
+      setPosts(prevPosts => {
+        const updatedPosts = prevPosts.map(post => 
           post.id === tempId ? finalPost : post
-        )
-      );
+        );
+        savePostsToLocalStorage(updatedPosts);
+        return updatedPosts;
+      });
 
       return finalPost;
 
@@ -1023,9 +1173,13 @@ export const PostProvider = ({ children }) => {
     try {
       // Optimistically remove from UI immediately
       const postToDelete = posts.find(p => (p.id === postId || p.post_id === postId));
-      setPosts(prevPosts => prevPosts.filter(post => 
-        post.id !== postId && post.post_id !== postId
-      ));
+      setPosts(prevPosts => {
+        const updatedPosts = prevPosts.filter(post => 
+          post.id !== postId && post.post_id !== postId
+        );
+        savePostsToLocalStorage(updatedPosts);
+        return updatedPosts;
+      });
 
       // Call the API to delete the post
       await postsAPI.deletePost(postId);
@@ -1033,7 +1187,11 @@ export const PostProvider = ({ children }) => {
     } catch (error) {
       // Restore the post if deletion failed
       if (postToDelete) {
-        setPosts(prevPosts => [postToDelete, ...prevPosts]);
+        setPosts(prevPosts => {
+          const restoredPosts = [postToDelete, ...prevPosts];
+          savePostsToLocalStorage(restoredPosts);
+          return restoredPosts;
+        });
       }
       
       throw error;

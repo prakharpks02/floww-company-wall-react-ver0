@@ -222,6 +222,10 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
   const {
     activeConversation,
     searchQuery,
+    filteredEmployees,
+    setFilteredEmployees,
+    employeesLoading,
+    setEmployeesLoading,
     showUserList,
     showCreateGroup,
     showChatInfo,
@@ -283,9 +287,6 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
     setFavouriteChats
   } = chatState;
 
-  // Filter employees for search
-  const filteredEmployees = getFilteredEmployees(searchQuery);
-
   // Global search: search both conversations and messages
   const messageSearchResults = getMessageSearchResults(searchQuery, conversations, messages);
 
@@ -326,6 +327,42 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
       navigationHandlers.handleStartNewChat(member);
     }
   };
+
+  // Effect to handle async employee search with API integration
+  React.useEffect(() => {
+    const searchEmployees = async () => {
+      if (!searchQuery.trim()) {
+        setFilteredEmployees([]);
+        setEmployeesLoading(false);
+        return;
+      }
+
+      // Only search if query is at least 2 characters to reduce API calls
+      if (searchQuery.trim().length < 2) {
+        setFilteredEmployees([]);
+        setEmployeesLoading(false);
+        return;
+      }
+
+      setEmployeesLoading(true);
+      try {
+        const results = await getFilteredEmployees(searchQuery);
+        setFilteredEmployees(results || []);
+      } catch (error) {
+        console.error('Error searching employees:', error);
+        setFilteredEmployees([]);
+      } finally {
+        setEmployeesLoading(false);
+      }
+    };
+
+    // Increased debounce time to 800ms to reduce API calls significantly
+    const timeoutId = setTimeout(() => {
+      searchEmployees();
+    }, 800);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery, getFilteredEmployees, setFilteredEmployees, setEmployeesLoading]);
 
   // Check if we're on mobile/small screen with proper state management
   const [isMobile, setIsMobile] = React.useState(window.innerWidth < 1024);
@@ -776,7 +813,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                   <input
                     type="text"
-                    placeholder="Search conversations..."
+                    placeholder="Start a new chat or search..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full pl-10 pr-4 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm transition-all duration-200"
@@ -870,8 +907,16 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                                 }`}
                               >
                               <div className="relative">
-                                <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md">
-                                  {employee.avatar}
+                                <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md overflow-hidden">
+                                  {employee.avatar && employee.avatar.startsWith('http') ? (
+                                    <img 
+                                      src={employee.avatar} 
+                                      alt={employee.name} 
+                                      className="w-full h-full object-cover"
+                                    />
+                                  ) : (
+                                    <span>{employee.avatar || employee.name.substring(0, 2).toUpperCase()}</span>
+                                  )}
                                 </div>
                                 <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-white ${getStatusColor(employee.status)} transition-all duration-200`}></div>
                               </div>
@@ -1427,18 +1472,6 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                       <div className="py-1">
                         <button
                           onClick={() => {
-                            setSearchQuery('contacts');
-                            setShowCompactPlusMenu(false);
-                          }}
-                          className="w-full text-left px-3 py-3 hover:bg-[#6d28d9]/10 flex items-center gap-2 text-xs text-[#1f2937] transition-colors"
-                        >
-                          <div className="w-6 h-6 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-xl flex items-center justify-center">
-                            <Plus className="h-3 w-3 text-white" />
-                          </div>
-                          <span>New Chat</span>
-                        </button>
-                        <button
-                          onClick={() => {
                             setShowCreateGroup(true);
                             setShowCompactPlusMenu(false);
                           }}
@@ -1462,7 +1495,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                 </div>
                 <input
                   type="text"
-                  placeholder="Search conversations..."
+               placeholder="Start a new chat or search..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-10 pr-3 py-2.5 bg-white/70 backdrop-blur-sm border border-white/30 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#6d28d9]/30 focus:border-[#6d28d9]/50 text-sm text-[#1f2937] placeholder-[#6b7280] shadow-[inset_0_0_15px_rgba(255,255,255,0.5)] transition-all duration-300"
@@ -1591,8 +1624,16 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                               >
                                 <div className="flex items-center gap-2">
                                   <div className="relative">
-                                    <div className="w-8 h-8 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-lg flex items-center justify-center text-white font-bold text-xs shadow-[0_2px_8px_rgba(192,132,252,0.3)]">
-                                      {employee.avatar}
+                                    <div className="w-8 h-8 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-lg flex items-center justify-center text-white font-bold text-xs shadow-[0_2px_8px_rgba(192,132,252,0.3)] overflow-hidden">
+                                      {employee.avatar && employee.avatar.startsWith('http') ? (
+                                        <img 
+                                          src={employee.avatar} 
+                                          alt={employee.name} 
+                                          className="w-full h-full object-cover"
+                                        />
+                                      ) : (
+                                        <span>{employee.avatar || employee.name.substring(0, 2).toUpperCase()}</span>
+                                      )}
                                     </div>
                                     <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white shadow-sm ${getStatusColor(employee.status)}`}></div>
                                   </div>

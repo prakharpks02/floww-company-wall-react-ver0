@@ -1,5 +1,5 @@
 // Custom hook for media handling in posts
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { mediaAPI } from '../../../services/api.jsx';
 import { formatFileSize } from '../../../utils/helpers';
 
@@ -21,9 +21,13 @@ export const usePostMediaHandling = () => {
     try {
       // Use the correct API method - mediaAPI.uploadFile
       const response = await mediaAPI.uploadFile(file, type);
-      // Return only the URL string
-      return response.file_url || response.url;
+    
+      // Return only the URL string - check nested data structure
+      const url = response.data?.file_url || response.file_url || response.data?.url || response.url;
+    
+      return url;
     } catch (error) {
+      console.error('Upload error:', error);
       throw error;
     }
   };
@@ -81,7 +85,7 @@ export const usePostMediaHandling = () => {
       setShowCropModal(false);
       setImageToProcess(null);
     } catch (error) {
-     
+      console.error('Error uploading image:', error);
     }
   };
 
