@@ -47,12 +47,12 @@ const MessageInput = ({
 
   return (
     <div className={containerClass}>
-      <button
+      {/* <button
         onClick={onShowAttachment}
         className={attachmentButtonClass}
       >
         <Paperclip className={isDesktop ? "h-4 w-4 text-[#6d28d9]" : "h-5 w-5 text-purple-600"} />
-      </button>
+      </button> */}
       
       <div className="flex-1">
         <input

@@ -63,6 +63,10 @@ const MobileChatHeader = ({
 
   // Only get partner if activeConversation exists
   const partner = activeConversation ? getConversationPartner(activeConversation, currentUser.id) : null;
+  
+  // Check if partner avatar is a URL
+  const isPartnerAvatarUrl = partner?.avatar && typeof partner.avatar === 'string' && 
+                             (partner.avatar.startsWith('http://') || partner.avatar.startsWith('https://'));
 
   return (
     <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gradient-to-r from-purple-600 to-purple-700 text-white safe-area-inset-top">
@@ -74,10 +78,10 @@ const MobileChatHeader = ({
           <ArrowLeft className="h-5 w-5" />
         </button>
         <div className="relative">
-          {activeConversation.icon ? (
+          {(activeConversation.icon || isPartnerAvatarUrl) ? (
             <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center overflow-hidden">
               <img 
-                src={activeConversation.icon} 
+                src={activeConversation.icon || partner.avatar} 
                 alt={activeConversation.type === 'group' ? 'Group Icon' : 'Profile Picture'} 
                 className="w-full h-full object-cover"
               />
@@ -93,7 +97,7 @@ const MobileChatHeader = ({
               )}
             </div>
           )}
-          <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${getStatusColor(partner?.status)}`}></div>
+          {/* <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${getStatusColor(partner?.status)}`}></div> */}
         </div>
         <div>
           <h3 className="text-white font-normal">

@@ -105,8 +105,13 @@ export const useChatNavigationHandlers = ({
       setIsConnectingToChat(false);
       setConnectingChatId(null);
     } else {
-      // Create the conversation locally first
-      const newConv = createConversation([currentUserChatId, employeeChatId], 'direct');
+      // Create the conversation locally first with employee data
+      const newConv = createConversation(
+        [currentUserChatId, employeeChatId], 
+        'direct', 
+        null, 
+        employee // Pass employee data as 4th parameter
+      );
       
       // Immediately create the room and connect
       try {
@@ -114,16 +119,30 @@ export const useChatNavigationHandlers = ({
         const roomResponse = await enhancedChatAPI.createRoomAndConnect(String(employeeChatId));
         
         if (roomResponse && roomResponse.room_id) {
-          // Update the conversation with room_id
-          newConv.room_id = roomResponse.room_id;
+          // Create the updated conversation object with all data
+          const updatedConv = { 
+            ...newConv, 
+            room_id: roomResponse.room_id,
+            name: employee.name || employee.employee_name,
+            avatar: employee.avatar || employee.profile_picture_link,
+            employeeData: employee
+          };
           
-          // Update conversations in the context
+          // Update conversations in the context with room_id and employee data
           if (setConversations) {
-            setConversations(prev => prev.map(conv => 
-              conv.id === newConv.id 
-                ? { ...conv, room_id: roomResponse.room_id }
-                : conv
-            ));
+            setConversations(prev => {
+              const updated = prev.map(conv => conv.id === newConv.id ? updatedConv : conv);
+              
+              // Double-check no URLs in names
+              const cleaned = updated.map(conv => {
+                if (conv.name && (conv.name.startsWith('http://') || conv.name.startsWith('https://'))) {
+                  return { ...conv, name: 'Chat' };
+                }
+                return conv;
+              });
+              
+              return cleaned;
+            });
           }
           
           // Load messages for the newly created room
@@ -175,13 +194,14 @@ export const useChatNavigationHandlers = ({
               }));
             }
           }
+          
+          // Set the updated conversation as active
+          setActiveConversation(updatedConv);
+          setGlobalActiveConversation(updatedConv);
         } else {
         }
       } catch (error) {
       }
-      
-      setActiveConversation(newConv);
-      setGlobalActiveConversation(newConv);
     }
     
     setShowUserList(false);

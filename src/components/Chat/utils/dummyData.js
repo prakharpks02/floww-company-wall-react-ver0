@@ -102,9 +102,23 @@ export const getConversationPartner = (conversation, currentUserId) => {
     
     // If current user is admin and room name is "Admin", skip to participant logic below
     if (!isCurrentUserAdmin || !isRoomNameAdmin) {
+      // Try to get avatar from participantDetails if available
+      let avatarUrl = roomName.charAt(0).toUpperCase();
+      if (conversation.participantDetails && Array.isArray(conversation.participantDetails)) {
+        const currentUserEmpId = currentUserId?.startsWith('emp-') ? currentUserId : `emp-${currentUserId}`;
+        const partner = conversation.participantDetails.find(p => 
+          p.id !== currentUserId && 
+          p.id !== currentUserEmpId &&
+          (!currentUserId?.startsWith('emp-') ? p.id !== `emp-${currentUserId}` : true)
+        );
+        if (partner && partner.avatar) {
+          avatarUrl = partner.avatar;
+        }
+      }
+      
       return {
         name: roomName,
-        avatar: roomName.charAt(0).toUpperCase(),
+        avatar: avatarUrl,
         status: 'online',
         id: conversation.room_id || conversation.id,
         isAdmin: isRoomNameAdmin
@@ -119,6 +133,17 @@ export const getConversationPartner = (conversation, currentUserId) => {
       avatar: conversation.avatar || conversation.icon || '',
       status: 'group',
       id: conversation.id
+    };
+  }
+  
+  // 🔥 Priority 2: Check if conversation.name exists for direct chats (locally created conversations)
+  // This handles cases where conversation was created locally with employee data
+  if (conversation.type === 'direct' && conversation.name && conversation.name.trim()) {
+    return {
+      name: conversation.name,
+      avatar: conversation.avatar || conversation.name.charAt(0).toUpperCase(),
+      status: 'online',
+      id: conversation.room_id || conversation.id
     };
   }
   

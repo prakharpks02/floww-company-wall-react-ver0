@@ -160,16 +160,29 @@ export const useChatUtilities = () => {
             return user.employee_id !== currentUser?.id && 
                    !employees.find(emp => emp.employeeId === user.employee_id || emp.id === user.employee_id);
           })
-          .map(user => ({
-            id: user.employee_id,
-            employeeId: user.employee_id,
-            name: user.employee_name,
-            email: user.company_email || user.personal_email,
-            avatar: user.profile_picture_link || user.employee_name.substring(0, 2).toUpperCase(),
-            status: 'offline', // New contacts default to offline
-            role: user.job_title || 'Employee',
-            isNewContact: true // Flag to indicate this is a new contact
-          }));
+          .map(user => {
+            // Clean up employee name - remove any URLs that might be concatenated
+            let cleanName = user.employee_name || 'User';
+            
+            // If name contains a URL, extract just the name part (before the URL)
+            const urlMatch = cleanName.match(/(.*?)(https?:\/\/|www\.)/);
+            if (urlMatch) {
+              cleanName = urlMatch[1].trim().replace(/,\s*$/, ''); // Remove trailing comma and spaces
+            }
+            
+            return {
+              id: user.employee_id,
+              employeeId: user.employee_id,
+              name: cleanName,
+              employee_name: cleanName, // Also set employee_name
+              email: user.company_email || user.personal_email,
+              avatar: user.profile_picture_link || cleanName.substring(0, 2).toUpperCase(),
+              profile_picture_link: user.profile_picture_link, // Preserve original field
+              status: 'offline', // New contacts default to offline
+              role: user.job_title || 'Employee',
+              isNewContact: true // Flag to indicate this is a new contact
+            };
+          });
         
         // Cache the API results
         setSearchCache(prev => new Map(prev.set(cacheKey, apiResults)));

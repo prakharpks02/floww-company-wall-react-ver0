@@ -15,7 +15,9 @@ const DesktopContextMenu = ({
   messageHandlers,
   contextMenuHandlers,
   pinAndFavoriteHandlers,
-  contextMenuRef
+  contextMenuRef,
+  setContextMenu,
+  setChatContextMenu
 }) => {
 
   return (
@@ -35,7 +37,7 @@ const DesktopContextMenu = ({
               onClick={() => {
            
                 messageHandlers.handleStartEdit(contextMenu.message);
-                contextMenuHandlers.setContextMenu({ show: false, x: 0, y: 0, message: null });
+                setContextMenu({ show: false, x: 0, y: 0, message: null });
               }}
               className="w-full px-4 py-3 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3"
             >
@@ -51,7 +53,7 @@ const DesktopContextMenu = ({
               if (contextMenu.message) {
                 messageHandlers.handleReply(contextMenu.message);
               }
-              contextMenuHandlers.setContextMenu({ show: false, x: 0, y: 0, message: null });
+              setContextMenu({ show: false, x: 0, y: 0, message: null });
             }}
             className="w-full px-4 py-3 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3"
           >
@@ -66,7 +68,7 @@ const DesktopContextMenu = ({
               if (contextMenu.message) {
                 messageHandlers.handleForward(contextMenu.message);
               }
-              contextMenuHandlers.setContextMenu({ show: false, x: 0, y: 0, message: null });
+              setContextMenu({ show: false, x: 0, y: 0, message: null });
             }}
             className="w-full px-4 py-3 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3"
           >
@@ -81,7 +83,7 @@ const DesktopContextMenu = ({
               if (contextMenu.message) {
                 messageHandlers.handlePinMessage(contextMenu.message);
               }
-              contextMenuHandlers.setContextMenu({ show: false, x: 0, y: 0, message: null });
+              setContextMenu({ show: false, x: 0, y: 0, message: null });
             }}
             className="w-full px-4 py-3 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3"
           >

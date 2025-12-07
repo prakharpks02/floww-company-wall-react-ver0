@@ -224,10 +224,26 @@ const ChatSidebar = ({ onSelectConversation, onStartNewChat, activeConversation,
                   const isActive = activeConversation?.id === conversation.id;
                   
                   // Use conversation.name if available (from admin API), otherwise fall back to partner name
-                  const displayName = conversation.name || partner?.name || 'Unknown User';
+                  let displayName = conversation.name || partner?.name || 'Unknown User';
+                  
+                  // CRITICAL: Clean up displayName - remove any URLs
+                  if (displayName && (displayName.startsWith('http://') || displayName.startsWith('https://'))) {
+                    displayName = 'Chat';
+                  } else if (displayName) {
+                    // Check if name contains a URL concatenated with it
+                    const urlMatch = displayName.match(/(.*?)(https?:\/\/|www\.)/);
+                    if (urlMatch) {
+                      displayName = urlMatch[1].trim().replace(/,\s*$/, '');
+                    }
+                  }
+                  
                   const displayAvatar = conversation.type === 'group' 
                     ? (conversation.icon || (conversation.name ? conversation.name.substring(0, 2).toUpperCase() : 'GR'))
                     : (partner?.avatar || 'U');
+                  
+                  // Check if avatar is a URL (for profile pictures)
+                  const isAvatarUrl = typeof displayAvatar === 'string' && (displayAvatar.startsWith('http://') || displayAvatar.startsWith('https://'));
+                  const avatarImageSrc = conversation.icon || (conversation.type !== 'group' && isAvatarUrl ? displayAvatar : null);
                   
                   return (
                     <button
@@ -241,21 +257,25 @@ const ChatSidebar = ({ onSelectConversation, onStartNewChat, activeConversation,
                       }`}
                     >
                       <div className="relative flex-shrink-0">
-                        {conversation.icon ? (
+                        {avatarImageSrc ? (
                           <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center overflow-hidden shadow-md">
                             <img 
-                              src={conversation.icon} 
+                              src={avatarImageSrc} 
                               alt={displayName}
                               className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                                e.target.parentElement.innerHTML = `<div class="w-full h-full bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white font-bold text-lg">${displayName ? displayName.substring(0, 2).toUpperCase() : 'U'}</div>`;
+                              }}
                             />
                           </div>
-                        ) : (
-                          <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-md">
-                            {displayAvatar}
-                          </div>
-                        )}
-                        <div className={`absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-white ${getStatusColor(partner?.status)}`}></div>
-                        <div className="absolute -top-1 -right-1 w-4 h-4 bg-[#FFAD46] rounded-full flex items-center justify-center">
+                      ) : (
+                        <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-md">
+                          {pinnedAvatarText}
+                        </div>
+                      )}
+                      <div className={`absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-white ${getStatusColor(partner?.status)}`}></div>
+                      <div className="absolute -top-1 -right-1 w-4 h-4 bg-[#FFAD46] rounded-full flex items-center justify-center">
                           <Pin className="w-2 h-2 text-white" />
                         </div>
                       </div>
@@ -272,7 +292,24 @@ const ChatSidebar = ({ onSelectConversation, onStartNewChat, activeConversation,
                         </div>
                         <div className="flex items-center justify-between">
                           <div className="text-sm text-gray-500 truncate">
-                            {conversation.lastMessage?.text || 'No messages yet'}
+                            {(() => {
+                              const lastMsg = conversation.lastMessage?.text || '';
+                              // Check if message is a URL (image/file)
+                              if (lastMsg.startsWith('http://') || lastMsg.startsWith('https://')) {
+                                // Check file type from URL
+                                const urlLower = lastMsg.toLowerCase();
+                                if (urlLower.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?|$|#)/i)) {
+                                  return '📷 Photo';
+                                } else if (urlLower.match(/\.(mp4|avi|mov|wmv|webm|mkv)(\?|$|#)/i)) {
+                                  return '🎥 Video';
+                                } else if (urlLower.match(/\.(pdf|doc|docx|xls|xlsx|ppt|pptx)(\?|$|#)/i)) {
+                                  return '📄 Document';
+                                } else {
+                                  return '📎 File';
+                                }
+                              }
+                              return lastMsg || 'No messages yet';
+                            })()}
                           </div>
                           {conversation.unreadCount > 0 && (
                             <div className="bg-green-500 text-white text-xs rounded-full px-2 py-1 min-w-[1.25rem] text-center">
@@ -295,11 +332,36 @@ const ChatSidebar = ({ onSelectConversation, onStartNewChat, activeConversation,
                 const isActive = activeConversation?.id === conversation.id;
                 
                 // Use conversation.name (from room_name)
-                const displayName = conversation.name || partner?.name || 'Unknown User';
+                let displayName = conversation.name || partner?.name || 'Unknown User';
+                
+                // CRITICAL: Clean up displayName - remove any URLs
+                if (displayName && (displayName.startsWith('http://') || displayName.startsWith('https://'))) {
+                  displayName = 'Chat';
+                } else if (displayName) {
+                  // Check if name contains a URL concatenated with it
+                  const urlMatch = displayName.match(/(.*?)(https?:\/\/|www\.)/);
+                  if (urlMatch) {
+                    displayName = urlMatch[1].trim().replace(/,\s*$/, '');
+                  }
+                }
                 
                 const displayAvatar = conversation.type === 'group' 
                   ? (conversation.icon || (conversation.name ? conversation.name.substring(0, 2).toUpperCase() : 'GR'))
                   : (partner?.avatar || 'U');
+                
+                // Check if avatar is a URL (for profile pictures)
+                const isAvatarUrl = typeof displayAvatar === 'string' && (displayAvatar.startsWith('http://') || displayAvatar.startsWith('https://'));
+                const avatarImageSrc = conversation.icon || (conversation.type !== 'group' && isAvatarUrl ? displayAvatar : null);
+                
+                // Get safe display text for avatar (never show URL as text)
+                const regularAvatarText = (isAvatarUrl || !displayAvatar || displayAvatar === 'U') 
+                  ? (displayName ? displayName.substring(0, 2).toUpperCase() : 'U')
+                  : (displayAvatar.length <= 2 ? displayAvatar.toUpperCase() : displayAvatar.substring(0, 2).toUpperCase());
+                
+                // Get safe display text for avatar (never show URL as text)
+                const avatarText = (isAvatarUrl || !displayAvatar || displayAvatar === 'U') 
+                  ? (displayName ? displayName.substring(0, 2).toUpperCase() : 'U')
+                  : (displayAvatar.length <= 2 ? displayAvatar.toUpperCase() : displayAvatar.substring(0, 2).toUpperCase());
                 
                 return (
                   <button
@@ -313,17 +375,21 @@ const ChatSidebar = ({ onSelectConversation, onStartNewChat, activeConversation,
                     }`}
                   >
                     <div className="relative flex-shrink-0">
-                      {conversation.icon ? (
+                      {avatarImageSrc ? (
                         <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center overflow-hidden shadow-md">
                           <img 
-                            src={conversation.icon} 
+                            src={avatarImageSrc} 
                             alt={displayName}
                             className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                              e.target.parentElement.innerHTML = `<div class="w-full h-full bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white font-bold text-lg">${displayName ? displayName.substring(0, 2).toUpperCase() : 'U'}</div>`;
+                            }}
                           />
                         </div>
                       ) : (
                         <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-md">
-                          {displayAvatar}
+                          {regularAvatarText}
                         </div>
                       )}
                       <div className={`absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-white ${getStatusColor(partner?.status)}`}></div>
@@ -341,7 +407,24 @@ const ChatSidebar = ({ onSelectConversation, onStartNewChat, activeConversation,
                       </div>
                       <div className="flex items-center justify-between">
                         <div className="text-sm text-gray-600 truncate flex-1">
-                          {conversation.lastMessage?.text || 'No messages yet'}
+                          {(() => {
+                            const lastMsg = conversation.lastMessage?.text || '';
+                            // Check if message is a URL (image/file)
+                            if (lastMsg.startsWith('http://') || lastMsg.startsWith('https://')) {
+                              // Check file type from URL
+                              const urlLower = lastMsg.toLowerCase();
+                              if (urlLower.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?|$|#)/i)) {
+                                return '📷 Photo';
+                              } else if (urlLower.match(/\.(mp4|avi|mov|wmv|webm|mkv)(\?|$|#)/i)) {
+                                return '🎥 Video';
+                              } else if (urlLower.match(/\.(pdf|doc|docx|xls|xlsx|ppt|pptx)(\?|$|#)/i)) {
+                                return '📄 Document';
+                              } else {
+                                return '📎 File';
+                              }
+                            }
+                            return lastMsg || 'No messages yet';
+                          })()}
                         </div>
                         {conversation.unreadCount > 0 && (
                           <div className="bg-green-500 text-white text-xs rounded-full h-6 w-6 flex items-center justify-center font-medium ml-2">

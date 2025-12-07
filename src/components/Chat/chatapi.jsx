@@ -246,6 +246,32 @@ export const chatAPI = {
     }
   },
 
+  // Edit message
+  editMessage: async (messageId, content) => {
+    try {
+      const headers = getChatApiHeaders();
+      
+      const body = {
+        content: content.trim()
+      };
+      
+      // Use the regular chat endpoint for editing (not admin-specific)
+      const apiUrl = `${BASE_URL}/api/wall/chat/messages/${messageId}/edit`;
+      
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+      });
+      
+      const result = await handleResponse(response);
+      
+      return result;
+    } catch (error) {
+      throw error;
+    }
+  },
+
   // Find the actual employee ID format for a given participant ID
   resolveEmployeeId: async (partialId) => {
     try {
@@ -873,6 +899,11 @@ export const enhancedChatAPI = {
     return await chatAPI.sendMessageHttp(roomId, content, senderId, fileUrls, replyToMessageId);
   },
 
+  // Edit message
+  editMessage: async (messageId, content) => {
+    return await chatAPI.editMessage(messageId, content);
+  },
+
   // Forward message to multiple rooms
   forwardMessage: async (messageId, roomIds) => {
     return await chatAPI.forwardMessage(messageId, roomIds);
@@ -895,7 +926,6 @@ export const enhancedChatAPI = {
   onConnection: (callback) => chatWebSocket.onConnection(callback),
   onError: (callback) => chatWebSocket.onError(callback)
 };
-
 
 
 export default enhancedChatAPI;

@@ -765,7 +765,10 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
             isMinimized={false}
             onToggleMinimize={toggleCompactMode}
             onClose={onClose}
-            onBack={() => chatState.setActiveConversation(null)}
+            onBack={() => {
+              chatState.setActiveConversation(null);
+              setShowChatInfo(false);
+            }}
             getConversationPartner={getConversationPartner}
             getStatusColor={getStatusColor}
             onShowInfo={navigationHandlers.handleShowInfo}
@@ -792,19 +795,21 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
           {/* Compact Chat Content */}
           {showChatInfo ? (
             // Show Group Info inline
-            <ChatInfo
-              isOpen={true}
-              onClose={() => setShowChatInfo(false)}
-              conversation={activeConversation}
-              currentUserId={currentUser.id}
-              onUpdateGroup={pollAndGroupHandlers.handleUpdateGroup}
-              onLeaveGroup={pollAndGroupHandlers.handleLeaveGroup}
-              onRemoveMember={pollAndGroupHandlers.handleRemoveMember}
-              onReloadConversations={loadConversations}
-              onStartChatWithMember={handleStartChatWithMember}
-              isCompact={true}
-              isInline={false}
-            />
+            <div className="flex-1 flex flex-col min-h-0">
+              <ChatInfo
+                isOpen={true}
+                onClose={() => setShowChatInfo(false)}
+                conversation={activeConversation}
+                currentUserId={currentUser.id}
+                onUpdateGroup={pollAndGroupHandlers.handleUpdateGroup}
+                onLeaveGroup={pollAndGroupHandlers.handleLeaveGroup}
+                onRemoveMember={pollAndGroupHandlers.handleRemoveMember}
+                onReloadConversations={loadConversations}
+                onStartChatWithMember={handleStartChatWithMember}
+                isCompact={true}
+                isInline={false}
+              />
+            </div>
           ) : !activeConversation ? (
             <div className="flex-1 flex flex-col">
               {/* Search and Filters */}
@@ -1034,9 +1039,17 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                                         className="w-full h-full object-cover"
                                       />
                                     </div>
+                                  ) : partner?.avatar && partner.avatar.startsWith('http') ? (
+                                    <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md overflow-hidden">
+                                      <img 
+                                        src={partner.avatar} 
+                                        alt={partner?.name}
+                                        className="w-full h-full object-cover"
+                                      />
+                                    </div>
                                   ) : (
                                     <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md">
-                                      {partner?.avatar}
+                                      {partner?.name?.substring(0, 2).toUpperCase() || 'U'}
                                     </div>
                                   )}
                                   <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-white ${getStatusColor(partner?.status)} transition-all duration-200`}></div>
@@ -1100,9 +1113,17 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                                     className="w-full h-full object-cover"
                                   />
                                 </div>
+                              ) : partner?.avatar && partner.avatar.startsWith('http') ? (
+                                <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md overflow-hidden">
+                                  <img 
+                                    src={partner.avatar} 
+                                    alt={partner?.name}
+                                    className="w-full h-full object-cover"
+                                  />
+                                </div>
                               ) : (
                                 <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md">
-                                  {partner?.avatar}
+                                  {partner?.name?.substring(0, 2).toUpperCase() || 'U'}
                                 </div>
                               )}
                               <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-white ${getStatusColor(partner?.status)} transition-all duration-200`}></div>
@@ -1425,6 +1446,8 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
           contextMenuHandlers={contextMenuHandlers}
           pinAndFavoriteHandlers={pinAndFavoriteHandlers}
           contextMenuRef={contextMenuRef}
+          setContextMenu={setContextMenu}
+          setChatContextMenu={setChatContextMenu}
         />
       </>
     );
@@ -1542,9 +1565,17 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                                     className="w-full h-full object-cover"
                                   />
                                 </div>
+                              ) : partner?.avatar && partner.avatar.startsWith('http') ? (
+                                <div className="w-8 h-8 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-lg flex items-center justify-center text-white font-bold text-xs overflow-hidden">
+                                  <img 
+                                    src={partner.avatar} 
+                                    alt={partner?.name}
+                                    className="w-full h-full object-cover"
+                                  />
+                                </div>
                               ) : (
                                 <div className="w-8 h-8 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-lg flex items-center justify-center text-white font-bold text-xs">
-                                  {partner?.avatar}
+                                  {partner?.name?.substring(0, 2).toUpperCase() || 'U'}
                                 </div>
                               )}
                               <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-[#86efac] rounded-full flex items-center justify-center">
@@ -1734,9 +1765,17 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                                             className="w-full h-full object-cover"
                                           />
                                         </div>
+                                      ) : partner?.avatar && partner.avatar.startsWith('http') ? (
+                                        <div className="w-8 h-8 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-lg flex items-center justify-center text-white font-bold text-xs overflow-hidden">
+                                          <img 
+                                            src={partner.avatar} 
+                                            alt={partner?.name}
+                                            className="w-full h-full object-cover"
+                                          />
+                                        </div>
                                       ) : (
                                         <div className="w-8 h-8 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-lg flex items-center justify-center text-white font-bold text-xs">
-                                          {partner?.avatar}
+                                          {partner?.name?.substring(0, 2).toUpperCase() || 'U'}
                                         </div>
                                       )}
                                       <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white shadow-sm ${getStatusColor(partner?.status)}`}></div>
@@ -1806,9 +1845,17 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                                     className="w-full h-full object-cover"
                                   />
                                 </div>
+                              ) : partner?.avatar && partner.avatar.startsWith('http') ? (
+                                <div className="w-9 h-9 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-xl flex items-center justify-center text-white font-bold text-sm overflow-hidden">
+                                  <img 
+                                    src={partner.avatar} 
+                                    alt={partner?.name}
+                                    className="w-full h-full object-cover"
+                                  />
+                                </div>
                               ) : (
                                 <div className="w-9 h-9 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-xl flex items-center justify-center text-white font-bold text-sm">
-                                  {partner?.avatar}
+                                  {partner?.name?.substring(0, 2).toUpperCase() || 'U'}
                                 </div>
                               )}
                               <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white shadow-sm ${getStatusColor(partner?.status)}`}></div>
@@ -2240,6 +2287,8 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
         contextMenuHandlers={contextMenuHandlers}
         pinAndFavoriteHandlers={pinAndFavoriteHandlers}
         contextMenuRef={contextMenuRef}
+        setContextMenu={setContextMenu}
+        setChatContextMenu={setChatContextMenu}
       />
     </>
   );

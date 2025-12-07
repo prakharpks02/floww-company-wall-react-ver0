@@ -849,7 +849,7 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
                 Members
               </button>
             )}
-            <button
+            {/* <button
               onClick={() => setActiveSection('media')}
               className={`flex-1 py-2 px-2 text-xs font-medium transition-colors ${
                 activeSection === 'media'
@@ -858,7 +858,7 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
               }`}
             >
               Media
-            </button>
+            </button> */}
             <button
               onClick={() => setActiveSection('settings')}
               className={`flex-1 py-2 px-2 text-xs font-medium transition-colors ${
@@ -923,7 +923,7 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
                 Members
               </button>
             )}
-            <button
+            {/* <button
               onClick={() => setActiveSection('media')}
               className={`flex-1 py-3 px-4 text-sm font-medium transition-colors ${
                 activeSection === 'media'
@@ -932,7 +932,7 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
               }`}
             >
               Media
-            </button>
+            </button> */}
             <button
               onClick={() => setActiveSection('settings')}
               className={`flex-1 py-3 px-4 text-sm font-medium transition-colors ${
