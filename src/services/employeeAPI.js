@@ -42,7 +42,7 @@ export const fetchAllEmployees = async () => {
         employeeId: employee.employeeId,
         joinDate: 'Not provided', // API doesn't provide join date
         bio: `${employee.designation || 'Employee'} in ${employee.department || 'the company'}. Contact at ${employee.companyEmail}`,
-        avatar: getInitials(employee.employeeName),
+        avatar: employee.profilePictureLink || getInitials(employee.employeeName), // Use profile picture as avatar
         status: Math.random() > 0.3 ? 'online' : Math.random() > 0.5 ? 'away' : 'offline', // Random status for demo
         lastSeen: new Date(Date.now() - Math.floor(Math.random() * 4 * 60 * 60 * 1000)), // Random last seen within 4 hours
         profilePictureLink: employee.profilePictureLink

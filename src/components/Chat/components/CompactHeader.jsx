@@ -82,12 +82,12 @@ const CompactHeader = ({
               <h3 className="font-normal text-sm">
                 {activeConversation.type === 'group' ? activeConversation.name : partner?.name}
               </h3>
-              <p className="text-xs text-purple-200">
+              {/* <p className="text-xs text-purple-200">
                 {activeConversation.type === 'group' 
                   ? `${activeConversation.participants?.length || 0} members`
                   : (partner?.status === 'online' ? 'Active now' : partner?.status)
                 }
-              </p>
+              </p> */}
             </div>
           </>
         ) : (

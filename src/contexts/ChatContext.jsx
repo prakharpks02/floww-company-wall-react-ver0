@@ -163,6 +163,11 @@ export const ChatProvider = ({ children }) => {
             conversationName = isGroup ? 'Group Chat' : 'Direct Chat';
           }
           
+          // ⚠️ CRITICAL: Ensure name is never a URL - if it's a URL, it means the API sent wrong data
+          if (conversationName && (conversationName.startsWith('http://') || conversationName.startsWith('https://'))) {
+            conversationName = isGroup ? 'Group Chat' : 'Chat';
+          }
+          
 
           // Handle room_icon - can be string or array
           let iconUrl = null;
@@ -222,7 +227,18 @@ export const ChatProvider = ({ children }) => {
           };
         });
         
-        setConversations(apiConversations);
+        // Clean up any conversations that have URLs as names (data corruption fix)
+        const cleanedConversations = apiConversations.map(conv => {
+          if (conv.name && (conv.name.startsWith('http://') || conv.name.startsWith('https://'))) {
+            return {
+              ...conv,
+              name: conv.type === 'group' ? 'Group Chat' : 'Chat'
+            };
+          }
+          return conv;
+        });
+        
+        setConversations(cleanedConversations);
         
       } else {
         setConversations([]);
@@ -314,13 +330,43 @@ export const ChatProvider = ({ children }) => {
   };
 
   // Create new conversation
-  const createConversation = (participants, type = 'direct', groupData = null) => {
+  const createConversation = (participants, type = 'direct', groupData = null, employeeData = null) => {
+    // Extract and validate employee name
+    let employeeName = null;
+    if (employeeData) {
+      employeeName = employeeData.name || employeeData.employee_name;
+      
+      // Clean up name - remove any URLs that might be concatenated
+      if (employeeName) {
+        const urlMatch = employeeName.match(/(.*?)(https?:\/\/|www\.)/);
+        if (urlMatch) {
+          employeeName = urlMatch[1].trim().replace(/,\s*$/, '');
+        }
+      }
+      
+      // Ensure name is never a URL
+      if (employeeName && (employeeName.startsWith('http://') || employeeName.startsWith('https://'))) {
+        employeeName = 'User';
+      }
+    }
+    
+    // Extract and validate avatar
+    let employeeAvatar = null;
+    if (employeeData) {
+      employeeAvatar = employeeData.avatar || employeeData.profile_picture_link;
+    }
+    
     const newConversation = {
       id: Date.now(),
       participants,
       type,
       lastMessage: null,
       unreadCount: 0,
+      ...(type === 'direct' && employeeData ? {
+        name: employeeName,
+        avatar: employeeAvatar,
+        employeeData: employeeData // Store full employee data
+      } : {}),
       ...(type === 'group' && groupData ? {
         name: groupData.name,
         description: groupData.description,

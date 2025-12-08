@@ -267,103 +267,57 @@ export const useChatMessageHandlers = ({
   };
 
   const handleSaveEdit = async () => {
-    if (!editMessageText.trim()) return;
+    if (!editMessageText.trim() || !editingMessage) return;
     
     try {
-      // Call admin API to edit the message
-      if (currentUser.isAdmin && editingMessage.id) {
-        const { adminToken } = cookieUtils.getAuthTokens();
-        const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://console.gofloww.xyz';
-        
-        const response = await fetch(`${apiBaseUrl}/api/wall/chat/admin/messages/${editingMessage.id}/edit`, {
-          method: 'POST',
-          headers: {
-            'Authorization': adminToken,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            content: editMessageText.trim()
-          })
-        });
-        
-        const result = await response.json();
-        if (response.ok && result.status === 'success') {
-          chatToast.messageEdited();
-        } else {
-          chatToast.error('Failed to save edit');
-        }
-      }
+      // Call the edit message API
+      const result = await enhancedChatAPI.editMessage(editingMessage.id, editMessageText.trim());
       
-      // Update local state regardless of API call result
-      const editedText = editMessageText.trim();
-      setMessages(prev => ({
-        ...prev,
-        [activeConversation.id]: (prev[activeConversation.id] || []).map(msg => 
-          msg.id === editingMessage.id 
-            ? { ...msg, text: editedText, edited: true }
-            : msg
-        )
-      }));
+      if (result.status === 'success') {
+        chatToast.messageEdited();
+        
+        // Update local state
+        const editedText = editMessageText.trim();
+        setMessages(prev => ({
+          ...prev,
+          [activeConversation.id]: (prev[activeConversation.id] || []).map(msg => 
+            msg.id === editingMessage.id 
+              ? { ...msg, text: editedText, edited: true }
+              : msg
+          )
+        }));
 
-      // Update conversation list if this was the last message
-      const currentMessages = messages[activeConversation.id] || [];
-      const isLastMessage = currentMessages.length > 0 && 
-        currentMessages[currentMessages.length - 1].id === editingMessage.id;
-      
-      if (isLastMessage) {
-        setConversations(prev => prev.map(conv => 
-          conv.id === activeConversation.id 
-            ? { 
-                ...conv, 
-                lastMessage: { 
-                  text: editedText, 
-                  timestamp: new Date(),
-                  senderId: editingMessage.senderId,
-                  edited: true
+        // Update conversation list if this was the last message
+        const currentMessages = messages[activeConversation.id] || [];
+        const isLastMessage = currentMessages.length > 0 && 
+          currentMessages[currentMessages.length - 1].id === editingMessage.id;
+        
+        if (isLastMessage) {
+          setConversations(prev => prev.map(conv => 
+            conv.id === activeConversation.id 
+              ? { 
+                  ...conv, 
+                  lastMessage: { 
+                    text: editedText, 
+                    timestamp: new Date(),
+                    senderId: editingMessage.senderId,
+                    edited: true
+                  }
                 }
-              }
-            : conv
-        ));
+              : conv
+          ));
+        }
+      } else {
+        chatToast.error('Failed to save edit');
       }
       
     } catch (error) {
       chatToast.error('Failed to edit message');
-      
-      // Still update local state even if API fails
-      const editedText = editMessageText.trim();
-      setMessages(prev => ({
-        ...prev,
-        [activeConversation.id]: (prev[activeConversation.id] || []).map(msg => 
-          msg.id === editingMessage.id 
-            ? { ...msg, text: editedText, edited: true }
-            : msg
-        )
-      }));
-
-      // Update conversation list if this was the last message
-      const currentMessages = messages[activeConversation.id] || [];
-      const isLastMessage = currentMessages.length > 0 && 
-        currentMessages[currentMessages.length - 1].id === editingMessage.id;
-      
-      if (isLastMessage) {
-        setConversations(prev => prev.map(conv => 
-          conv.id === activeConversation.id 
-            ? { 
-                ...conv, 
-                lastMessage: { 
-                  text: editedText, 
-                  timestamp: new Date(),
-                  senderId: editingMessage.senderId,
-                  edited: true
-                }
-              }
-            : conv
-        ));
-      }
-    } finally {
-      setEditingMessage(null);
-      setEditMessageText('');
     }
+    
+    // Clear editing state
+    setEditingMessage(null);
+    setEditMessageText('');
   };
 
   const loadPreviousMessages = async (roomId, conversationId) => {
