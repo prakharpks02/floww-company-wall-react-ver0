@@ -505,7 +505,7 @@ export class ChatWebSocketManager {
       }
       
       // WebSocket URL with authorization and auth-type as query parameters
-      const wsUrl = `wss://console.gofloww.xyz/ws/chat/${roomId}/?authorization=${authToken}&floww-socket-auth-type=${authType}`;
+      const wsUrl = `wss://console.gofloww.co/ws/chat/${roomId}/?authorization=${authToken}&floww-socket-auth-type=${authType}`;
       
       this.ws = new WebSocket(wsUrl);
       
