@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { initializeEmployees, getEmployeeById } from '../components/Chat/utils/dummyData';
+import { getEmployeeById } from '../components/Chat/utils/dummyData';
 import { enhancedChatAPI } from '../components/Chat/chatapi';
 import adminChatAPI from '../services/adminChatAPI';
 
@@ -46,9 +46,12 @@ export const ChatProvider = ({ children }) => {
       const currentAPI = getChatAPI();
       const envType = isAdminEnvironment() ? 'ADMIN' : 'EMPLOYEE';
       const messagesResponse = await currentAPI.getRoomMessages(conversationId);
+  
       
       if (messagesResponse.status === 'success' && Array.isArray(messagesResponse.data)) {
         const apiMessages = messagesResponse.data.map(msg => {
+        
+          
           const message = {
             id: msg.message_id,
             senderId: msg.sender?.employee_id || msg.sender_id,
@@ -56,7 +59,7 @@ export const ChatProvider = ({ children }) => {
             timestamp: new Date(msg.created_at),
             read: true,
             isStarred: msg.is_starred || false,
-            fileUrls: msg.file_urls || [],
+            file_urls: msg.file_urls || [], // 🔥 USE snake_case to match rest of the app!
             // Store sender information from API
             sender: msg.sender ? {
               id: msg.sender.employee_id,
@@ -109,9 +112,12 @@ export const ChatProvider = ({ children }) => {
     try {
       const currentAPI = getChatAPI();
       const envType = isAdminEnvironment() ? 'ADMIN' : 'EMPLOYEE';
+  
       setConversationsLoading(true);
       
+
       const roomsResponse = await currentAPI.listAllRooms();
+
       
       if (roomsResponse.status === 'success' && Array.isArray(roomsResponse.data)) {
         const apiConversations = roomsResponse.data.map(room => {
@@ -250,19 +256,17 @@ export const ChatProvider = ({ children }) => {
     }
   };
 
-  // Initialize employees and conversations from API on component mount
+  // Initialize conversations from API on component mount
   useEffect(() => {
     const loadData = async () => {
+
       try {
-        setEmployeesLoading(true);
-        const loadedEmployees = await initializeEmployees();
-        
-        setEmployees(loadedEmployees);
-        
-        // Load conversations after employees are loaded
+        // Load conversations directly (no need to fetch all employees anymore)
+   
         await loadConversations();
+    
       } catch (error) {
-        setEmployees([]);
+        console.error('[ChatContext] Error loading data:', error);
         setConversations([]);
       } finally {
         setEmployeesLoading(false);
@@ -504,7 +508,9 @@ export const ChatProvider = ({ children }) => {
   };
 
   const toggleCompactMode = () => {
+    // Toggle compact mode while preserving active conversation
     setIsCompactMode(!isCompactMode);
+    // activeConversation is preserved during the transition
   };
 
   const toggleFullScreenMobile = () => {

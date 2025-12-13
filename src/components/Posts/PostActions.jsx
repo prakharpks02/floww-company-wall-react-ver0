@@ -146,19 +146,6 @@ const PostActions = ({
                 }
               })()}
             </span>
-            
-            {/* Reaction Count - Show total reactions if any exist */}
-            {(() => {
-              if (!getAllReactions) return null;
-              const allReactions = getAllReactions();
-              const totalAllReactions = allReactions.reduce((sum, reaction) => sum + reaction.count, 0);
-              
-              return totalAllReactions > 0 ? (
-                <span className="text-xs bg-gray-100 px-2 py-1 rounded-full ml-1">
-                  {totalAllReactions}
-                </span>
-              ) : null;
-            })()}
           </button>
 
           {/* Desktop Hover Reactions Dropdown */}

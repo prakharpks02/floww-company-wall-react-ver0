@@ -2,6 +2,7 @@ import React from 'react';
 import { X, Send, Loader2 } from 'lucide-react';
 import RichTextEditor from '../Editor/RichTextEditor';
 import ImageCropModal from '../Media/ImageCropModal';
+import VideoCompressionModal from '../Media/VideoCompressionModal';
 import { usePost } from '../../contexts/PostContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePostCreation } from './utils/usePostCreation';
@@ -11,10 +12,10 @@ import TagsSection from './CreatePostComponents/TagsSection';
 import MentionsSection from './CreatePostComponents/MentionsSection';
 import MediaUploadSection from './CreatePostComponents/MediaUploadSection';
 import ImprovedMediaPreviews from './CreatePostComponents/ImprovedMediaPreviews';
+import UploadProgressDisplay from '../Chat/components/UploadProgressDisplay';
 
 const CreatePost = ({ onClose, editingPost = null }) => {
   const { createPost, editPost, tags } = usePost();
-  const { getAllEmployees } = useAuth();
 
   // Custom hooks
   const postCreation = usePostCreation(createPost, editPost, editingPost, onClose);
@@ -101,6 +102,16 @@ const CreatePost = ({ onClose, editingPost = null }) => {
               setShowLinkInput={mediaHandling.setShowLinkInput}
             />
 
+            {/* Upload Progress Display */}
+            {mediaHandling.uploadingFiles.length > 0 && (
+              <div className="mb-4">
+                <UploadProgressDisplay
+                  uploadingFiles={mediaHandling.uploadingFiles}
+                  onRemove={mediaHandling.removeUploadingFile}
+                />
+              </div>
+            )}
+
             {/* Media Previews */}
             <ImprovedMediaPreviews
               images={mediaHandling.images}
@@ -126,7 +137,11 @@ const CreatePost = ({ onClose, editingPost = null }) => {
               </button>
               <button
                 type="submit"
-                disabled={postCreation.isSubmitting || (!postCreation.content.trim() && mediaHandling.images.length === 0 && mediaHandling.videos.length === 0 && mediaHandling.documents.length === 0)}
+                disabled={
+                  postCreation.isSubmitting || 
+                  mediaHandling.uploadingFiles.length > 0 ||
+                  (!postCreation.content.trim() && mediaHandling.images.length === 0 && mediaHandling.videos.length === 0 && mediaHandling.documents.length === 0)
+                }
                 className="flex items-center justify-center space-x-2 px-4 sm:px-6 py-2 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors touch-friendly"
               >
                 {postCreation.isSubmitting ? (
@@ -150,11 +165,25 @@ const CreatePost = ({ onClose, editingPost = null }) => {
         {mediaHandling.showCropModal && mediaHandling.imageToProcess && (
           <ImageCropModal
             isOpen={mediaHandling.showCropModal}
-            onCancel={() => mediaHandling.setShowCropModal(false)}
+            onCancel={() => {
+              mediaHandling.setShowCropModal(false);
+              mediaHandling.setImageToProcess(null);
+            }}
             imageFile={mediaHandling.imageToProcess}
             onSave={(croppedBlob) => 
               mediaHandling.handleCropComplete(croppedBlob, mediaHandling.imageToProcess)
             }
+            onSkip={mediaHandling.handleSkipCrop}
+          />
+        )}
+
+        {/* Video Compression Modal */}
+        {mediaHandling.showVideoCompressionModal && mediaHandling.videoToCompress && (
+          <VideoCompressionModal
+            isOpen={mediaHandling.showVideoCompressionModal}
+            onClose={mediaHandling.handleVideoCompressionCancel}
+            videoFile={mediaHandling.videoToCompress}
+            onCompressionComplete={mediaHandling.handleVideoCompressionComplete}
           />
         )}
       </div>

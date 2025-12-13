@@ -53,13 +53,20 @@ const fetchUser = async () => {
   
     
     if (!token) {
-      // Prevent infinite redirects
-      if (!hasRedirected) {
-        setHasRedirected(true);
-        // Add a small delay to prevent immediate redirect loops
-        setTimeout(() => {
-          window.location.href = import.meta.env.VITE_EMPLOYEE_LOGIN_URL;
-        }, 1000);
+      // Check if we're on a public route that doesn't require authentication
+      const currentPath = window.location.pathname;
+      const isPublicRoute = currentPath.startsWith('/post/');
+      
+      if (!isPublicRoute) {
+        // Only redirect to login for non-public routes
+        // Prevent infinite redirects
+        if (!hasRedirected) {
+          setHasRedirected(true);
+          // Add a small delay to prevent immediate redirect loops
+          setTimeout(() => {
+            window.location.href = import.meta.env.VITE_EMPLOYEE_LOGIN_URL;
+          }, 1000);
+        }
       }
       setLoading(false);
       return;
@@ -251,11 +258,6 @@ const fetchUser = async () => {
     return getCurrentUserId();
   };
 
-  // Get all employees (returns empty array since we don't manage users)
-  const getAllEmployees = () => {
-    return [];
-  };
-
   // Token-based auth doesn't require login/logout/register
   const login = async () => {
     throw new Error('Login not required with token authentication');
@@ -318,7 +320,6 @@ const fetchUser = async () => {
     isAuthenticated,
     getCurrentUserId,
     getCurrentAuthorId,
-    getAllEmployees,
     // Cookie management methods
     setAuthTokens,
     clearAuthTokens,

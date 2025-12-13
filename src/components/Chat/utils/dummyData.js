@@ -51,10 +51,6 @@ export const getEmployeeById = (id) => {
   return null;
 };
 
-export const getAllEmployees = () => {
-  return dummyEmployees;
-};
-
 export const getEmployeeByIdFromList = (id, employeesList) => {
   // Handle both numeric IDs and employee IDs (emp-xxx format)
   if (typeof id === 'number') {

@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { X, Phone, Video, Mail, MapPin, Calendar, Building, User, MessageCircle, Camera } from 'lucide-react';
+import { X, Phone, Video, Mail, MapPin, Calendar, Building, User, MessageCircle, /* Camera */ } from 'lucide-react';
 import { getEmployeeById } from './utils/dummyData';
 import { cookieUtils } from '../../utils/cookieUtils';
 
@@ -117,6 +117,7 @@ const UserProfileModal = ({ isOpen, onClose, userId, onStartChat, currentUserId 
               )}
               
               {/* Camera overlay for own profile */}
+              {/*
               {isOwnProfile && (
                 <button
                   onClick={() => fileInputRef.current?.click()}
@@ -130,6 +131,7 @@ const UserProfileModal = ({ isOpen, onClose, userId, onStartChat, currentUserId 
                   )}
                 </button>
               )}
+              */}
               
               <div className={`absolute bottom-2 right-2 w-6 h-6 rounded-full border-4 border-white ${getStatusColor(user.status)}`}></div>
             </div>

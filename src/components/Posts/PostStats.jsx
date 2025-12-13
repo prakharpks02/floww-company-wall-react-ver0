@@ -2,20 +2,68 @@ import React from 'react';
 import { MessageCircle, Share2 } from 'lucide-react';
 
 const PostStats = ({ totalLikes, totalReactions, totalComments, shareCount, getTopReactions, getAllReactions }) => {
-  // Only show comments and shares in stats, reactions moved to action button only
-  if (totalComments === 0 && shareCount === 0) return null;
+  // Get all reactions for display
+  const allReactions = getAllReactions ? getAllReactions() : [];
+  
+  // Filter out reactions with zero counts and make sure we have actual reactions
+  const activeReactions = allReactions.filter(reaction => reaction && reaction.count > 0);
+  
+  // Calculate total reaction count (exclude reactions that are just likes without specific emoji reactions)
+  const totalReactionCount = activeReactions.reduce((sum, reaction) => sum + reaction.count, 0);
+  
+  // Only show reactions if there are actual emoji reactions (not just likes)
+  const hasReactions = totalReactionCount > 0 && activeReactions.length > 0;
+  const hasComments = totalComments > 0;
+  const hasShares = shareCount > 0;
+  
+  if (!hasReactions && !hasComments && !hasShares) return null;
 
   return (
-    <div className="flex items-center justify-end mb-3 text-sm">
-      {/* Only show comments and shares */}
-      <div className="flex items-center space-x-4 text-gray-500">
-        {totalComments > 0 && (
-          <span>{totalComments} {totalComments === 1 ? 'comment' : 'comments'}</span>
-        )}
-        {shareCount > 0 && (
-          <span>{shareCount} {shareCount === 1 ? 'share' : 'shares'}</span>
-        )}
-      </div>
+    <div className="flex items-center justify-between mb-3 text-sm">
+      {/* Left side - Reactions (WhatsApp style) */}
+      {hasReactions && (
+        <div className="flex items-center space-x-2">
+          {/* Single reaction indicator with total count */}
+          <div
+            className="flex items-center space-x-1 bg-gray-100 hover:bg-gray-200 rounded-full px-2 py-1 transition-colors cursor-pointer"
+            title={`${totalReactionCount} reaction${totalReactionCount !== 1 ? 's' : ''}`}
+          >
+            {/* Show top 2-3 reaction emojis if multiple, otherwise just the top one */}
+            <div className="flex items-center -space-x-0.5">
+              {activeReactions.slice(0, Math.min(3, activeReactions.length)).map((reaction, index) => (
+                <span 
+                  key={reaction.type} 
+                  className="text-sm"
+                  style={{ zIndex: activeReactions.length - index }}
+                >
+                  {reaction.emoji}
+                </span>
+              ))}
+            </div>
+            <span className="text-xs font-medium text-gray-700 ml-1">
+              {totalReactionCount}
+            </span>
+          </div>
+        </div>
+      )}
+      
+      {/* Right side - Comments and Shares */}
+      {(hasComments || hasShares) && (
+        <div className="flex items-center space-x-4 text-gray-500 ml-auto">
+          {hasComments && (
+            <div className="flex items-center space-x-1">
+              <MessageCircle className="h-4 w-4" />
+              <span>{totalComments}</span>
+            </div>
+          )}
+          {hasShares && (
+            <div className="flex items-center space-x-1">
+              <Share2 className="h-4 w-4" />
+              <span>{shareCount}</span>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

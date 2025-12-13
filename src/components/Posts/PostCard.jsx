@@ -64,6 +64,7 @@ const PostCard = ({
     hasAnyReaction,
     isAuthor,
     isBlocked,
+    isAdmin,
     emojiReactions,
     user,
 
@@ -346,6 +347,7 @@ const PostCard = ({
         <PostHeader
           post={normalizedPost}
           isAuthor={isAuthor}
+          isAdmin={isAdmin}
           isPublicView={isPublicView}
           showMenu={showMenu}
           setShowMenu={setShowMenu}
@@ -390,7 +392,7 @@ const PostCard = ({
             totalLikes={getTotalLikes()}
             totalReactions={getTotalReactions()}
             totalComments={getTotalComments()}
-            // shareCount={shareCount}
+            shareCount={shareCount}
             getTopReactions={getTopReactions}
             getAllReactions={getAllReactions}
           />
@@ -417,6 +419,8 @@ const PostCard = ({
             handleReactionsMouseEnter={handleReactionsMouseEnter}
             handleReactionsMouseLeave={handleReactionsMouseLeave}
             handleReaction={handleReaction}
+            handleReport={() => handleReport('post', normalizedPost.post_id || normalizedPost.id)}
+            isOwnPost={isAuthor}
           />
         </div>
 

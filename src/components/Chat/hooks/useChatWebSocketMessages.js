@@ -60,10 +60,32 @@ export const useChatWebSocketMessages = ({
       const isOptimistic = msg._optimistic === true;
       const senderMatches = msg._optimisticSender === senderEmployeeId;
       const textMatches = msg._optimisticText === messageContent;
+      
+      // For media messages, also check file URLs
+      const hasFileUrls = (messageData.file_urls && messageData.file_urls.length > 0) || (msg.file_urls && msg.file_urls.length > 0);
+      let fileUrlsMatch = true;
+      
+      if (hasFileUrls) {
+        const incomingUrls = messageData.file_urls || [];
+        const optimisticUrls = msg.file_urls || [];
+        
+        // Check if file URLs match (for media-only messages)
+        if (incomingUrls.length > 0 && optimisticUrls.length > 0) {
+          fileUrlsMatch = incomingUrls.some(url => 
+            optimisticUrls.some(optUrl => 
+              url === optUrl || url.includes(optUrl.split('/').pop()) || optUrl.includes(url.split('/').pop())
+            )
+          );
+        }
+      }
+      
       const timeDiff = Math.abs(messageTime - msg.timestamp);
       const timeWithinWindow = timeDiff < 10000;
       
-      return isOptimistic && senderMatches && textMatches && timeWithinWindow;
+      // Match by text OR by file URLs (for media-only messages)
+      const contentMatches = textMatches || (hasFileUrls && fileUrlsMatch);
+      
+      return isOptimistic && senderMatches && contentMatches && timeWithinWindow;
     });
     
     if (optimisticMessage) {
@@ -78,7 +100,8 @@ export const useChatWebSocketMessages = ({
               sender: messageData.sender, // Update with real sender data
               status: 'delivered',
               _optimistic: false, // No longer optimistic
-              timestamp: new Date(messageData.created_at || messageData.timestamp || Date.now())
+              timestamp: new Date(messageData.created_at || messageData.timestamp || Date.now()),
+              file_urls: messageData.file_urls || msg.file_urls || [] // 🔥 PRESERVE file_urls!
             };
           }
           return msg;
@@ -103,7 +126,7 @@ export const useChatWebSocketMessages = ({
       read: false,
       status: 'received',
       type: messageData.type || 'text',
-      fileUrls: messageData.file_urls || [], // Include file URLs from WebSocket
+      file_urls: messageData.file_urls || [], // Include file URLs from WebSocket
       isForwarded: messageData.is_forwarded || false // 🔁 Include forwarded flag
     };
     
@@ -144,27 +167,27 @@ export const useChatWebSocketMessages = ({
       const response = await enhancedChatAPI.getRoomMessages(roomId);
       
       if (response.status === 'success' && Array.isArray(response.data)) {
-        const formattedMessages = response.data.map(msg => ({
-          id: msg.message_id,
-          senderId: msg.sender?.employee_id || msg.sender_id,
-          sender: msg.sender, // 🔑 Preserve full sender object with profile_picture_link
-          text: msg.content,
-          timestamp: new Date(msg.created_at),
-          read: true,
-          status: 'delivered',
-          type: msg.type || 'text',
-          isForwarded: msg.is_forwarded || false, // 🔁 Include forwarded flag
-          ...(msg.reply_to_message_id && {
-            replyTo: {
-              id: msg.reply_to_message_id,
-              text: msg.reply_content || 'Original message',
-              senderName: msg.reply_sender_name || 'Unknown'
-            }
-          })
-        }));
-        
-        // Verify sender data is preserved
-        
+        const formattedMessages = response.data.map(msg => {
+          return {
+            id: msg.message_id,
+            senderId: msg.sender?.employee_id || msg.sender_id,
+            sender: msg.sender, // 🔑 Preserve full sender object with profile_picture_link
+            text: msg.content,
+            timestamp: new Date(msg.created_at),
+            read: true,
+            status: 'delivered',
+            type: msg.type || 'text',
+            file_urls: msg.file_urls || [], // Include file URLs from API
+            isForwarded: msg.is_forwarded || false, // 🔁 Include forwarded flag
+            ...(msg.reply_to_message_id && {
+              replyTo: {
+                id: msg.reply_to_message_id,
+                text: msg.reply_content || 'Original message',
+                senderName: msg.reply_sender_name || 'Unknown'
+              }
+            })
+          };
+        });
 
         // Set initial messages for the conversation
         setMessages(prev => ({

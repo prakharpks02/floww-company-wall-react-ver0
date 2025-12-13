@@ -23,10 +23,12 @@ import {
 } from 'lucide-react';
 import { Toaster } from 'react-hot-toast';
 import { useChat } from '../../contexts/ChatContext';
+import { useAuth } from '../../contexts/AuthContext';
 import ChatSidebar from './ChatSidebar';
 import ChatInfo from './ChatInfo';
 import AttachmentMenu from './AttachmentMenu';
 import PollMessage from './PollMessage';
+import MessageMediaAttachments from './components/MessageMediaAttachments';
 
 // Import refactored components
 import {
@@ -64,13 +66,21 @@ import {
   useChatWebSocketMessages
 } from './hooks';
 
+// Import media handling hook
+import { useChatMediaHandling } from './hooks/useChatMediaHandling';
+import UploadProgressDisplay from './components/UploadProgressDisplay';
+import AttachedFilesPreview from './components/AttachedFilesPreview';
+import VideoCompressionModal from '../Media/VideoCompressionModal';
+
 const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = false }) => {
   // Use custom hooks for state management
   const chatState = useChatState();
+  const { user, isAdmin } = useAuth();
   
   const {
     conversations,
     messages,
+    activeConversation: globalActiveConversation,
     isCompactMode,
     isFullScreenMobile,
     setActiveConversation: setGlobalActiveConversation,
@@ -87,6 +97,10 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
     loadConversations,
     conversationsLoading
   } = useChat();
+  
+  // Use global activeConversation to maintain state across layout changes
+  const activeConversation = globalActiveConversation;
+  const setActiveConversation = setGlobalActiveConversation;
   
   // Use utilities hook
   const {
@@ -119,17 +133,18 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
     setShowCompactKebabMenu: chatState.setShowCompactKebabMenu,
     setContextMenu: chatState.setContextMenu,
     setChatContextMenu: chatState.setChatContextMenu,
-    activeConversation: chatState.activeConversation,
+    activeConversation: activeConversation,
     messages,
     messagesEndRef: chatState.messagesEndRef,
     setPinnedMessages: chatState.setPinnedMessages,
-    setPinnedChats: chatState.setPinnedChats
+    setPinnedChats: chatState.setPinnedChats,
+    setPendingFileUrls: chatState.setPendingFileUrls
   });
 
   // Use message handlers hook
   const messageHandlers = useChatMessageHandlers({
-    activeConversation: chatState.activeConversation,
-    setActiveConversation: chatState.setActiveConversation,
+    activeConversation: activeConversation,
+    setActiveConversation: setActiveConversation,
     setGlobalActiveConversation,
     markConversationAsRead,
     setMessages,
@@ -149,7 +164,9 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
     setMessageToPin: chatState.setMessageToPin,
     setShowPinMessageModal: chatState.setShowPinMessageModal,
     currentUser,
-    messages
+    messages,
+    pendingFileUrls: chatState.pendingFileUrls,
+    setPendingFileUrls: chatState.setPendingFileUrls
   });
 
   // Use context menu handlers hook
@@ -173,28 +190,41 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
     setMessageToPinOrChat: chatState.setMessageToPinOrChat,
     setPinType: chatState.setPinType,
     setChatContextMenu: chatState.setChatContextMenu,
-    activeConversation: chatState.activeConversation
+    activeConversation: activeConversation
   });
 
   // Use poll and group handlers hook
   const pollAndGroupHandlers = useChatPollAndGroupHandlers({
     createGroup,
     updateConversation,
-    setActiveConversation: chatState.setActiveConversation,
+    setActiveConversation: setActiveConversation,
     setGlobalActiveConversation,
     setShowCreateGroup: chatState.setShowCreateGroup,
     setShowPollModal: chatState.setShowPollModal,
     setMessages,
     setConversations,
-    activeConversation: chatState.activeConversation,
+    activeConversation: activeConversation,
     currentUser
   });
+
+  // Use media handling hook for file uploads
+  const mediaHandling = useChatMediaHandling();
+
+  // Callback when videos are ready to be sent
+  const handleVideosReady = (urls) => {
+    // Send message with video URLs
+    if (activeConversation && urls.length > 0) {
+      urls.forEach(url => {
+        sendMessage(activeConversation.id, '', [url]);
+      });
+    }
+  };
 
   // Use navigation handlers hook
   const navigationHandlers = useChatNavigationHandlers({
     conversations,
     createConversation,
-    setActiveConversation: chatState.setActiveConversation,
+    setActiveConversation: setActiveConversation,
     setGlobalActiveConversation,
     markConversationAsRead,
     setShowUserList: chatState.setShowUserList,
@@ -206,12 +236,38 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
     setConversations,
     currentUser,
     setIsConnectingToChat: chatState.setIsConnectingToChat,
-    setConnectingChatId: chatState.setConnectingChatId
+    setConnectingChatId: chatState.setConnectingChatId,
+    mediaHandlers: {
+      handleImageUpload: async (files) => {
+        const urls = await mediaHandling.handleImageUpload(files);
+        // Add image URLs to pending file URLs (filter out invalid URLs)
+        const validUrls = urls.filter(url => url && typeof url === 'string' && url.trim() !== '');
+        if (validUrls.length > 0) {
+          chatState.setPendingFileUrls(prev => [...prev, ...validUrls]);
+        }
+      },
+      handleVideoUpload: mediaHandling.handleVideoUpload,
+      handleDocumentUpload: async (files) => {
+        const uploadedFiles = await mediaHandling.handleDocumentUpload(files);
+        // Add document objects to pending file URLs (filter out invalid)
+        const validFiles = uploadedFiles.filter(f => f && f.url && typeof f.url === 'string' && f.url.trim() !== '');
+        if (validFiles.length > 0) {
+          chatState.setPendingFileUrls(prev => [...prev, ...validFiles]);
+        }
+      },
+      onVideosReady: (urls) => {
+        // Add video URLs to pending file URLs (filter out invalid URLs)
+        const validUrls = urls.filter(url => url && typeof url === 'string' && url.trim() !== '');
+        if (validUrls.length > 0) {
+          chatState.setPendingFileUrls(prev => [...prev, ...validUrls]);
+        }
+      }
+    }
   });
 
   // Use WebSocket messages hook for real-time messaging
   const { isConnected, loadingInitialMessages } = useChatWebSocketMessages({
-    activeConversation: chatState.activeConversation,
+    activeConversation: globalActiveConversation,
     setMessages,
     currentUser,
     getEmployeeById,
@@ -219,8 +275,10 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
   });
 
   // Destructure state variables for easier access in JSX
+  // Use global activeConversation to persist across layout changes
   const {
-    activeConversation,
+    activeConversation: _, // Ignore local activeConversation
+    setActiveConversation: _setActiveConv, // Ignore local setter
     searchQuery,
     filteredEmployees,
     setFilteredEmployees,
@@ -274,7 +332,6 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
     setShowCompactKebabMenu,
     setContextMenu,
     setChatContextMenu,
-    setActiveConversation,
     setNewMessage,
     setReplyToMessage,
     setEditingMessage,
@@ -413,8 +470,9 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
           <MobileChatHeader
             activeConversation={activeConversation}
             currentUser={currentUser}
+            isAdmin={isAdmin}
             onClose={onClose}
-            onBack={() => chatState.setActiveConversation(null)}
+            onBack={() => setActiveConversation(null)}
             getConversationPartner={getConversationPartner}
             getStatusColor={getStatusColor}
             pinAndFavoriteHandlers={pinAndFavoriteHandlers}
@@ -496,7 +554,9 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                         </div>
                       </div>
                     ) : (
-                      groupMessagesByDate(messages[activeConversation.room_id || activeConversation.id] || []).map((group, groupIndex) => (
+                      groupMessagesByDate(messages[activeConversation.room_id || activeConversation.id] || []).map((group, groupIndex) => {
+                    
+                        return (
                         <div key={groupIndex} className="space-y-4">
                           {/* Date Header */}
                           <div className="flex justify-center">
@@ -507,6 +567,8 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                           
                           {/* Messages for this date */}
                           {group.messages.map(message => {
+                            
+                            
                             const currentUserEmployeeId = currentUser?.employeeId || `emp-${currentUser?.id}`;
                             
                             // Fix: Use sender.employee_id from API response, fallback to sender_id for sent messages
@@ -580,7 +642,10 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                                     </div>
                                   )}
                                   <div
-                              className={`px-4 py-3 rounded-2xl transition-all duration-200 ${
+                              className={`rounded-2xl transition-all duration-200 ${
+                                // Remove padding if only images, no text (or text is N/A)
+                                (!message.text || message.text === 'N/A' || message.text.trim() === '') && message.file_urls && message.file_urls.length > 0 ? '' : 'px-4 py-3'
+                              } ${
                                 isOwnMessage
                                   ? `bg-gradient-to-br from-purple-500 to-purple-600 text-white ${isOwnMessage ? 'rounded-br-lg' : ''}`
                                   : `bg-gray-100 text-gray-900 border border-gray-200 ${!isOwnMessage ? 'rounded-bl-lg' : ''}`
@@ -624,10 +689,29 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                                   isCompact={false}
                                 />
                               ) : (
-                                <p className="leading-relaxed">{message.text}</p>
+                                <>
+                                  {message.file_urls && message.file_urls.length > 0 && (
+                                    <div className={message.text ? "" : ""}>
+                                      <MessageMediaAttachments 
+                                        fileUrls={message.file_urls} 
+                                        isOwnMessage={isOwnMessage}
+                                        isCompact={false}
+                                      />
+                                    </div>
+                                  )}
+                                  {message.text && message.text !== 'N/A' && message.text.trim() !== '' && (
+                                    <p className={`leading-relaxed ${
+                                      message.file_urls && message.file_urls.length > 0 ? 'px-4 py-3 pt-2' : ''
+                                    }`}>
+                                      {message.text}
+                                    </p>
+                                  )}
+                                </>
                               )}
                               
-                              <div className={`text-xs mt-2 ${isOwnMessage ? 'text-purple-100' : 'text-gray-500'}`}>
+                              <div className={`text-xs mt-2 ${
+                                (!message.text || message.text === 'N/A' || message.text.trim() === '') && message.file_urls && message.file_urls.length > 0 ? 'px-2 pb-2' : ''
+                              } ${isOwnMessage ? 'text-purple-100' : 'text-gray-500'}`}>
                                 {formatMessageTime(message.timestamp)}
                                 {message.edited && (
                                   <span className="ml-1 italic opacity-75">edited</span>
@@ -639,13 +723,24 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                       );
                     })}
                         </div>
-                      ))
+                        );
+                      })
                     )}
                     <div ref={messagesEndRef} />
                   </div>
 
                   {/* Input Area */}
                   <div className="flex-shrink-0 p-4 border-t border-gray-200 bg-white relative">
+                    {/* Upload Progress Display */}
+                    {mediaHandling.uploadingFiles.length > 0 && (
+                      <div className="mb-3">
+                        <UploadProgressDisplay
+                          uploadingFiles={mediaHandling.uploadingFiles}
+                          onRemove={mediaHandling.removeUploadingFile}
+                        />
+                      </div>
+                    )}
+
                     {/* Reply Indicator */}
                     <ReplyIndicator
                       replyToMessage={replyToMessage}
@@ -667,6 +762,10 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                       onKeyPress={messageHandlers.handleKeyPress}
                       onShowAttachment={() => setShowAttachmentMenu(true)}
                       isDesktop={false}
+                      pendingFileUrls={chatState.pendingFileUrls}
+                      onRemoveFile={(index) => {
+                        chatState.setPendingFileUrls(prev => prev.filter((_, i) => i !== index));
+                      }}
                     />
                     
                     <AttachmentMenu
@@ -762,11 +861,12 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
           <CompactHeader
             activeConversation={activeConversation}
             currentUser={currentUser}
+            isAdmin={isAdmin}
             isMinimized={false}
             onToggleMinimize={toggleCompactMode}
             onClose={onClose}
             onBack={() => {
-              chatState.setActiveConversation(null);
+              setActiveConversation(null);
               setShowChatInfo(false);
             }}
             getConversationPartner={getConversationPartner}
@@ -1264,7 +1364,9 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                               </div>
                             )}
                             <div
-                              className={`px-2 py-1.5 rounded-lg text-xs transition-all duration-200 hover:shadow-md ${
+                              className={`rounded-lg text-xs transition-all duration-200 hover:shadow-md ${
+                                (!message.text || message.text === 'N/A' || message.text.trim() === '') && message.file_urls && message.file_urls.length > 0 ? '' : 'px-2 py-1.5'
+                              } ${
                                 isOwnMessage
                                   ? `bg-gradient-to-br from-purple-500 to-purple-600 text-white ${isOwnMessage ? 'rounded-br-md' : ''}`
                                   : `bg-gray-100 text-gray-900 border border-gray-200 ${!isOwnMessage ? 'rounded-bl-md' : ''}`
@@ -1308,9 +1410,28 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                                   isCompact={true}
                                 />
                               ) : (
-                                <p className="leading-relaxed">{message.text}</p>
+                                <>
+                                  {message.file_urls && message.file_urls.length > 0 && (
+                                    <div>
+                                      <MessageMediaAttachments 
+                                        fileUrls={message.file_urls} 
+                                        isOwnMessage={isOwnMessage}
+                                        isCompact={true}
+                                      />
+                                    </div>
+                                  )}
+                                  {message.text && message.text !== 'N/A' && message.text.trim() !== '' && (
+                                    <p className={`leading-relaxed ${
+                                      message.file_urls && message.file_urls.length > 0 ? 'px-2 py-1.5 pt-1' : ''
+                                    }`}>
+                                      {message.text}
+                                    </p>
+                                  )}
+                                </>
                               )}
-                              <div className={`text-xs mt-1 ${isOwnMessage ? 'text-purple-100' : 'text-gray-500'}`}>
+                              <div className={`text-xs mt-1 ${
+                                (!message.text || message.text === 'N/A' || message.text.trim() === '') && message.file_urls && message.file_urls.length > 0 ? 'px-2 pb-1' : ''
+                              } ${isOwnMessage ? 'text-purple-100' : 'text-gray-500'}`}>
                                 {formatMessageTime(message.timestamp)}
                                 {message.edited && (
                                   <span className="ml-1 italic opacity-75">edited</span>
@@ -1328,6 +1449,28 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
               
               {/* Input Area */}
               <div className="p-3 border-t border-gray-200 bg-gray-50 relative" style={{ minHeight: '80px' }}>
+                {/* Upload Progress Display */}
+                {mediaHandling.uploadingFiles.length > 0 && (
+                  <div className="mb-2">
+                    <UploadProgressDisplay
+                      uploadingFiles={mediaHandling.uploadingFiles}
+                      onRemove={mediaHandling.removeUploadingFile}
+                    />
+                  </div>
+                )}
+
+                {/* Attached Files Preview */}
+                {chatState.pendingFileUrls && chatState.pendingFileUrls.length > 0 && (
+                  <div className="mb-2">
+                    <AttachedFilesPreview 
+                      fileUrls={chatState.pendingFileUrls} 
+                      onRemove={(index) => {
+                        chatState.setPendingFileUrls(prev => prev.filter((_, i) => i !== index));
+                      }}
+                    />
+                  </div>
+                )}
+
                 {/* Reply UI */}
                 {replyToMessage && (
                   <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
@@ -1351,12 +1494,12 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                 )}
                 
                 <div className="flex gap-2">
-                  {/* <button
+                  <button
                     onClick={() => setShowAttachmentMenu(true)}
                     className="p-2 text-gray-500 hover:bg-gray-200 rounded-lg transition-all duration-200"
                   >
                     <Paperclip className="h-4 w-4" />
-                  </button> */}
+                  </button>
                   
                   <div className="flex-1">
                     <input
@@ -1388,7 +1531,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                   ) : (
                     <button
                       onClick={messageHandlers.handleSendMessage}
-                      disabled={!newMessage.trim()}
+                      disabled={!newMessage.trim() && chatState.pendingFileUrls.length === 0}
                       className="p-2 bg-purple-500 text-white hover:bg-purple-600 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                     >
                       <Send className="h-4 w-4" />
@@ -1481,16 +1624,25 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                   <h2 className="text-base text-[#1f2937]">Atom Link</h2>
                   <p className="text-xs text-[#6b7280]">Stay connected with your team</p>
                 </div>
-                <div className="relative" ref={compactPlusMenuRef}>
-                  <button 
-                    onClick={() => setShowCompactPlusMenu(!chatState.showCompactPlusMenu)}
-                    className="p-2 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-2xl shadow-[0_8px_32px_rgba(192,132,252,0.3)] hover:shadow-[0_12px_40px_rgba(192,132,252,0.4)] transition-all duration-300 hover:scale-105"
-                    title="New chat options"
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={toggleCompactMode}
+                    className="p-2 bg-white/70 backdrop-blur-sm hover:bg-white/90 rounded-xl shadow-[inset_0_0_15px_rgba(255,255,255,0.8)] hover:shadow-[0_4px_16px_rgba(109,40,217,0.2)] transition-all duration-300 hover:scale-105"
+                    title="Minimize chat"
                   >
-                    <Plus className="h-4 w-4 text-white" />
+                    <Minimize2 className="h-4 w-4 text-[#6d28d9]" />
                   </button>
+                  {isAdmin && (
+                    <div className="relative" ref={compactPlusMenuRef}>
+                      <button 
+                        onClick={() => setShowCompactPlusMenu(!chatState.showCompactPlusMenu)}
+                        className="p-2 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-2xl shadow-[0_8px_32px_rgba(192,132,252,0.3)] hover:shadow-[0_12px_40px_rgba(192,132,252,0.4)] transition-all duration-300 hover:scale-105"
+                        title="New chat options"
+                      >
+                        <Plus className="h-4 w-4 text-white" />
+                      </button>
                   
-                  {chatState.showCompactPlusMenu && (
+                      {chatState.showCompactPlusMenu && (
                     <div className="absolute right-0 top-full mt-2 w-40 bg-white/90 backdrop-blur-xl border border-white/30 rounded-2xl shadow-[0_16px_64px_rgba(109,40,217,0.2)] z-50 overflow-hidden">
                       <div className="py-1">
                         <button
@@ -1506,6 +1658,8 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                           <span>Create Group</span>
                         </button>
                       </div>
+                    </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1941,13 +2095,13 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                       <Info className="h-4 w-4 text-[#6d28d9]" />
                     </button>
                     <div className="w-px h-6 bg-white/30 mx-2"></div>
-                    <button
-                      onClick={toggleCompactMode}
+                    {/* <button
+                      onClick={onClose}
                       className="p-2 bg-white/70 backdrop-blur-sm hover:bg-white/90 rounded-xl shadow-[inset_0_0_15px_rgba(255,255,255,0.8)] hover:shadow-[0_4px_16px_rgba(109,40,217,0.2)] transition-all duration-300 hover:scale-105"
                       title="Switch to compact view"
                     >
                       <Minimize2 className="h-4 w-4 text-[#6d28d9]" />
-                    </button>
+                    </button> */}
                     <button
                       onClick={onClose}
                       className="p-2 bg-red-100/80 backdrop-blur-sm hover:bg-red-200/90 rounded-xl shadow-[inset_0_0_15px_rgba(255,255,255,0.8)] hover:shadow-[0_4px_16px_rgba(239,68,68,0.3)] transition-all duration-300 hover:scale-105"
@@ -1989,8 +2143,11 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                       </div>
                     )}
 
-                    {groupMessagesByDate(messages[activeConversation.room_id || activeConversation.id] || []).map((group, groupIndex) => (
-                      <div key={groupIndex} className="space-y-2">
+                    {groupMessagesByDate(messages[activeConversation.room_id || activeConversation.id] || []).map((group, groupIndex) => {
+                      const currentMessages = messages[activeConversation.room_id || activeConversation.id] || [];
+              
+                  
+                      return (<div key={groupIndex} className="space-y-2">
                         {/* Date Header */}
                         <div className="flex justify-center">
                           <div className="bg-white/60 backdrop-blur-sm text-[#6b7280] text-xs px-3 py-1 rounded-full border border-white/40">
@@ -2000,6 +2157,8 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                         
                         {/* Messages for this date */}
                         {group.messages.map(message => {
+                 
+                          
                           const currentUserEmployeeId = currentUser?.employeeId || `emp-${currentUser?.id}`;
                           
                           // Fix: Use sender.employee_id from API response, fallback to sender_id for sent messages
@@ -2075,7 +2234,9 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                                   </div>
                                 )}
                                 <div
-                              className={`relative group ${message.type === 'poll' ? 'p-2' : 'px-3 py-2'} rounded-lg transition-all duration-300 hover:scale-[1.02] ${
+                              className={`relative group ${message.type === 'poll' ? 'p-2' : ''} ${
+                                (!message.text || message.text === 'N/A' || message.text.trim() === '') && message.file_urls && message.file_urls.length > 0 && message.type !== 'poll' ? '' : 'px-3 py-2'
+                              } rounded-lg transition-all duration-300 hover:scale-[1.02] ${
                                 isOwnMessage
                                   ? `bg-gradient-to-br from-[#6d28d9] to-[#7c3aed] text-white shadow-[0_4px_16px_rgba(109,40,217,0.3)] ${isOwnMessage ? 'rounded-br-md' : ''}`
                                   : `bg-white/80 backdrop-blur-sm text-[#1f2937] border border-white/30 shadow-[inset_0_0_10px_rgba(255,255,255,0.8),0_4px_16px_rgba(109,40,217,0.1)] ${!isOwnMessage ? 'rounded-bl-md' : ''}`
@@ -2119,10 +2280,29 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                                   isCompact={false}
                                 />
                               ) : (
-                                <p className="text-sm leading-snug">{message.text}</p>
+                                <>
+                                  {message.file_urls && message.file_urls.length > 0 && (
+                                    <div>
+                                      <MessageMediaAttachments 
+                                        fileUrls={message.file_urls} 
+                                        isOwnMessage={isOwnMessage}
+                                        isCompact={true}
+                                      />
+                                    </div>
+                                  )}
+                                  {message.text && message.text !== 'N/A' && message.text.trim() !== '' && (
+                                    <p className={`text-sm leading-snug ${
+                                      message.file_urls && message.file_urls.length > 0 ? 'px-3 py-2 pt-1' : ''
+                                    }`}>
+                                      {message.text}
+                                    </p>
+                                  )}
+                                </>
                               )}
                             </div>
-                            <div className={`text-[10px] text-[#6b7280] mt-1 ${isOwnMessage ? 'text-right mr-2' : 'text-left ml-2'}`}>
+                            <div className={`text-[10px] text-[#6b7280] mt-1 ${
+                              (!message.text || message.text === 'N/A' || message.text.trim() === '') && message.file_urls && message.file_urls.length > 0 ? 'px-2 pb-1' : ''
+                            } ${isOwnMessage ? 'text-right mr-2' : 'text-left ml-2'}`}>
                               {formatMessageTime(message.timestamp)}
                               {message.edited && (
                                 <span className="ml-1 italic opacity-75">edited</span>
@@ -2133,12 +2313,35 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                       );
                     })}
                       </div>
-                    ))}
+                      );
+                    })}
                     <div ref={messagesEndRef} />
                   </div>
 
                   {/* Message Input */}
                   <div className="p-2 border-t border-white/30 bg-white/50 backdrop-blur-sm">
+                    {/* Upload Progress Display */}
+                    {mediaHandling.uploadingFiles.length > 0 && (
+                      <div className="mb-2">
+                        <UploadProgressDisplay
+                          uploadingFiles={mediaHandling.uploadingFiles}
+                          onRemove={mediaHandling.removeUploadingFile}
+                        />
+                      </div>
+                    )}
+
+                    {/* Attached Files Preview */}
+                    {chatState.pendingFileUrls && chatState.pendingFileUrls.length > 0 && (
+                      <div className="mb-2">
+                        <AttachedFilesPreview 
+                          fileUrls={chatState.pendingFileUrls} 
+                          onRemove={(index) => {
+                            chatState.setPendingFileUrls(prev => prev.filter((_, i) => i !== index));
+                          }}
+                        />
+                      </div>
+                    )}
+
                     {/* Reply UI */}
                     {replyToMessage && (
                       <div className="mb-2 bg-gradient-to-r from-[#c084fc]/20 to-[#d8b4fe]/20 backdrop-blur-sm border border-[#c084fc]/30 p-2 rounded-lg">
@@ -2162,12 +2365,12 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                     )}
                     
                     <div className="flex items-center gap-2">
-                      {/* <button
+                      <button
                         onClick={() => setShowAttachmentMenu(true)}
                         className="p-1.5 bg-white/70 backdrop-blur-sm hover:bg-white/90 rounded-lg shadow-[inset_0_0_10px_rgba(255,255,255,0.8)] hover:shadow-[0_2px_8px_rgba(109,40,217,0.2)] transition-all duration-300 hover:scale-105"
                       >
                         <Paperclip className="h-3.5 w-3.5 text-[#6d28d9]" />
-                      </button> */}
+                      </button>
                       
                       <div className="flex-1">
                         <input
@@ -2199,7 +2402,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                       ) : (
                         <button
                           onClick={messageHandlers.handleSendMessage}
-                          disabled={!newMessage.trim()}
+                          disabled={!newMessage.trim() && chatState.pendingFileUrls.length === 0}
                           className="p-2 bg-gradient-to-br from-[#6d28d9] to-[#7c3aed] text-white rounded-xl shadow-[0_4px_16px_rgba(109,40,217,0.3)] hover:shadow-[0_6px_20px_rgba(109,40,217,0.4)] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:scale-105"
                         >
                           <Send className="h-4 w-4" />
@@ -2290,6 +2493,16 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
         setContextMenu={setContextMenu}
         setChatContextMenu={setChatContextMenu}
       />
+
+      {/* Video Compression Modal */}
+      {mediaHandling.showVideoCompressionModal && mediaHandling.videoToCompress && (
+        <VideoCompressionModal
+          isOpen={mediaHandling.showVideoCompressionModal}
+          onClose={mediaHandling.handleVideoCompressionCancel}
+          videoFile={mediaHandling.videoToCompress}
+          onCompressionComplete={mediaHandling.handleVideoCompressionComplete}
+        />
+      )}
     </>
   );
 };

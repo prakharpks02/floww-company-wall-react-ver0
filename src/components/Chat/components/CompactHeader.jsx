@@ -16,6 +16,7 @@ import {
 const CompactHeader = ({
   activeConversation,
   currentUser,
+  isAdmin,
   isMinimized,
   onToggleMinimize,
   onClose,
@@ -181,17 +182,18 @@ const CompactHeader = ({
             </div>
           </>
         ) : (
-          <div className="relative" ref={compactPlusMenuRef}>
-            <button
-              onClick={() => setShowCompactPlusMenu(!showCompactPlusMenu)}
-              className="p-1.5 hover:bg-purple-700 rounded-full transition-all duration-200"
-              title="New chat options"
-            >
-              <Plus className="h-4 w-4" />
-            </button>
+          isAdmin && (
+            <div className="relative" ref={compactPlusMenuRef}>
+              <button
+                onClick={() => setShowCompactPlusMenu(!showCompactPlusMenu)}
+                className="p-1.5 hover:bg-purple-700 rounded-full transition-all duration-200"
+                title="New chat options"
+              >
+                <Plus className="h-4 w-4" />
+              </button>
             
-            {/* Compact Plus Menu */}
-            {showCompactPlusMenu && (
+              {/* Compact Plus Menu */}
+              {showCompactPlusMenu && (
               <div 
                 className="absolute top-full mt-1 w-40 bg-white border border-gray-200 rounded-lg shadow-lg z-[9999] overflow-hidden max-h-80"
                 style={{
@@ -211,8 +213,9 @@ const CompactHeader = ({
                   </button>
                 </div>
               </div>
-            )}
-          </div>
+              )}
+            </div>
+          )
         )}
 
         <div className="w-px h-4 bg-purple-400 mx-1"></div>

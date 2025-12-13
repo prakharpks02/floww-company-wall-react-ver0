@@ -1,8 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { X, Phone, Video, Mail, MapPin, Calendar, Building, User, MessageCircle, Users, Settings, Image, FileText, Link, Clock, Crown, Shield, UserPlus, UserMinus, Edit2, VolumeX, Search, Camera } from 'lucide-react';
-import { getEmployeeById, getAllEmployees } from './utils/dummyData';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { X, Phone, Video, Mail, MapPin, Calendar, Building, User, MessageCircle, Users, Settings, Image, FileText, Link, Clock, Crown, Shield, UserPlus, UserMinus, Edit2, VolumeX, Search, /* Camera */ } from 'lucide-react';
+import { getEmployeeById } from './utils/dummyData';
 import chatToast from './utils/toastUtils';
 import { cookieUtils } from '../../utils/cookieUtils';
+import enhancedChatAPI from './chatapi';
+
+// Global cache and request deduplication for room details
+const roomDetailsCache = new Map();
+const activeRequests = new Map();
 
 const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup, onLeaveGroup, onRemoveMember, onStartCall, onStartVideoCall, onReloadConversations, onStartChatWithMember, isCompact = false, isInline = false }) => {
   const [activeSection, setActiveSection] = useState('overview');
@@ -16,19 +21,87 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
   const [uploadingIcon, setUploadingIcon] = useState(false);
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
   const [memberToRemove, setMemberToRemove] = useState(null);
+  const [roomDetails, setRoomDetails] = useState(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
   const fileInputRef = useRef(null);
+
+  // Fetch room details from API
+  const roomId = useMemo(() => {
+    return conversation?.room_id || conversation?.id;
+  }, [conversation?.room_id, conversation?.id]);
+
+  useEffect(() => {
+    const fetchRoomDetails = async () => {
+      if (!roomId) return;
+      
+      // Check if we already have cached data
+      if (roomDetailsCache.has(roomId)) {
+        const cachedData = roomDetailsCache.get(roomId);
+        // Use cached data if it's less than 5 minutes old
+        if (Date.now() - cachedData.timestamp < 5 * 60 * 1000) {
+          setRoomDetails(cachedData.data);
+          return;
+        } else {
+          // Remove stale cache entry
+          roomDetailsCache.delete(roomId);
+        }
+      }
+      
+      // Check if there's already an active request for this roomId
+      if (activeRequests.has(roomId)) {
+        try {
+          // Wait for the existing request to complete
+          const response = await activeRequests.get(roomId);
+          if (response && response.status === 'success' && response.data) {
+            setRoomDetails(response.data);
+            // Cache the result
+            roomDetailsCache.set(roomId, {
+              data: response.data,
+              timestamp: Date.now()
+            });
+          }
+        } catch (error) {
+          console.error('[ChatInfo] Error waiting for active request:', error);
+        }
+        return;
+      }
+      
+      setLoadingDetails(true);
+      
+      try {
+        // Create the request promise and store it
+        const requestPromise = enhancedChatAPI.getRoomDetails(roomId);
+        activeRequests.set(roomId, requestPromise);
+        
+        const response = await requestPromise;
+        
+        if (response.status === 'success' && response.data) {
+          setRoomDetails(response.data);
+          // Cache the successful result
+          roomDetailsCache.set(roomId, {
+            data: response.data,
+            timestamp: Date.now()
+          });
+        }
+      } catch (error) {
+        console.error('[ChatInfo] Error fetching room details:', error);
+      } finally {
+        setLoadingDetails(false);
+        // Clean up the active request
+        activeRequests.delete(roomId);
+      }
+    };
+
+    if (isOpen && roomId) {
+      fetchRoomDetails();
+    }
+  }, [isOpen, roomId]); // Use stable roomId instead of conversation properties
 
   // Load available employees for participant selection
   useEffect(() => {
     const loadEmployees = () => {
-      const employees = getAllEmployees();
-      // Filter out current participants
-      const currentParticipantIds = conversation?.participants || [];
-      const available = employees.filter(emp => 
-        !currentParticipantIds.includes(emp.employeeId) && 
-        !currentParticipantIds.includes(emp.id.toString())
-      );
-      setAvailableEmployees(available);
+      // Using mention API instead of get-all-employees
+      setAvailableEmployees([]);
     };
 
     if (showAddParticipants && conversation) {
@@ -54,8 +127,26 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
   if (!isGroup) {
     const otherUserId = conversation.participants.find(id => id !== currentUserId);
     
-    // Try to get from participantDetails first
-    if (conversation.participantDetails && Array.isArray(conversation.participantDetails)) {
+    // First, try to get from API roomDetails
+    if (roomDetails?.participants && roomDetails.participants.length > 0) {
+      // Find the OTHER participant (not the current user)
+      const otherParticipant = roomDetails.participants.find(p => p.employee_id !== currentUserId);
+      
+      if (otherParticipant) {
+        otherUser = {
+          id: otherParticipant.employee_id,
+          name: otherParticipant.employee_name || `Employee ${otherUserId}`,
+          avatar: otherParticipant.employee_name ? otherParticipant.employee_name.charAt(0).toUpperCase() : 'U',
+          status: 'online',
+          position: otherParticipant.job_title || 'Employee',
+          email: otherParticipant.company_email || 'N/A',
+          department: otherParticipant.job_title || 'N/A',
+          profile_picture_link: otherParticipant.profile_picture_link
+        };
+      }
+    }
+    // Try to get from participantDetails if API data not available
+    else if (conversation.participantDetails && Array.isArray(conversation.participantDetails)) {
       const participantDetail = conversation.participantDetails.find(p => p.id === otherUserId);
       if (participantDetail) {
         otherUser = {
@@ -76,11 +167,11 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
       otherUser = getEmployeeById(otherUserId);
     }
     
-    // Last resort - create basic user object
+    // Last resort - create basic user object with room name if available
     if (!otherUser && otherUserId) {
       otherUser = {
         id: otherUserId,
-        name: `Employee ${otherUserId}`,
+        name: roomDetails?.room_name || `Employee ${otherUserId}`,
         avatar: otherUserId.charAt(0).toUpperCase(),
         status: 'offline',
         position: 'Employee',
@@ -425,7 +516,7 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
                 )}
               </div>
               {/* Camera button for uploading group icon */}
-              <button
+              {/* <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploadingIcon}
                 className="absolute -bottom-1 -right-1 w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center hover:bg-orange-600 transition-all duration-200 shadow-2xl border-3 border-white z-10"
@@ -436,7 +527,7 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
                 ) : (
                   <Camera className="h-5 w-5 text-white" />
                 )}
-              </button>
+              </button> */}
               {/* Hidden file input */}
               <input
                 ref={fileInputRef}
@@ -605,25 +696,21 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
               <Mail className="h-5 w-5 text-gray-400" />
               <div>
                 <p className="text-sm text-gray-600">Email</p>
-                <p className="font-medium">{otherUser.email}</p>
+                <p className="font-medium">
+                  {loadingDetails ? 'Loading...' : otherUser.email}
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
               <Building className="h-5 w-5 text-gray-400" />
               <div>
                 <p className="text-sm text-gray-600">Department</p>
-                <p className="font-medium">{otherUser.department}</p>
+                <p className="font-medium">
+                  {loadingDetails ? 'Loading...' : otherUser.department}
+                </p>
               </div>
             </div>
-            {otherUser.phone && (
-              <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                <Phone className="h-5 w-5 text-gray-400" />
-                <div>
-                  <p className="text-sm text-gray-600">Phone</p>
-                  <p className="font-medium">{otherUser.phone}</p>
-                </div>
-              </div>
-            )}
+
           </div>
         </div>
       );

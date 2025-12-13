@@ -13,7 +13,8 @@ export const useChatNavigationHandlers = ({
   setConversations,
   currentUser,
   setIsConnectingToChat,
-  setConnectingChatId
+  setConnectingChatId,
+  mediaHandlers // New parameter for media upload handlers
 }) => {
 
   // Handle starting a new chat with an employee
@@ -71,13 +72,7 @@ export const useChatNavigationHandlers = ({
                 read: true,
                 status: 'delivered',
                 type: msg.type || 'text',
-                isForwarded: msg.is_forwarded || false, // 🔁 Include forwarded flag
-                sender: msg.sender, // 🔑 Preserve full sender object with profile_picture_link
-                text: msg.content,
-                timestamp: new Date(msg.created_at),
-                read: true,
-                status: 'delivered',
-                type: msg.type || 'text',
+                file_urls: msg.file_urls || [], // 🔥 CRITICAL: Include file_urls!
                 isForwarded: msg.is_forwarded || false, // 🔁 Include forwarded flag
                 ...(msg.reply_to_message_id && {
                   replyTo: {
@@ -159,6 +154,7 @@ export const useChatNavigationHandlers = ({
                 read: true,
                 status: 'delivered',
                 type: msg.type || 'text',
+                file_urls: msg.file_urls || [], // 🔥 CRITICAL: Include file_urls!
                 isForwarded: msg.is_forwarded || false, // 🔁 Include forwarded flag
                 ...(msg.reply_to_message_id && {
                   replyTo: {
@@ -268,6 +264,7 @@ export const useChatNavigationHandlers = ({
               read: true,
               status: 'delivered',
               type: msg.type || 'text',
+              file_urls: msg.file_urls || [], // 🔥 CRITICAL: Include file_urls!
               isForwarded: msg.is_forwarded || false // 🔁 Include forwarded flag
             };
 
@@ -331,55 +328,74 @@ export const useChatNavigationHandlers = ({
   };
 
   // Handle attachment selection
-  const handleAttachmentSelect = (type) => {
+  const handleAttachmentSelect = async (type) => {
     setShowAttachmentMenu(false);
+    
+    if (!mediaHandlers) {
+      console.warn('Media handlers not provided to navigation handlers');
+      return;
+    }
     
     switch (type) {
       case 'photos-videos':
-        // Trigger file input for photos and videos
+        // Trigger file input for photos and videos (multiple selection enabled)
         const photoInput = document.createElement('input');
         photoInput.type = 'file';
         photoInput.accept = 'image/*,video/*';
-        photoInput.multiple = true;
-        photoInput.onchange = (e) => {
+        photoInput.multiple = true; // Enable multiple file selection
+        photoInput.onchange = async (e) => {
           const files = Array.from(e.target.files);
-   
-          // TODO: Handle file upload
+          if (files.length === 0) return;
+          
+          // Separate images and videos
+          const imageFiles = files.filter(f => f.type.startsWith('image/'));
+          const videoFiles = files.filter(f => f.type.startsWith('video/'));
+          
+          // Handle images (multiple at once)
+          if (imageFiles.length > 0 && mediaHandlers.handleImageUpload) {
+            await mediaHandlers.handleImageUpload(imageFiles);
+          }
+          
+          // Handle videos (with compression support)
+          if (videoFiles.length > 0 && mediaHandlers.handleVideoUpload) {
+            await mediaHandlers.handleVideoUpload(videoFiles, mediaHandlers.onVideosReady);
+          }
         };
         photoInput.click();
         break;
         
-      case 'camera':
+      /*case 'camera':
         // Trigger camera capture
         const cameraInput = document.createElement('input');
         cameraInput.type = 'file';
         cameraInput.accept = 'image/*';
         cameraInput.capture = 'environment';
-        cameraInput.onchange = (e) => {
+        cameraInput.onchange = async (e) => {
           const files = Array.from(e.target.files);
-   
-          // TODO: Handle camera capture
+          if (files.length > 0 && mediaHandlers.handleImageUpload) {
+            await mediaHandlers.handleImageUpload(files);
+          }
         };
         cameraInput.click();
-        break;
+        break;*/
         
       case 'document':
-        // Trigger file input for documents
+        // Trigger file input for documents (multiple selection enabled)
         const docInput = document.createElement('input');
         docInput.type = 'file';
         docInput.accept = '.pdf,.doc,.docx,.txt,.xls,.xlsx,.ppt,.pptx';
-        docInput.multiple = true;
-        docInput.onchange = (e) => {
+        docInput.multiple = true; // Enable multiple file selection
+        docInput.onchange = async (e) => {
           const files = Array.from(e.target.files);
-     
-          // TODO: Handle document upload
+          if (files.length > 0 && mediaHandlers.handleDocumentUpload) {
+            await mediaHandlers.handleDocumentUpload(files);
+          }
         };
         docInput.click();
         break;
         
       case 'poll':
         // Open poll creation modal
-     
         if (setShowPollModal) {
           setShowPollModal(true);
         }

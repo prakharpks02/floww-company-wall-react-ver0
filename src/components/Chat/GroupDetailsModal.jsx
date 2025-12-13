@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { X, Users, UserPlus, UserMinus, Crown, Shield, User, Camera, Phone, Video, Search } from 'lucide-react';
+import { X, Users, UserPlus, UserMinus, Crown, Shield, User, /* Camera, */ Phone, Video, Search } from 'lucide-react';
 import { useChat } from '../../contexts/ChatContext';
 import { getEmployeeByIdFromList } from './utils/dummyData';
 import { cookieUtils } from '../../utils/cookieUtils';
@@ -163,6 +163,7 @@ const GroupDetailsModal = ({ isOpen, onClose, conversation, currentUserId, onUpd
                     )}
                   </div>
                   {/* Upload button - DEFINITELY VISIBLE */}
+                  {/*
                   <button
                     onClick={() => {
                       fileInputRef.current?.click();
@@ -177,6 +178,7 @@ const GroupDetailsModal = ({ isOpen, onClose, conversation, currentUserId, onUpd
                       <Camera className="h-6 w-6 text-white" />
                     )}
                   </button>
+                  */}
                 </div>
                 {/* Hidden file input */}
                 <input

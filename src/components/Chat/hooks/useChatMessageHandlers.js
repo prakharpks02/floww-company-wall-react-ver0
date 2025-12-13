@@ -46,7 +46,9 @@ export const useChatMessageHandlers = ({
   setMessageToPin,
   setShowPinMessageModal,
   currentUser,
-  messages
+  messages,
+  pendingFileUrls,
+  setPendingFileUrls
 }) => {
   
   const handleSendMessage = async () => {
@@ -55,7 +57,9 @@ export const useChatMessageHandlers = ({
       return;
     }
     
-    if (!newMessage.trim() || !activeConversation) {
+    // Allow sending if there's text OR file URLs
+    const hasContent = newMessage.trim() || (pendingFileUrls && pendingFileUrls.length > 0);
+    if (!hasContent || !activeConversation) {
       return;
     }
     
@@ -157,16 +161,16 @@ export const useChatMessageHandlers = ({
       
       const replyToMessageId = replyToMessage ? replyToMessage.id : null;
       const sendResult = await enhancedChatAPI.sendMessage(
-        newMessage.trim(),
+        newMessage.trim() || '', // Send empty string if no text, only files
         senderEmployeeId,
-        [],
+        pendingFileUrls || [],
         replyToMessageId,
         activeConversation.room_id // Pass room ID for verification
       );
       if (sendResult && sendResult.success !== false) {
         // Create optimistic message with unique temporary ID
         const tempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        const messageText = newMessage.trim();
+        const messageText = newMessage.trim() || ''; // Can be empty if only files
         const messageData = {
           id: tempId,
           message_id: tempId,
@@ -177,6 +181,7 @@ export const useChatMessageHandlers = ({
             profile_picture_link: currentUser?.profile_picture_link || currentUser?.avatar || ''
           },
           text: messageText,
+          file_urls: pendingFileUrls || [], // Include file URLs in optimistic message
           timestamp: new Date(),
           read: true,
           status: 'sending',
@@ -189,10 +194,14 @@ export const useChatMessageHandlers = ({
           messageData.replyTo = replyToMessage;
           setReplyToMessage(null);
         }
+        
+        // Use room_id if available, otherwise fall back to id
+        const conversationKey = activeConversation.room_id || activeConversation.id;
+        
         // Add message to local state immediately (optimistic UI)
         setMessages(prev => ({
           ...prev,
-          [activeConversation.id]: [...(prev[activeConversation.id] || []), messageData]
+          [conversationKey]: [...(prev[conversationKey] || []), messageData]
         }));
         
         // Update conversation's last message
@@ -203,6 +212,9 @@ export const useChatMessageHandlers = ({
         ));
         
         setNewMessage('');
+        setPendingFileUrls([]);
+        
+
       } else {
         console.error('[Message] Send result indicates failure:', sendResult);
         chatToast.sendMessageFailed();

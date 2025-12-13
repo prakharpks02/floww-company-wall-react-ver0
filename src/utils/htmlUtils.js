@@ -105,6 +105,7 @@ export const highlightMentions = (text) => {
   const mentionRegex = /@([a-zA-Z0-9]+(?:[\s\.\-_][a-zA-Z0-9]+)*)/g;
   
   return text.replace(mentionRegex, (match, username) => {
-    return `<span class="mention">${match}</span>`;
+    // Keep @ outside the highlighted span to avoid styling it
+    return `@<span class="mention">${username}</span>`;
   });
 };

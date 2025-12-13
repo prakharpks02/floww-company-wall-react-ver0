@@ -81,23 +81,7 @@ const handleResponse = async (response) => {
 // Chat API functions
 export const chatAPI = {
   // Get all employees
-  getAllEmployees: async () => {
-    try {
-      const headers = getEmployeeApiHeaders();
-    
-      
-      const response = await fetch(`${BASE_URL}/api/employee/get-all-employees/`, {
-        method: 'GET',
-        headers,
-      });
-      
-      const data = await handleResponse(response);
-    
-      return data;
-    } catch (error) {
-      throw error;
-    }
-  },
+
 
   // Create a chat room
   createRoom: async (receiverEmployeeId) => {
@@ -148,18 +132,23 @@ export const chatAPI = {
   // Get chat room details
   getRoomDetails: async (roomId) => {
     try {
+ 
       const headers = getChatApiHeaders();
       
       const apiUrl = `${getChatApiBaseUrl()}/rooms/${roomId}/get_details`;
-
+     
       
       const response = await fetch(apiUrl, {
         method: 'GET',
         headers,
       });
       
-      return await handleResponse(response);
+    
+      const result = await handleResponse(response);
+      
+      return result;
     } catch (error) {
+      console.error('[getRoomDetails] Error:', error);
       throw error;
     }
   },
@@ -176,8 +165,12 @@ export const chatAPI = {
         headers,
       });
       
-      return await handleResponse(response);
+      const result = await handleResponse(response);
+
+      
+      return result;
     } catch (error) {
+      console.error('getRoomMessages error:', error);
       throw error;
     }
   },
@@ -396,30 +389,11 @@ export const chatAPI = {
     try {
       // If the employee object already has the correct employeeId format, use it
       if (employee.employeeId && employee.employeeId.startsWith('emp-')) {
-      
         return employee.employeeId;
       }
       
-      // Otherwise, fetch all employees and find the matching one
-     
-      const employeesResponse = await chatAPI.getAllEmployees();
-      
-      if (employeesResponse.status === 'success' && Array.isArray(employeesResponse.response)) {
-        // Find employee by name or email match
-        const matchedEmployee = employeesResponse.response.find(emp => 
-          emp.employeeName === employee.name || 
-          emp.companyEmail === employee.email ||
-          emp.employeeId === employee.employeeId
-        );
-        
-        if (matchedEmployee) {
-         return matchedEmployee.employeeId;
-        } else {
-          return employee.employeeId || employee.id;
-        }
-      } else {
-        return employee.employeeId || employee.id;
-      }
+      // Return employee ID or fallback to ID
+      return employee.employeeId || employee.id;
     } catch (error) {
       // Fallback to original ID
       return employee.employeeId || employee.id;
@@ -505,7 +479,7 @@ export class ChatWebSocketManager {
       }
       
       // WebSocket URL with authorization and auth-type as query parameters
-      const wsUrl = `wss://console.gofloww.co/ws/chat/${roomId}/?authorization=${authToken}&floww-socket-auth-type=${authType}`;
+      const wsUrl = `wss://console.gofloww.xyz/ws/chat/${roomId}/?authorization=${authToken}&floww-socket-auth-type=${authType}`;
       
       this.ws = new WebSocket(wsUrl);
       
@@ -736,14 +710,6 @@ export const enhancedChatAPI = {
       
       // Connect WebSocket to the room
       if (finalRoomResponse.room_id) {
-        // Verify room exists by getting its details
-        try {
-          await chatAPI.getRoomDetails(finalRoomResponse.room_id);
-        } catch (error) {
-          console.error('[API] Failed to get room details:', error);
-          // Continue anyway, as room might still be valid
-        }
-        
         // Wait a bit before connecting to ensure room is fully created
         await new Promise(resolve => setTimeout(resolve, 500));
         
@@ -892,6 +858,11 @@ export const enhancedChatAPI = {
   // Get messages for a room
   getRoomMessages: async (roomId) => {
     return await chatAPI.getRoomMessages(roomId);
+  },
+
+  // Get room details
+  getRoomDetails: async (roomId) => {
+    return await chatAPI.getRoomDetails(roomId);
   },
 
   // Send message via HTTP API for database persistence

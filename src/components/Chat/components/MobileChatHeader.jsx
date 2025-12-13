@@ -4,6 +4,7 @@ import { ArrowLeft, Phone, Video, Info, Star, Plus, Users } from 'lucide-react';
 const MobileChatHeader = ({
   activeConversation,
   currentUser,
+  isAdmin,
   onClose,
   onBack,
   getConversationPartner,
@@ -29,16 +30,17 @@ const MobileChatHeader = ({
           <h3 className="text-white text-lg">Messages</h3>
         </div>
         
-        <div className="relative" ref={mobilePlusMenuRef}>
-          <button
-            onClick={() => setShowMobilePlusMenu(!showMobilePlusMenu)}
-            className="p-2 hover:bg-purple-700 rounded-full transition-all duration-200"
-          >
-            <Plus className="h-5 w-5" />
-          </button>
+        {isAdmin && (
+          <div className="relative" ref={mobilePlusMenuRef}>
+            <button
+              onClick={() => setShowMobilePlusMenu(!showMobilePlusMenu)}
+              className="p-2 hover:bg-purple-700 rounded-full transition-all duration-200"
+            >
+              <Plus className="h-5 w-5" />
+            </button>
           
-          {/* Mobile Plus Menu */}
-          {showMobilePlusMenu && (
+            {/* Mobile Plus Menu */}
+            {showMobilePlusMenu && (
             <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
               <div className="py-2">
                 <button
@@ -55,8 +57,9 @@ const MobileChatHeader = ({
                 </button>
               </div>
             </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
     );
   }
