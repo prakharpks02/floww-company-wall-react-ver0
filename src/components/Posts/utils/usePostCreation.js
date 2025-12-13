@@ -75,12 +75,7 @@ export const usePostCreation = (createPost, editPost, editingPost, onClose) => {
         mentions: extractedMentions // Use extracted mentions from content
       };
       
-      console.log('📤 Submitting post with data:', {
-        imageCount: postData.images?.length || 0,
-        images: postData.images,
-        videoCount: postData.videos?.length || 0,
-        documentCount: postData.documents?.length || 0
-      });
+    
 
       if (editingPost) {
         await editPost(editingPost.post_id, postData);

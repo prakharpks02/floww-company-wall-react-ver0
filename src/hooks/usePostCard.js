@@ -76,19 +76,9 @@ export const usePostCard = (post, activeView = 'home') => {
 
   // Normalize post data to handle different field names from backend
   const normalizePost = (rawPost) => {
-    console.log('🔍 normalizePost called with:', {
-      isOptimistic: rawPost.isOptimistic,
-      hasImages: !!rawPost.images,
-      imagesLength: rawPost.images?.length,
-      hasMedia: !!rawPost.media,
-      mediaLength: rawPost.media?.length,
-      firstImage: rawPost.images?.[0]
-    });
-    
     // Skip normalization for optimistic posts that are already properly formatted
     if (rawPost.isOptimistic && rawPost.images && Array.isArray(rawPost.images) && 
         rawPost.images.length > 0 && rawPost.images[0].url) {
-      console.log('✅ Returning optimistic post as-is with', rawPost.images.length, 'images');
       return rawPost; // Return as-is since it's already properly formatted
     }
     
@@ -177,16 +167,10 @@ export const usePostCard = (post, activeView = 'home') => {
       // Handle media array - split into different types
       images: (() => {
         const images = (rawPost.images || []).filter(Boolean); // Filter out null/undefined elements
-        console.log('📷 Processing images:', {
-          rawImages: rawPost.images?.length || 0,
-          filteredImages: images.length,
-          firstImage: images[0]
-        });
         
         // If images array already exists and has data, don't process media array to avoid duplicates
         // This happens when PostContext has already normalized the media array
         if (images.length > 0) {
-          console.log('✅ Using existing images array:', images.length);
           return images;
         }
         

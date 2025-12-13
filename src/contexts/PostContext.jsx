@@ -834,11 +834,6 @@ export const PostProvider = ({ children }) => {
         };
       });
       
-      console.log('🚀 Creating optimistic post with images:', {
-        rawImages: postData.images,
-        processedImages,
-        imageCount: processedImages.length
-      });
       
       const optimisticPost = {
         id: tempId,

@@ -143,10 +143,10 @@ export const usePostMediaHandling = () => {
             };
             setVideos(prev => [...prev, videoObject]);
             
-            // Auto-remove from uploading list after 2 seconds
-            setTimeout(() => {
+            // Auto-remove from uploading list
+            requestAnimationFrame(() => {
               setUploadingFiles(prev => prev.filter(f => f.id !== fileId));
-            }, 2000);
+            });
           });
         } else {
           // Upload without compression
@@ -163,10 +163,10 @@ export const usePostMediaHandling = () => {
           };
           setVideos(prev => [...prev, videoObject]);
           
-          // Auto-remove from uploading list after 2 seconds
-          setTimeout(() => {
+          // Auto-remove from uploading list
+          requestAnimationFrame(() => {
             setUploadingFiles(prev => prev.filter(f => f.id !== fileId));
-          }, 2000);
+          });
         }
       } catch (error) {
         console.error(`Failed to process video "${file.name}":`, error);
@@ -212,10 +212,10 @@ export const usePostMediaHandling = () => {
         };
         setDocuments(prev => [...prev, documentObject]);
         
-        // Auto-remove from uploading list after 2 seconds
-        setTimeout(() => {
+        // Auto-remove from uploading list
+        requestAnimationFrame(() => {
           setUploadingFiles(prev => prev.filter(f => f.id !== fileId));
-        }, 2000);
+        });
       } catch (error) {
         console.error(`Failed to upload document "${file.name}":`, error);
       }
@@ -247,17 +247,12 @@ export const usePostMediaHandling = () => {
         id: fileId,
         type: 'image'
       };
-      console.log('✅ Image uploaded successfully:', imageObject);
-      setImages(prev => {
-        const newImages = [...prev, imageObject];
-        console.log('📸 Updated images state:', newImages);
-        return newImages;
-      });
+      setImages(prev => [...prev, imageObject]);
       
-      // Auto-remove from uploading list after 2 seconds
-      setTimeout(() => {
+      // Auto-remove from uploading list
+      requestAnimationFrame(() => {
         setUploadingFiles(prev => prev.filter(f => f.id !== fileId));
-      }, 2000);
+      });
       
       // Process next image
       processNextImage(originalFile);
@@ -291,10 +286,10 @@ export const usePostMediaHandling = () => {
       };
       setImages(prev => [...prev, imageObject]);
       
-      // Auto-remove from uploading list after 2 seconds
-      setTimeout(() => {
+      // Auto-remove from uploading list
+      requestAnimationFrame(() => {
         setUploadingFiles(prev => prev.filter(f => f.id !== fileId));
-      }, 2000);
+      });
       
       // Process next image
       processNextImage(originalFile);
