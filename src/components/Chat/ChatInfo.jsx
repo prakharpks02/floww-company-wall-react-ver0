@@ -600,7 +600,7 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
 
           {/* Action Buttons */}
           <div className={`flex gap-${isCompact ? '2' : '4'} justify-center`}>
-            <button
+            {/* <button
               onClick={() => onStartCall && onStartCall(conversation)}
               className={`flex flex-col items-center gap-${isCompact ? '1' : '2'} ${isCompact ? 'p-2' : 'p-4'} bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors`}
             >
@@ -613,7 +613,7 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
             >
               <Video className={`${isCompact ? 'h-4 w-4' : 'h-6 w-6'} text-blue-600`} />
               <span className="text-xs text-gray-600">Video</span>
-            </button>
+            </button> */}
             <button className={`flex flex-col items-center gap-${isCompact ? '1' : '2'} ${isCompact ? 'p-2' : 'p-4'} bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors`}>
               <Search className={`${isCompact ? 'h-4 w-4' : 'h-6 w-6'} text-gray-600`} />
               <span className="text-xs text-gray-600">Search</span>
@@ -670,7 +670,7 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
 
           {/* Action Buttons */}
           <div className="flex gap-4 justify-center">
-            <button
+            {/* <button
               onClick={() => onStartCall && onStartCall(otherUser)}
               className="flex flex-col items-center gap-2 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
             >
@@ -683,7 +683,7 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
             >
               <Video className="h-6 w-6 text-blue-600" />
               <span className="text-xs text-gray-600">Video</span>
-            </button>
+            </button> */}
             <button className="flex flex-col items-center gap-2 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
               <Search className="h-6 w-6 text-gray-600" />
               <span className="text-xs text-gray-600">Search</span>

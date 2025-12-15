@@ -107,12 +107,12 @@ const CompactHeader = ({
       <div className="flex items-center gap-1">
         {activeConversation ? (
           <>
-            <button className="p-1.5 hover:bg-purple-700 rounded-full transition-all duration-200 transform hover:scale-110">
+            {/* <button className="p-1.5 hover:bg-purple-700 rounded-full transition-all duration-200 transform hover:scale-110">
               <Phone className="h-4 w-4" />
             </button>
             <button className="p-1.5 hover:bg-purple-700 rounded-full transition-all duration-200 transform hover:scale-110">
               <Video className="h-4 w-4" />
-            </button>
+            </button> */}
             <button 
               onClick={onShowInfo}
               className="p-1.5 hover:bg-purple-700 rounded-full transition-all duration-200 transform hover:scale-110"

@@ -126,12 +126,12 @@ const MobileChatHeader = ({
         >
           <Star className="h-5 w-5" />
         </button>
-        <button className="p-2 hover:bg-purple-700 rounded-full transition-all duration-200">
+        {/* <button className="p-2 hover:bg-purple-700 rounded-full transition-all duration-200">
           <Phone className="h-5 w-5" />
         </button>
         <button className="p-2 hover:bg-purple-700 rounded-full transition-all duration-200">
           <Video className="h-5 w-5" />
-        </button>
+        </button> */}
         <button 
           onClick={() => setShowChatInfo(true)}
           className="p-2 hover:bg-purple-700 rounded-full transition-all duration-200"

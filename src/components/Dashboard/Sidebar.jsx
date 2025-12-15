@@ -41,10 +41,12 @@ const Sidebar = ({ filters, setFilters, onCreatePost, activeView, onViewChange, 
           background: #3f0f4f;
           color: #FFFFFF;
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          overflow-x: hidden;
         }
         
         .slack-scrollbar::-webkit-scrollbar {
           width: 8px;
+          height: 0px;
         }
         
         .slack-scrollbar::-webkit-scrollbar-track {
@@ -58,6 +60,10 @@ const Sidebar = ({ filters, setFilters, onCreatePost, activeView, onViewChange, 
         
         .slack-scrollbar::-webkit-scrollbar-thumb:hover {
           background: rgba(255, 255, 255, 0.3);
+        }
+        
+        .slack-scrollbar::-webkit-scrollbar:horizontal {
+          display: none;
         }
         
         .sidebar-section-header {
@@ -88,6 +94,8 @@ const Sidebar = ({ filters, setFilters, onCreatePost, activeView, onViewChange, 
           cursor: pointer;
           transition: background-color 0.1s ease;
           min-height: 28px;
+          overflow: hidden;
+          word-break: break-word;
         }
         
         .channel-item:hover {
@@ -109,7 +117,7 @@ const Sidebar = ({ filters, setFilters, onCreatePost, activeView, onViewChange, 
           width: 16px;
           height: 16px;
           margin-right: 8px;
-          color: #9c88b5;
+          color: #FFFFFF;
           flex-shrink: 0;
         }
         
@@ -163,6 +171,8 @@ const Sidebar = ({ filters, setFilters, onCreatePost, activeView, onViewChange, 
           cursor: pointer;
           transition: background-color 0.1s ease;
           min-height: 32px;
+          overflow: hidden;
+          word-break: break-word;
         }
         
         .nav-item:hover {
@@ -179,6 +189,7 @@ const Sidebar = ({ filters, setFilters, onCreatePost, activeView, onViewChange, 
           height: 20px;
           margin-right: 12px;
           flex-shrink: 0;
+          color: #FFFFFF;
         }
         
         .user-section {
@@ -219,7 +230,7 @@ const Sidebar = ({ filters, setFilters, onCreatePost, activeView, onViewChange, 
         }
       `}</style>
 
-      <aside className="slack-sidebar h-full  w-full lg:w-64 flex flex-col relative">
+      <aside className="slack-sidebar h-full w-full lg:w-64 flex flex-col relative overflow-x-hidden">
         {/* Workspace Header */}
         <div className="workspace-header">
           <div className="workspace-title">
@@ -229,7 +240,7 @@ const Sidebar = ({ filters, setFilters, onCreatePost, activeView, onViewChange, 
         </div>
 
         {/* Scrollable Content */}
-  <div className="flex-1 overflow-y-auto slack-scrollbar" style={{ paddingBottom: 72 }}>
+  <div className="flex-1 overflow-y-auto overflow-x-hidden slack-scrollbar">
           {/* Main Navigation */}
           <div className="mb-6">
             {[

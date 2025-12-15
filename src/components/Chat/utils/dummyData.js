@@ -276,10 +276,29 @@ export const formatMessageTime = (timestamp) => {
   const isToday = now.toDateString() === messageDate.toDateString();
   
   if (isToday) {
+    // Today: show time (e.g., "12:26 am")
     return messageDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
   } else {
-    // For previous days, always show time in AM/PM format
-    return messageDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+    // Check if yesterday
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const isYesterday = yesterday.toDateString() === messageDate.toDateString();
+    
+    if (isYesterday) {
+      // Yesterday: show "Yesterday"
+      return 'Yesterday';
+    } else {
+      // Earlier: show day name (e.g., "Friday")
+      const daysDifference = Math.floor((now - messageDate) / (1000 * 60 * 60 * 24));
+      
+      // For messages within the last 7 days, show day name
+      if (daysDifference <= 7) {
+        return messageDate.toLocaleDateString([], { weekday: 'long' });
+      } else {
+        // For older messages, show date (e.g., "15/10/2025")
+        return messageDate.toLocaleDateString([], { day: '2-digit', month: '2-digit', year: 'numeric' });
+      }
+    }
   }
 };
 

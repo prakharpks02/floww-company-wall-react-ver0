@@ -173,12 +173,12 @@ const UserProfileModal = ({ isOpen, onClose, userId, onStartChat, currentUserId 
               <MessageCircle className="h-4 w-4" />
               Message
             </button>
-            <button className="flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+            {/* <button className="flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
               <Phone className="h-4 w-4" />
             </button>
             <button className="flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
               <Video className="h-4 w-4" />
-            </button>
+            </button> */}
           </div>
 
           {/* Details */}

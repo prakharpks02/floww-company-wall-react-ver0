@@ -188,7 +188,7 @@ const TagsAndMentionsSection = ({
             
             {/* Mention Suggestions Dropdown */}
             {mentionSuggestions && mentionSuggestions.length > 0 && (
-              <div className="absolute top-full left-0 right-0 z-10 mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-40 overflow-y-auto">
+              <div className="absolute top-full left-0 right-0 z-10 mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-40 overflow-y-auto overflow-x-hidden">
                 {loadingMentions && (
                   <div className="px-3 py-2 text-sm text-gray-500">
                     Searching...

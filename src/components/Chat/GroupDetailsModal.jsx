@@ -215,7 +215,7 @@ const GroupDetailsModal = ({ isOpen, onClose, conversation, currentUserId, onUpd
               </p>
 
               {/* Action buttons */}
-              <div className="flex justify-center gap-8">
+              {/* <div className="flex justify-center gap-8">
                 <div className="flex flex-col items-center">
                   <button className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-2 hover:bg-green-200 transition-colors">
                     <Phone className="h-5 w-5 text-green-600" />
