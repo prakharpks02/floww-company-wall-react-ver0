@@ -199,7 +199,7 @@ const ImageViewer = ({ images, initialIndex = 0, isOpen, onClose, authorName, au
               className="p-2.5 hover:bg-white hover:bg-opacity-10 rounded-full"
               title="More options"
             >
-              <MoreVertical className="h-5 w-5" />
+              {/* <MoreVertical className="h-5 w-5" /> */}
             </button>
           </div>
         </div>
