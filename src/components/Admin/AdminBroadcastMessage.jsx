@@ -176,11 +176,17 @@ const AdminBroadcastMessage = () => {
       {mediaHandling.showCropModal && mediaHandling.pendingImages.length > 0 && (
         <ImageCropModal
           isOpen={mediaHandling.showCropModal}
-          onCancel={() => mediaHandling.setShowCropModal(false)}
+          onCancel={() => {
+            mediaHandling.setShowCropModal(false);
+            mediaHandling.setPendingImages([]);
+          }}
           imageFile={mediaHandling.pendingImages[0]?.file}
           onSave={(croppedBlob) => 
             mediaHandling.handleCropComplete(croppedBlob, mediaHandling.pendingImages[0]?.file)
           }
+          onSkip={() => mediaHandling.handleSkipCrop(mediaHandling.pendingImages[0]?.file)}
+          onSkipAll={mediaHandling.handleSkipCropAll}
+          remainingImagesCount={mediaHandling.pendingImages.length - 1}
         />
       )}
     </div>

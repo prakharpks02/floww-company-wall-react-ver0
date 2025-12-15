@@ -300,6 +300,61 @@ export const usePostMediaHandling = () => {
     }
   };
 
+  const handleSkipCropAll = async () => {
+    try {
+      // Close modal immediately
+      setShowCropModal(false);
+      
+      // Upload all remaining images without cropping
+      for (const file of pendingImages) {
+        const fileId = `image-${Date.now()}-${Math.random()}`;
+        
+        setUploadingFiles(prev => [...prev, {
+          id: fileId,
+          name: file.name,
+          type: 'image',
+          size: file.size,
+          progress: 0,
+          status: 'uploading',
+          preview: URL.createObjectURL(file)
+        }]);
+        
+        try {
+          const uploadedImageUrl = await uploadMedia(file, 'image', fileId);
+          const imageObject = {
+            url: uploadedImageUrl,
+            name: file.name,
+            id: fileId,
+            type: 'image'
+          };
+          setImages(prev => [...prev, imageObject]);
+          
+          // Auto-remove from uploading list
+          requestAnimationFrame(() => {
+            setUploadingFiles(prev => prev.filter(f => f.id !== fileId));
+          });
+        } catch (uploadError) {
+          console.error(`Error uploading image ${file.name}:`, uploadError);
+          // Mark as failed but continue with others
+          setUploadingFiles(prev => prev.map(f => 
+            f.id === fileId ? { ...f, status: 'failed', error: uploadError.message } : f
+          ));
+        }
+      }
+      
+      // Clear pending images
+      setPendingImages([]);
+      setImageToProcess(null);
+    } catch (error) {
+      console.error('Error in skip crop all:', error);
+      alert('Some images failed to upload. Please try again.');
+      // Reset state
+      setShowCropModal(false);
+      setPendingImages([]);
+      setImageToProcess(null);
+    }
+  };
+
   const processNextImage = (currentFile) => {
     const currentIndex = pendingImages.findIndex(f => f === currentFile);
     const nextImage = pendingImages[currentIndex + 1];
@@ -379,6 +434,7 @@ export const usePostMediaHandling = () => {
     links,
     showCropModal,
     imageToProcess,
+    pendingImages,
     linkUrl,
     showLinkInput,
     uploadingFiles,
@@ -397,6 +453,7 @@ export const usePostMediaHandling = () => {
     handleDocumentUpload,
     handleCropComplete,
     handleSkipCrop,
+    handleSkipCropAll,
     addLink,
     removeImage,
     removeVideo,

@@ -174,6 +174,8 @@ const CreatePost = ({ onClose, editingPost = null }) => {
               mediaHandling.handleCropComplete(croppedBlob, mediaHandling.imageToProcess)
             }
             onSkip={mediaHandling.handleSkipCrop}
+            onSkipAll={mediaHandling.handleSkipCropAll}
+            remainingImagesCount={mediaHandling.pendingImages.length - 1}
           />
         )}
 

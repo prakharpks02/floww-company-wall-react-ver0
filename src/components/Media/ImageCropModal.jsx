@@ -24,8 +24,10 @@ const ImageCropModal = ({
   imageFile, 
   onSave, 
   onCancel,
-  onSkip, 
-  isOpen 
+  onSkip,
+  onSkipAll,
+  isOpen,
+  remainingImagesCount = 0
 }) => {
   const [crop, setCrop] = useState();
   const [completedCrop, setCompletedCrop] = useState();
@@ -249,28 +251,45 @@ const ImageCropModal = ({
         </div>
 
         {/* Action Buttons */}
-        <div className="flex justify-end space-x-3 p-4 border-t border-gray-200">
-          <button
-            onClick={onCancel}
-            className="px-6 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-          >
-            Cancel
-          </button>
-          {onSkip && (
+        <div className="flex justify-between items-center p-4 border-t border-gray-200">
+          <div>
+            {remainingImagesCount > 0 && (
+              <span className="text-sm text-gray-600">
+                {remainingImagesCount} image{remainingImagesCount > 1 ? 's' : ''} remaining
+              </span>
+            )}
+          </div>
+          <div className="flex space-x-3">
             <button
-              onClick={() => onSkip(imageFile)}
-              className="px-6 py-2 text-blue-700 border border-blue-300 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+              onClick={onCancel}
+              className="px-6 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
             >
-              Skip Crop
+              Cancel
             </button>
-          )}
-          <button
-            onClick={handleSave}
-            className="flex items-center space-x-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <Crop className="h-4 w-4" />
-            <span>Apply Crop</span>
-          </button>
+            {onSkipAll && remainingImagesCount > 0 && (
+              <button
+                onClick={onSkipAll}
+                className="px-6 py-2 text-orange-700 border border-orange-300 bg-orange-50 rounded-lg hover:bg-orange-100 transition-colors font-medium"
+              >
+                Skip Crop All ({remainingImagesCount + 1})
+              </button>
+            )}
+            {onSkip && (
+              <button
+                onClick={() => onSkip(imageFile)}
+                className="px-6 py-2 text-blue-700 border border-blue-300 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+              >
+                Skip This
+              </button>
+            )}
+            <button
+              onClick={handleSave}
+              className="flex items-center space-x-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <Crop className="h-4 w-4" />
+              <span>Apply Crop</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
