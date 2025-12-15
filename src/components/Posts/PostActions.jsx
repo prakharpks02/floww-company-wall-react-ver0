@@ -236,11 +236,6 @@ const PostActions = ({
         >
           <Share2 className="h-4 w-4 sm:h-5 sm:w-5" />
           <span className="hidden sm:inline">Share</span>
-          {shareCount > 0 && (
-            <span className="text-xs bg-gray-100 px-2 py-1 rounded-full">
-              {/* {shareCount} */}
-            </span>
-          )}
         </button>
 
         {/* Report Button - Only show if not own post, user is logged in, and not blocked */}

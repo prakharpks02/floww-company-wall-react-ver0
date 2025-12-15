@@ -14,9 +14,8 @@ const PostStats = ({ totalLikes, totalReactions, totalComments, shareCount, getT
   // Only show reactions if there are actual emoji reactions (not just likes)
   const hasReactions = totalReactionCount > 0 && activeReactions.length > 0;
   const hasComments = totalComments > 0;
-  const hasShares = shareCount > 0;
   
-  if (!hasReactions && !hasComments && !hasShares) return null;
+  if (!hasReactions && !hasComments) return null;
 
   return (
     <div className="flex items-center justify-between mb-3 text-sm">
@@ -47,21 +46,13 @@ const PostStats = ({ totalLikes, totalReactions, totalComments, shareCount, getT
         </div>
       )}
       
-      {/* Right side - Comments and Shares */}
-      {(hasComments || hasShares) && (
+      {/* Right side - Comments */}
+      {hasComments && (
         <div className="flex items-center space-x-4 text-gray-500 ml-auto">
-          {hasComments && (
-            <div className="flex items-center space-x-1">
-              <MessageCircle className="h-4 w-4" />
-              <span>{totalComments}</span>
-            </div>
-          )}
-          {hasShares && (
-            <div className="flex items-center space-x-1">
-              <Share2 className="h-4 w-4" />
-              <span>{shareCount}</span>
-            </div>
-          )}
+          <div className="flex items-center space-x-1">
+            <MessageCircle className="h-4 w-4" />
+            <span>{totalComments}</span>
+          </div>
         </div>
       )}
     </div>
