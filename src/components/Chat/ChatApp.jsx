@@ -696,6 +696,16 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                                         fileUrls={message.file_urls} 
                                         isOwnMessage={isOwnMessage}
                                         isCompact={false}
+                                        senderName={message.sender?.employee_name || message.sender?.name || getEmployeeById(messageSenderId)?.name || getEmployeeById(messageSenderId)?.employee_name || (isOwnMessage ? currentUser?.name : 'User')}
+                                        senderAvatar={message.sender?.profile_picture_link || message.sender?.avatar || getEmployeeById(messageSenderId)?.profile_picture_link || getEmployeeById(messageSenderId)?.avatar || (isOwnMessage ? currentUser?.profile_picture_link : null)}
+                                        timestamp={message.timestamp ? new Date(message.timestamp).toLocaleString('en-US', {
+                                          day: '2-digit',
+                                          month: '2-digit',
+                                          year: 'numeric',
+                                          hour: '2-digit',
+                                          minute: '2-digit',
+                                          hour12: true
+                                        }) : ''}
                                       />
                                     </div>
                                   )}
@@ -1417,6 +1427,16 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                                         fileUrls={message.file_urls} 
                                         isOwnMessage={isOwnMessage}
                                         isCompact={true}
+                                        senderName={message.sender?.name || message.sender?.employee_name || getEmployeeById(message.senderId)?.name || getEmployeeById(message.senderId)?.employee_name || (isOwnMessage ? currentUser?.name : 'User')}
+                                        senderAvatar={message.sender?.profile_picture_link || message.sender?.avatar || getEmployeeById(message.senderId)?.profile_picture_link || getEmployeeById(message.senderId)?.avatar || (isOwnMessage ? currentUser?.profile_picture_link : null)}
+                                        timestamp={message.timestamp ? new Date(message.timestamp).toLocaleString('en-US', {
+                                          day: '2-digit',
+                                          month: '2-digit',
+                                          year: 'numeric',
+                                          hour: '2-digit',
+                                          minute: '2-digit',
+                                          hour12: true
+                                        }) : ''}
                                       />
                                     </div>
                                   )}
@@ -2287,6 +2307,16 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                                         fileUrls={message.file_urls} 
                                         isOwnMessage={isOwnMessage}
                                         isCompact={true}
+                                        senderName={message.sender?.name || message.sender?.employee_name || getEmployeeById(message.senderId)?.name || getEmployeeById(message.senderId)?.employee_name || (isOwnMessage ? currentUser?.name : 'User')}
+                                        senderAvatar={message.sender?.profile_picture_link || message.sender?.avatar || getEmployeeById(message.senderId)?.profile_picture_link || getEmployeeById(message.senderId)?.avatar || (isOwnMessage ? currentUser?.profile_picture_link : null)}
+                                        timestamp={message.timestamp ? new Date(message.timestamp).toLocaleString('en-US', {
+                                          day: '2-digit',
+                                          month: '2-digit',
+                                          year: 'numeric',
+                                          hour: '2-digit',
+                                          minute: '2-digit',
+                                          hour12: true
+                                        }) : ''}
                                       />
                                     </div>
                                   )}

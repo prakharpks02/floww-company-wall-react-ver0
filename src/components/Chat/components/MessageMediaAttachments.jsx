@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import PDFPreview from '../../Media/PDFPreview';
 import DocumentViewer from '../../Media/DocumentViewer';
+import ImageViewer from '../../Media/ImageViewer';
 
-const MessageMediaAttachments = ({ fileUrls, isOwnMessage, isCompact = false }) => {
-  const [fullscreenImage, setFullscreenImage] = useState(null);
+const MessageMediaAttachments = ({ fileUrls, isOwnMessage, isCompact = false, senderName, senderAvatar, timestamp }) => {
+  const [imageViewerOpen, setImageViewerOpen] = useState(false);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
 
   if (!fileUrls || fileUrls.length === 0) return null;
 
@@ -46,7 +48,15 @@ const MessageMediaAttachments = ({ fileUrls, isOwnMessage, isCompact = false }) 
                 onError={() => {
                   console.error('Failed to load image:', file.url);
                 }}
-                onClick={() => setFullscreenImage(file.url)}
+                onClick={() => {
+                  console.log('Clicked image index:', index);
+                  setSelectedImageIndex(index);
+                  // Use setTimeout to ensure state update completes before opening
+                  setTimeout(() => {
+                    console.log('Opening viewer with index:', index);
+                    setImageViewerOpen(true);
+                  }, 10);
+                }}
                 style={{
                   width: '100%',
                   maxWidth: isCompact ? '200px' : '300px',
@@ -226,30 +236,18 @@ const MessageMediaAttachments = ({ fileUrls, isOwnMessage, isCompact = false }) 
         </div>
       ))}
 
-      {/* Fullscreen Modal */}
-      {fullscreenImage && (
-        <div
-          onClick={() => setFullscreenImage(null)}
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'rgba(0,0,0,0.9)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 9999,
-            cursor: 'pointer'
-          }}
-        >
-          <img
-            src={fullscreenImage}
-            alt="Fullscreen"
-            style={{ maxWidth: '90%', maxHeight: '90%', objectFit: 'contain' }}
-          />
-        </div>
+      {/* Image Viewer Modal */}
+      {imageViewerOpen && (
+        <ImageViewer
+          images={images.map(img => img.url)}
+          initialIndex={selectedImageIndex}
+          isOpen={imageViewerOpen}
+          onClose={() => setImageViewerOpen(false)}
+          authorName={senderName}
+          authorAvatar={senderAvatar}
+          timestamp={timestamp}
+          isChat={true}
+        />
       )}
     </div>
   );

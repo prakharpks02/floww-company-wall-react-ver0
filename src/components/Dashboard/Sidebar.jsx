@@ -235,7 +235,7 @@ const Sidebar = ({ filters, setFilters, onCreatePost, activeView, onViewChange, 
         <div className="workspace-header">
           <div className="workspace-title">
             Community Hub
-            <ChevronDown className="w-5 h-5 text-white" />
+            {/* <ChevronDown className="w-5 h-5 text-white" /> */}
           </div>
         </div>
 

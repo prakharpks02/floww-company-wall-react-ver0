@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Image } from 'lucide-react';
 import { usePostCard } from '../../hooks/usePostCard';
 import CreatePost from './CreatePost';
 import VideoPlayer from '../Media/VideoPlayer';
 import PDFPreview from '../Media/PDFPreview';
 import DocumentViewer from '../Media/DocumentViewer';
+import ImageViewer from '../Media/ImageViewer';
 import PostHeader from './PostHeader';
 import PostTags from './PostTags';
 import PostContent from './PostContent';
@@ -26,6 +27,9 @@ const PostCard = ({
   onAdminEdit,
   onAdminDelete
 }) => {
+  const [imageViewerOpen, setImageViewerOpen] = useState(false);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+
   const {
     // State
     normalizedPost,
@@ -163,7 +167,11 @@ const PostCard = ({
                           ? 'aspect-square max-h-32 sm:max-h-40'
                           : 'aspect-square max-h-24 sm:max-h-32'
                     }`}
-                    onClick={() => window.open(encodedUrl, '_blank')}
+                    onClick={() => {
+                      setSelectedImageIndex(idx);
+                      // Use setTimeout to ensure state update completes before opening
+                      setTimeout(() => setImageViewerOpen(true), 0);
+                    }}
                     loading="lazy"
                     onError={(e) => {
                       console.error('Image failed to load:', encodedUrl, e);
@@ -488,6 +496,24 @@ const PostCard = ({
         showBlockModal={showBlockModal}
         setShowBlockModal={setShowBlockModal}
         post={normalizedPost}
+      />
+
+      {/* Image Viewer Modal */}
+      <ImageViewer
+        images={normalizedPost.images || []}
+        initialIndex={selectedImageIndex}
+        isOpen={imageViewerOpen}
+        onClose={() => setImageViewerOpen(false)}
+        authorName={normalizedPost.authorName || normalizedPost.name}
+        authorAvatar={normalizedPost.authorAvatar || normalizedPost.author?.avatar || normalizedPost.profile_picture}
+        timestamp={new Date(normalizedPost.created_at || normalizedPost.timestamp).toLocaleString('en-US', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        })}
       />
     </div>
   );
