@@ -42,25 +42,25 @@ const CommentsSection = ({
   const userIsAdmin = user?.is_admin === true || user?.is_admin === "true" || isAdmin;
 
   return (
-    <div className="space-y-3 mt-4 border-t border-gray-100 pt-4">
+    <div className="space-y-3 mt-4 border-t border-gray-100 pt-4" style={{ width: '100%', maxWidth: '100%', overflow: 'hidden', boxSizing: 'border-box' }}>
       {/* Show comment input box when comments are open and allowed */}
       {!isPublicView && commentsAllowed && !userIsAdmin && (
         <div className="space-y-3">
           <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
-            <div className="flex-1">
+            <div style={{ flex: '1', minWidth: '0', overflow: 'hidden', width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
               <MentionInput
                 value={commentText}
                 onChange={setCommentText}
                 onMentionsChange={handleCommentMentionsChange}
                 placeholder={userBlocked ? "Blocked users cannot comment" : "Add a comment..."}
-                className="w-full"
+                className=""
                 isAdmin={isAdmin}
                 rows={2}
                 maxLength={500}
                 disabled={userBlocked}
               />
             </div>
-            <div className="flex justify-end sm:self-start">
+            <div className="flex justify-end sm:self-start" style={{ flexShrink: 0 }}>
               <button
                 onClick={handleComment}
                 disabled={!commentText.trim() || userBlocked}
@@ -106,7 +106,7 @@ const CommentsSection = ({
           {normalizedPost.comments.map((comment, idx) => {
       
             return (
-              <div key={comment.comment_id || comment.id || idx} className="bg-gray-50 rounded-lg p-3 sm:p-4">
+              <div key={comment.comment_id || comment.id || idx} className="bg-gray-50 rounded-lg p-3 sm:p-4 overflow-hidden max-w-full">
                 <CommentItem
                   comment={comment}
                   user={user}

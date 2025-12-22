@@ -312,9 +312,17 @@ const PostCard = ({
   };
 
   return (
-    <div className={`bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4 max-w-full overflow-hidden ${
-      showOptimisticState ? 'opacity-75' : ''
-    }`}>
+    <div 
+      className={`bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4 ${
+        showOptimisticState ? 'opacity-75' : ''
+      }`}
+      style={{ 
+        maxWidth: '100%', 
+        overflow: 'hidden',
+        boxSizing: 'border-box',
+        width: '100%'
+      }}
+    >
       {/* Share Alert - Compact layout */}
       {showShareAlert && (
         <div className="mb-2">
