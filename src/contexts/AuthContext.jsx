@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { userAPI } from '../services/api.jsx';
+import adminAPI from '../services/adminAPI.jsx';
 import { cookieUtils } from '../utils/cookieUtils';
 
 // Avatar URL generator helper
@@ -77,7 +78,7 @@ const fetchUser = async () => {
         try {
           
           
-          const response = await userAPI.getCurrentUser();
+          const response = await adminAPI.getCurrentUser();
           const userData = response.data;
           
           if (userData && userData.employee_name) {
@@ -85,6 +86,7 @@ const fetchUser = async () => {
             const adminUser = {
               id: userData.employee_id,
               employee_id: userData.employee_id,
+              employeeId: userData.employee_id, // Add camelCase for chat compatibility
               user_id: userData.employee_id,
               author_id: userData.employee_id,
               name: userData.employee_name,
@@ -114,6 +116,7 @@ const fetchUser = async () => {
         const adminUser = {
           id: 'ADMIN_USER',
           employee_id: 'ADMIN_USER',
+          employeeId: 'ADMIN_USER', // Add camelCase for chat compatibility
           user_id: 'ADMIN_USER',
           author_id: 'ADMIN_USER',
           name: 'Admin',
@@ -152,6 +155,7 @@ const fetchUser = async () => {
         const authenticatedUser = {
           id: userData.employee_id,
           employee_id: userData.employee_id,
+          employeeId: userData.employee_id, // Add camelCase for chat compatibility
           user_id: userData.employee_id,
           author_id: userData.employee_id,
           name: userData.employee_name, // Using employee_name as display name
@@ -180,6 +184,7 @@ const fetchUser = async () => {
         const fallbackUser = {
           id: 'EMPLOYEE_USER',
           employee_id: 'EMPLOYEE_USER',
+          employeeId: 'EMPLOYEE_USER', // Add camelCase for chat compatibility
           user_id: 'EMPLOYEE_USER',
           author_id: 'EMPLOYEE_USER',
           name: 'Employee User',
