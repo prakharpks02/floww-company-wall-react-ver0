@@ -89,9 +89,13 @@ export const usePostCard = (post, activeView = 'home') => {
     // We'll rely on local PostContext state for user reaction tracking
     
     // Handle reaction_counts format (most common from backend)
+    // The API returns: { reaction_counts: { counts: { thumbs_up: 1, love: 1 }, current_user_reaction: "thumbs_up" } }
     if (rawPost.reaction_counts && typeof rawPost.reaction_counts === 'object') {
-      Object.entries(rawPost.reaction_counts).forEach(([reactionType, count]) => {
-        if (count > 0) {
+      // Check if it has the 'counts' property (new API format)
+      const countsObject = rawPost.reaction_counts.counts || rawPost.reaction_counts;
+      
+      Object.entries(countsObject).forEach(([reactionType, count]) => {
+        if (typeof count === 'number' && count > 0) {
           normalizedReactions[reactionType] = { count, users: [] };
         }
       });
@@ -822,7 +826,10 @@ export const usePostCard = (post, activeView = 'home') => {
 
   // Utility functions
   const getUserReaction = () => {
-    // First check if backend provides user_reaction field (most reliable after refresh)
+    // First check if backend provides current_user_reaction or user_reaction field (most reliable after refresh)
+    if (normalizedPost.current_user_reaction !== null && normalizedPost.current_user_reaction !== undefined) {
+      return normalizedPost.current_user_reaction;
+    }
     if (normalizedPost.user_reaction !== null && normalizedPost.user_reaction !== undefined) {
       return normalizedPost.user_reaction;
     }

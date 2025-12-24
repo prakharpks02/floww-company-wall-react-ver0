@@ -1,5 +1,5 @@
 import React from 'react';
-import { MessageCircle, Share2 } from 'lucide-react';
+import { MessageCircle } from 'lucide-react';
 
 const PostStats = ({ totalLikes, totalReactions, totalComments, shareCount, getTopReactions, getAllReactions }) => {
   // Get all reactions for display
@@ -8,38 +8,46 @@ const PostStats = ({ totalLikes, totalReactions, totalComments, shareCount, getT
   // Filter out reactions with zero counts and make sure we have actual reactions
   const activeReactions = allReactions.filter(reaction => reaction && reaction.count > 0);
   
-  // Calculate total reaction count (exclude reactions that are just likes without specific emoji reactions)
+  // Calculate total reaction count
   const totalReactionCount = activeReactions.reduce((sum, reaction) => sum + reaction.count, 0);
   
-  // Only show reactions if there are actual emoji reactions (not just likes)
+  // Only show reactions if there are actual reactions
   const hasReactions = totalReactionCount > 0 && activeReactions.length > 0;
   const hasComments = totalComments > 0;
   
   if (!hasReactions && !hasComments) return null;
 
+  // Build tooltip text for reactions
+  const reactionTooltip = activeReactions
+    .map(r => `${r.emoji} ${r.count}`)
+    .join(', ');
+
   return (
-    <div className="flex items-center justify-between mb-3 text-sm">
-      {/* Left side - Reactions (WhatsApp style) */}
+    <div className="flex items-center justify-between py-2 px-4 text-sm border-b border-gray-100">
+      {/* Left side - Reactions (LinkedIn style) */}
       {hasReactions && (
         <div className="flex items-center space-x-2">
-          {/* Single reaction indicator with total count */}
-          <div
-            className="flex items-center space-x-1 bg-gray-100 hover:bg-gray-200 rounded-full px-2 py-1 transition-colors cursor-pointer"
-            title={`${totalReactionCount} reaction${totalReactionCount !== 1 ? 's' : ''}`}
-          >
-            {/* Show top 2-3 reaction emojis if multiple, otherwise just the top one */}
-            <div className="flex items-center -space-x-0.5">
-              {activeReactions.slice(0, Math.min(3, activeReactions.length)).map((reaction, index) => (
-                <span 
-                  key={reaction.type} 
-                  className="text-sm"
-                  style={{ zIndex: activeReactions.length - index }}
+          {/* LinkedIn-style stacked reaction emojis with circular backgrounds */}
+          <div className="flex items-center">
+            <div className="flex items-center -space-x-1">
+              {activeReactions.slice(0, 3).map((reaction, index) => (
+                <div
+                  key={reaction.type}
+                  className="flex items-center justify-center w-5 h-5 rounded-full bg-white border border-white shadow-sm"
+                  style={{ 
+                    zIndex: activeReactions.length - index,
+                    fontSize: '0.7rem'
+                  }}
+                  title={`${reaction.emoji} ${reaction.count}`}
                 >
                   {reaction.emoji}
-                </span>
+                </div>
               ))}
             </div>
-            <span className="text-xs font-medium text-gray-700 ml-1">
+            <span 
+              className="ml-2 text-sm text-gray-600 hover:text-blue-600 hover:underline cursor-pointer transition-colors"
+              title={reactionTooltip}
+            >
               {totalReactionCount}
             </span>
           </div>
@@ -48,11 +56,10 @@ const PostStats = ({ totalLikes, totalReactions, totalComments, shareCount, getT
       
       {/* Right side - Comments */}
       {hasComments && (
-        <div className="flex items-center space-x-4 text-gray-500 ml-auto">
-          <div className="flex items-center space-x-1">
-            <MessageCircle className="h-4 w-4" />
-            <span>{totalComments}</span>
-          </div>
+        <div className="flex items-center text-gray-600 hover:text-blue-600 hover:underline cursor-pointer transition-colors ml-auto">
+          <span className="text-sm">
+            {totalComments} {totalComments === 1 ? 'comment' : 'comments'}
+          </span>
         </div>
       )}
     </div>

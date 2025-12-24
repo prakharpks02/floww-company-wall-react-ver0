@@ -110,35 +110,42 @@ export const PostProvider = ({ children }) => {
   const normalizeReactionCounts = (reactionCounts) => {
     try {
       if (!reactionCounts || typeof reactionCounts !== 'object') {
-        return {};
+        return { reactions: {}, currentUserReaction: null };
       }
       
       const reactionsObject = {};
+      const currentUserReaction = reactionCounts.current_user_reaction || null;
       
-      // Convert reaction_counts format (e.g., {like: 1, love: 2}) to frontend format
-      Object.entries(reactionCounts).forEach(([reactionType, count]) => {
-        if (typeof count === 'number' && count > 0) {
-          reactionsObject[reactionType] = {
-            users: [], // We don't have user list in reaction_counts format, will be populated from other sources
-            count: count
-          };
-        }
-      });
+      // Convert reaction_counts.counts format (e.g., {like: 1, love: 2}) to frontend format
+      const counts = reactionCounts.counts || reactionCounts;
+      if (counts && typeof counts === 'object') {
+        Object.entries(counts).forEach(([reactionType, count]) => {
+          if (typeof count === 'number' && count > 0) {
+            reactionsObject[reactionType] = {
+              users: [], // We don't have user list in reaction_counts format
+              count: count
+            };
+          }
+        });
+      }
       
-      return reactionsObject;
+      return { reactions: reactionsObject, currentUserReaction };
     } catch (error) {
-      return {};
+      return { reactions: {}, currentUserReaction: null };
     }
   };
 
   // Normalize post data to ensure consistent format
   const normalizePost = (rawPost) => {
     let normalizedReactions = {};
+    let currentUserReaction = null;
     
     try {
       // Handle new reaction_counts format first (takes priority)
       if (rawPost.reaction_counts && typeof rawPost.reaction_counts === 'object') {
-        normalizedReactions = normalizeReactionCounts(rawPost.reaction_counts);
+        const result = normalizeReactionCounts(rawPost.reaction_counts);
+        normalizedReactions = result.reactions;
+        currentUserReaction = result.currentUserReaction;
       } 
       // Fallback to old reactions array format
       else if (rawPost.reactions) {
@@ -158,6 +165,7 @@ export const PostProvider = ({ children }) => {
       }
     } catch (error) {
       normalizedReactions = {};
+      currentUserReaction = null;
     }
     
     // Extract author information from backend format with better fallbacks
@@ -297,6 +305,9 @@ export const PostProvider = ({ children }) => {
       // Normalize reactions
       reactions: normalizedReactions || {},
       likes: rawPost.likes || [],
+      // Store current user's reaction from API
+      current_user_reaction: currentUserReaction,
+      user_reaction: currentUserReaction, // Alias for compatibility
       // Normalize comments
       comments: normalizedComments,
       // Preserve important post fields
@@ -1728,6 +1739,32 @@ export const PostProvider = ({ children }) => {
                              Array.isArray(updatedPost.reactions[safeReactionType].users) &&
                              updatedPost.reactions[safeReactionType].users.includes(currentUserId);
           
+          // Check if user has ANY other reaction (for switching reactions)
+          const currentUserReaction = updatedPost.current_user_reaction || updatedPost.user_reaction;
+          const hasOtherReaction = currentUserReaction && currentUserReaction !== safeReactionType;
+          
+          // If user has a different reaction, remove it first
+          if (hasOtherReaction && updatedPost.reactions[currentUserReaction]) {
+            if (Array.isArray(updatedPost.reactions[currentUserReaction].users)) {
+              updatedPost.reactions[currentUserReaction].users = 
+                updatedPost.reactions[currentUserReaction].users.filter(id => id !== currentUserId);
+              updatedPost.reactions[currentUserReaction].count = Math.max(0, 
+                (updatedPost.reactions[currentUserReaction].count || 1) - 1);
+              
+              if (updatedPost.reactions[currentUserReaction].count === 0) {
+                delete updatedPost.reactions[currentUserReaction];
+              }
+            }
+            if (updatedPost.reaction_counts && updatedPost.reaction_counts[currentUserReaction]) {
+              updatedPost.reaction_counts[currentUserReaction] = Math.max(0, 
+                (updatedPost.reaction_counts[currentUserReaction] || 1) - 1);
+              
+              if (updatedPost.reaction_counts[currentUserReaction] === 0) {
+                delete updatedPost.reaction_counts[currentUserReaction];
+              }
+            }
+          }
+          
           if (hasReaction) {
             // Remove reaction (toggle off)
             if (updatedPost.reactions[safeReactionType] && 
@@ -1748,6 +1785,10 @@ export const PostProvider = ({ children }) => {
             if (updatedPost.reaction_counts[safeReactionType] === 0) {
               delete updatedPost.reaction_counts[safeReactionType];
             }
+            
+            // Clear current user reaction
+            updatedPost.current_user_reaction = null;
+            updatedPost.user_reaction = null;
           } else {
             // Add reaction - ensure proper object structure
             if (!updatedPost.reactions[safeReactionType] || 
@@ -1768,6 +1809,10 @@ export const PostProvider = ({ children }) => {
             }
             updatedPost.reaction_counts[safeReactionType] = 
               (updatedPost.reaction_counts[safeReactionType] || 0) + 1;
+            
+            // Set current user reaction
+            updatedPost.current_user_reaction = safeReactionType;
+            updatedPost.user_reaction = safeReactionType;
           }
 
           return updatedPost;
@@ -1840,6 +1885,10 @@ export const PostProvider = ({ children }) => {
               delete updatedPost.reaction_counts[safeReactionType];
             }
           }
+
+          // Clear current user reaction
+          updatedPost.current_user_reaction = null;
+          updatedPost.user_reaction = null;
 
           return updatedPost;
         }
