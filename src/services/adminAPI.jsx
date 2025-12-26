@@ -551,6 +551,22 @@ export const adminAPI = {
     }
   },
 
+  // Get current user details (admin)
+  getCurrentUser: async () => {
+    const endpoint = `${API_CONFIG.BASE_URL}/admin/get_user`;
+    
+    try {
+      const response = await fetchWithTimeout(endpoint, {
+        method: 'GET'
+      });
+      
+      const result = await handleResponse(response);
+      return result;
+    } catch (error) {
+      throw error;
+    }
+  },
+
   // Get users for mentions (admin side)
   getUsersForMentions: async (query = '', limit = 10) => {
     const endpoint = `${API_CONFIG.BASE_URL}/admin/get_user_for_mentions?query=${encodeURIComponent(query)}&limit=${limit}`;

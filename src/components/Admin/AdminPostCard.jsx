@@ -5,6 +5,7 @@ import CreatePost from '../Posts/CreatePost';
 import VideoPlayer from '../Media/VideoPlayer';
 import PDFPreview from '../Media/PDFPreview';
 import DocumentViewer from '../Media/DocumentViewer';
+import ImageViewer from '../Media/ImageViewer';
 import PostHeader from '../Posts/PostHeader';
 import PostTags from '../Posts/PostTags';
 import PostContent from '../Posts/PostContent';
@@ -27,6 +28,9 @@ const AdminPostCard = ({
   onSharePost, 
   isPinned 
 }) => {
+  const [imageViewerOpen, setImageViewerOpen] = useState(false);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+
   const {
     // State
     normalizedPost,
@@ -167,7 +171,9 @@ const AdminPostCard = ({
                   alt={image.name}
                   className="w-full h-48 object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
                   onClick={() => {
-                    window.open(image.url, '_blank');
+                    setSelectedImageIndex(idx);
+                    // Use setTimeout to ensure state update completes before opening
+                    setTimeout(() => setImageViewerOpen(true), 0);
                   }}
                 />
                 <div className="absolute top-2 right-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity">
@@ -521,6 +527,24 @@ const AdminPostCard = ({
         showBlockModal={showBlockModal}
         setShowBlockModal={setShowBlockModal}
         post={normalizedPost}
+      />
+
+      {/* Image Viewer Modal */}
+      <ImageViewer
+        images={normalizedPost.images || []}
+        initialIndex={selectedImageIndex}
+        isOpen={imageViewerOpen}
+        onClose={() => setImageViewerOpen(false)}
+        authorName={normalizedPost.authorName || normalizedPost.name}
+        authorAvatar={normalizedPost.authorAvatar || normalizedPost.author?.avatar || normalizedPost.profile_picture}
+        timestamp={new Date(normalizedPost.created_at || normalizedPost.timestamp).toLocaleString('en-US', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        })}
       />
     </div>
   );

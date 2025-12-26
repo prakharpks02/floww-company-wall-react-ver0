@@ -2,14 +2,16 @@ import React from 'react';
 import { 
   Users, 
   Star, 
-  MessageCircle 
+  MessageCircle,
+  Plus
 } from 'lucide-react';
 
 const DesktopAppSidebar = ({
   showGroupFilter,
   setShowGroupFilter,
   showFavouritesFilter,
-  setShowFavouritesFilter
+  setShowFavouritesFilter,
+  onCreateGroup
 }) => {
   return (
     <div className="w-16 h-full bg-white/70 backdrop-blur-xl border-r border-white/20 flex flex-col shadow-[inset_0_0_20px_rgba(255,255,255,0.8),0_8px_32px_rgba(109,40,217,0.1)] rounded-l-3xl">
@@ -21,6 +23,17 @@ const DesktopAppSidebar = ({
         </div>
         
         <nav className="space-y-2">
+          <button 
+            onClick={onCreateGroup}
+            className="relative w-full flex items-center justify-center p-2 rounded-xl transition-all duration-300 hover:scale-105 group text-[#6b7280] hover:bg-gradient-to-r hover:from-[#6d28d9] hover:to-[#7c3aed] hover:text-white hover:shadow-[0_4px_16px_rgba(109,40,217,0.3)]"
+            title="Create Group"
+          >
+            <Plus className="h-5 w-5" />
+            <div className="absolute left-full ml-2 px-2 py-1 bg-black/75 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
+              Create Group
+            </div>
+          </button>
+          
           <button 
             onClick={() => setShowGroupFilter(!showGroupFilter)}
             className={`relative w-full flex items-center justify-center p-2 rounded-xl transition-all duration-300 hover:scale-105 group ${

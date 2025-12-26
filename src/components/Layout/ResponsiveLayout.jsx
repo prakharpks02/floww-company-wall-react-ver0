@@ -212,7 +212,7 @@ const ResponsiveLayout = ({ header, sidebar, children, activeView, onViewChange,
       <div className="flex min-h-screen">
         {/* Desktop Sidebar */}
         <div className="hidden lg:block lg:fixed lg:inset-y-0 lg:left-0 lg:w-64 lg:bg-white lg:border-r lg:border-gray-200 lg:pt-16">
-          <div className="h-full overflow-y-auto custom-scrollbar">
+          <div className="h-full overflow-y-auto overflow-x-hidden custom-scrollbar">
             {sidebar}
           </div>
         </div>
