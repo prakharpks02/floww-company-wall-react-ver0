@@ -19,7 +19,8 @@ export const useChatEffects = ({
   messages,
   messagesEndRef,
   setPinnedMessages,
-  setPinnedChats
+  setPinnedChats,
+  setPendingFileUrls
 }) => {
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -91,6 +92,13 @@ export const useChatEffects = ({
       scrollToBottom();
     }
   }, [messages, activeConversation, messagesEndRef]);
+
+  // Clear pending file URLs when switching conversations
+  useEffect(() => {
+    if (setPendingFileUrls) {
+      setPendingFileUrls([]);
+    }
+  }, [activeConversation?.id, setPendingFileUrls]);
 
   // Clean up expired pinned items
   useEffect(() => {

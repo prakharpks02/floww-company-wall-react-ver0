@@ -25,6 +25,7 @@ export const useChatState = () => {
   const [messageToForward, setMessageToForward] = useState(null);
   const [editingMessage, setEditingMessage] = useState(null);
   const [editMessageText, setEditMessageText] = useState('');
+  const [pendingFileUrls, setPendingFileUrls] = useState([]);
   
   // Context menu states
   const [contextMenu, setContextMenu] = useState({ show: false, x: 0, y: 0, message: null });
@@ -87,7 +88,7 @@ export const useChatState = () => {
     showPollModal,
     setShowPollModal,
     
-    // Message interaction states
+    // Message interaction
     newMessage,
     setNewMessage,
     replyToMessage,
@@ -100,6 +101,8 @@ export const useChatState = () => {
     setEditingMessage,
     editMessageText,
     setEditMessageText,
+    pendingFileUrls,
+    setPendingFileUrls,
     
     // Context menu states
     contextMenu,

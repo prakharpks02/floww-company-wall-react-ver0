@@ -1,12 +1,14 @@
 import React from 'react';
 import { getConversationPartner as getPartner, formatMessageTime, getEmployeeByIdFromList, getDateHeader, groupMessagesByDate } from '../utils/dummyData';
 import { useChat } from '../../../contexts/ChatContext';
+import { useAuth } from '../../../contexts/AuthContext';
 import { cookieUtils } from '../../../utils/cookieUtils';
 import { userAPI } from '../../../services/api.jsx';
 import adminChatAPI from '../../../services/adminChatAPI.js';
 
 export const useChatUtilities = () => {
   const { employees } = useChat();
+  const { user: authUser } = useAuth();
   
   // Cache for API results to avoid repeated calls
   const [searchCache, setSearchCache] = React.useState(new Map());
@@ -19,7 +21,22 @@ export const useChatUtilities = () => {
   
   // Always provide a current user, even if employees haven't loaded yet
   const currentUser = (() => {
-    // Get the logged-in user's employee ID from cookies/auth
+    // PRIORITY 1: Use user from AuthContext if available (has employee_id from API)
+    if (authUser && authUser.employeeId && authUser.employeeId !== 'N/A') {
+      return {
+        id: authUser.employeeId,
+        employeeId: authUser.employeeId,
+        employee_id: authUser.employee_id,
+        name: authUser.name || 'User',
+        email: authUser.email || authUser.company_email,
+        status: 'online',
+        avatar: authUser.profile_picture_link,
+        role: authUser.position || 'User',
+        isAdmin: authUser.is_admin || false
+      };
+    }
+    
+    // PRIORITY 2: Get the logged-in user's employee ID from cookies/auth
     const { employeeId: loggedInEmployeeId } = cookieUtils.getAuthTokens();
     
     // Check if we're in admin environment

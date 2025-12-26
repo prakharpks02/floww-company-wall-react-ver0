@@ -24,29 +24,55 @@ const DesktopChatHeader = ({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="relative">
-            {activeConversation.icon ? (
-              <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-[0_8px_32px_rgba(192,132,252,0.3)] overflow-hidden">
-                <img 
-                  src={activeConversation.icon} 
-                  alt={activeConversation.type === 'group' ? 'Group Icon' : 'Profile Picture'} 
-                  className="w-full h-full object-cover"
-                />
-              </div>
-            ) : (
-              <div className="w-12 h-12 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-2xl flex items-center justify-center text-white text-base shadow-[0_8px_32px_rgba(192,132,252,0.3)] overflow-hidden">
-                {activeConversation.type === 'group' ? (
-                  <span className="text-white">{activeConversation.name?.substring(0, 2).toUpperCase() || 'GR'}</span>
-                ) : partner?.avatar && partner.avatar.startsWith('http') ? (
-                  <img 
-                    src={partner.avatar} 
-                    alt={partner.name} 
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <span className="font-semibold">{partner?.name?.substring(0, 2).toUpperCase() || 'U'}</span>
-                )}
-              </div>
-            )}
+            {(() => {
+              // Prioritize iconText from room_icon API
+              const avatarText = activeConversation.iconText || (activeConversation.type === 'group'
+                ? (activeConversation.name?.substring(0, 2).toUpperCase() || 'GR')
+                : (partner?.name?.substring(0, 2).toUpperCase() || activeConversation.name?.substring(0, 2).toUpperCase() || 'U'));
+              
+              // ⚠️ CRITICAL: Only use image if NO iconText - iconText has highest priority
+              const iconUrl = activeConversation.iconText ? null : (activeConversation.icon && (activeConversation.icon.startsWith('http://') || activeConversation.icon.startsWith('https://')) ? activeConversation.icon : null);
+              const profilePicUrl = activeConversation.iconText ? null : (activeConversation.profilePictureLink && (activeConversation.profilePictureLink.startsWith('http://') || activeConversation.profilePictureLink.startsWith('https://')) ? activeConversation.profilePictureLink : null);
+              const partnerAvatarUrl = activeConversation.iconText ? null : (partner?.avatar && (partner.avatar.startsWith('http://') || partner.avatar.startsWith('https://')) ? partner.avatar : null);
+              
+              if (iconUrl) {
+                return (
+                  <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-[0_8px_32px_rgba(192,132,252,0.3)] overflow-hidden">
+                    <img 
+                      src={iconUrl} 
+                      alt={activeConversation.type === 'group' ? 'Group Icon' : 'Profile Picture'} 
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                );
+              } else if (profilePicUrl) {
+                return (
+                  <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-[0_8px_32px_rgba(192,132,252,0.3)] overflow-hidden">
+                    <img 
+                      src={profilePicUrl} 
+                      alt={activeConversation.type === 'group' ? 'Group Icon' : 'Profile Picture'} 
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                );
+              } else if (partnerAvatarUrl) {
+                return (
+                  <div className="w-12 h-12 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-2xl flex items-center justify-center text-white text-base shadow-[0_8px_32px_rgba(192,132,252,0.3)] overflow-hidden">
+                    <img 
+                      src={partnerAvatarUrl} 
+                      alt={partner.name} 
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                );
+              } else {
+                return (
+                  <div className="w-12 h-12 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-2xl flex items-center justify-center text-white text-base shadow-[0_8px_32px_rgba(192,132,252,0.3)] overflow-hidden">
+                    <span className="font-semibold">{avatarText}</span>
+                  </div>
+                );
+              }
+            })()}
             <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white shadow-sm ${getStatusColor(partner?.status)}`}></div>
           </div>
           <div>
@@ -64,12 +90,12 @@ const DesktopChatHeader = ({
         </div>
         
         <div className="flex items-center gap-2">
-          <button className="p-2 bg-white/70 backdrop-blur-sm hover:bg-white/90 rounded-xl shadow-[inset_0_0_15px_rgba(255,255,255,0.8)] hover:shadow-[0_4px_16px_rgba(109,40,217,0.2)] transition-all duration-300 hover:scale-105">
+          {/* <button className="p-2 bg-white/70 backdrop-blur-sm hover:bg-white/90 rounded-xl shadow-[inset_0_0_15px_rgba(255,255,255,0.8)] hover:shadow-[0_4px_16px_rgba(109,40,217,0.2)] transition-all duration-300 hover:scale-105">
             <Phone className="h-4 w-4 text-[#6d28d9]" />
           </button>
           <button className="p-2 bg-white/70 backdrop-blur-sm hover:bg-white/90 rounded-xl shadow-[inset_0_0_15px_rgba(255,255,255,0.8)] hover:shadow-[0_4px_16px_rgba(109,40,217,0.2)] transition-all duration-300 hover:scale-105">
             <Video className="h-4 w-4 text-[#6d28d9]" />
-          </button>
+          </button> */}
           <button 
             onClick={onShowInfo}
             className="p-2 bg-white/70 backdrop-blur-sm hover:bg-white/90 rounded-xl shadow-[inset_0_0_15px_rgba(255,255,255,0.8)] hover:shadow-[0_4px_16px_rgba(109,40,217,0.2)] transition-all duration-300 hover:scale-105"

@@ -9,7 +9,10 @@ export default defineConfig({
     port: 5173,
     host: 'local.gofloww.xyz',
     hmr: {
-      overlay: false
+      overlay: false,
+      host: 'local.gofloww.xyz',
+      protocol: 'ws',
+      clientPort: 5173
     }
   },
   build: {

@@ -336,6 +336,36 @@ export const checkAdminRights = async (roomId, employeeId) => {
 };
 
 /**
+ * Get mention users for adding to groups
+ * Note: This endpoint uses /api/wall/admin (not /api/wall/chat/admin)
+ * @param {string} [search] - Optional search query to filter users
+ * @param {number} [limit] - Maximum number of results to return
+ * @returns {Promise<Object>} API response with list of employees
+ */
+export const getMentionUsers = async (search = '', limit = 10) => {
+  try {
+    // Build query parameters
+    const params = new URLSearchParams();
+    if (search) params.append('query', search);
+    params.append('limit', limit.toString());
+    
+    // Special base URL for this endpoint (without /chat)
+    const chatBase = import.meta.env.VITE_CHAT_API_BASE || 'https://console.gofloww.xyz/api/wall/chat';
+    const baseUrl = chatBase.replace('/chat', ''); // Remove /chat from path
+    const url = `${baseUrl}/admin/get_user_for_mentions?${params.toString()}`;
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: getApiHeaders()
+    });
+
+    return await handleResponse(response);
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
  * Get room statistics
  * @param {string} roomId - Room ID to get statistics for
  * @returns {Promise<Object>} Room statistics
@@ -390,5 +420,6 @@ export default {
   
   // Utility Functions
   checkAdminRights,
-  getRoomStats
+  getRoomStats,
+  getMentionUsers
 };

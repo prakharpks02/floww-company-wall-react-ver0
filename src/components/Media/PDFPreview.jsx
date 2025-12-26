@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, memo } from 'react';
 import { Download, ExternalLink } from 'lucide-react';
 
-const PDFPreview = ({ url, className = '' }) => {
+const PDFPreview = memo(({ url, className = '' }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -93,6 +93,8 @@ const PDFPreview = ({ url, className = '' }) => {
       </div>
     </div>
   );
-};
+});
+
+PDFPreview.displayName = 'PDFPreview';
 
 export default PDFPreview;

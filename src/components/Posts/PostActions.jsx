@@ -125,59 +125,63 @@ const PostActions = ({
             {/* Show user's current reaction or heart */}
             {(() => {
               const userReaction = getUserReaction();
-              if (userReaction && userReaction !== 'love' && userReaction !== 'like') {
+              if (userReaction) {
                 // Show the emoji reaction the user has
                 const reactionEmoji = emojiReactions.find(r => r.name === userReaction)?.emoji;
-                return <span className="text-lg">{reactionEmoji}</span>;
+                return <span className="text-lg">{reactionEmoji || '❤️'}</span>;
               } else {
-                // Show heart (filled if user has liked or any reaction)
-                return <Heart className={`h-4 w-4 sm:h-5 sm:w-5 ${isLiked ? 'fill-current' : ''}`} />;
+                // Show heart icon if no reaction
+                return <Heart className={`h-4 w-4 sm:h-5 sm:w-5`} />;
               }
             })()}
             <span className="hidden xs:inline">
               {(() => {
                 const userReaction = getUserReaction();
-                if (userReaction && userReaction !== 'love' && userReaction !== 'like') {
+                if (userReaction) {
                   // Show the reaction name
                   const reactionLabel = emojiReactions.find(r => r.name === userReaction)?.label;
-                  return reactionLabel || 'React';
+                  return reactionLabel || 'Like';
                 } else {
                   return 'Like';
                 }
               })()}
             </span>
-            
-            {/* Reaction Count - Show total reactions if any exist */}
-            {(() => {
-              if (!getAllReactions) return null;
-              const allReactions = getAllReactions();
-              const totalAllReactions = allReactions.reduce((sum, reaction) => sum + reaction.count, 0);
-              
-              return totalAllReactions > 0 ? (
-                <span className="text-xs bg-gray-100 px-2 py-1 rounded-full ml-1">
-                  {totalAllReactions}
-                </span>
-              ) : null;
-            })()}
           </button>
 
           {/* Desktop Hover Reactions Dropdown */}
           {showReactions && !isDisabled && !isMobile && (
-            <div 
-              className="absolute bottom-full left-0 mb-2 bg-white border border-gray-200 rounded-full shadow-lg px-2 py-2 flex items-center space-x-1 z-20 animate-scale-in"
-              onMouseEnter={handleReactionsMouseEnter}
-              onMouseLeave={handleReactionsMouseLeave}
-            >
-              {emojiReactions.map((reaction) => (
-                <button
-                  key={reaction.name}
-                  onClick={(event) => handleReaction(reaction.name, event)}
-                  className="p-1 sm:p-2 hover:bg-gray-100 rounded-full transition-all duration-200 transform hover:scale-110 touch-friendly"
-                  title={reaction.label}
-                >
-                  <span className="text-lg sm:text-xl">{reaction.emoji}</span>
-                </button>
-              ))}
+            <div className="absolute bottom-full left-0 mb-2 flex items-center space-x-2 z-20 animate-scale-in">
+              {/* Current user reaction in white circle */}
+              {(() => {
+                const userReaction = getUserReaction();
+                if (userReaction) {
+                  const reactionEmoji = emojiReactions.find(r => r.name === userReaction)?.emoji;
+                  return (
+                    <div className="bg-white border border-gray-200 rounded-full shadow-lg p-3 flex items-center justify-center">
+                      <span className="text-2xl">{reactionEmoji}</span>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+              
+              {/* All reactions in white bar */}
+              <div 
+                className="bg-white border border-gray-200 rounded-full shadow-lg px-3 py-2 flex items-center space-x-1"
+                onMouseEnter={handleReactionsMouseEnter}
+                onMouseLeave={handleReactionsMouseLeave}
+              >
+                {emojiReactions.map((reaction) => (
+                  <button
+                    key={reaction.name}
+                    onClick={(event) => handleReaction(reaction.name, event)}
+                    className="p-1 sm:p-2 hover:scale-110 rounded-full transition-all duration-200 touch-friendly"
+                    title={reaction.label}
+                  >
+                    <span className="text-lg sm:text-xl">{reaction.emoji}</span>
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
@@ -249,11 +253,6 @@ const PostActions = ({
         >
           <Share2 className="h-4 w-4 sm:h-5 sm:w-5" />
           <span className="hidden sm:inline">Share</span>
-          {shareCount > 0 && (
-            <span className="text-xs bg-gray-100 px-2 py-1 rounded-full">
-              {/* {shareCount} */}
-            </span>
-          )}
         </button>
 
         {/* Report Button - Only show if not own post, user is logged in, and not blocked */}

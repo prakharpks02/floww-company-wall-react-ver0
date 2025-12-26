@@ -5,6 +5,7 @@ import { formatDistanceToNow } from 'date-fns';
 const PostHeader = ({ 
   post, 
   isAuthor, 
+  isAdmin = false,
   isPublicView, 
   showMenu, 
   setShowMenu, 
@@ -64,16 +65,6 @@ const PostHeader = ({
                     <Edit3 className="h-4 w-4" />
                     <span>Edit</span>
                   </button>
-                  <button
-                    onClick={() => {
-                      setShowConfirmDelete(true);
-                      setShowMenu(false);
-                    }}
-                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    <span>Delete</span>
-                  </button>
                 </>
               ) : isAdminView && post.isBroadcast && onAdminEdit && onAdminDelete ? (
                 <>
@@ -100,16 +91,32 @@ const PostHeader = ({
                 </>
               ) : (
                 <>
-                  <button
-                    onClick={() => {
-                      setShowReportModal(true);
-                      setShowMenu(false);
-                    }}
-                    className="w-full text-left px-4 py-2 text-sm text-orange-600 hover:bg-orange-50 flex items-center space-x-2"
-                  >
-                    <Flag className="h-4 w-4" />
-                    <span>Report Post</span>
-                  </button>
+                  {/* Only show report if user is NOT the author */}
+                  {!isAuthor && (
+                    <button
+                      onClick={() => {
+                        setShowReportModal(true);
+                        setShowMenu(false);
+                      }}
+                      className="w-full text-left px-4 py-2 text-sm text-orange-600 hover:bg-orange-50 flex items-center space-x-2"
+                    >
+                      <Flag className="h-4 w-4" />
+                      <span>Report Post</span>
+                    </button>
+                  )}
+                  {/* Admin can delete any post */}
+                  {isAdmin && (
+                    <button
+                      onClick={() => {
+                        setShowConfirmDelete(true);
+                        setShowMenu(false);
+                      }}
+                      className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      <span>Delete Post</span>
+                    </button>
+                  )}
                   {/* <button
                     onClick={() => {
                       setShowBlockModal(true);

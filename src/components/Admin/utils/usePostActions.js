@@ -135,8 +135,14 @@ export const usePostActions = (posts, setPosts, pinnedPosts, setPinnedPosts, set
     try {
       // Copy post URL to clipboard
       const postUrl = `${window.location.origin}/post/${postId}`;
-      await navigator.clipboard.writeText(postUrl);
-    
+      
+      // Check if clipboard API is available
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(postUrl);
+      } else {
+        // Use fallback for older browsers or non-secure contexts
+        fallbackCopyTextToClipboard(postUrl);
+      }
       
       // Show success message
       if (setSuccessMessage) {
@@ -147,14 +153,35 @@ export const usePostActions = (posts, setPosts, pinnedPosts, setPinnedPosts, set
         }, 3000);
       }
     } catch (error) {
-      // Even if clipboard API fails, show success message
+      // Try fallback method if clipboard API fails
+      const postUrl = `${window.location.origin}/post/${postId}`;
+      fallbackCopyTextToClipboard(postUrl);
+      
+      // Show success message even if clipboard API fails
       if (setSuccessMessage) {
         setSuccessMessage('Link copied to clipboard!');
         setTimeout(() => {
           setSuccessMessage(null);
         }, 3000);
       }
-    
+    }
+  };
+
+  const fallbackCopyTextToClipboard = (text) => {
+    try {
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      textArea.style.top = '0';
+      textArea.style.left = '0';
+      textArea.style.position = 'fixed';
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+    } catch (err) {
+      console.error('Failed to copy text: ', err);
     }
   };
 
