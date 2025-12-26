@@ -1,19 +1,58 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { X, Phone, Video, Mail, MapPin, Calendar, Building, User, MessageCircle, Users, Settings, Image, FileText, Link, Clock, Crown, Shield, UserPlus, UserMinus, Edit2, VolumeX, Search, /* Camera */ } from 'lucide-react';
-import { getEmployeeById } from './utils/dummyData';
-import chatToast from './utils/toastUtils';
-import { cookieUtils } from '../../utils/cookieUtils';
-import enhancedChatAPI from './chatapi';
+import React, { useState, useEffect, useRef, useMemo } from "react";
+import {
+  X,
+  Phone,
+  Video,
+  Mail,
+  MapPin,
+  Calendar,
+  Building,
+  User,
+  MessageCircle,
+  Users,
+  Settings,
+  Image,
+  FileText,
+  Link,
+  Clock,
+  Crown,
+  Shield,
+  UserPlus,
+  UserMinus,
+  Edit2,
+  VolumeX,
+  Search /* Camera */,
+} from "lucide-react";
+import { getEmployeeById } from "./utils/dummyData";
+import chatToast from "./utils/toastUtils";
+import { cookieUtils } from "../../utils/cookieUtils";
+import enhancedChatAPI from "./chatapi";
 
 // Global cache and request deduplication for room details
 const roomDetailsCache = new Map();
 const activeRequests = new Map();
 
-const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup, onLeaveGroup, onRemoveMember, onStartCall, onStartVideoCall, onReloadConversations, onStartChatWithMember, isCompact = false, isInline = false }) => {
-  const [activeSection, setActiveSection] = useState('overview');
+const ChatInfo = ({
+  isOpen,
+  onClose,
+  conversation,
+  currentUserId,
+  onUpdateGroup,
+  onLeaveGroup,
+  onRemoveMember,
+  onStartCall,
+  onStartVideoCall,
+  onReloadConversations,
+  onStartChatWithMember,
+  isCompact = false,
+  isInline = false,
+}) => {
+  const [activeSection, setActiveSection] = useState("overview");
   const [isEditing, setIsEditing] = useState(false);
-  const [groupName, setGroupName] = useState(conversation?.name || '');
-  const [groupDescription, setGroupDescription] = useState(conversation?.description || conversation?.room_desc || '');
+  const [groupName, setGroupName] = useState(conversation?.name || "");
+  const [groupDescription, setGroupDescription] = useState(
+    conversation?.description || conversation?.room_desc || ""
+  );
   const [showAddParticipants, setShowAddParticipants] = useState(false);
   const [selectedParticipants, setSelectedParticipants] = useState([]);
   const [availableEmployees, setAvailableEmployees] = useState([]);
@@ -23,7 +62,7 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
   const [memberToRemove, setMemberToRemove] = useState(null);
   const [roomDetails, setRoomDetails] = useState(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
-  const [participantSearchQuery, setParticipantSearchQuery] = useState('');
+  const [participantSearchQuery, setParticipantSearchQuery] = useState("");
   const [loadingEmployees, setLoadingEmployees] = useState(false);
   const fileInputRef = useRef(null);
 
@@ -35,7 +74,7 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
   useEffect(() => {
     const fetchRoomDetails = async () => {
       if (!roomId) return;
-      
+
       // Check if we already have cached data
       if (roomDetailsCache.has(roomId)) {
         const cachedData = roomDetailsCache.get(roomId);
@@ -48,45 +87,45 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
           roomDetailsCache.delete(roomId);
         }
       }
-      
+
       // Check if there's already an active request for this roomId
       if (activeRequests.has(roomId)) {
         try {
           // Wait for the existing request to complete
           const response = await activeRequests.get(roomId);
-          if (response && response.status === 'success' && response.data) {
+          if (response && response.status === "success" && response.data) {
             setRoomDetails(response.data);
             // Cache the result
             roomDetailsCache.set(roomId, {
               data: response.data,
-              timestamp: Date.now()
+              timestamp: Date.now(),
             });
           }
         } catch (error) {
-          console.error('[ChatInfo] Error waiting for active request:', error);
+          console.error("[ChatInfo] Error waiting for active request:", error);
         }
         return;
       }
-      
+
       setLoadingDetails(true);
-      
+
       try {
         // Create the request promise and store it
         const requestPromise = enhancedChatAPI.getRoomDetails(roomId);
         activeRequests.set(roomId, requestPromise);
-        
+
         const response = await requestPromise;
-        
-        if (response.status === 'success' && response.data) {
+
+        if (response.status === "success" && response.data) {
           setRoomDetails(response.data);
           // Cache the successful result
           roomDetailsCache.set(roomId, {
             data: response.data,
-            timestamp: Date.now()
+            timestamp: Date.now(),
           });
         }
       } catch (error) {
-        console.error('[ChatInfo] Error fetching room details:', error);
+        console.error("[ChatInfo] Error fetching room details:", error);
       } finally {
         setLoadingDetails(false);
         // Clean up the active request
@@ -108,32 +147,45 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
       setLoadingEmployees(true);
       try {
         // Use mention_users API to get available employees
-        const { adminChatAPI } = await import('../../services/adminChatAPI');
+        const isAdminEnv = window.location.pathname.includes("/crm");
+        let response;
 
-        const response = await adminChatAPI.getMentionUsers(participantSearchQuery, 50);
-      
-        
-        if (response && response.status === 'success' && Array.isArray(response.data)) {
+        if (isAdminEnv) {
+          const { adminChatAPI } = await import("../../services/adminChatAPI");
+          response = await adminChatAPI.getMentionUsers(
+            participantSearchQuery,
+            50
+          );
+        } else {
+          const { chatAPI } = await import("./chatapi");
+          response = await chatAPI.getMentionUsers(participantSearchQuery, 50);
+        }
+
+        if (
+          response &&
+          response.status === "success" &&
+          Array.isArray(response.data)
+        ) {
           // Filter out employees who are already participants
           const currentParticipants = conversation.participants || [];
           const available = response.data
-            .filter(emp => !currentParticipants.includes(emp.employee_id))
-            .map(emp => ({
+            .filter((emp) => !currentParticipants.includes(emp.employee_id))
+            .map((emp) => ({
               id: emp.employee_id,
               employeeId: emp.employee_id,
-              name: emp.employee_name || 'Unknown',
-              email: emp.email || emp.company_email || '',
-              avatar: emp.profile_picture_link || getInitials(emp.employee_name),
-              role: emp.job_title || emp.designation || 'Employee',
-              department: emp.department || '',
-              profilePictureLink: emp.profile_picture_link
+              name: emp.employee_name || "Unknown",
+              email: emp.email || emp.company_email || "",
+              avatar:
+                emp.profile_picture_link || getInitials(emp.employee_name),
+              role: emp.job_title || emp.designation || "Employee",
+              department: emp.department || "",
+              profilePictureLink: emp.profile_picture_link,
             }));
-          
-        
+
           setAvailableEmployees(available);
         }
       } catch (error) {
-        console.error('Error loading available employees:', error);
+        console.error("Error loading available employees:", error);
         setAvailableEmployees([]);
       } finally {
         setLoadingEmployees(false);
@@ -145,129 +197,162 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
 
   // Helper function to get initials
   const getInitials = (name) => {
-    if (!name) return 'U';
-    const nameParts = name.trim().split(' ');
+    if (!name) return "U";
+    const nameParts = name.trim().split(" ");
     if (nameParts.length === 1) {
       return nameParts[0].charAt(0).toUpperCase();
     }
-    return (nameParts[0].charAt(0) + nameParts[nameParts.length - 1].charAt(0)).toUpperCase();
+    return (
+      nameParts[0].charAt(0) + nameParts[nameParts.length - 1].charAt(0)
+    ).toUpperCase();
   };
 
   // Early return after all hooks are called
   if (!isOpen || !conversation) return null;
 
   // Debug conversation object
-  
-  const isGroup = conversation.type === 'group';
+
+  const isGroup = conversation.type === "group";
   const currentUser = getEmployeeById(currentUserId);
-  
+
   // For groups - check if user is admin or in admin environment (CRM)
-  const isAdminEnvironment = window.location.pathname.includes('/crm');
-  const isAdmin = isGroup ? (conversation.admins?.includes(currentUserId) || isAdminEnvironment) : false;
+  const isAdminEnvironment = window.location.pathname.includes("/crm");
+  const isAdmin = isGroup
+    ? conversation.admins?.includes(currentUserId) || isAdminEnvironment
+    : false;
   const isCreator = isGroup ? conversation.createdBy === currentUserId : false;
-  
+
   // For direct chats - use participantDetails if available
   let otherUser = null;
   if (!isGroup) {
-    const otherUserId = conversation.participants.find(id => id !== currentUserId);
-    
+    const otherUserId = conversation.participants.find(
+      (id) => id !== currentUserId
+    );
+
     // First, try to get from API roomDetails
     if (roomDetails?.participants && roomDetails.participants.length > 0) {
       // Find the OTHER participant (not the current user and not admin with employee_id="N/A")
-      const otherParticipant = roomDetails.participants.find(p => {
-        // Skip admin users (employee_id "N/A") 
-        if (p.employee_id === 'N/A' || p.is_admin) return false;
+      const otherParticipant = roomDetails.participants.find((p) => {
+        // Skip admin users (employee_id "N/A")
+        if (p.employee_id === "N/A" || p.is_admin) return false;
         // Skip current user
         if (p.employee_id === currentUserId) return false;
         return true;
       });
-      
+
       if (otherParticipant) {
         // Handle room_name array or string
-        const roomName = Array.isArray(roomDetails.room_name) 
-          ? roomDetails.room_name[0] 
+        const roomName = Array.isArray(roomDetails.room_name)
+          ? roomDetails.room_name[0]
           : roomDetails.room_name;
-        
+
         otherUser = {
           id: otherParticipant.employee_id,
-          name: otherParticipant.employee_name || roomName || `Employee ${otherUserId}`,
-          avatar: otherParticipant.employee_name ? otherParticipant.employee_name.charAt(0).toUpperCase() : 'U',
-          status: 'online',
-          position: otherParticipant.job_title || 'Employee',
-          email: otherParticipant.company_email || otherParticipant.personal_email || 'N/A',
-          department: otherParticipant.job_title || 'N/A',
-          profile_picture_link: otherParticipant.profile_picture_link
+          name:
+            otherParticipant.employee_name ||
+            roomName ||
+            `Employee ${otherUserId}`,
+          avatar: otherParticipant.employee_name
+            ? otherParticipant.employee_name.charAt(0).toUpperCase()
+            : "U",
+          status: "online",
+          position: otherParticipant.job_title || "Employee",
+          email:
+            otherParticipant.company_email ||
+            otherParticipant.personal_email ||
+            "N/A",
+          department: otherParticipant.job_title || "N/A",
+          profile_picture_link: otherParticipant.profile_picture_link,
         };
       }
     }
     // Try to get from participantDetails if API data not available
-    else if (conversation.participantDetails && Array.isArray(conversation.participantDetails)) {
-      const participantDetail = conversation.participantDetails.find(p => p.id === otherUserId);
+    else if (
+      conversation.participantDetails &&
+      Array.isArray(conversation.participantDetails)
+    ) {
+      const participantDetail = conversation.participantDetails.find(
+        (p) => p.id === otherUserId
+      );
       if (participantDetail) {
         otherUser = {
           id: participantDetail.id,
           name: participantDetail.name,
-          avatar: participantDetail.name ? participantDetail.name.charAt(0).toUpperCase() : 'U',
-          status: 'online',
-          position: 'Employee',
-          email: 'N/A',
-          department: 'N/A',
-          profile_picture_link: participantDetail.avatar
+          avatar: participantDetail.name
+            ? participantDetail.name.charAt(0).toUpperCase()
+            : "U",
+          status: "online",
+          position: "Employee",
+          email: "N/A",
+          department: "N/A",
+          profile_picture_link: participantDetail.avatar,
         };
       }
     }
-    
+
     // Fallback to getEmployeeById
     if (!otherUser) {
       otherUser = getEmployeeById(otherUserId);
     }
-    
+
     // Last resort - create basic user object with room name if available
     if (!otherUser && otherUserId) {
-      const roomName = roomDetails?.room_name 
-        ? (Array.isArray(roomDetails.room_name) ? roomDetails.room_name[0] : roomDetails.room_name)
+      const roomName = roomDetails?.room_name
+        ? Array.isArray(roomDetails.room_name)
+          ? roomDetails.room_name[0]
+          : roomDetails.room_name
         : null;
-      
+
       otherUser = {
         id: otherUserId,
         name: roomName || `Employee ${otherUserId}`,
         avatar: (roomName || otherUserId).charAt(0).toUpperCase(),
-        status: 'offline',
-        position: 'Employee',
-        email: 'N/A',
-        department: 'N/A'
+        status: "offline",
+        position: "Employee",
+        email: "N/A",
+        department: "N/A",
       };
     }
   }
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'online': return 'bg-green-500';
-      case 'away': return 'bg-yellow-500';
-      case 'busy': return 'bg-red-500';
-      default: return 'bg-gray-400';
+      case "online":
+        return "bg-green-500";
+      case "away":
+        return "bg-yellow-500";
+      case "busy":
+        return "bg-red-500";
+      default:
+        return "bg-gray-400";
     }
   };
 
   const getStatusText = (status) => {
     switch (status) {
-      case 'online': return 'Active now';
-      case 'away': return 'Away';
-      case 'busy': return 'Busy';
-      default: return 'Offline';
+      case "online":
+        return "Active now";
+      case "away":
+        return "Away";
+      case "busy":
+        return "Busy";
+      default:
+        return "Offline";
     }
   };
 
   const getRoleIcon = (userId) => {
-    if (conversation.createdBy === userId) return <Crown className="h-4 w-4 text-yellow-500" />;
-    if (conversation.admins?.includes(userId)) return <Shield className="h-4 w-4 text-blue-500" />;
+    if (conversation.createdBy === userId)
+      return <Crown className="h-4 w-4 text-yellow-500" />;
+    if (conversation.admins?.includes(userId))
+      return <Shield className="h-4 w-4 text-blue-500" />;
     return <User className="h-4 w-4 text-gray-400" />;
   };
 
   const getRoleText = (userId) => {
-    if (conversation.createdBy === userId) return 'Creator';
-    if (conversation.admins?.includes(userId)) return 'Admin';
-    return 'Member';
+    if (conversation.createdBy === userId) return "Creator";
+    if (conversation.admins?.includes(userId)) return "Admin";
+    return "Member";
   };
 
   const handleAddParticipants = async () => {
@@ -275,61 +360,69 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
 
     try {
       // Import admin API for participant management
-      const { adminChatAPI } = await import('../../services/adminChatAPI');
-      
+      const { adminChatAPI } = await import("../../services/adminChatAPI");
+
       // Use room_id if available, otherwise fallback to conversation id
       const roomId = conversation.room_id || conversation.id;
-      
+
       // Ensure we're sending employeeId strings
-      const participantEmployeeIds = selectedParticipants.map(id => {
-        const employee = availableEmployees.find(emp => emp.id === id || emp.employeeId === id);
-        return employee ? (employee.employeeId || employee.id) : id;
+      const participantEmployeeIds = selectedParticipants.map((id) => {
+        const employee = availableEmployees.find(
+          (emp) => emp.id === id || emp.employeeId === id
+        );
+        return employee ? employee.employeeId || employee.id : id;
       });
 
-      const response = await adminChatAPI.addParticipants(roomId, participantEmployeeIds);
-      
-      if (response && response.status === 'success') {
+      const response = await adminChatAPI.addParticipants(
+        roomId,
+        participantEmployeeIds
+      );
+
+      if (response && response.status === "success") {
         // Clear cache to force refetch of room details with updated participant data
         const roomId = conversation.room_id || conversation.id;
         roomDetailsCache.delete(roomId);
-        
+
         // Update local conversation data
         if (onUpdateGroup) {
-          const updatedParticipants = [...(conversation.participants || []), ...participantEmployeeIds];
+          const updatedParticipants = [
+            ...(conversation.participants || []),
+            ...participantEmployeeIds,
+          ];
           onUpdateGroup(conversation.id, {
-            participants: updatedParticipants
+            participants: updatedParticipants,
           });
         }
-        
+
         // Reload room details to get updated participant list
         if (onReloadConversations) {
           onReloadConversations();
         }
-        
+
         // Refetch room details immediately
         try {
           const detailsResponse = await enhancedChatAPI.getRoomDetails(roomId);
-          if (detailsResponse.status === 'success' && detailsResponse.data) {
+          if (detailsResponse.status === "success" && detailsResponse.data) {
             setRoomDetails(detailsResponse.data);
             roomDetailsCache.set(roomId, {
               data: detailsResponse.data,
-              timestamp: Date.now()
+              timestamp: Date.now(),
             });
           }
         } catch (error) {
-          console.error('[ChatInfo] Error refetching room details:', error);
+          console.error("[ChatInfo] Error refetching room details:", error);
         }
-        
+
         setShowAddParticipants(false);
         setSelectedParticipants([]);
-        
+
         // Show success message
-        chatToast.success('Participants added successfully!');
+        chatToast.success("Participants added successfully!");
       } else {
-        chatToast.error('Failed to add participants. Please try again.');
+        chatToast.error("Failed to add participants. Please try again.");
       }
     } catch (error) {
-      chatToast.error('Error adding participants: ' + error.message);
+      chatToast.error("Error adding participants: " + error.message);
     }
   };
 
@@ -344,43 +437,47 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
 
     try {
       // Import admin API for participant management
-      const { adminChatAPI } = await import('../../services/adminChatAPI');
-      
+      const { adminChatAPI } = await import("../../services/adminChatAPI");
+
       // Use room_id if available, otherwise fallback to conversation id
       const roomId = conversation.room_id || conversation.id;
-      
-      
 
-      const response = await adminChatAPI.removeParticipant(roomId, memberToRemove);
-      
-      if (response && response.status === 'success') {
+      const response = await adminChatAPI.removeParticipant(
+        roomId,
+        memberToRemove
+      );
+
+      if (response && response.status === "success") {
         // Update local conversation data
         if (onUpdateGroup) {
-          const updatedParticipants = (conversation.participants || []).filter(id => id !== memberToRemove);
+          const updatedParticipants = (conversation.participants || []).filter(
+            (id) => id !== memberToRemove
+          );
           onUpdateGroup(conversation.id, {
-            participants: updatedParticipants
+            participants: updatedParticipants,
           });
         }
-        
+
         // Show success message in red
-        const memberName = getEmployeeById(memberToRemove)?.name || 'Participant';
+        const memberName =
+          getEmployeeById(memberToRemove)?.name || "Participant";
         chatToast.custom(`${memberName} removed from group`, {
           duration: 3000,
           style: {
-            background: '#ef4444',
-            color: '#fff',
-            padding: '12px 20px',
-            borderRadius: '8px',
-            fontSize: '14px',
-            fontWeight: '500'
+            background: "#ef4444",
+            color: "#fff",
+            padding: "12px 20px",
+            borderRadius: "8px",
+            fontSize: "14px",
+            fontWeight: "500",
           },
-          icon: '👋'
+          icon: "👋",
         });
       } else {
-        chatToast.error('Failed to remove participant. Please try again.');
+        chatToast.error("Failed to remove participant. Please try again.");
       }
     } catch (error) {
-      chatToast.error('Error removing participant: ' + error.message);
+      chatToast.error("Error removing participant: " + error.message);
     } finally {
       // Close modal and reset state
       setShowRemoveConfirm(false);
@@ -390,108 +487,116 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
 
   const handleAssignAdminRights = async (participantId) => {
     const member = getEmployeeById(participantId);
-    const memberName = member ? member.name : 'this participant';
+    const memberName = member ? member.name : "this participant";
 
     try {
       // Import admin API for rights management
-      const { adminChatAPI } = await import('../../services/adminChatAPI');
-      
+      const { adminChatAPI } = await import("../../services/adminChatAPI");
+
       // Use room_id if available, otherwise fallback to conversation id
       const roomId = conversation.room_id || conversation.id;
-      
-      
 
-      const response = await adminChatAPI.assignAdminRights(roomId, participantId);
-      
-      if (response && response.status === 'success') {
+      const response = await adminChatAPI.assignAdminRights(
+        roomId,
+        participantId
+      );
+
+      if (response && response.status === "success") {
         // Update local conversation data
         if (onUpdateGroup) {
           const updatedAdmins = [...(conversation.admins || []), participantId];
           onUpdateGroup(conversation.id, {
-            admins: updatedAdmins
+            admins: updatedAdmins,
           });
         }
-        
+
         // Show success message
-        chatToast.success(`Admin rights assigned to ${memberName} successfully!`);
+        chatToast.success(
+          `Admin rights assigned to ${memberName} successfully!`
+        );
       } else {
-        chatToast.error('Failed to assign admin rights. Please try again.');
+        chatToast.error("Failed to assign admin rights. Please try again.");
       }
     } catch (error) {
-      chatToast.error('Error assigning admin rights: ' + error.message);
+      chatToast.error("Error assigning admin rights: " + error.message);
     }
   };
 
   const handleRemoveAdminRights = async (participantId) => {
     const member = getEmployeeById(participantId);
-    const memberName = member ? member.name : 'this participant';
+    const memberName = member ? member.name : "this participant";
 
     try {
       // Import admin API for rights management
-      const { adminChatAPI } = await import('../../services/adminChatAPI');
-      
+      const { adminChatAPI } = await import("../../services/adminChatAPI");
+
       // Use room_id if available, otherwise fallback to conversation id
       const roomId = conversation.room_id || conversation.id;
-      
-      
 
-      const response = await adminChatAPI.removeAdminRights(roomId, participantId);
-      
-      if (response && response.status === 'success') {
+      const response = await adminChatAPI.removeAdminRights(
+        roomId,
+        participantId
+      );
+
+      if (response && response.status === "success") {
         // Update local conversation data
         if (onUpdateGroup) {
-          const updatedAdmins = (conversation.admins || []).filter(id => id !== participantId);
+          const updatedAdmins = (conversation.admins || []).filter(
+            (id) => id !== participantId
+          );
           onUpdateGroup(conversation.id, {
-            admins: updatedAdmins
+            admins: updatedAdmins,
           });
         }
-        
+
         // Show success message
-        chatToast.success(`Admin rights removed from ${memberName} successfully!`);
+        chatToast.success(
+          `Admin rights removed from ${memberName} successfully!`
+        );
       } else {
-        chatToast.error('Failed to remove admin rights. Please try again.');
+        chatToast.error("Failed to remove admin rights. Please try again.");
       }
     } catch (error) {
-      chatToast.error('Error removing admin rights: ' + error.message);
+      chatToast.error("Error removing admin rights: " + error.message);
     }
   };
 
   const handleSaveChanges = async () => {
     if (!groupName.trim()) return;
-    
+
     try {
       // Import admin API for room editing
-      const { adminChatAPI } = await import('../../services/adminChatAPI');
-      
+      const { adminChatAPI } = await import("../../services/adminChatAPI");
+
       // Use room_id if available, otherwise fallback to conversation id
       const roomId = conversation.room_id || conversation.id;
-      
-      
-      
+
       const response = await adminChatAPI.editRoomDetails(roomId, {
         room_name: groupName.trim(),
-        room_icon: conversation.name ? conversation.name.substring(0, 2).toUpperCase() : 'GR',
-        room_desc: groupDescription.trim()
+        room_icon: conversation.name
+          ? conversation.name.substring(0, 2).toUpperCase()
+          : "GR",
+        room_desc: groupDescription.trim(),
       });
-      
-      if (response && response.status === 'success') {
+
+      if (response && response.status === "success") {
         // Update local conversation data if onUpdateGroup callback is available
         if (onUpdateGroup) {
           onUpdateGroup(conversation.id, {
             name: groupName.trim(),
-            description: groupDescription.trim()
+            description: groupDescription.trim(),
           });
         }
-        
+
         setIsEditing(false);
-        
+
         // Show success message
-        chatToast.success('Group details updated successfully!');
+        chatToast.success("Group details updated successfully!");
       } else {
-        throw new Error(response?.message || 'Failed to update group details');
+        throw new Error(response?.message || "Failed to update group details");
       }
     } catch (error) {
-      chatToast.error('Failed to update group details. Please try again.');
+      chatToast.error("Failed to update group details. Please try again.");
     }
   };
 
@@ -500,60 +605,59 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
     if (!file) return;
 
     // Validate file type
-    if (!file.type.startsWith('image/')) {
-      chatToast.error('Please select an image file');
+    if (!file.type.startsWith("image/")) {
+      chatToast.error("Please select an image file");
       return;
     }
 
     // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
-      chatToast.error('File size must be less than 5MB');
+      chatToast.error("File size must be less than 5MB");
       return;
     }
 
     setUploadingIcon(true);
-    
+
     try {
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append("file", file);
 
       const { adminToken } = cookieUtils.getAuthTokens();
-      const baseURL = import.meta.env.VITE_API_BASE_URL || 'https://console.gofloww.xyz';
-      
+      const baseURL =
+        import.meta.env.VITE_API_BASE_URL || "https://console.gofloww.xyz";
+
       const response = await fetch(`${baseURL}/api/wall/admin/upload_file`, {
-        method: 'POST',
+        method: "POST",
         body: formData,
-        credentials: 'include',
+        credentials: "include",
         headers: {
-          'Authorization': adminToken
-        }
+          Authorization: adminToken,
+        },
       });
 
       const result = await response.json();
-      
-      if (result.status === 'success' && result.data?.file_url) {
+
+      if (result.status === "success" && result.data?.file_url) {
         setGroupIcon(result.data.file_url);
-        
+
         // Update the group icon in the backend
         try {
-          const { adminChatAPI } = await import('../../services/adminChatAPI');
+          const { adminChatAPI } = await import("../../services/adminChatAPI");
           const roomId = conversation.room_id || conversation.id;
-          
+
           const updateResponse = await adminChatAPI.editRoomDetails(roomId, {
-            room_icon: result.data.file_url
+            room_icon: result.data.file_url,
           });
-          
-          if (updateResponse && updateResponse.status === 'success') {
-            
-            
+
+          if (updateResponse && updateResponse.status === "success") {
             // Update local conversation state to reflect in sidebar
             if (onUpdateGroup) {
               onUpdateGroup(conversation.id, {
-                icon: result.data.file_url
+                icon: result.data.file_url,
               });
             } else {
             }
-            
+
             // Reload conversations from backend to refresh sidebar
             if (onReloadConversations) {
               await onReloadConversations();
@@ -561,58 +665,71 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
             }
           } else {
           }
-        } catch (updateError) {
-        }
-        
+        } catch (updateError) {}
       } else {
-        throw new Error(result.message || 'Upload failed');
+        throw new Error(result.message || "Upload failed");
       }
     } catch (error) {
-      chatToast.error('Failed to upload group icon. Please try again.');
+      chatToast.error("Failed to upload group icon. Please try again.");
     } finally {
       setUploadingIcon(false);
     }
   };
 
   const formatDate = (dateString) => {
-    if (!dateString) return '';
-    return new Date(dateString).toLocaleDateString('en-US', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric'
+    if (!dateString) return "";
+    return new Date(dateString).toLocaleDateString("en-US", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
     });
   };
 
   const renderOverview = () => {
     if (isGroup) {
       return (
-        <div className={`space-y-${isCompact ? '4' : '6'}`}>
+        <div className={`space-y-${isCompact ? "4" : "6"}`}>
           {/* Group Header */}
           <div className="text-center">
             <div className="relative inline-block mx-auto mb-4">
               {(() => {
                 // Prioritize iconText over URLs
-                const displayText = conversation.iconText || conversation.name?.substring(0, 2).toUpperCase() || 'GR';
-                
+                const displayText =
+                  conversation.iconText ||
+                  conversation.name?.substring(0, 2).toUpperCase() ||
+                  "GR";
+
                 // ⚠️ CRITICAL: Only use image if NO iconText - iconText has highest priority
-                const iconUrl = conversation.iconText ? null : (
-                  groupIcon && (groupIcon.startsWith('http://') || groupIcon.startsWith('https://'))
-                    ? groupIcon
-                    : (conversation.icon && (conversation.icon.startsWith('http://') || conversation.icon.startsWith('https://'))
-                        ? conversation.icon
-                        : null)
-                );
+                const iconUrl = conversation.iconText
+                  ? null
+                  : groupIcon &&
+                    (groupIcon.startsWith("http://") ||
+                      groupIcon.startsWith("https://"))
+                  ? groupIcon
+                  : conversation.icon &&
+                    (conversation.icon.startsWith("http://") ||
+                      conversation.icon.startsWith("https://"))
+                  ? conversation.icon
+                  : null;
 
                 return iconUrl ? (
-                  <div className={`${isCompact ? 'w-20 h-20 text-2xl' : 'w-32 h-32 text-4xl'} bg-gray-100 rounded-full flex items-center justify-center text-white font-bold shadow-lg overflow-hidden`}>
-                    <img 
-                      src={iconUrl} 
-                      alt="Group Icon" 
+                  <div
+                    className={`${
+                      isCompact ? "w-20 h-20 text-2xl" : "w-32 h-32 text-4xl"
+                    } bg-gray-100 rounded-full flex items-center justify-center text-white font-bold shadow-lg overflow-hidden`}
+                  >
+                    <img
+                      src={iconUrl}
+                      alt="Group Icon"
                       className="w-full h-full object-cover"
                     />
                   </div>
                 ) : (
-                  <div className={`${isCompact ? 'w-20 h-20 text-2xl' : 'w-32 h-32 text-4xl'} bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white font-bold shadow-lg overflow-hidden`}>
+                  <div
+                    className={`${
+                      isCompact ? "w-20 h-20 text-2xl" : "w-32 h-32 text-4xl"
+                    } bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white font-bold shadow-lg overflow-hidden`}
+                  >
                     {displayText}
                   </div>
                 );
@@ -674,7 +791,9 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
               ) : (
                 <div>
                   <div className="flex items-center justify-center gap-2">
-                    <h2 className="text-2xl font-bold text-gray-900">{conversation.name}</h2>
+                    <h2 className="text-2xl font-bold text-gray-900">
+                      {conversation.name}
+                    </h2>
                     {(isAdmin || isCreator) && (
                       <button
                         onClick={() => setIsEditing(true)}
@@ -685,7 +804,9 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
                     )}
                   </div>
                   <p className="text-sm text-gray-600">
-                    {conversation.description || conversation.room_desc || 'No description available'}
+                    {conversation.description ||
+                      conversation.room_desc ||
+                      "No description available"}
                   </p>
                   <p className="text-sm text-gray-500 mt-1">
                     {conversation.participants?.length || 0} members
@@ -701,7 +822,7 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
           </div>
 
           {/* Action Buttons */}
-          <div className={`flex gap-${isCompact ? '2' : '4'} justify-center`}>
+          <div className={`flex gap-${isCompact ? "2" : "4"} justify-center`}>
             {/* <button
               onClick={() => onStartCall && onStartCall(conversation)}
               className={`flex flex-col items-center gap-${isCompact ? '1' : '2'} ${isCompact ? 'p-2' : 'p-4'} bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors`}
@@ -716,8 +837,16 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
               <Video className={`${isCompact ? 'h-4 w-4' : 'h-6 w-6'} text-blue-600`} />
               <span className="text-xs text-gray-600">Video</span>
             </button> */}
-            <button className={`flex flex-col items-center gap-${isCompact ? '1' : '2'} ${isCompact ? 'p-2' : 'p-4'} bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors`}>
-              <Search className={`${isCompact ? 'h-4 w-4' : 'h-6 w-6'} text-gray-600`} />
+            <button
+              className={`flex flex-col items-center gap-${
+                isCompact ? "1" : "2"
+              } ${
+                isCompact ? "p-2" : "p-4"
+              } bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors`}
+            >
+              <Search
+                className={`${isCompact ? "h-4 w-4" : "h-6 w-6"} text-gray-600`}
+              />
               <span className="text-xs text-gray-600">Search</span>
             </button>
           </div>
@@ -735,23 +864,28 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
                 </div>
               </div>
               <div className="mt-4 space-y-1">
-                <h2 className="text-2xl font-bold text-gray-900">Unknown User</h2>
-                <p className="text-sm text-gray-600">User information not available</p>
+                <h2 className="text-2xl font-bold text-gray-900">
+                  Unknown User
+                </h2>
+                <p className="text-sm text-gray-600">
+                  User information not available
+                </p>
               </div>
             </div>
           </div>
         );
       }
-      
+
       return (
         <div className="space-y-6">
           {/* User Header */}
           <div className="text-center">
             <div className="relative inline-block">
-              {otherUser.profile_picture_link && otherUser.profile_picture_link.startsWith('http') ? (
+              {otherUser.profile_picture_link &&
+              otherUser.profile_picture_link.startsWith("http") ? (
                 <div className="w-32 h-32 bg-gray-100 rounded-full overflow-hidden shadow-lg">
-                  <img 
-                    src={otherUser.profile_picture_link} 
+                  <img
+                    src={otherUser.profile_picture_link}
                     alt={otherUser.name}
                     className="w-full h-full object-cover"
                   />
@@ -761,11 +895,19 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
                   {otherUser.avatar}
                 </div>
               )}
-              <div className={`absolute bottom-2 right-2 w-8 h-8 rounded-full border-4 border-white ${getStatusColor(otherUser.status)}`}></div>
+              <div
+                className={`absolute bottom-2 right-2 w-8 h-8 rounded-full border-4 border-white ${getStatusColor(
+                  otherUser.status
+                )}`}
+              ></div>
             </div>
             <div className="mt-4 space-y-1">
-              <h2 className="text-2xl font-bold text-gray-900">{otherUser.name}</h2>
-              <p className="text-sm text-gray-600">{otherUser.position || 'Employee'}</p>
+              <h2 className="text-2xl font-bold text-gray-900">
+                {otherUser.name}
+              </h2>
+              <p className="text-sm text-gray-600">
+                {otherUser.position || "Employee"}
+              </p>
               {/* <p className="text-sm text-[#FFAD46]">{getStatusText(otherUser.status)}</p> */}
             </div>
           </div>
@@ -799,7 +941,7 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
               <div>
                 <p className="text-sm text-gray-600">Email</p>
                 <p className="font-medium">
-                  {loadingDetails ? 'Loading...' : otherUser.email}
+                  {loadingDetails ? "Loading..." : otherUser.email}
                 </p>
               </div>
             </div>
@@ -808,11 +950,10 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
               <div>
                 <p className="text-sm text-gray-600">Department</p>
                 <p className="font-medium">
-                  {loadingDetails ? 'Loading...' : otherUser.department}
+                  {loadingDetails ? "Loading..." : otherUser.department}
                 </p>
               </div>
             </div>
-
           </div>
         </div>
       );
@@ -826,10 +967,13 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-gray-900">
-            {conversation.participants?.filter(id => id !== currentUserId && id !== 'admin').length || 0} Members
+            {conversation.participants?.filter(
+              (id) => id !== currentUserId && id !== "admin"
+            ).length || 0}{" "}
+            Members
           </h3>
           {(isAdmin || isCreator) && (
-            <button 
+            <button
               onClick={() => setShowAddParticipants(true)}
               className="flex items-center gap-2 px-3 py-1 text-[#FFAD46] rounded-lg"
             >
@@ -840,129 +984,151 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
         </div>
 
         <div className="space-y-2">
-          {conversation.participants?.filter(memberId => memberId !== currentUserId && memberId !== 'admin').map((memberId) => {
-            // First try to get member from API roomDetails, then fallback to getEmployeeById
-            let member = null;
-            if (roomDetails?.participants && Array.isArray(roomDetails.participants)) {
-              const apiMember = roomDetails.participants.find(p => p.employee_id === memberId);
-              if (apiMember) {
+          {conversation.participants
+            ?.filter(
+              (memberId) => memberId !== currentUserId && memberId !== "admin"
+            )
+            .map((memberId) => {
+              // First try to get member from API roomDetails, then fallback to getEmployeeById
+              let member = null;
+              if (
+                roomDetails?.participants &&
+                Array.isArray(roomDetails.participants)
+              ) {
+                const apiMember = roomDetails.participants.find(
+                  (p) => p.employee_id === memberId
+                );
+                if (apiMember) {
+                  member = {
+                    id: apiMember.employee_id,
+                    name: apiMember.employee_name || `Employee ${memberId}`,
+                    avatar: apiMember.employee_name
+                      ? apiMember.employee_name.charAt(0).toUpperCase()
+                      : "U",
+                    status: "online",
+                    position: apiMember.job_title || "Employee",
+                    profile_picture_link: apiMember.profile_picture_link,
+                  };
+                }
+              }
+
+              // Fallback to getEmployeeById if not in API data
+              if (!member) {
+                member = getEmployeeById(memberId);
+              }
+
+              // If still no member data, create a basic placeholder
+              if (!member) {
                 member = {
-                  id: apiMember.employee_id,
-                  name: apiMember.employee_name || `Employee ${memberId}`,
-                  avatar: apiMember.employee_name ? apiMember.employee_name.charAt(0).toUpperCase() : 'U',
-                  status: 'online',
-                  position: apiMember.job_title || 'Employee',
-                  profile_picture_link: apiMember.profile_picture_link
+                  id: memberId,
+                  name: `User ${memberId}`,
+                  avatar: memberId.charAt(0).toUpperCase(),
+                  status: "offline",
+                  position: "N/A",
+                  profile_picture_link: null,
                 };
               }
-            }
-            
-            // Fallback to getEmployeeById if not in API data
-            if (!member) {
-              member = getEmployeeById(memberId);
-            }
-            
-            // If still no member data, create a basic placeholder
-            if (!member) {
-              member = {
+
+              // Ensure consistent property naming for avatar URL
+              const memberForChat = {
+                ...member,
+                profilePictureLink:
+                  member.profile_picture_link || member.profilePictureLink,
+                employeeId: memberId,
+                employee_id: memberId,
                 id: memberId,
-                name: `User ${memberId}`,
-                avatar: memberId.charAt(0).toUpperCase(),
-                status: 'offline',
-                position: 'N/A',
-                profile_picture_link: null
               };
-            }
 
-            // Ensure consistent property naming for avatar URL
-            const memberForChat = {
-              ...member,
-              profilePictureLink: member.profile_picture_link || member.profilePictureLink,
-              employeeId: memberId,
-              employee_id: memberId,
-              id: memberId
-            };
-            
-         
-
-            return (
-              <div key={memberId} className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg transition-colors group">
-                {/* Clickable member info section */}
-                <div 
-                  className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer"
-                  onClick={() => {
-                    if (onStartChatWithMember) {
-                      onStartChatWithMember(memberForChat);
-                    }
-                  }}
-                  title="Click to start chat"
+              return (
+                <div
+                  key={memberId}
+                  className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg transition-colors group"
                 >
-                  <div className="relative">
-                    {member.profile_picture_link && member.profile_picture_link.startsWith('http') ? (
-                      <div className="w-12 h-12 bg-gray-100 rounded-full overflow-hidden">
-                        <img 
-                          src={member.profile_picture_link} 
-                          alt={member.name}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    ) : (
-                      <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white font-bold">
-                        {member.avatar}
-                      </div>
-                    )}
-                    <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${getStatusColor(member.status)}`}></div>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="font-medium text-gray-900 truncate">
-                        {member.name}
-                      </p>
-                      {getRoleIcon(memberId)}
-                      <MessageCircle className="h-3 w-3 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  {/* Clickable member info section */}
+                  <div
+                    className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer"
+                    onClick={() => {
+                      if (onStartChatWithMember) {
+                        onStartChatWithMember(memberForChat);
+                      }
+                    }}
+                    title="Click to start chat"
+                  >
+                    <div className="relative">
+                      {member.profile_picture_link &&
+                      member.profile_picture_link.startsWith("http") ? (
+                        <div className="w-12 h-12 bg-gray-100 rounded-full overflow-hidden">
+                          <img
+                            src={member.profile_picture_link}
+                            alt={member.name}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      ) : (
+                        <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white font-bold">
+                          {member.avatar}
+                        </div>
+                      )}
+                      <div
+                        className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${getStatusColor(
+                          member.status
+                        )}`}
+                      ></div>
                     </div>
-                    <p className="text-sm text-gray-500 truncate">{member.position}</p>
-                    <p className="text-xs text-gray-400">{getRoleText(memberId)}</p>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-gray-900 truncate">
+                          {member.name}
+                        </p>
+                        {getRoleIcon(memberId)}
+                        <MessageCircle className="h-3 w-3 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </div>
+                      <p className="text-sm text-gray-500 truncate">
+                        {member.position}
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        {getRoleText(memberId)}
+                      </p>
+                    </div>
                   </div>
+
+                  {/* Show action buttons for admins/creators */}
+                  {(isAdmin || isCreator) && (
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      {/* Admin Rights Management */}
+                      {conversation.admins?.includes(memberId) ? (
+                        // Remove admin rights button (Crown icon - shows for existing admins)
+                        <button
+                          onClick={() => handleRemoveAdminRights(memberId)}
+                          className="p-2 text-yellow-500 hover:text-yellow-600 transition-colors"
+                          title="Remove admin rights"
+                        >
+                          <Crown className="h-4 w-4" />
+                        </button>
+                      ) : (
+                        // Assign admin rights button (Shield icon - shows for regular members)
+                        <button
+                          onClick={() => handleAssignAdminRights(memberId)}
+                          className="p-2 text-gray-400 hover:text-yellow-500 transition-colors"
+                          title="Assign admin rights"
+                        >
+                          <Shield className="h-4 w-4" />
+                        </button>
+                      )}
+
+                      {/* Remove participant button (UserMinus icon) */}
+                      <button
+                        onClick={() => handleRemoveParticipant(memberId)}
+                        className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+                        title="Remove from group"
+                      >
+                        <UserMinus className="h-4 w-4" />
+                      </button>
+                    </div>
+                  )}
                 </div>
-                
-                {/* Show action buttons for admins/creators */}
-                {(isAdmin || isCreator) && (
-                  <div className="flex items-center gap-1 flex-shrink-0">
-                    {/* Admin Rights Management */}
-                    {conversation.admins?.includes(memberId) ? (
-                      // Remove admin rights button (Crown icon - shows for existing admins)
-                      <button
-                        onClick={() => handleRemoveAdminRights(memberId)}
-                        className="p-2 text-yellow-500 hover:text-yellow-600 transition-colors"
-                        title="Remove admin rights"
-                      >
-                        <Crown className="h-4 w-4" />
-                      </button>
-                    ) : (
-                      // Assign admin rights button (Shield icon - shows for regular members)
-                      <button
-                        onClick={() => handleAssignAdminRights(memberId)}
-                        className="p-2 text-gray-400 hover:text-yellow-500 transition-colors"
-                        title="Assign admin rights"
-                      >
-                        <Shield className="h-4 w-4" />
-                      </button>
-                    )}
-                    
-                    {/* Remove participant button (UserMinus icon) */}
-                    <button 
-                      onClick={() => handleRemoveParticipant(memberId)}
-                      className="p-2 text-gray-400 hover:text-red-500 transition-colors"
-                      title="Remove from group"
-                    >
-                      <UserMinus className="h-4 w-4" />
-                    </button>
-                  </div>
-                )}
-              </div>
-            );
-          })}
+              );
+            })}
         </div>
       </div>
     );
@@ -971,8 +1137,10 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
   const renderMedia = () => {
     return (
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-gray-900">Media, Links and Docs</h3>
-        
+        <h3 className="text-lg font-semibold text-gray-900">
+          Media, Links and Docs
+        </h3>
+
         <div className="space-y-3">
           <button className="flex items-center justify-between w-full p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
             <div className="flex items-center gap-3">
@@ -981,7 +1149,7 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
             </div>
             <span className="text-sm text-gray-500">12</span>
           </button>
-          
+
           <button className="flex items-center justify-between w-full p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
             <div className="flex items-center gap-3">
               <FileText className="h-5 w-5 text-green-600" />
@@ -989,7 +1157,7 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
             </div>
             <span className="text-sm text-gray-500">5</span>
           </button>
-          
+
           <button className="flex items-center justify-between w-full p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
             <div className="flex items-center gap-3">
               <Link className="h-5 w-5 text-purple-600" />
@@ -1006,7 +1174,7 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
     return (
       <div className="space-y-4">
         <h3 className="text-lg font-semibold text-gray-900">Settings</h3>
-        
+
         <div className="space-y-3">
           <button className="flex items-center justify-between w-full p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
             <div className="flex items-center gap-3">
@@ -1017,7 +1185,7 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
               <div className="w-4 h-4 bg-white rounded-full absolute top-1 left-1 transition-transform"></div>
             </div>
           </button>
-          
+
           <button className="flex items-center gap-3 w-full p-3 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
             {isGroup ? (
               <>
@@ -1050,29 +1218,29 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
               <X className="h-4 w-4 text-gray-600" />
             </button>
             <h1 className="text-base font-semibold text-gray-900">
-              {isGroup ? 'Group Info' : 'Contact Info'}
+              {isGroup ? "Group Info" : "Contact Info"}
             </h1>
           </div>
 
           {/* Navigation Tabs */}
           <div className="flex border-b border-gray-200 flex-shrink-0">
             <button
-              onClick={() => setActiveSection('overview')}
+              onClick={() => setActiveSection("overview")}
               className={`flex-1 py-2 px-2 text-xs font-medium transition-colors ${
-                activeSection === 'overview'
-                  ? 'text-[#FFAD46] border-b-2 border-[#FFAD46]'
-                  : 'text-gray-600 hover:text-gray-900'
+                activeSection === "overview"
+                  ? "text-[#FFAD46] border-b-2 border-[#FFAD46]"
+                  : "text-gray-600 hover:text-gray-900"
               }`}
             >
               Overview
             </button>
             {isGroup && (
               <button
-                onClick={() => setActiveSection('members')}
+                onClick={() => setActiveSection("members")}
                 className={`flex-1 py-2 px-2 text-xs font-medium transition-colors ${
-                  activeSection === 'members'
-                    ? 'text-[#FFAD46] border-b-2 border-[#FFAD46]'
-                    : 'text-gray-600 hover:text-gray-900'
+                  activeSection === "members"
+                    ? "text-[#FFAD46] border-b-2 border-[#FFAD46]"
+                    : "text-gray-600 hover:text-gray-900"
                 }`}
               >
                 Members
@@ -1102,19 +1270,21 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
 
           {/* Content */}
           <div className="flex-1 overflow-y-auto p-3">
-            {activeSection === 'overview' && renderOverview()}
-            {activeSection === 'members' && renderMembers()}
-            {activeSection === 'media' && renderMedia()}
+            {activeSection === "overview" && renderOverview()}
+            {activeSection === "members" && renderMembers()}
+            {activeSection === "media" && renderMedia()}
             {/* {activeSection === 'settings' && renderSettings()} */}
           </div>
         </div>
       ) : (
         // Regular mode - sidebar
-        <div className={`${
-          isInline 
-            ? 'w-full h-full bg-white'
-            : 'fixed top-0 right-0 bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-out w-96 h-full md:w-96 sm:w-full'
-        }`}>
+        <div
+          className={`${
+            isInline
+              ? "w-full h-full bg-white"
+              : "fixed top-0 right-0 bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-out w-96 h-full md:w-96 sm:w-full"
+          }`}
+        >
           {/* Header */}
           <div className="flex items-center gap-4 p-4 border-b border-gray-200">
             <button
@@ -1124,29 +1294,29 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
               <X className="h-5 w-5 text-gray-600" />
             </button>
             <h1 className="text-lg font-semibold text-gray-900">
-              {isGroup ? 'Group Info' : 'Contact Info'}
+              {isGroup ? "Group Info" : "Contact Info"}
             </h1>
           </div>
 
           {/* Navigation Tabs */}
           <div className="flex border-b border-gray-200">
             <button
-              onClick={() => setActiveSection('overview')}
+              onClick={() => setActiveSection("overview")}
               className={`flex-1 py-3 px-4 text-sm font-medium transition-colors ${
-                activeSection === 'overview'
-                  ? 'text-[#FFAD46] border-b-2 border-[#FFAD46]'
-                  : 'text-gray-600 hover:text-gray-900'
+                activeSection === "overview"
+                  ? "text-[#FFAD46] border-b-2 border-[#FFAD46]"
+                  : "text-gray-600 hover:text-gray-900"
               }`}
             >
               Overview
             </button>
             {isGroup && (
               <button
-                onClick={() => setActiveSection('members')}
+                onClick={() => setActiveSection("members")}
                 className={`flex-1 py-3 px-4 text-sm font-medium transition-colors ${
-                  activeSection === 'members'
-                    ? 'text-[#FFAD46] border-b-2 border-[#FFAD46]'
-                    : 'text-gray-600 hover:text-gray-900'
+                  activeSection === "members"
+                    ? "text-[#FFAD46] border-b-2 border-[#FFAD46]"
+                    : "text-gray-600 hover:text-gray-900"
                 }`}
               >
                 Members
@@ -1176,9 +1346,9 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
 
           {/* Content */}
           <div className="flex-1 overflow-y-auto p-4">
-            {activeSection === 'overview' && renderOverview()}
-            {activeSection === 'members' && renderMembers()}
-            {activeSection === 'media' && renderMedia()}
+            {activeSection === "overview" && renderOverview()}
+            {activeSection === "members" && renderMembers()}
+            {activeSection === "media" && renderMedia()}
             {/* {activeSection === 'settings' && renderSettings()} */}
           </div>
         </div>
@@ -1186,10 +1356,21 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
 
       {/* Add Participants Modal */}
       {showAddParticipants && (
-        <div className={`fixed inset-0 bg-white bg-opacity-50 flex items-center justify-center ${isCompact ? 'z-[60]' : 'z-50'} overflow-hidden`}>
-          <div className={`bg-white rounded-xl p-6 w-full mx-4 flex flex-col shadow-2xl ${isCompact ? 'max-w-sm h-[400px]' : 'max-w-md max-h-[80vh]'}`} style={{overflow: 'hidden'}}>
+        <div
+          className={`fixed inset-0 bg-white bg-opacity-50 flex items-center justify-center ${
+            isCompact ? "z-[60]" : "z-50"
+          } overflow-hidden`}
+        >
+          <div
+            className={`bg-white rounded-xl p-6 w-full mx-4 flex flex-col shadow-2xl ${
+              isCompact ? "max-w-sm h-[400px]" : "max-w-md max-h-[80vh]"
+            }`}
+            style={{ overflow: "hidden" }}
+          >
             <div className="flex items-center justify-between mb-4 flex-shrink-0">
-              <h3 className="text-lg font-semibold text-gray-900">Add Participants</h3>
+              <h3 className="text-lg font-semibold text-gray-900">
+                Add Participants
+              </h3>
               <button
                 onClick={() => {
                   setShowAddParticipants(false);
@@ -1232,28 +1413,38 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
                         <input
                           type="checkbox"
                           id={`employee-${employee.id}`}
-                          checked={selectedParticipants.includes(employee.employeeId || employee.id.toString())}
+                          checked={selectedParticipants.includes(
+                            employee.employeeId || employee.id.toString()
+                          )}
                           onChange={(e) => {
-                            const participantId = employee.employeeId || employee.id.toString();
+                            const participantId =
+                              employee.employeeId || employee.id.toString();
                             if (e.target.checked) {
-                              setSelectedParticipants(prev => [...prev, participantId]);
+                              setSelectedParticipants((prev) => [
+                                ...prev,
+                                participantId,
+                              ]);
                             } else {
-                              setSelectedParticipants(prev => prev.filter(id => id !== participantId));
+                              setSelectedParticipants((prev) =>
+                                prev.filter((id) => id !== participantId)
+                              );
                             }
                           }}
                           className="rounded border-gray-300 text-[#FFAD46] focus:ring-[#FFAD46]"
                         />
-                        {employee.profilePictureLink && employee.profilePictureLink.startsWith('http') ? (
+                        {employee.profilePictureLink &&
+                        employee.profilePictureLink.startsWith("http") ? (
                           <div className="w-10 h-10 bg-gray-100 rounded-full overflow-hidden flex-shrink-0">
-                            <img 
-                              src={employee.profilePictureLink} 
+                            <img
+                              src={employee.profilePictureLink}
                               alt={employee.name}
                               className="w-full h-full object-cover"
                             />
                           </div>
                         ) : (
                           <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-                            {employee.name?.substring(0, 2).toUpperCase() || 'U'}
+                            {employee.name?.substring(0, 2).toUpperCase() ||
+                              "U"}
                           </div>
                         )}
                         <div className="flex-1 min-w-0">
@@ -1263,16 +1454,22 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
                           >
                             {employee.name}
                           </label>
-                          <p className="text-sm text-gray-500 truncate">{employee.position}</p>
+                          <p className="text-sm text-gray-500 truncate">
+                            {employee.position}
+                          </p>
                         </div>
                       </div>
                     ))}
-                    
+
                     {!loadingEmployees && availableEmployees.length === 0 && (
                       <div className="text-center py-8 text-gray-500">
                         <Users className="h-12 w-12 mx-auto mb-3 text-gray-300" />
                         <p>No employees available to add</p>
-                        {participantSearchQuery && <p className="text-sm mt-1">Try a different search term</p>}
+                        {participantSearchQuery && (
+                          <p className="text-sm mt-1">
+                            Try a different search term
+                          </p>
+                        )}
                       </div>
                     )}
                   </>
@@ -1306,11 +1503,17 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
       {showRemoveConfirm && memberToRemove && (
         <div className="fixed inset-0 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm mx-4 shadow-2xl animate-in zoom-in-95 duration-200 border border-gray-200">
-            <h3 className="text-xl font-semibold text-gray-900 mb-3">Remove Member</h3>
+            <h3 className="text-xl font-semibold text-gray-900 mb-3">
+              Remove Member
+            </h3>
             <p className="text-gray-600 text-sm leading-relaxed mb-6">
-              Are you sure you want to remove <span className="font-semibold text-gray-900">{getEmployeeById(memberToRemove)?.name || 'this participant'}</span> from the group?
+              Are you sure you want to remove{" "}
+              <span className="font-semibold text-gray-900">
+                {getEmployeeById(memberToRemove)?.name || "this participant"}
+              </span>{" "}
+              from the group?
             </p>
-            
+
             <div className="flex gap-3">
               <button
                 onClick={() => {
