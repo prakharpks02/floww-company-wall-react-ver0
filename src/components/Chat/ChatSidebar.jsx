@@ -3,7 +3,7 @@ import { Search, Plus, MoreVertical, Users, Pin, Filter } from 'lucide-react';
 import { getConversationPartner, formatMessageTime } from './utils/dummyData';
 import { useChat } from '../../contexts/ChatContext';
 
-const ChatSidebar = ({ onSelectConversation, onStartNewChat, activeConversation, onCreateGroup, onChatContextMenu, pinnedChats = [], chatFilter = 'all', onFilterChange }) => {
+const ChatSidebar = ({ onSelectConversation, onStartNewChat, activeConversation, onCreateGroup, onChatContextMenu, pinnedChats = [], chatFilter = 'all', onFilterChange, isAdmin = false }) => {
   const { conversations, employees, totalUnreadMessages } = useChat();
   const [searchQuery, setSearchQuery] = useState('');
   const [showUserSearch, setShowUserSearch] = useState(false);
@@ -87,6 +87,7 @@ const ChatSidebar = ({ onSelectConversation, onStartNewChat, activeConversation,
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-semibold text-gray-800">Chats</h1>
           <div className="flex items-center gap-2">
+            {isAdmin && (
             <div className="relative" ref={dropdownRef}>
               <button 
                 onClick={() => setShowPlusDropdown(!showPlusDropdown)}
@@ -115,6 +116,7 @@ const ChatSidebar = ({ onSelectConversation, onStartNewChat, activeConversation,
                 </div>
               )}
             </div>
+            )}
             <button className="p-2 hover:bg-gray-200 rounded-full transition-colors">
               <MoreVertical className="h-5 w-5 text-gray-600" />
             </button>
@@ -237,13 +239,16 @@ const ChatSidebar = ({ onSelectConversation, onStartNewChat, activeConversation,
                     }
                   }
                   
-                  const displayAvatar = conversation.type === 'group' 
-                    ? (conversation.icon || (conversation.name ? conversation.name.substring(0, 2).toUpperCase() : 'GR'))
-                    : (partner?.avatar || 'U');
-                  
-                  // Check if avatar is a URL (for profile pictures)
-                  const isAvatarUrl = typeof displayAvatar === 'string' && (displayAvatar.startsWith('http://') || displayAvatar.startsWith('https://'));
-                  const avatarImageSrc = conversation.icon || (conversation.type !== 'group' && isAvatarUrl ? displayAvatar : null);
+                  // AVATAR LOGIC: conversation.icon is for images, names are for text initials
+                  // Never use partner.avatar as text - it could be a URL or wrong data
+                  // Prioritize iconText from room_icon API field - if iconText exists, show text NOT image
+                  const iconUrl = conversation.icon && (conversation.icon.startsWith('http://') || conversation.icon.startsWith('https://')) ? conversation.icon : null;
+                  const partnerAvatarUrl = partner?.profilePictureLink && (partner.profilePictureLink.startsWith('http://') || partner.profilePictureLink.startsWith('https://')) ? partner.profilePictureLink : null;
+                  // ⚠️ CRITICAL: Only use image if NO iconText - iconText has highest priority
+                  const avatarImageSrc = conversation.iconText ? null : (iconUrl || partnerAvatarUrl);
+                  const pinnedAvatarText = conversation.iconText || (conversation.type === 'group'
+                    ? (conversation.name ? conversation.name.substring(0, 2).toUpperCase() : 'GR')
+                    : (partner?.name?.substring(0, 2).toUpperCase() || displayName?.substring(0, 2).toUpperCase() || 'U'));
                   
                   return (
                     <button
@@ -345,23 +350,18 @@ const ChatSidebar = ({ onSelectConversation, onStartNewChat, activeConversation,
                   }
                 }
                 
-                const displayAvatar = conversation.type === 'group' 
-                  ? (conversation.icon || (conversation.name ? conversation.name.substring(0, 2).toUpperCase() : 'GR'))
-                  : (partner?.avatar || 'U');
-                
-                // Check if avatar is a URL (for profile pictures)
-                const isAvatarUrl = typeof displayAvatar === 'string' && (displayAvatar.startsWith('http://') || displayAvatar.startsWith('https://'));
-                const avatarImageSrc = conversation.icon || (conversation.type !== 'group' && isAvatarUrl ? displayAvatar : null);
-                
-                // Get safe display text for avatar (never show URL as text)
-                const regularAvatarText = (isAvatarUrl || !displayAvatar || displayAvatar === 'U') 
-                  ? (displayName ? displayName.substring(0, 2).toUpperCase() : 'U')
-                  : (displayAvatar.length <= 2 ? displayAvatar.toUpperCase() : displayAvatar.substring(0, 2).toUpperCase());
+                // AVATAR LOGIC: conversation.icon is for images, names are for text initials
+                // Never use partner.avatar as text - it could be a URL or wrong data
+                // Prioritize iconText from room_icon API field - if iconText exists, show text NOT image
+                const iconUrl = conversation.icon && (conversation.icon.startsWith('http://') || conversation.icon.startsWith('https://')) ? conversation.icon : null;
+                const partnerAvatarUrl = partner?.profilePictureLink && (partner.profilePictureLink.startsWith('http://') || partner.profilePictureLink.startsWith('https://')) ? partner.profilePictureLink : null;
+                // ⚠️ CRITICAL: Only use image if NO iconText - iconText has highest priority
+                const avatarImageSrc = conversation.iconText ? null : (iconUrl || partnerAvatarUrl);
                 
                 // Get safe display text for avatar (never show URL as text)
-                const avatarText = (isAvatarUrl || !displayAvatar || displayAvatar === 'U') 
-                  ? (displayName ? displayName.substring(0, 2).toUpperCase() : 'U')
-                  : (displayAvatar.length <= 2 ? displayAvatar.toUpperCase() : displayAvatar.substring(0, 2).toUpperCase());
+                const regularAvatarText = conversation.iconText || (conversation.type === 'group'
+                  ? (conversation.name ? conversation.name.substring(0, 2).toUpperCase() : 'GR')
+                  : (partner?.name?.substring(0, 2).toUpperCase() || displayName?.substring(0, 2).toUpperCase() || 'U'));
                 
                 return (
                   <button

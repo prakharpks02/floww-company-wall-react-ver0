@@ -67,9 +67,10 @@ const MobileChatHeader = ({
   // Only get partner if activeConversation exists
   const partner = activeConversation ? getConversationPartner(activeConversation, currentUser.id) : null;
   
-  // Check if partner avatar is a URL
-  const isPartnerAvatarUrl = partner?.avatar && typeof partner.avatar === 'string' && 
-                             (partner.avatar.startsWith('http://') || partner.avatar.startsWith('https://'));
+  // ⚠️ CRITICAL: Only use image if NO iconText - iconText has highest priority
+  const iconUrl = activeConversation?.iconText ? null : (activeConversation?.icon && (activeConversation.icon.startsWith('http://') || activeConversation.icon.startsWith('https://')) ? activeConversation.icon : null);
+  const profilePicUrl = activeConversation?.iconText ? null : (activeConversation?.profilePictureLink && (activeConversation.profilePictureLink.startsWith('http://') || activeConversation.profilePictureLink.startsWith('https://')) ? activeConversation.profilePictureLink : null);
+  const isPartnerAvatarUrl = activeConversation?.iconText ? null : (partner?.avatar && typeof partner.avatar === 'string' && (partner.avatar.startsWith('http://') || partner.avatar.startsWith('https://')) ? partner.avatar : null);
 
   return (
     <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gradient-to-r from-purple-600 to-purple-700 text-white safe-area-inset-top">
@@ -81,17 +82,19 @@ const MobileChatHeader = ({
           <ArrowLeft className="h-5 w-5" />
         </button>
         <div className="relative">
-          {(activeConversation.icon || isPartnerAvatarUrl) ? (
+          {(iconUrl || profilePicUrl || isPartnerAvatarUrl) ? (
             <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center overflow-hidden">
               <img 
-                src={activeConversation.icon || partner.avatar} 
+                src={iconUrl || profilePicUrl || isPartnerAvatarUrl} 
                 alt={activeConversation.type === 'group' ? 'Group Icon' : 'Profile Picture'} 
                 className="w-full h-full object-cover"
               />
             </div>
           ) : (
             <div className="w-10 h-10 bg-white bg-opacity-20 rounded-full flex items-center justify-center text-white overflow-hidden">
-              {activeConversation.type === 'group' ? (
+              {activeConversation.iconText ? (
+                <span className="text-white font-semibold">{activeConversation.iconText}</span>
+              ) : activeConversation.type === 'group' ? (
                 <span className="text-white">{activeConversation.name?.substring(0, 2).toUpperCase() || 'GR'}</span>
               ) : (
                 <span className="text-white text-sm font-semibold">

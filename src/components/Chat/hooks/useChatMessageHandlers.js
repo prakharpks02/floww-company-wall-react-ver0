@@ -102,8 +102,13 @@ export const useChatMessageHandlers = ({
           chatToast.error('Could not find chat participant');
           return;
         }
+      } else if (activeConversation.type === 'group') {
+        // For group conversations, connect to existing room
+        // Group should already have room_id from creation, but if not, show error
+        chatToast.error('Group room ID missing. Please recreate the group.');
+        return;
       } else {
-        chatToast.error('Group conversation setup not supported');
+        chatToast.error('Invalid conversation type');
         return;
       }
     }

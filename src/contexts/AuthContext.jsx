@@ -329,7 +329,9 @@ const fetchUser = async () => {
     setAuthTokens,
     clearAuthTokens,
     getAuthTokens,
-    refreshTokensFromCookies
+    refreshTokensFromCookies,
+    // Check if user is admin based on user object or URL path
+    isAdmin: user?.is_admin || window.location.pathname.includes('/crm')
   };
 
   return (

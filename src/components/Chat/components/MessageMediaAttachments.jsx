@@ -49,11 +49,11 @@ const MessageMediaAttachments = ({ fileUrls, isOwnMessage, isCompact = false, se
                   console.error('Failed to load image:', file.url);
                 }}
                 onClick={() => {
-                  console.log('Clicked image index:', index);
+              
                   setSelectedImageIndex(index);
                   // Use setTimeout to ensure state update completes before opening
                   setTimeout(() => {
-                    console.log('Opening viewer with index:', index);
+               
                     setImageViewerOpen(true);
                   }, 10);
                 }}

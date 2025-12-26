@@ -54,29 +54,55 @@ const CompactHeader = ({
               <ArrowLeft className="h-4 w-4" />
             </button>
             <div className="relative">
-              {activeConversation.icon ? (
-                <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center overflow-hidden shadow-lg">
-                  <img 
-                    src={activeConversation.icon} 
-                    alt={activeConversation.type === 'group' ? 'Group Icon' : 'Profile Picture'} 
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              ) : (
-                <div className="w-8 h-8 bg-gradient-to-br from-purple-400 to-purple-500 rounded-full flex items-center justify-center text-white font-normal text-sm shadow-lg overflow-hidden">
-                  {activeConversation.type === 'group' ? (
-                    <span className="text-white text-xs">{activeConversation.name?.substring(0, 2).toUpperCase() || 'GR'}</span>
-                  ) : partner?.avatar && partner.avatar.startsWith('http') ? (
-                    <img 
-                      src={partner.avatar} 
-                      alt={partner.name} 
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <span className="text-xs font-semibold">{partner?.name?.substring(0, 2).toUpperCase() || 'U'}</span>
-                  )}
-                </div>
-              )}
+              {(() => {
+                // Prioritize iconText from room_icon API
+                const avatarText = activeConversation.iconText || (activeConversation.type === 'group'
+                  ? (activeConversation.name?.substring(0, 2).toUpperCase() || 'GR')
+                  : (partner?.name?.substring(0, 2).toUpperCase() || activeConversation.name?.substring(0, 2).toUpperCase() || 'U'));
+                
+                // ⚠️ CRITICAL: Only use image if NO iconText - iconText has highest priority
+                const iconUrl = activeConversation.iconText ? null : (activeConversation.icon && (activeConversation.icon.startsWith('http://') || activeConversation.icon.startsWith('https://')) ? activeConversation.icon : null);
+                const profilePicUrl = activeConversation.iconText ? null : (activeConversation.profilePictureLink && (activeConversation.profilePictureLink.startsWith('http://') || activeConversation.profilePictureLink.startsWith('https://')) ? activeConversation.profilePictureLink : null);
+                const partnerAvatarUrl = activeConversation.iconText ? null : (partner?.avatar && (partner.avatar.startsWith('http://') || partner.avatar.startsWith('https://')) ? partner.avatar : null);
+                
+                if (iconUrl) {
+                  return (
+                    <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center overflow-hidden shadow-lg">
+                      <img 
+                        src={iconUrl} 
+                        alt={activeConversation.type === 'group' ? 'Group Icon' : 'Profile Picture'} 
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  );
+                } else if (profilePicUrl) {
+                  return (
+                    <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center overflow-hidden shadow-lg">
+                      <img 
+                        src={profilePicUrl} 
+                        alt={activeConversation.type === 'group' ? 'Group Icon' : 'Profile Picture'} 
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  );
+                } else if (partnerAvatarUrl) {
+                  return (
+                    <div className="w-8 h-8 bg-gradient-to-br from-purple-400 to-purple-500 rounded-full flex items-center justify-center text-white font-normal text-sm shadow-lg overflow-hidden">
+                      <img 
+                        src={partnerAvatarUrl} 
+                        alt={partner.name} 
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  );
+                } else {
+                  return (
+                    <div className="w-8 h-8 bg-gradient-to-br from-purple-400 to-purple-500 rounded-full flex items-center justify-center text-white font-normal text-sm shadow-lg overflow-hidden">
+                      <span className="text-xs font-semibold">{avatarText}</span>
+                    </div>
+                  );
+                }
+              })()}
               <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border border-white shadow-sm ${getStatusColor(partner?.status)}`}></div>
             </div>
             <div>
@@ -182,39 +208,42 @@ const CompactHeader = ({
             </div>
           </>
         ) : (
+          // Show + icon in conversation list view only for admins
           isAdmin && (
-            <div className="relative" ref={compactPlusMenuRef}>
-              <button
-                onClick={() => setShowCompactPlusMenu(!showCompactPlusMenu)}
-                className="p-1.5 hover:bg-purple-700 rounded-full transition-all duration-200"
-                title="New chat options"
-              >
-                <Plus className="h-4 w-4" />
-              </button>
-            
-              {/* Compact Plus Menu */}
-              {showCompactPlusMenu && (
-              <div 
-                className="absolute top-full mt-1 w-40 bg-white border border-gray-200 rounded-lg shadow-lg z-[9999] overflow-hidden max-h-80"
-                style={{
-                  right: '0px',
-                  left: 'auto'
-                }}
-              >
-                <div className="py-1 overflow-y-auto">
-                  <button
-                    onClick={onCreateGroup}
-                    className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center gap-2 text-xs text-gray-700"
-                  >
-                    <div className="w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center">
-                      <Plus className="h-3 w-3 text-white" />
-                    </div>
-                    <span>Create Group</span>
-                  </button>
-                </div>
+          <div className="relative" ref={compactPlusMenuRef}>
+            <button
+              onClick={() => setShowCompactPlusMenu(!showCompactPlusMenu)}
+              className="p-1.5 hover:bg-purple-700 rounded-full transition-all duration-200"
+              title="New chat options"
+            >
+              <Plus className="h-4 w-4" />
+            </button>
+          
+            {/* Compact Plus Menu */}
+            {showCompactPlusMenu && (
+            <div 
+              className="absolute top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-[9999] overflow-hidden"
+              style={{
+                right: '0px',
+                left: 'auto',
+                minWidth: '160px',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              <div className="py-1">
+                <button
+                  onClick={onCreateGroup}
+                  className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center gap-2 text-xs text-gray-700"
+                >
+                  <div className="w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center flex-shrink-0">
+                    <Plus className="h-3 w-3 text-white" />
+                  </div>
+                  <span>Create Group</span>
+                </button>
               </div>
-              )}
             </div>
+            )}
+          </div>
           )
         )}
 

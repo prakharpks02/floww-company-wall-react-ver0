@@ -23,6 +23,8 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
   const [memberToRemove, setMemberToRemove] = useState(null);
   const [roomDetails, setRoomDetails] = useState(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
+  const [participantSearchQuery, setParticipantSearchQuery] = useState('');
+  const [loadingEmployees, setLoadingEmployees] = useState(false);
   const fileInputRef = useRef(null);
 
   // Fetch room details from API
@@ -97,17 +99,59 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
     }
   }, [isOpen, roomId]); // Use stable roomId instead of conversation properties
 
-  // Load available employees for participant selection
+  // Load available employees for participant selection with debouncing
   useEffect(() => {
-    const loadEmployees = () => {
-      // Using mention API instead of get-all-employees
-      setAvailableEmployees([]);
-    };
+    if (!showAddParticipants || !conversation) return;
 
-    if (showAddParticipants && conversation) {
-      loadEmployees();
+    // Debounce the search to avoid excessive API calls
+    const timeoutId = setTimeout(async () => {
+      setLoadingEmployees(true);
+      try {
+        // Use mention_users API to get available employees
+        const { adminChatAPI } = await import('../../services/adminChatAPI');
+
+        const response = await adminChatAPI.getMentionUsers(participantSearchQuery, 50);
+      
+        
+        if (response && response.status === 'success' && Array.isArray(response.data)) {
+          // Filter out employees who are already participants
+          const currentParticipants = conversation.participants || [];
+          const available = response.data
+            .filter(emp => !currentParticipants.includes(emp.employee_id))
+            .map(emp => ({
+              id: emp.employee_id,
+              employeeId: emp.employee_id,
+              name: emp.employee_name || 'Unknown',
+              email: emp.email || emp.company_email || '',
+              avatar: emp.profile_picture_link || getInitials(emp.employee_name),
+              role: emp.job_title || emp.designation || 'Employee',
+              department: emp.department || '',
+              profilePictureLink: emp.profile_picture_link
+            }));
+          
+        
+          setAvailableEmployees(available);
+        }
+      } catch (error) {
+        console.error('Error loading available employees:', error);
+        setAvailableEmployees([]);
+      } finally {
+        setLoadingEmployees(false);
+      }
+    }, 300); // 300ms debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [showAddParticipants, conversation?.participants, participantSearchQuery]);
+
+  // Helper function to get initials
+  const getInitials = (name) => {
+    if (!name) return 'U';
+    const nameParts = name.trim().split(' ');
+    if (nameParts.length === 1) {
+      return nameParts[0].charAt(0).toUpperCase();
     }
-  }, [showAddParticipants, conversation?.participants]);
+    return (nameParts[0].charAt(0) + nameParts[nameParts.length - 1].charAt(0)).toUpperCase();
+  };
 
   // Early return after all hooks are called
   if (!isOpen || !conversation) return null;
@@ -129,17 +173,28 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
     
     // First, try to get from API roomDetails
     if (roomDetails?.participants && roomDetails.participants.length > 0) {
-      // Find the OTHER participant (not the current user)
-      const otherParticipant = roomDetails.participants.find(p => p.employee_id !== currentUserId);
+      // Find the OTHER participant (not the current user and not admin with employee_id="N/A")
+      const otherParticipant = roomDetails.participants.find(p => {
+        // Skip admin users (employee_id "N/A") 
+        if (p.employee_id === 'N/A' || p.is_admin) return false;
+        // Skip current user
+        if (p.employee_id === currentUserId) return false;
+        return true;
+      });
       
       if (otherParticipant) {
+        // Handle room_name array or string
+        const roomName = Array.isArray(roomDetails.room_name) 
+          ? roomDetails.room_name[0] 
+          : roomDetails.room_name;
+        
         otherUser = {
           id: otherParticipant.employee_id,
-          name: otherParticipant.employee_name || `Employee ${otherUserId}`,
+          name: otherParticipant.employee_name || roomName || `Employee ${otherUserId}`,
           avatar: otherParticipant.employee_name ? otherParticipant.employee_name.charAt(0).toUpperCase() : 'U',
           status: 'online',
           position: otherParticipant.job_title || 'Employee',
-          email: otherParticipant.company_email || 'N/A',
+          email: otherParticipant.company_email || otherParticipant.personal_email || 'N/A',
           department: otherParticipant.job_title || 'N/A',
           profile_picture_link: otherParticipant.profile_picture_link
         };
@@ -169,10 +224,14 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
     
     // Last resort - create basic user object with room name if available
     if (!otherUser && otherUserId) {
+      const roomName = roomDetails?.room_name 
+        ? (Array.isArray(roomDetails.room_name) ? roomDetails.room_name[0] : roomDetails.room_name)
+        : null;
+      
       otherUser = {
         id: otherUserId,
-        name: roomDetails?.room_name || `Employee ${otherUserId}`,
-        avatar: otherUserId.charAt(0).toUpperCase(),
+        name: roomName || `Employee ${otherUserId}`,
+        avatar: (roomName || otherUserId).charAt(0).toUpperCase(),
         status: 'offline',
         position: 'Employee',
         email: 'N/A',
@@ -221,17 +280,44 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
       // Use room_id if available, otherwise fallback to conversation id
       const roomId = conversation.room_id || conversation.id;
       
-      
+      // Ensure we're sending employeeId strings
+      const participantEmployeeIds = selectedParticipants.map(id => {
+        const employee = availableEmployees.find(emp => emp.id === id || emp.employeeId === id);
+        return employee ? (employee.employeeId || employee.id) : id;
+      });
 
-      const response = await adminChatAPI.addParticipants(roomId, selectedParticipants);
+      const response = await adminChatAPI.addParticipants(roomId, participantEmployeeIds);
       
       if (response && response.status === 'success') {
+        // Clear cache to force refetch of room details with updated participant data
+        const roomId = conversation.room_id || conversation.id;
+        roomDetailsCache.delete(roomId);
+        
         // Update local conversation data
         if (onUpdateGroup) {
-          const updatedParticipants = [...(conversation.participants || []), ...selectedParticipants];
+          const updatedParticipants = [...(conversation.participants || []), ...participantEmployeeIds];
           onUpdateGroup(conversation.id, {
             participants: updatedParticipants
           });
+        }
+        
+        // Reload room details to get updated participant list
+        if (onReloadConversations) {
+          onReloadConversations();
+        }
+        
+        // Refetch room details immediately
+        try {
+          const detailsResponse = await enhancedChatAPI.getRoomDetails(roomId);
+          if (detailsResponse.status === 'success' && detailsResponse.data) {
+            setRoomDetails(detailsResponse.data);
+            roomDetailsCache.set(roomId, {
+              data: detailsResponse.data,
+              timestamp: Date.now()
+            });
+          }
+        } catch (error) {
+          console.error('[ChatInfo] Error refetching room details:', error);
         }
         
         setShowAddParticipants(false);
@@ -504,17 +590,33 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
           {/* Group Header */}
           <div className="text-center">
             <div className="relative inline-block mx-auto mb-4">
-              <div className={`${isCompact ? 'w-20 h-20 text-2xl' : 'w-32 h-32 text-4xl'} ${groupIcon || conversation.icon ? 'bg-gray-100' : 'bg-gradient-to-br from-purple-500 to-purple-700'} rounded-full flex items-center justify-center text-white font-bold shadow-lg overflow-hidden`}>
-                {groupIcon || conversation.icon ? (
-                  <img 
-                    src={groupIcon || conversation.icon} 
-                    alt="Group Icon" 
-                    className="w-full h-full object-cover"
-                  />
+              {(() => {
+                // Prioritize iconText over URLs
+                const displayText = conversation.iconText || conversation.name?.substring(0, 2).toUpperCase() || 'GR';
+                
+                // ⚠️ CRITICAL: Only use image if NO iconText - iconText has highest priority
+                const iconUrl = conversation.iconText ? null : (
+                  groupIcon && (groupIcon.startsWith('http://') || groupIcon.startsWith('https://'))
+                    ? groupIcon
+                    : (conversation.icon && (conversation.icon.startsWith('http://') || conversation.icon.startsWith('https://'))
+                        ? conversation.icon
+                        : null)
+                );
+
+                return iconUrl ? (
+                  <div className={`${isCompact ? 'w-20 h-20 text-2xl' : 'w-32 h-32 text-4xl'} bg-gray-100 rounded-full flex items-center justify-center text-white font-bold shadow-lg overflow-hidden`}>
+                    <img 
+                      src={iconUrl} 
+                      alt="Group Icon" 
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
                 ) : (
-                  conversation.name?.charAt(0) || 'G'
-                )}
-              </div>
+                  <div className={`${isCompact ? 'w-20 h-20 text-2xl' : 'w-32 h-32 text-4xl'} bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white font-bold shadow-lg overflow-hidden`}>
+                    {displayText}
+                  </div>
+                );
+              })()}
               {/* Camera button for uploading group icon */}
               {/* <button
                 onClick={() => fileInputRef.current?.click()}
@@ -724,12 +826,12 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-gray-900">
-            {conversation.participants?.length || 0} Members
+            {conversation.participants?.filter(id => id !== currentUserId && id !== 'admin').length || 0} Members
           </h3>
           {(isAdmin || isCreator) && (
             <button 
               onClick={() => setShowAddParticipants(true)}
-              className="flex items-center gap-2 px-3 py-1 text-[#FFAD46] hover:bg-orange-50 rounded-lg transition-colors"
+              className="flex items-center gap-2 px-3 py-1 text-[#FFAD46] rounded-lg"
             >
               <UserPlus className="h-4 w-4" />
               <span className="text-sm">Add</span>
@@ -738,9 +840,50 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
         </div>
 
         <div className="space-y-2">
-          {conversation.participants?.map((memberId) => {
-            const member = getEmployeeById(memberId);
-            if (!member) return null;
+          {conversation.participants?.filter(memberId => memberId !== currentUserId && memberId !== 'admin').map((memberId) => {
+            // First try to get member from API roomDetails, then fallback to getEmployeeById
+            let member = null;
+            if (roomDetails?.participants && Array.isArray(roomDetails.participants)) {
+              const apiMember = roomDetails.participants.find(p => p.employee_id === memberId);
+              if (apiMember) {
+                member = {
+                  id: apiMember.employee_id,
+                  name: apiMember.employee_name || `Employee ${memberId}`,
+                  avatar: apiMember.employee_name ? apiMember.employee_name.charAt(0).toUpperCase() : 'U',
+                  status: 'online',
+                  position: apiMember.job_title || 'Employee',
+                  profile_picture_link: apiMember.profile_picture_link
+                };
+              }
+            }
+            
+            // Fallback to getEmployeeById if not in API data
+            if (!member) {
+              member = getEmployeeById(memberId);
+            }
+            
+            // If still no member data, create a basic placeholder
+            if (!member) {
+              member = {
+                id: memberId,
+                name: `User ${memberId}`,
+                avatar: memberId.charAt(0).toUpperCase(),
+                status: 'offline',
+                position: 'N/A',
+                profile_picture_link: null
+              };
+            }
+
+            // Ensure consistent property naming for avatar URL
+            const memberForChat = {
+              ...member,
+              profilePictureLink: member.profile_picture_link || member.profilePictureLink,
+              employeeId: memberId,
+              employee_id: memberId,
+              id: memberId
+            };
+            
+         
 
             return (
               <div key={memberId} className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg transition-colors group">
@@ -748,14 +891,14 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
                 <div 
                   className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer"
                   onClick={() => {
-                    if (memberId !== currentUserId && onStartChatWithMember) {
-                      onStartChatWithMember(member);
+                    if (onStartChatWithMember) {
+                      onStartChatWithMember(memberForChat);
                     }
                   }}
-                  title={memberId !== currentUserId ? "Click to start chat" : undefined}
+                  title="Click to start chat"
                 >
                   <div className="relative">
-                    {member.profile_picture_link ? (
+                    {member.profile_picture_link && member.profile_picture_link.startsWith('http') ? (
                       <div className="w-12 h-12 bg-gray-100 rounded-full overflow-hidden">
                         <img 
                           src={member.profile_picture_link} 
@@ -772,33 +915,32 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className="font-medium text-gray-900 truncate">{member.name}</p>
+                      <p className="font-medium text-gray-900 truncate">
+                        {member.name}
+                      </p>
                       {getRoleIcon(memberId)}
-                      {memberId !== currentUserId && (
-                        <MessageCircle className="h-3 w-3 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-                      )}
+                      <MessageCircle className="h-3 w-3 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
                     </div>
                     <p className="text-sm text-gray-500 truncate">{member.position}</p>
                     <p className="text-xs text-gray-400">{getRoleText(memberId)}</p>
                   </div>
                 </div>
                 
-                {(isAdmin || isCreator) && memberId !== currentUserId && (
-                  <div className="flex items-center gap-1">
+                {/* Show action buttons for admins/creators */}
+                {(isAdmin || isCreator) && (
+                  <div className="flex items-center gap-1 flex-shrink-0">
                     {/* Admin Rights Management */}
                     {conversation.admins?.includes(memberId) ? (
-                      // Remove admin rights button (only show if current user is creator or super admin)
-                      (isCreator || isAdminEnvironment) && (
-                        <button
-                          onClick={() => handleRemoveAdminRights(memberId)}
-                          className="p-2 text-yellow-500 hover:text-yellow-600 transition-colors"
-                          title="Remove admin rights"
-                        >
-                          <Crown className="h-4 w-4" />
-                        </button>
-                      )
+                      // Remove admin rights button (Crown icon - shows for existing admins)
+                      <button
+                        onClick={() => handleRemoveAdminRights(memberId)}
+                        className="p-2 text-yellow-500 hover:text-yellow-600 transition-colors"
+                        title="Remove admin rights"
+                      >
+                        <Crown className="h-4 w-4" />
+                      </button>
                     ) : (
-                      // Assign admin rights button
+                      // Assign admin rights button (Shield icon - shows for regular members)
                       <button
                         onClick={() => handleAssignAdminRights(memberId)}
                         className="p-2 text-gray-400 hover:text-yellow-500 transition-colors"
@@ -808,7 +950,7 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
                       </button>
                     )}
                     
-                    {/* Remove participant button */}
+                    {/* Remove participant button (UserMinus icon) */}
                     <button 
                       onClick={() => handleRemoveParticipant(memberId)}
                       className="p-2 text-gray-400 hover:text-red-500 transition-colors"
@@ -946,7 +1088,7 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
             >
               Media
             </button> */}
-            <button
+            {/* <button
               onClick={() => setActiveSection('settings')}
               className={`flex-1 py-2 px-2 text-xs font-medium transition-colors ${
                 activeSection === 'settings'
@@ -955,7 +1097,7 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
               }`}
             >
               Settings
-            </button>
+            </button> */}
           </div>
 
           {/* Content */}
@@ -963,7 +1105,7 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
             {activeSection === 'overview' && renderOverview()}
             {activeSection === 'members' && renderMembers()}
             {activeSection === 'media' && renderMedia()}
-            {activeSection === 'settings' && renderSettings()}
+            {/* {activeSection === 'settings' && renderSettings()} */}
           </div>
         </div>
       ) : (
@@ -1020,7 +1162,7 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
             >
               Media
             </button> */}
-            <button
+            {/* <button
               onClick={() => setActiveSection('settings')}
               className={`flex-1 py-3 px-4 text-sm font-medium transition-colors ${
                 activeSection === 'settings'
@@ -1029,7 +1171,7 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
               }`}
             >
               Settings
-            </button>
+            </button> */}
           </div>
 
           {/* Content */}
@@ -1037,16 +1179,16 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
             {activeSection === 'overview' && renderOverview()}
             {activeSection === 'members' && renderMembers()}
             {activeSection === 'media' && renderMedia()}
-            {activeSection === 'settings' && renderSettings()}
+            {/* {activeSection === 'settings' && renderSettings()} */}
           </div>
         </div>
       )}
 
       {/* Add Participants Modal */}
       {showAddParticipants && (
-        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4 max-h-[80vh] overflow-hidden flex flex-col">
-            <div className="flex items-center justify-between mb-4">
+        <div className={`fixed inset-0 bg-white bg-opacity-50 flex items-center justify-center ${isCompact ? 'z-[60]' : 'z-50'} overflow-hidden`}>
+          <div className={`bg-white rounded-xl p-6 w-full mx-4 flex flex-col shadow-2xl ${isCompact ? 'max-w-sm h-[400px]' : 'max-w-md max-h-[80vh]'}`} style={{overflow: 'hidden'}}>
+            <div className="flex items-center justify-between mb-4 flex-shrink-0">
               <h3 className="text-lg font-semibold text-gray-900">Add Participants</h3>
               <button
                 onClick={() => {
@@ -1059,65 +1201,99 @@ const ChatInfo = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup,
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto mb-4">
+            {/* Search Input */}
+            <div className="mb-4 flex-shrink-0">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <input
+                  type="text"
+                  value={participantSearchQuery}
+                  onChange={(e) => setParticipantSearchQuery(e.target.value)}
+                  placeholder="Search employees..."
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FFAD46] focus:border-transparent"
+                />
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto mb-4 min-h-0 scrollbar-hide">
               <div className="space-y-2">
-                {availableEmployees.map((employee) => (
-                  <div
-                    key={employee.id}
-                    className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg transition-colors"
-                  >
-                    <input
-                      type="checkbox"
-                      id={`employee-${employee.id}`}
-                      checked={selectedParticipants.includes(employee.employeeId || employee.id.toString())}
-                      onChange={(e) => {
-                        const participantId = employee.employeeId || employee.id.toString();
-                        if (e.target.checked) {
-                          setSelectedParticipants(prev => [...prev, participantId]);
-                        } else {
-                          setSelectedParticipants(prev => prev.filter(id => id !== participantId));
-                        }
-                      }}
-                      className="rounded border-gray-300 text-[#FFAD46] focus:ring-[#FFAD46]"
-                    />
-                    <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white font-bold text-sm">
-                      {employee.avatar || employee.name?.substring(0, 2).toUpperCase()}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <label
-                        htmlFor={`employee-${employee.id}`}
-                        className="font-medium text-gray-900 cursor-pointer block truncate"
+                {loadingEmployees ? (
+                  <div className="text-center py-8">
+                    <div className="w-8 h-8 border-4 border-[#FFAD46] border-t-transparent rounded-full animate-spin mx-auto"></div>
+                    <p className="text-gray-500 mt-3">Loading employees...</p>
+                  </div>
+                ) : (
+                  <>
+                    {availableEmployees.map((employee) => (
+                      <div
+                        key={employee.id}
+                        className="flex items-center gap-3 p-3 rounded-lg"
                       >
-                        {employee.name}
-                      </label>
-                      <p className="text-sm text-gray-500 truncate">{employee.position}</p>
-                    </div>
-                  </div>
-                ))}
-                
-                {availableEmployees.length === 0 && (
-                  <div className="text-center py-8 text-gray-500">
-                    <Users className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                    <p>No employees available to add</p>
-                  </div>
+                        <input
+                          type="checkbox"
+                          id={`employee-${employee.id}`}
+                          checked={selectedParticipants.includes(employee.employeeId || employee.id.toString())}
+                          onChange={(e) => {
+                            const participantId = employee.employeeId || employee.id.toString();
+                            if (e.target.checked) {
+                              setSelectedParticipants(prev => [...prev, participantId]);
+                            } else {
+                              setSelectedParticipants(prev => prev.filter(id => id !== participantId));
+                            }
+                          }}
+                          className="rounded border-gray-300 text-[#FFAD46] focus:ring-[#FFAD46]"
+                        />
+                        {employee.profilePictureLink && employee.profilePictureLink.startsWith('http') ? (
+                          <div className="w-10 h-10 bg-gray-100 rounded-full overflow-hidden flex-shrink-0">
+                            <img 
+                              src={employee.profilePictureLink} 
+                              alt={employee.name}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        ) : (
+                          <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                            {employee.name?.substring(0, 2).toUpperCase() || 'U'}
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <label
+                            htmlFor={`employee-${employee.id}`}
+                            className="font-medium text-gray-900 cursor-pointer block truncate"
+                          >
+                            {employee.name}
+                          </label>
+                          <p className="text-sm text-gray-500 truncate">{employee.position}</p>
+                        </div>
+                      </div>
+                    ))}
+                    
+                    {!loadingEmployees && availableEmployees.length === 0 && (
+                      <div className="text-center py-8 text-gray-500">
+                        <Users className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                        <p>No employees available to add</p>
+                        {participantSearchQuery && <p className="text-sm mt-1">Try a different search term</p>}
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </div>
 
-            <div className="flex gap-3 pt-4 border-t">
+            <div className="flex gap-3 pt-4 border-t flex-shrink-0">
               <button
                 onClick={() => {
                   setShowAddParticipants(false);
                   setSelectedParticipants([]);
                 }}
-                className="flex-1 px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                className="flex-1 px-4 py-2 text-gray-600 border border-gray-300 rounded-lg"
               >
                 Cancel
               </button>
               <button
                 onClick={handleAddParticipants}
                 disabled={selectedParticipants.length === 0}
-                className="flex-1 px-4 py-2 bg-[#FFAD46] text-white rounded-lg hover:bg-[#E6941A] transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+                className="flex-1 px-4 py-2 bg-[#FFAD46] text-white rounded-lg disabled:bg-gray-300 disabled:cursor-not-allowed"
               >
                 Add ({selectedParticipants.length})
               </button>

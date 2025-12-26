@@ -40,6 +40,50 @@ export const ChatProvider = ({ children }) => {
   const [employeesLoading, setEmployeesLoading] = useState(true);
   const [conversationsLoading, setConversationsLoading] = useState(true);
 
+  // Load employees from mention_users API
+  const loadEmployees = async (searchQuery = '') => {
+    try {
+      const currentAPI = getChatAPI();
+      
+      // Try to use getMentionUsers if available (admin API)
+      if (currentAPI.getMentionUsers) {
+        const response = await currentAPI.getMentionUsers(searchQuery);
+        
+        if (response.status === 'success' && Array.isArray(response.data)) {
+          const employeesList = response.data.map(emp => ({
+            id: emp.employee_id || emp.id,
+            employeeId: emp.employee_id || emp.id,
+            name: emp.employee_name || emp.name || 'Unknown',
+            email: emp.email || emp.company_email || '',
+            avatar: emp.profile_picture_link || emp.avatar || getInitials(emp.employee_name || emp.name),
+            role: emp.job_title || emp.designation || 'Employee',
+            department: emp.department || '',
+            profilePictureLink: emp.profile_picture_link || emp.avatar
+          }));
+          setEmployees(employeesList);
+          return employeesList;
+        }
+      }
+      
+      setEmployees([]);
+      return [];
+    } catch (error) {
+      console.error('[ChatContext] Error loading employees:', error);
+      setEmployees([]);
+      return [];
+    }
+  };
+
+  // Helper function to get initials
+  const getInitials = (name) => {
+    if (!name) return 'U';
+    const nameParts = name.trim().split(' ');
+    if (nameParts.length === 1) {
+      return nameParts[0].charAt(0).toUpperCase();
+    }
+    return (nameParts[0].charAt(0) + nameParts[nameParts.length - 1].charAt(0)).toUpperCase();
+  };
+
   // Load messages for a specific conversation (environment-aware)
   const loadMessagesForConversation = async (conversationId) => {
     try {
@@ -177,27 +221,28 @@ export const ChatProvider = ({ children }) => {
 
           // Handle room_icon - can be string or array
           let iconUrl = null;
+          let iconText = null;
           
-          
+        
           if (room.room_icon) {
             if (Array.isArray(room.room_icon)) {
               // For direct chats, room_icon is an array - take first element
               const iconValue = room.room_icon[0];
-              // Only use if it's a valid URL (not abbreviations)
-              if (iconValue && iconValue.startsWith('http')) {
-                iconUrl = iconValue;
-              } else {
+         
+              if (iconValue) {
+                if (iconValue.startsWith('http')) {
+                  // It's a URL - use as image
+                  iconUrl = iconValue;
+                
+                } else if (iconValue.length <= 2) {
+                  // It's a short text like "E" or "EE" - use as text
+                  iconText = iconValue.toUpperCase();
+                
+                }
               }
-            } else if (typeof room.room_icon === 'string') {
-              // For groups, room_icon is a string
-              // Only use it if it's a valid URL (starts with http)
-              if (room.room_icon.startsWith('http')) {
-                iconUrl = room.room_icon;
-              } else {
-              }
-              // Ignore abbreviations like "TE", "A", etc. - they should show as initials instead
-            }
+            } 
           }
+
           return {
             id: room.room_id || room.id,
             room_id: room.room_id || room.id,
@@ -207,7 +252,8 @@ export const ChatProvider = ({ children }) => {
             name: conversationName, // ⚠️ This should be "Prakhar Singh" from room_name
             room_name: room.room_name, // 🔑 Preserve original room_name for reference
             description: room.room_desc || room.description || '', // Map room_desc to description
-            icon: iconUrl, // Map icon field (handles both string and array)
+            icon: iconUrl, // Map icon field (URL for images)
+            iconText: iconText, // Short text from room_icon like "E" or "EE"
             admins: adminIds, // Extract from participants with is_admin: true
             createdBy: room.created_by || room.creator_id || null, // Map creator ID
             lastMessage: room.last_message && room.last_message !== 'N/A' ? (
@@ -244,7 +290,16 @@ export const ChatProvider = ({ children }) => {
           return conv;
         });
         
-        setConversations(cleanedConversations);
+        // ✅ Remove duplicates based on room_id
+        const uniqueConversations = cleanedConversations.reduce((acc, current) => {
+          const exists = acc.find(item => item.room_id === current.room_id || item.id === current.id);
+          if (!exists) {
+            acc.push(current);
+          }
+          return acc;
+        }, []);
+        
+        setConversations(uniqueConversations);
         
       } else {
         setConversations([]);
@@ -261,9 +316,11 @@ export const ChatProvider = ({ children }) => {
     const loadData = async () => {
 
       try {
-        // Load conversations directly (no need to fetch all employees anymore)
-   
-        await loadConversations();
+        // Load both conversations and employees
+        await Promise.all([
+          loadConversations(),
+          loadEmployees()
+        ]);
     
       } catch (error) {
         console.error('[ChatContext] Error loading data:', error);
@@ -421,28 +478,9 @@ export const ChatProvider = ({ children }) => {
         // Reload conversations to include the new group
         await loadConversations();
         
-        // Find the newly created group in the conversations
-        const newGroup = conversations.find(conv => 
-          conv.name === name && conv.type === 'group'
-        );
-        
-        if (newGroup) {
-          return newGroup;
-        } else {
-          // Create a temporary local group object for immediate UI update
-          const tempGroup = createConversation(
-            participants,
-            'group',
-            { 
-              name, 
-              description, 
-              avatar: groupData.group_icon, 
-              createdBy,
-              _adminCreated: true // Flag to indicate it was created via admin API
-            }
-          );
-          return tempGroup;
-        }
+        // ✅ Return success - the new group is already in conversations state
+        // No need to search or create temp group - loadConversations() handled it
+        return { success: true, message: 'Group created successfully' };
       } else {
         throw new Error(response?.message || 'Failed to create group');
       }
@@ -553,6 +591,7 @@ export const ChatProvider = ({ children }) => {
     createConversation,
     createGroup,
     updateConversation,
+    loadEmployees,
     loadConversations,
     loadMessagesForConversation,
 

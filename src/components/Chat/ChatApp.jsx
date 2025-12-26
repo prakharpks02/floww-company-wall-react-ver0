@@ -939,29 +939,29 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                 <div className="flex gap-1">
                   <button
                     onClick={() => setShowGroupFilter(!showGroupFilter)}
-                    className={`px-2 py-1 rounded-full text-xs font-medium transition-all duration-200 ${
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 ${
                       showGroupFilter 
                         ? 'bg-purple-600 text-white' 
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     }`}
                   >
-                    <div className="flex items-center gap-1">
-                      <Users className="h-3 w-3" />
-                      Groups
+                    <div className="flex items-center gap-1.5">
+                      <Users className="h-4 w-4 flex-shrink-0" />
+                      <span>Groups</span>
                     </div>
                   </button>
                   
                   <button
                     onClick={() => setShowFavouritesFilter(!showFavouritesFilter)}
-                    className={`px-2 py-1 rounded-full text-xs font-medium transition-all duration-200 ${
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 ${
                       showFavouritesFilter 
                         ? 'bg-yellow-500 text-white' 
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     }`}
                   >
-                    <div className="flex items-center gap-1">
-                      <Star className="h-3 w-3" />
-                      Favorites
+                    <div className="flex items-center gap-1.5">
+                      <Star className="h-4 w-4 flex-shrink-0" />
+                      <span>Favorites</span>
                     </div>
                   </button>
                 </div>
@@ -1141,27 +1141,34 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                                 }`}
                               >
                                 <div className="relative">
-                                  {conversation.icon ? (
-                                    <div className="w-8 h-8 rounded-full flex items-center justify-center overflow-hidden shadow-md">
-                                      <img 
-                                        src={conversation.icon} 
-                                        alt={conversation.name || partner?.name}
-                                        className="w-full h-full object-cover"
-                                      />
-                                    </div>
-                                  ) : partner?.avatar && partner.avatar.startsWith('http') ? (
-                                    <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md overflow-hidden">
-                                      <img 
-                                        src={partner.avatar} 
-                                        alt={partner?.name}
-                                        className="w-full h-full object-cover"
-                                      />
-                                    </div>
-                                  ) : (
-                                    <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md">
-                                      {partner?.name?.substring(0, 2).toUpperCase() || 'U'}
-                                    </div>
-                                  )}
+                                  {(() => {
+                                    const avatarText = conversation.iconText || (conversation.type === 'group'
+                                      ? (conversation.name ? conversation.name.substring(0, 2).toUpperCase() : 'GR')
+                                      : (partner?.avatar || conversation.name?.substring(0, 2).toUpperCase() || 'U'));
+                                    
+                                    // ⚠️ CRITICAL: Only use image if NO iconText - iconText has highest priority
+                                    const avatarImageSrc = conversation.iconText ? null : (
+                                      conversation.icon && (conversation.icon.startsWith('http://') || conversation.icon.startsWith('https://'))
+                                        ? conversation.icon
+                                        : (partner?.avatar && (partner.avatar.startsWith('http://') || partner.avatar.startsWith('https://'))
+                                            ? partner.avatar
+                                            : null)
+                                    );
+
+                                    return avatarImageSrc ? (
+                                      <div className="w-8 h-8 rounded-full flex items-center justify-center overflow-hidden shadow-md">
+                                        <img 
+                                          src={avatarImageSrc} 
+                                          alt={conversation.name || partner?.name}
+                                          className="w-full h-full object-cover"
+                                        />
+                                      </div>
+                                    ) : (
+                                      <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md">
+                                        {avatarText}
+                                      </div>
+                                    );
+                                  })()}
                                   <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-white ${getStatusColor(partner?.status)} transition-all duration-200`}></div>
                                 </div>
                                 <div className="flex-1 text-left min-w-0">
@@ -1215,27 +1222,36 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                             }`}
                           >
                             <div className="relative">
-                              {conversation.icon ? (
-                                <div className="w-8 h-8 rounded-full flex items-center justify-center overflow-hidden shadow-md">
-                                  <img 
-                                    src={conversation.icon} 
-                                    alt={conversation.name || partner?.name}
-                                    className="w-full h-full object-cover"
-                                  />
-                                </div>
-                              ) : partner?.avatar && partner.avatar.startsWith('http') ? (
-                                <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md overflow-hidden">
-                                  <img 
-                                    src={partner.avatar} 
-                                    alt={partner?.name}
-                                    className="w-full h-full object-cover"
-                                  />
-                                </div>
-                              ) : (
-                                <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md">
-                                  {partner?.name?.substring(0, 2).toUpperCase() || 'U'}
-                                </div>
-                              )}
+                              {(() => {
+                                const avatarText = conversation.iconText || (conversation.type === 'group'
+                                  ? (conversation.name ? conversation.name.substring(0, 2).toUpperCase() : 'GR')
+                                  : (partner?.avatar || conversation.name?.substring(0, 2).toUpperCase() || 'U'));
+                                
+                                // ⚠️ CRITICAL: Only use image if NO iconText - iconText has highest priority
+                                const avatarImageSrc = conversation.iconText ? null : (
+                                  conversation.icon && (conversation.icon.startsWith('http://') || conversation.icon.startsWith('https://'))
+                                    ? conversation.icon
+                                    : conversation.profilePictureLink && (conversation.profilePictureLink.startsWith('http://') || conversation.profilePictureLink.startsWith('https://'))
+                                      ? conversation.profilePictureLink
+                                      : (partner?.avatar && (partner.avatar.startsWith('http://') || partner.avatar.startsWith('https://'))
+                                          ? partner.avatar
+                                          : null)
+                                );
+
+                                return avatarImageSrc ? (
+                                  <div className="w-8 h-8 rounded-full flex items-center justify-center overflow-hidden shadow-md">
+                                    <img 
+                                      src={avatarImageSrc} 
+                                      alt={conversation.name || partner?.name}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  </div>
+                                ) : (
+                                  <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md">
+                                    {avatarText}
+                                  </div>
+                                );
+                              })()}
                               <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-white ${getStatusColor(partner?.status)} transition-all duration-200`}></div>
                             </div>
                             <div className="flex-1 text-left min-w-0">
@@ -1631,6 +1647,7 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
           setShowGroupFilter={setShowGroupFilter}
           showFavouritesFilter={showFavouritesFilter}
           setShowFavouritesFilter={setShowFavouritesFilter}
+          onCreateGroup={() => setShowCreateGroup(true)}
         />
         
         {/* Main Chat Area */}
@@ -1731,27 +1748,34 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                         >
                           <div className="flex items-center gap-1.5">
                             <div className="relative">
-                              {conversation.icon ? (
-                                <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden">
-                                  <img 
-                                    src={conversation.icon} 
-                                    alt={conversation.name || partner?.name}
-                                    className="w-full h-full object-cover"
-                                  />
-                                </div>
-                              ) : partner?.avatar && partner.avatar.startsWith('http') ? (
-                                <div className="w-8 h-8 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-lg flex items-center justify-center text-white font-bold text-xs overflow-hidden">
-                                  <img 
-                                    src={partner.avatar} 
-                                    alt={partner?.name}
-                                    className="w-full h-full object-cover"
-                                  />
-                                </div>
-                              ) : (
-                                <div className="w-8 h-8 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-lg flex items-center justify-center text-white font-bold text-xs">
-                                  {partner?.name?.substring(0, 2).toUpperCase() || 'U'}
-                                </div>
-                              )}
+                              {(() => {
+                                const avatarText = conversation.iconText || (conversation.type === 'group'
+                                  ? (conversation.name ? conversation.name.substring(0, 2).toUpperCase() : 'GR')
+                                  : (partner?.avatar || conversation.name?.substring(0, 2).toUpperCase() || 'U'));
+                                
+                                // ⚠️ CRITICAL: Only use image if NO iconText - iconText has highest priority
+                                const avatarImageSrc = conversation.iconText ? null : (
+                                  conversation.icon && (conversation.icon.startsWith('http://') || conversation.icon.startsWith('https://'))
+                                    ? conversation.icon
+                                    : (partner?.avatar && (partner.avatar.startsWith('http://') || partner.avatar.startsWith('https://'))
+                                        ? partner.avatar
+                                        : null)
+                                );
+
+                                return avatarImageSrc ? (
+                                  <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden">
+                                    <img 
+                                      src={avatarImageSrc} 
+                                      alt={conversation.name || partner?.name}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  </div>
+                                ) : (
+                                  <div className="w-8 h-8 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-lg flex items-center justify-center text-white font-bold text-xs">
+                                    {avatarText}
+                                  </div>
+                                );
+                              })()}
                               <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-[#86efac] rounded-full flex items-center justify-center">
                                 <Pin className="h-1.5 w-1.5 text-white" />
                               </div>
@@ -1931,27 +1955,30 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                                 >
                                   <div className="flex items-center gap-1.5">
                                     <div className="relative">
-                                      {conversation.icon ? (
-                                        <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden">
-                                          <img 
-                                            src={conversation.icon} 
-                                            alt={conversation.name || partner?.name}
-                                            className="w-full h-full object-cover"
-                                          />
-                                        </div>
-                                      ) : partner?.avatar && partner.avatar.startsWith('http') ? (
-                                        <div className="w-8 h-8 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-lg flex items-center justify-center text-white font-bold text-xs overflow-hidden">
-                                          <img 
-                                            src={partner.avatar} 
-                                            alt={partner?.name}
-                                            className="w-full h-full object-cover"
-                                          />
-                                        </div>
-                                      ) : (
-                                        <div className="w-8 h-8 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-lg flex items-center justify-center text-white font-bold text-xs">
-                                          {partner?.name?.substring(0, 2).toUpperCase() || 'U'}
-                                        </div>
-                                      )}
+                                      {(() => {
+                                        // Prioritize iconText from room_icon API (e.g., "E", "EE")
+                                        const iconUrl = conversation.icon && (conversation.icon.startsWith('http://') || conversation.icon.startsWith('https://')) ? conversation.icon : null;
+                                        const partnerAvatarUrl = partner?.profilePictureLink && (partner.profilePictureLink.startsWith('http://') || partner.profilePictureLink.startsWith('https://')) ? partner.profilePictureLink : null;
+                                        // ⚠️ CRITICAL: Only use image if NO iconText - iconText has highest priority
+                                        const avatarImageSrc = conversation.iconText ? null : (iconUrl || partnerAvatarUrl);
+                                        const avatarText = conversation.iconText || (conversation.type === 'group'
+                                          ? (conversation.name ? conversation.name.substring(0, 2).toUpperCase() : 'GR')
+                                          : (partner?.name?.substring(0, 2).toUpperCase() || 'U'));
+                                        
+                                        return avatarImageSrc ? (
+                                          <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden">
+                                            <img 
+                                              src={avatarImageSrc} 
+                                              alt={conversation.name || partner?.name}
+                                              className="w-full h-full object-cover"
+                                            />
+                                          </div>
+                                        ) : (
+                                          <div className="w-8 h-8 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-lg flex items-center justify-center text-white font-bold text-xs">
+                                            {avatarText}
+                                          </div>
+                                        );
+                                      })()}
                                       <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white shadow-sm ${getStatusColor(partner?.status)}`}></div>
                                     </div>
                                     <div className="flex-1 text-left min-w-0">
@@ -2011,27 +2038,30 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                         >
                           <div className="flex items-center gap-2">
                             <div className="relative">
-                              {conversation.icon ? (
-                                <div className="w-9 h-9 rounded-xl flex items-center justify-center overflow-hidden">
-                                  <img 
-                                    src={conversation.icon} 
-                                    alt={conversation.name || partner?.name}
-                                    className="w-full h-full object-cover"
-                                  />
-                                </div>
-                              ) : partner?.avatar && partner.avatar.startsWith('http') ? (
-                                <div className="w-9 h-9 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-xl flex items-center justify-center text-white font-bold text-sm overflow-hidden">
-                                  <img 
-                                    src={partner.avatar} 
-                                    alt={partner?.name}
-                                    className="w-full h-full object-cover"
-                                  />
-                                </div>
-                              ) : (
-                                <div className="w-9 h-9 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-xl flex items-center justify-center text-white font-bold text-sm">
-                                  {partner?.name?.substring(0, 2).toUpperCase() || 'U'}
-                                </div>
-                              )}
+                              {(() => {
+                                // Prioritize iconText from room_icon API (e.g., "E", "EE")
+                                const iconUrl = conversation.icon && (conversation.icon.startsWith('http://') || conversation.icon.startsWith('https://')) ? conversation.icon : null;
+                                const partnerAvatarUrl = partner?.profilePictureLink && (partner.profilePictureLink.startsWith('http://') || partner.profilePictureLink.startsWith('https://')) ? partner.profilePictureLink : null;
+                                // ⚠️ CRITICAL: Only use image if NO iconText - iconText has highest priority
+                                const avatarImageSrc = conversation.iconText ? null : (iconUrl || partnerAvatarUrl);
+                                const avatarText = conversation.iconText || (conversation.type === 'group'
+                                  ? (conversation.name ? conversation.name.substring(0, 2).toUpperCase() : 'GR')
+                                  : (partner?.name?.substring(0, 2).toUpperCase() || 'U'));
+                                
+                                return avatarImageSrc ? (
+                                  <div className="w-9 h-9 rounded-xl flex items-center justify-center overflow-hidden">
+                                    <img 
+                                      src={avatarImageSrc} 
+                                      alt={conversation.name || partner?.name}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  </div>
+                                ) : (
+                                  <div className="w-9 h-9 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-xl flex items-center justify-center text-white font-bold text-sm">
+                                    {avatarText}
+                                  </div>
+                                );
+                              })()}
                               <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white shadow-sm ${getStatusColor(partner?.status)}`}></div>
                             </div>
                             <div className="flex-1 text-left min-w-0">
@@ -2074,19 +2104,35 @@ const ChatApp = ({ isMinimized, onToggleMinimize, onClose, isIntegratedMode = fa
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="relative">
-                      {activeConversation.icon ? (
-                        <div className="w-12 h-12 rounded-2xl flex items-center justify-center overflow-hidden shadow-[0_8px_32px_rgba(192,132,252,0.3)]">
-                          <img 
-                            src={activeConversation.icon} 
-                            alt={activeConversation.name || getConversationPartner(activeConversation, currentUser.id)?.name}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                      ) : (
-                        <div className="w-12 h-12 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-2xl flex items-center justify-center text-white font-bold text-base shadow-[0_8px_32px_rgba(192,132,252,0.3)]">
-                          {getConversationPartner(activeConversation, currentUser.id)?.avatar}
-                        </div>
-                      )}
+                      {(() => {
+                        const partner = getConversationPartner(activeConversation, currentUser.id);
+                        const avatarText = activeConversation.iconText || 
+                          (activeConversation.type === 'group'
+                            ? (activeConversation.name ? activeConversation.name.substring(0, 2).toUpperCase() : 'GR')
+                            : (partner?.avatar || activeConversation.name?.substring(0, 2).toUpperCase() || 'U'));
+                        
+                        const avatarImageSrc = activeConversation.icon && 
+                          (activeConversation.icon.startsWith('http://') || activeConversation.icon.startsWith('https://'))
+                          ? activeConversation.icon
+                          : (partner?.profile_picture_link && 
+                              (partner.profile_picture_link.startsWith('http://') || partner.profile_picture_link.startsWith('https://'))
+                              ? partner.profile_picture_link
+                              : null);
+
+                        return avatarImageSrc ? (
+                          <div className="w-12 h-12 rounded-2xl flex items-center justify-center overflow-hidden shadow-[0_8px_32px_rgba(192,132,252,0.3)]">
+                            <img 
+                              src={avatarImageSrc} 
+                              alt={activeConversation.name || partner?.name}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        ) : (
+                          <div className="w-12 h-12 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-2xl flex items-center justify-center text-white font-bold text-base shadow-[0_8px_32px_rgba(192,132,252,0.3)]">
+                            {avatarText}
+                          </div>
+                        );
+                      })()}
                       {/* <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white shadow-sm ${getStatusColor(getConversationPartner(activeConversation, currentUser.id)?.status)}`}></div> */}
                     </div>
                     <div>

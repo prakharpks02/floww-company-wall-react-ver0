@@ -92,7 +92,7 @@ export const chatAPI = {
       };
       
       const apiUrl = `${getChatApiBaseUrl()}/rooms/create`;
-     
+  
       
       const response = await fetch(apiUrl, {
         method: 'POST',
@@ -100,7 +100,9 @@ export const chatAPI = {
         body: JSON.stringify(body),
       });
       
-      return await handleResponse(response);
+      const result = await handleResponse(response);
+      
+      return result;
     } catch (error) {
       throw error;
     }
@@ -337,7 +339,10 @@ export const chatAPI = {
         
         // Find room where the participant is involved
         const existingRoom = roomsResponse.data.find(room => {
-
+          // CRITICAL: Only find DIRECT chats (is_group: false), not groups
+          if (room.is_group !== false) {
+            return false;
+          }
           
           // Check if any participant in this room matches our search IDs
           if (room.participants && Array.isArray(room.participants)) {

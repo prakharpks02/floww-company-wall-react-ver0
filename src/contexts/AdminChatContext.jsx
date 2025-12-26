@@ -158,6 +158,20 @@ export const AdminChatProvider = ({ children }) => {
     return null;
   };
 
+  // Get mention users for adding to groups
+  const getMentionUsers = async (search = '') => {
+    try {
+      const response = await adminChatAPI.getMentionUsers(search);
+      
+      if (response.status === 'success') {
+        return response;
+      }
+    } catch (error) {
+      setError(error.message);
+    }
+    return null;
+  };
+
   // Assign admin rights
   const assignAdminRights = async (roomId, employeeId) => {
     try {
@@ -212,7 +226,8 @@ export const AdminChatProvider = ({ children }) => {
     addParticipants,
     removeParticipant,
     assignAdminRights,
-    removeAdminRights
+    removeAdminRights,
+    getMentionUsers
   };
 
   return (

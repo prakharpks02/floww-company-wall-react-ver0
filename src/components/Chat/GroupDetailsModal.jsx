@@ -1,20 +1,87 @@
-import React, { useState, useRef } from 'react';
-import { X, Users, UserPlus, UserMinus, Crown, Shield, User, /* Camera, */ Phone, Video, Search } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { X, Users, UserPlus, UserMinus, Crown, Shield, User, Edit2, /* Camera, */ Phone, Video, Search } from 'lucide-react';
 import { useChat } from '../../contexts/ChatContext';
 import { getEmployeeByIdFromList } from './utils/dummyData';
 import { cookieUtils } from '../../utils/cookieUtils';
 
 const GroupDetailsModal = ({ isOpen, onClose, conversation, currentUserId, onUpdateGroup, onLeaveGroup, onRemoveMember }) => {
-  const { employees } = useChat();
+  const { employees, loadEmployees } = useChat();
   const [activeTab, setActiveTab] = useState('Overview');
   const [showAddMember, setShowAddMember] = useState(false);
   const [groupIcon, setGroupIcon] = useState(conversation?.icon || null);
   const [uploadingIcon, setUploadingIcon] = useState(false);
+  const [availableEmployees, setAvailableEmployees] = useState([]);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [groupName, setGroupName] = useState(conversation?.name || '');
+  const [groupDescription, setGroupDescription] = useState(conversation?.description || '');
   const fileInputRef = useRef(null);
 
-  if (!isOpen || !conversation || !employees.length) return null;
+  // Load employees when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      const fetchEmployees = async () => {
+        try {
+          await loadEmployees('');
+        } catch (error) {
+          console.error('Error loading employees:', error);
+        }
+      };
+      fetchEmployees();
+    }
+  }, [isOpen]);
 
-  
+  // Update available employees when employees or conversation changes
+  useEffect(() => {
+    if (employees && conversation) {
+      const currentParticipants = conversation.participants || [];
+      const available = employees.filter(emp => 
+        !currentParticipants.includes(emp.id) && 
+        !currentParticipants.includes(emp.employeeId) &&
+        emp.id !== currentUserId &&
+        emp.employeeId !== currentUserId
+      );
+      setAvailableEmployees(available);
+    }
+  }, [employees, conversation?.participants, currentUserId]);
+
+  // Update form fields when conversation changes
+  useEffect(() => {
+    if (conversation) {
+      setGroupName(conversation.name || '');
+      setGroupDescription(conversation.description || '');
+      setGroupIcon(conversation.icon || null);
+    }
+  }, [conversation]);
+
+  const handleSaveChanges = async () => {
+    if (!groupName.trim()) return;
+    
+    setIsSaving(true);
+    try {
+      const { adminChatAPI } = await import('../../services/adminChatAPI');
+      const roomId = conversation.room_id || conversation.id;
+      
+      await adminChatAPI.editRoom(roomId, {
+        room_name: groupName.trim(),
+        room_description: groupDescription.trim(),
+      });
+      
+      onUpdateGroup(conversation.id, {
+        name: groupName.trim(),
+        description: groupDescription.trim()
+      });
+      
+      setIsEditing(false);
+    } catch (error) {
+      console.error('Error updating group:', error);
+      alert('Failed to update group. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  if (!isOpen || !conversation) return null;
 
   const currentUser = getEmployeeByIdFromList(currentUserId, employees);
   
@@ -22,19 +89,29 @@ const GroupDetailsModal = ({ isOpen, onClose, conversation, currentUserId, onUpd
   const isAdminEnvironment = window.location.pathname.includes('/crm');
   const isAdmin = conversation.admins?.includes(currentUserId) || isAdminEnvironment;
   const isCreator = conversation.createdBy === currentUserId;
-  
-  
 
-  // Get available employees to add (not already in group)
-  const availableEmployees = employees.filter(emp => 
-    !conversation.participants.includes(emp.id) && emp.id !== currentUserId
-  );
-
-  const handleAddMember = (employeeId) => {
-    onUpdateGroup(conversation.id, {
-      participants: [...conversation.participants, employeeId]
-    });
-    setShowAddMember(false);
+  const handleAddMember = async (employeeId) => {
+    try {
+      // Import admin API
+      const { adminChatAPI } = await import('../../services/adminChatAPI');
+      const roomId = conversation.room_id || conversation.id;
+      
+      // Add participant via API
+      const response = await adminChatAPI.addParticipants(roomId, [employeeId]);
+      
+      if (response && response.status === 'success') {
+        // Update local conversation data
+        onUpdateGroup(conversation.id, {
+          participants: [...conversation.participants, employeeId]
+        });
+        setShowAddMember(false);
+      } else {
+        alert('Failed to add member. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error adding member:', error);
+      alert('Error adding member: ' + error.message);
+    }
   };
 
   const handleIconUpload = async (event) => {
@@ -129,7 +206,7 @@ const GroupDetailsModal = ({ isOpen, onClose, conversation, currentUserId, onUpd
 
         {/* Tabs */}
         <div className="flex border-b border-gray-200">
-          {['Overview', 'Members', 'Media', 'Settings'].map((tab) => (
+          {['Overview', 'Members', 'Settings'].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -152,15 +229,19 @@ const GroupDetailsModal = ({ isOpen, onClose, conversation, currentUserId, onUpd
               <div className="flex flex-col items-center mb-8">
                 <div className="relative inline-block">
                   <div className="w-32 h-32 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-4xl overflow-hidden">
-                    {groupIcon || conversation.icon ? (
-                      <img 
-                        src={groupIcon || conversation.icon} 
-                        alt="Group Icon" 
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      conversation.name ? conversation.name.substring(0, 1).toUpperCase() : 'G'
-                    )}
+                    {(() => {
+                      const iconUrl = groupIcon || conversation.icon;
+                      // Check if iconUrl is a valid URL (image)
+                      if (iconUrl && (iconUrl.startsWith('http://') || iconUrl.startsWith('https://'))) {
+                        return <img src={iconUrl} alt="Group Icon" className="w-full h-full object-cover" />;
+                      } else if (iconUrl && iconUrl.length <= 2) {
+                        // If it's a 1-2 character string, display it as text initials
+                        return iconUrl.toUpperCase();
+                      } else {
+                        // Otherwise, use the first character of group name
+                        return conversation.name ? conversation.name.substring(0, 1).toUpperCase() : 'G';
+                      }
+                    })()}
                   </div>
                   {/* Upload button - DEFINITELY VISIBLE */}
                   {/*
@@ -239,9 +320,121 @@ const GroupDetailsModal = ({ isOpen, onClose, conversation, currentUserId, onUpd
           )}
 
           {activeTab === 'Members' && (
-            <div className="p-4">
-              {/* Members list will go here */}
-              <p className="text-gray-500 text-center py-8">Members content coming soon</p>
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-gray-900">{conversation.participants?.length || 0} Members</h3>
+                {isAdmin && (
+                  <button
+                    onClick={() => setShowAddMember(!showAddMember)}
+                    className="flex items-center gap-2 px-3 py-2 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors text-sm font-medium"
+                    title="Add member"
+                  >
+                    <UserPlus className="h-4 w-4" />
+                    Add
+                  </button>
+                )}
+              </div>
+
+              {/* Add Member Section */}
+              {showAddMember && (
+                <div className="mb-4 p-3 bg-orange-50 rounded-lg border border-orange-200">
+                  <h4 className="text-sm font-medium text-gray-700 mb-3">Add Members</h4>
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {availableEmployees.length > 0 ? (
+                      availableEmployees.map(employee => (
+                        <div key={employee.id || employee.employeeId} className="flex items-center justify-between p-2 hover:bg-white rounded-lg transition-colors">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                              {employee.avatar && employee.avatar.startsWith('http') ? (
+                                <img src={employee.avatar} alt={employee.name} className="w-full h-full rounded-full object-cover" />
+                              ) : (
+                                employee.avatar || employee.name?.charAt(0).toUpperCase() || 'U'
+                              )}
+                            </div>
+                            <div>
+                              <div className="text-sm font-medium text-gray-900">{employee.name}</div>
+                              <div className="text-xs text-gray-500">{employee.role || 'Employee'}</div>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => handleAddMember(employee.employeeId || employee.id)}
+                            className="px-3 py-1 text-xs bg-orange-500 text-white rounded-full hover:bg-orange-600 transition-colors font-medium"
+                          >
+                            Add
+                          </button>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-sm text-gray-500 text-center py-3">No more members to add</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Members List */}
+              <div className="space-y-2">
+                {conversation.participants?.map(participantId => {
+                  // Try to get member from participantDetails first (from room API), then from employees list
+                  let member = conversation.participantDetails?.find(p => p.id === participantId);
+                  
+                  // If not in participantDetails, try employees list
+                  if (!member) {
+                    member = getEmployeeByIdFromList(participantId, employees);
+                  }
+                  
+                  if (!member) {
+                    // Last fallback - show basic info
+                    member = {
+                      id: participantId,
+                      name: 'Loading...',
+                      avatar: participantId.charAt(0).toUpperCase(),
+                      role: 'Member'
+                    };
+                  }
+
+                  return (
+                    <div key={participantId} className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg transition-colors">
+                      <div className="flex items-center gap-3 flex-1">
+                        <div className="relative">
+                          <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                            {member.avatar && member.avatar.startsWith('http') ? (
+                              <img src={member.avatar} alt={member.name} className="w-full h-full rounded-full object-cover" />
+                            ) : (
+                              member.avatar || member.name?.charAt(0).toUpperCase() || 'U'
+                            )}
+                          </div>
+                          <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${
+                            member.status === 'online' ? 'bg-green-500' : 
+                            member.status === 'away' ? 'bg-yellow-500' : 
+                            member.status === 'busy' ? 'bg-red-500' : 'bg-gray-400'
+                          }`}></div>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-gray-900 truncate">{member.name}</span>
+                            {getRoleIcon(participantId)}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-gray-500 truncate">{member.role || 'Employee'}</span>
+                            <span className="text-xs text-orange-600 font-medium">{getRoleText(participantId)}</span>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Remove member button (only for admins, can't remove creator or self) */}
+                      {isAdmin && participantId !== conversation.createdBy && participantId !== currentUserId && (
+                        <button
+                          onClick={() => onRemoveMember(conversation.id, participantId)}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-full transition-colors flex-shrink-0"
+                          title="Remove member"
+                        >
+                          <UserMinus className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
 
@@ -253,9 +446,98 @@ const GroupDetailsModal = ({ isOpen, onClose, conversation, currentUserId, onUpd
           )}
 
           {activeTab === 'Settings' && (
-            <div className="p-4">
-              {/* Settings content will go here */}
-              <p className="text-gray-500 text-center py-8">Settings content coming soon</p>
+            <div className="p-6">
+              <div className="space-y-4">
+                {/* Group Details */}
+                <div className="border-b border-gray-200 pb-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-semibold text-gray-900">Group Details</h3>
+                    {isAdmin && (
+                      <button
+                        onClick={() => setIsEditing(!isEditing)}
+                        className="p-2 text-orange-600 hover:bg-orange-50 rounded-full transition-colors"
+                        title="Edit group details"
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+
+                  {isEditing ? (
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Group Name</label>
+                        <input
+                          type="text"
+                          value={groupName}
+                          onChange={(e) => setGroupName(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                          placeholder="Enter group name"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                        <textarea
+                          value={groupDescription}
+                          onChange={(e) => setGroupDescription(e.target.value)}
+                          rows={3}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 resize-none"
+                          placeholder="Enter group description"
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={handleSaveChanges}
+                          disabled={isSaving || !groupName.trim()}
+                          className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
+                        >
+                          {isSaving && (
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          )}
+                          {isSaving ? 'Saving...' : 'Save Changes'}
+                        </button>
+                        <button
+                          onClick={() => {
+                            setIsEditing(false);
+                            setGroupName(conversation.name);
+                            setGroupDescription(conversation.description || '');
+                          }}
+                          className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <h4 className="font-medium text-gray-900 mb-2">{conversation.name}</h4>
+                      {conversation.description && (
+                        <p className="text-gray-600 text-sm mb-2">{conversation.description}</p>
+                      )}
+                      <div className="text-xs text-gray-500">
+                        Created by {getEmployeeByIdFromList(conversation.createdBy, employees)?.name || 'Unknown'} • {conversation.createdAt ? new Date(conversation.createdAt).toLocaleDateString() : 'Unknown date'}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Leave Group */}
+                {!isCreator && (
+                  <div>
+                    <h3 className="font-semibold text-gray-900 mb-3">Danger Zone</h3>
+                    <button
+                      onClick={() => {
+                        if (window.confirm('Are you sure you want to leave this group?')) {
+                          onLeaveGroup(conversation.id);
+                        }
+                      }}
+                      className="w-full px-4 py-2 text-red-600 hover:bg-red-50 border border-red-200 rounded-lg transition-colors font-medium"
+                    >
+                      Leave Group
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           )}
           {/* Group Details */}

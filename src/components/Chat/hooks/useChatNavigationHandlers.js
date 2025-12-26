@@ -19,9 +19,17 @@ export const useChatNavigationHandlers = ({
 
   // Handle starting a new chat with an employee
   const handleStartNewChat = async (employee) => {
+    
+    
     // Use employeeId for chat system compatibility, fallback to id
-    const employeeChatId = employee.employeeId || employee.id;
+    const employeeChatId = employee.employeeId || employee.id || employee.employee_id;
     const currentUserChatId = currentUser.employeeId || currentUser.id;
+  
+    
+    if (!employeeChatId) {
+      console.error('[NavigationHandler] No employee ID found in employee object:', employee);
+      return;
+    }
     
     // Set loading state
     setIsConnectingToChat(true);
@@ -100,26 +108,60 @@ export const useChatNavigationHandlers = ({
       setIsConnectingToChat(false);
       setConnectingChatId(null);
     } else {
-      // Create the conversation locally first with employee data
-      const newConv = createConversation(
-        [currentUserChatId, employeeChatId], 
-        'direct', 
-        null, 
-        employee // Pass employee data as 4th parameter
-      );
-      
-      // Immediately create the room and connect
+      // Don't create local conversation yet - check server first
       try {
         const { enhancedChatAPI } = await import('../chatapi');
+       
         const roomResponse = await enhancedChatAPI.createRoomAndConnect(String(employeeChatId));
+     
         
         if (roomResponse && roomResponse.room_id) {
+          // Check again if conversation was created by another process
+          const existingConvAfterCreate = conversations.find(conv => 
+            conv.room_id === roomResponse.room_id
+          );
+          
+          if (existingConvAfterCreate) {
+            // Use existing conversation
+            setActiveConversation(existingConvAfterCreate);
+            setGlobalActiveConversation(existingConvAfterCreate);
+            markConversationAsRead(existingConvAfterCreate.id);
+            setIsConnectingToChat(false);
+            setConnectingChatId(null);
+            return;
+          }
+          
+          // Now create the conversation locally with proper avatar handling
+          const newConv = createConversation(
+            [currentUserChatId, employeeChatId], 
+            'direct', 
+            null, 
+            employee // Pass employee data as 4th parameter
+          );
+          
+          // Extract room_name and room_icon from API response (they're arrays)
+          const roomName = Array.isArray(roomResponse.room_name) 
+            ? roomResponse.room_name[0] 
+            : roomResponse.room_name || employee.name || employee.employee_name;
+          
+          const roomIconUrl = Array.isArray(roomResponse.room_icon)
+            ? roomResponse.room_icon[0]
+            : roomResponse.room_icon;
+          
+          // Get profile picture URL - prioritize from API response, fallback to employee data
+          const profilePicUrl = roomIconUrl || employee.profile_picture_link || employee.profilePictureLink;
+          
           // Create the updated conversation object with all data
           const updatedConv = { 
             ...newConv, 
             room_id: roomResponse.room_id,
-            name: employee.name || employee.employee_name,
-            avatar: employee.avatar || employee.profile_picture_link,
+            name: roomName,
+            // Use initials for avatar text
+            avatar: roomName.substring(0, 2).toUpperCase(),
+            // Store the actual profile picture URL
+            profilePictureLink: profilePicUrl,
+            // Also store in icon field for compatibility
+            icon: profilePicUrl,
             employeeData: employee
           };
           
