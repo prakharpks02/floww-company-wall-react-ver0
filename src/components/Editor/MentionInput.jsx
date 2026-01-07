@@ -113,7 +113,11 @@ const MentionInput = ({
     const highlighted = highlightMentions(newValue);
     setHighlightedText(highlighted);
     
- 
+    // Sync scroll position with overlays
+    if (overlayRef.current && textareaRef.current) {
+      overlayRef.current.scrollTop = textareaRef.current.scrollTop;
+      overlayRef.current.scrollLeft = textareaRef.current.scrollLeft;
+    }
     
     // Sync mentions with text content - remove mentions that are no longer in the text
     const updatedMentions = currentMentions.filter(mention => {
@@ -165,6 +169,14 @@ const MentionInput = ({
       setShowMentions(false);
       setMentionQuery('');
       setUsers([]);
+    }
+  };
+
+  // Handle scroll synchronization
+  const handleScroll = (e) => {
+    if (overlayRef.current) {
+      overlayRef.current.scrollTop = e.target.scrollTop;
+      overlayRef.current.scrollLeft = e.target.scrollLeft;
     }
   };
 
@@ -260,62 +272,76 @@ const MentionInput = ({
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.extractMentions = extractMentions;
+      // Force word-break via setAttribute to ensure it's applied
+      textareaRef.current.setAttribute('style', 
+        textareaRef.current.getAttribute('style') + '; word-break: break-all !important; overflow-wrap: anywhere !important;'
+      );
     }
   }, [extractMentions]);
 
   return (
-    <div className={`relative ${className}`}>
-      {/* Visual overlay for highlighting mentions */}
-      <div
-        ref={overlayRef}
-        className="absolute inset-0 px-3 py-2 pointer-events-none text-sm whitespace-pre-wrap break-words overflow-hidden z-10"
-        style={{
-          color: 'transparent',
-          lineHeight: '1.5',
-          fontFamily: 'inherit',
-          fontSize: 'inherit',
-          border: '1px solid transparent', // Match textarea border
-          borderRadius: '0.5rem', // Match textarea border radius
-        }}
-        dangerouslySetInnerHTML={{ __html: highlightedText }}
-      />
-      
-      {/* Textarea for input */}
-      <textarea
-        ref={textareaRef}
-        value={value}
-        onChange={handleInput}
-        onKeyDown={handleKeyDown}
-        placeholder={placeholder}
-        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none transition-all duration-200 relative z-20 bg-transparent"
-        rows={rows}
-        maxLength={maxLength}
-        disabled={disabled}
-        style={{
-          color: value && highlightedText ? 'transparent' : 'inherit'
-        }}
-      />
-      
-      {/* Fallback text when highlighting is active */}
-      {value && highlightedText && (
-        <div
-          className="absolute inset-0 px-3 py-2 pointer-events-none text-sm whitespace-pre-wrap break-words overflow-hidden z-30"
+    <div 
+      className={className} 
+      style={{ 
+        position: 'relative',
+        width: '100%', 
+        maxWidth: '100%',
+        boxSizing: 'border-box',
+        display: 'block'
+      }}
+    >
+      <div style={{ position: 'relative', width: '100%', display: 'block' }}>
+        {/* Textarea for input - MUST BE FIRST for proper interaction */}
+        <textarea
+          ref={textareaRef}
+          value={value}
+          onChange={handleInput}
+          onScroll={handleScroll}
+          onKeyDown={handleKeyDown}
+          placeholder={placeholder}
+          rows={rows}
+          maxLength={maxLength}
+          disabled={disabled}
           style={{
-            lineHeight: '1.5',
-            fontFamily: 'inherit',
-            fontSize: 'inherit',
-            border: '1px solid transparent',
+            width: '100%',
+            maxWidth: '100%',
+            padding: '0.5rem 0.75rem',
+            border: '1px solid #d1d5db',
             borderRadius: '0.5rem',
-            color: '#111827' // Default text color
+            fontSize: '0.875rem',
+            lineHeight: '1.5',
+            resize: 'none',
+            position: 'relative',
+            zIndex: 1,
+            backgroundColor: 'white',
+            color: '#111827',
+            caretColor: '#111827',
+            wordBreak: 'break-all',
+            overflowWrap: 'anywhere',
+            whiteSpace: 'pre-wrap',
+            boxSizing: 'border-box',
+            overflowX: 'hidden',
+            overflowY: 'auto',
+            minWidth: 0,
+            outline: 'none',
+            transition: 'border-color 0.2s, box-shadow 0.2s',
+            display: 'block'
           }}
-          dangerouslySetInnerHTML={{ __html: highlightedText }}
+          onFocus={(e) => {
+            e.target.style.boxShadow = '0 0 0 2px rgba(159, 122, 234, 0.5)';
+            e.target.style.borderColor = '#9f7aea';
+          }}
+          onBlur={(e) => {
+            e.target.style.boxShadow = '';
+            e.target.style.borderColor = '#d1d5db';
+          }}
         />
-      )}
+      </div>
       
       {/* Character count */}
       {maxLength && (
-        <div className="flex justify-between items-center mt-1">
-          <span className="text-xs text-gray-400">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.25rem' }}>
+          <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
             {value?.length || 0}/{maxLength} characters • Type @ to mention someone
           </span>
         </div>
@@ -324,18 +350,26 @@ const MentionInput = ({
       {/* Mention Dropdown */}
       {showMentions && (
         <div
-          className="absolute z-50 bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-y-auto"
           style={{
+            position: 'absolute',
+            zIndex: 50,
+            backgroundColor: 'white',
+            border: '1px solid #e5e7eb',
+            borderRadius: '0.375rem',
+            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+            maxHeight: '12rem',
+            overflowY: 'auto',
             top: mentionPosition.top,
             left: mentionPosition.left,
-            minWidth: '250px'
+            minWidth: '250px',
+            maxWidth: '400px'
           }}
         >
           {isLoadingUsers ? (
-            <div className="px-3 py-2 text-sm text-gray-500 flex items-center space-x-2">
-              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+            <div style={{ padding: '0.5rem 0.75rem', fontSize: '0.875rem', color: '#6b7280', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <svg style={{ animation: 'spin 1s linear infinite', height: '1rem', width: '1rem' }} viewBox="0 0 24 24">
+                <circle style={{ opacity: 0.25 }} cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
+                <path style={{ opacity: 0.75 }} fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
               </svg>
               <span>Loading users...</span>
             </div>
@@ -344,34 +378,55 @@ const MentionInput = ({
               <button
                 key={user.user_id || user.id || user.employee_id}
                 onClick={() => insertMention(user)}
-                className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center space-x-2 border-none bg-transparent"
+                style={{
+                  width: '100%',
+                  textAlign: 'left',
+                  padding: '0.5rem 0.75rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  border: 'none',
+                  background: 'transparent',
+                  cursor: 'pointer'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f9fafb'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
               >
-                <div className="w-6 h-6 bg-gradient-to-br from-purple-400 to-blue-500 rounded-full flex items-center justify-center">
-                  <span className="text-xs font-medium text-white">
+                <div style={{
+                  width: '1.5rem',
+                  height: '1.5rem',
+                  background: 'linear-gradient(to bottom right, #c084fc, #3b82f6)',
+                  borderRadius: '9999px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0
+                }}>
+                  <span style={{ fontSize: '0.75rem', fontWeight: '500', color: 'white' }}>
                     {(() => {
-                      const userName = user.employee_name || user.name || user.employee_name || user.email || 'User';
+                      const userName = user.employee_name || user.name || user.email || 'User';
                       return (typeof userName === 'string' ? userName : 'U')[0].toUpperCase();
                     })()}
                   </span>
                 </div>
-                <div>
-                  <div className="text-sm font-medium text-gray-900">@{user.employee_name || user.name}</div>
-                  <div className="text-xs text-gray-500">{user.email}</div>
+                <div style={{ overflow: 'hidden' }}>
+                  <div style={{ fontSize: '0.875rem', fontWeight: '500', color: '#111827' }}>@{user.employee_name || user.name}</div>
+                  <div style={{ fontSize: '0.75rem', color: '#6b7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.email}</div>
                   {(user.job_title || user.position) && (
-                    <div className="text-xs text-blue-600">{user.job_title || user.position}</div>
+                    <div style={{ fontSize: '0.75rem', color: '#2563eb' }}>{user.job_title || user.position}</div>
                   )}
                 </div>
               </button>
             ))
           ) : mentionQuery.length > 0 ? (
-            <div className="px-3 py-2 text-sm text-gray-500">
+            <div style={{ padding: '0.5rem 0.75rem', fontSize: '0.875rem', color: '#6b7280' }}>
               {mentionQuery.length > 2 ? 
                 'No users found or mention API not available yet' : 
                 'Type at least 3 characters to search users'
               }
             </div>
           ) : (
-            <div className="px-3 py-2 text-sm text-gray-500">
+            <div style={{ padding: '0.5rem 0.75rem', fontSize: '0.875rem', color: '#6b7280' }}>
               Start typing to search users...
             </div>
           )}

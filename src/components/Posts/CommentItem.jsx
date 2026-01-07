@@ -196,7 +196,7 @@ const CommentItem = ({
   };
 
   return (
-    <div className="bg-gray-50 p-3 rounded-lg mb-2">
+    <div className="bg-gray-50 p-3 rounded-lg mb-2 overflow-hidden max-w-full">
       {/* Comment Header */}
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center space-x-2">
@@ -275,7 +275,7 @@ const CommentItem = ({
       <div className="mb-3">
         {isEditing ? (
           /* Edit Mode */
-          <div className="space-y-2">
+          <div className="space-y-2 overflow-hidden max-w-full">
             <MentionInput
               value={editContent}
               onChange={setEditContent}
@@ -309,9 +309,14 @@ const CommentItem = ({
               const highlightedContent = highlightMentions(content.toString().trim());
               
               return (
-                <div>
+                <div className="overflow-hidden">
                   <div 
                     className="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap"
+                    style={{
+                      wordBreak: 'break-all',
+                      overflowWrap: 'anywhere',
+                      maxWidth: '100%'
+                    }}
                     dangerouslySetInnerHTML={{ __html: highlightedContent }}
                   />
                   {comment.edited && (
@@ -476,7 +481,7 @@ const CommentItem = ({
 
       {/* Reply Input (if replying to this comment and user is not admin) */}
       {replyingTo === (comment.comment_id || comment.id) && !isAdmin && (
-        <div className="mt-3 p-3 bg-gray-100 rounded-lg">
+        <div className="mt-3 p-3 bg-gray-100 rounded-lg overflow-hidden max-w-full">
           <div className="flex items-center gap-2 mb-2">
             <div className="w-6 h-6 bg-gradient-to-br from-purple-400 to-blue-500 rounded-full flex items-center justify-center">
               <span className="text-xs font-medium text-white">
@@ -492,7 +497,7 @@ const CommentItem = ({
               </span>
             </p>
           </div>
-          <div className="space-y-2">
+          <div className="space-y-2 overflow-hidden max-w-full">
             <MentionInput
               value={replyContent}
               onChange={setReplyContent}

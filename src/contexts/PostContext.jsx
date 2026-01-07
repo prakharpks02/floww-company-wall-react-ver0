@@ -5,26 +5,6 @@ import { postsAPI } from '../services/api.jsx';
 import { adminAPI } from '../services/adminAPI.jsx';
 import { extractMentionsFromText, processCommentData } from '../utils/htmlUtils';
 
-// localStorage utilities for posts
-const LOCAL_STORAGE_KEY = 'floww_posts';
-const savePostsToLocalStorage = (posts) => {
-  try {
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(posts));
-  } catch (error) {
-    console.warn('Failed to save posts to localStorage:', error);
-  }
-};
-
-const loadPostsFromLocalStorage = () => {
-  try {
-    const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
-    return saved ? JSON.parse(saved) : [];
-  } catch (error) {
-    console.warn('Failed to load posts from localStorage:', error);
-    return [];
-  }
-};
-
 // Avatar URL generator helper
 const generateAvatarUrl = (name, options = {}) => {
   const { background = 'random', color = 'white', size = 128 } = options;
@@ -47,11 +27,7 @@ export const usePost = () => {
 
 export const PostProvider = ({ children }) => {
   const { user } = useAuth();
-  const [posts, setPosts] = useState(() => {
-    // Initialize with localStorage data
-    const savedPosts = loadPostsFromLocalStorage();
-    return savedPosts;
-  });
+  const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [nextCursor, setNextCursor] = useState(null);
   const [hasMorePosts, setHasMorePosts] = useState(true);
@@ -61,22 +37,8 @@ export const PostProvider = ({ children }) => {
   const [isInitialized, setIsInitialized] = useState(false);
   const [lastLoadUser, setLastLoadUser] = useState(null);
   const [isDashboardManaged, setIsDashboardManaged] = useState(false); // Track if Dashboard is managing posts
-  const [userReactions, setUserReactions] = useState(() => {
-    // Load user reactions from localStorage on initialization
-    try {
-      const stored = localStorage.getItem('userReactions');
-      return stored ? JSON.parse(stored) : {};
-    } catch (error) {
-      return {};
-    }
-  }); // Track user's reactions locally
+  const [userReactions, setUserReactions] = useState({}); // Track user's reactions locally
   
-  // Save posts to localStorage whenever posts change
-  useEffect(() => {
-    if (posts.length > 0) {
-      savePostsToLocalStorage(posts);
-    }
-  }, [posts]);
   const [tags] = useState([
     'Announcements',
     'Achievements',
@@ -148,35 +110,42 @@ export const PostProvider = ({ children }) => {
   const normalizeReactionCounts = (reactionCounts) => {
     try {
       if (!reactionCounts || typeof reactionCounts !== 'object') {
-        return {};
+        return { reactions: {}, currentUserReaction: null };
       }
       
       const reactionsObject = {};
+      const currentUserReaction = reactionCounts.current_user_reaction || null;
       
-      // Convert reaction_counts format (e.g., {like: 1, love: 2}) to frontend format
-      Object.entries(reactionCounts).forEach(([reactionType, count]) => {
-        if (typeof count === 'number' && count > 0) {
-          reactionsObject[reactionType] = {
-            users: [], // We don't have user list in reaction_counts format, will be populated from other sources
-            count: count
-          };
-        }
-      });
+      // Convert reaction_counts.counts format (e.g., {like: 1, love: 2}) to frontend format
+      const counts = reactionCounts.counts || reactionCounts;
+      if (counts && typeof counts === 'object') {
+        Object.entries(counts).forEach(([reactionType, count]) => {
+          if (typeof count === 'number' && count > 0) {
+            reactionsObject[reactionType] = {
+              users: [], // We don't have user list in reaction_counts format
+              count: count
+            };
+          }
+        });
+      }
       
-      return reactionsObject;
+      return { reactions: reactionsObject, currentUserReaction };
     } catch (error) {
-      return {};
+      return { reactions: {}, currentUserReaction: null };
     }
   };
 
   // Normalize post data to ensure consistent format
   const normalizePost = (rawPost) => {
     let normalizedReactions = {};
+    let currentUserReaction = null;
     
     try {
       // Handle new reaction_counts format first (takes priority)
       if (rawPost.reaction_counts && typeof rawPost.reaction_counts === 'object') {
-        normalizedReactions = normalizeReactionCounts(rawPost.reaction_counts);
+        const result = normalizeReactionCounts(rawPost.reaction_counts);
+        normalizedReactions = result.reactions;
+        currentUserReaction = result.currentUserReaction;
       } 
       // Fallback to old reactions array format
       else if (rawPost.reactions) {
@@ -196,6 +165,7 @@ export const PostProvider = ({ children }) => {
       }
     } catch (error) {
       normalizedReactions = {};
+      currentUserReaction = null;
     }
     
     // Extract author information from backend format with better fallbacks
@@ -335,6 +305,9 @@ export const PostProvider = ({ children }) => {
       // Normalize reactions
       reactions: normalizedReactions || {},
       likes: rawPost.likes || [],
+      // Store current user's reaction from API
+      current_user_reaction: currentUserReaction,
+      user_reaction: currentUserReaction, // Alias for compatibility
       // Normalize comments
       comments: normalizedComments,
       // Preserve important post fields
@@ -431,12 +404,6 @@ export const PostProvider = ({ children }) => {
         }
       };
       
-      // Persist to localStorage
-      try {
-        localStorage.setItem('userReactions', JSON.stringify(updated));
-      } catch (error) {
-      }
-      
       return updated;
     });
   };
@@ -451,12 +418,6 @@ export const PostProvider = ({ children }) => {
         if (Object.keys(updated[postId]).length === 0) {
           delete updated[postId];
         }
-      }
-      
-      // Persist to localStorage
-      try {
-        localStorage.setItem('userReactions', JSON.stringify(updated));
-      } catch (error) {
       }
       
       return updated;
@@ -484,12 +445,6 @@ export const PostProvider = ({ children }) => {
         }
       };
       
-      // Persist to localStorage
-      try {
-        localStorage.setItem('userReactions', JSON.stringify(updated));
-      } catch (error) {
-      }
-      
       return updated;
     });
   };
@@ -504,12 +459,6 @@ export const PostProvider = ({ children }) => {
         if (Object.keys(updated[commentKey]).length === 0) {
           delete updated[commentKey];
         }
-      }
-      
-      // Persist to localStorage
-      try {
-        localStorage.setItem('userReactions', JSON.stringify(updated));
-      } catch (error) {
       }
       
       return updated;
@@ -890,15 +839,27 @@ export const PostProvider = ({ children }) => {
         const url = typeof img === 'string' ? img : img.url;
         return {
           url: encodeURI(url), // Encode URL to handle spaces
-          name: `Image ${index + 1}`,
-          id: `temp-img-${tempId}-${index}`,
+          name: typeof img === 'object' ? img.name : `Image ${index + 1}`,
+          id: typeof img === 'object' ? img.id : `temp-img-${tempId}-${index}`,
           type: 'image'
         };
       });
       
+      
       const optimisticPost = {
         id: tempId,
         post_id: tempId,
+        author: {
+          employee_id: user?.employee_id || user?.id,
+          user_id: user?.user_id || user?.id,
+          id: user?.id,
+          username: user?.name || user?.username,
+          name: user?.name || user?.username,
+          avatar: user?.profile_picture_link || FALLBACK_AVATAR_URL,
+          position: user?.position || user?.job_title || (user?.is_admin ? 'Administrator' : 'Employee'),
+          email: user?.email,
+          is_blocked: user?.is_blocked
+        },
         authorName: authorName,
         authorAvatar: authorAvatar,
         authorPosition: user?.position || user?.job_title || (user?.is_admin ? 'Administrator' : 'Employee'),
@@ -910,19 +871,24 @@ export const PostProvider = ({ children }) => {
           id: `temp-vid-${index}`,
           type: 'video'
         })),
-        documents: (postData.documents || []).filter(doc => doc && (doc.url || typeof doc === 'string')).map((doc, index) => ({
-          url: typeof doc === 'string' ? doc : doc.url,
-          name: `Document ${index + 1}`,
-          id: `temp-doc-${index}`,
-          type: 'document'
-        })),
+        documents: (postData.documents || []).filter(doc => doc && (doc.url || typeof doc === 'string')).map((doc, index) => {
+          const url = typeof doc === 'string' ? doc : doc.url;
+          return {
+            url: url,
+            name: `Document ${index + 1}`,
+            id: `temp-doc-${index}`,
+            type: 'document',
+            isPDF: /\.pdf(\?.*)?$/i.test(url)
+          };
+        }),
         links: (postData.links || []).filter(link => link && (typeof link === 'string' || link.url)).map((link, index) => ({
           url: typeof link === 'string' ? link : link.url,
           title: typeof link === 'string' ? link : link.title || link.url,
           id: `temp-link-${index}`,
           type: 'link'
         })),
-        media: allMediaForOptimistic, // Add media array for backend compatibility
+        // Don't include media array in optimistic post to avoid duplicates when normalized
+        // The images, videos, documents, and links arrays are already properly formatted
         tags: postData.tags || [],
         mentions: postData.mentions || [],
         timestamp: new Date().toISOString(),
@@ -940,8 +906,6 @@ export const PostProvider = ({ children }) => {
       // Add optimistic post to UI immediately
       setPosts(prevPosts => {
         const newPosts = [optimisticPost, ...prevPosts];
-        // Immediately save to localStorage
-        savePostsToLocalStorage(newPosts);
         return newPosts;
       });
 
@@ -989,7 +953,6 @@ export const PostProvider = ({ children }) => {
             // Just remove the isOptimistic flag to mark it as successfully created
             const finalPost = { ...existingOptimisticPost, isOptimistic: false };
             const updatedPosts = prevPosts.map(p => p.id === tempId ? finalPost : p);
-            savePostsToLocalStorage(updatedPosts);
             return updatedPosts;
           } else {
             return prevPosts; // No changes if post not found
@@ -1097,7 +1060,6 @@ export const PostProvider = ({ children }) => {
         const updatedPosts = prevPosts.map(post => 
           post.id === tempId ? finalPost : post
         );
-        savePostsToLocalStorage(updatedPosts);
         return updatedPosts;
       });
 
@@ -1177,7 +1139,6 @@ export const PostProvider = ({ children }) => {
         const updatedPosts = prevPosts.filter(post => 
           post.id !== postId && post.post_id !== postId
         );
-        savePostsToLocalStorage(updatedPosts);
         return updatedPosts;
       });
 
@@ -1189,7 +1150,6 @@ export const PostProvider = ({ children }) => {
       if (postToDelete) {
         setPosts(prevPosts => {
           const restoredPosts = [postToDelete, ...prevPosts];
-          savePostsToLocalStorage(restoredPosts);
           return restoredPosts;
         });
       }
@@ -1779,6 +1739,32 @@ export const PostProvider = ({ children }) => {
                              Array.isArray(updatedPost.reactions[safeReactionType].users) &&
                              updatedPost.reactions[safeReactionType].users.includes(currentUserId);
           
+          // Check if user has ANY other reaction (for switching reactions)
+          const currentUserReaction = updatedPost.current_user_reaction || updatedPost.user_reaction;
+          const hasOtherReaction = currentUserReaction && currentUserReaction !== safeReactionType;
+          
+          // If user has a different reaction, remove it first
+          if (hasOtherReaction && updatedPost.reactions[currentUserReaction]) {
+            if (Array.isArray(updatedPost.reactions[currentUserReaction].users)) {
+              updatedPost.reactions[currentUserReaction].users = 
+                updatedPost.reactions[currentUserReaction].users.filter(id => id !== currentUserId);
+              updatedPost.reactions[currentUserReaction].count = Math.max(0, 
+                (updatedPost.reactions[currentUserReaction].count || 1) - 1);
+              
+              if (updatedPost.reactions[currentUserReaction].count === 0) {
+                delete updatedPost.reactions[currentUserReaction];
+              }
+            }
+            if (updatedPost.reaction_counts && updatedPost.reaction_counts[currentUserReaction]) {
+              updatedPost.reaction_counts[currentUserReaction] = Math.max(0, 
+                (updatedPost.reaction_counts[currentUserReaction] || 1) - 1);
+              
+              if (updatedPost.reaction_counts[currentUserReaction] === 0) {
+                delete updatedPost.reaction_counts[currentUserReaction];
+              }
+            }
+          }
+          
           if (hasReaction) {
             // Remove reaction (toggle off)
             if (updatedPost.reactions[safeReactionType] && 
@@ -1799,6 +1785,10 @@ export const PostProvider = ({ children }) => {
             if (updatedPost.reaction_counts[safeReactionType] === 0) {
               delete updatedPost.reaction_counts[safeReactionType];
             }
+            
+            // Clear current user reaction
+            updatedPost.current_user_reaction = null;
+            updatedPost.user_reaction = null;
           } else {
             // Add reaction - ensure proper object structure
             if (!updatedPost.reactions[safeReactionType] || 
@@ -1819,6 +1809,10 @@ export const PostProvider = ({ children }) => {
             }
             updatedPost.reaction_counts[safeReactionType] = 
               (updatedPost.reaction_counts[safeReactionType] || 0) + 1;
+            
+            // Set current user reaction
+            updatedPost.current_user_reaction = safeReactionType;
+            updatedPost.user_reaction = safeReactionType;
           }
 
           return updatedPost;
@@ -1891,6 +1885,10 @@ export const PostProvider = ({ children }) => {
               delete updatedPost.reaction_counts[safeReactionType];
             }
           }
+
+          // Clear current user reaction
+          updatedPost.current_user_reaction = null;
+          updatedPost.user_reaction = null;
 
           return updatedPost;
         }

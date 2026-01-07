@@ -64,15 +64,18 @@ export const usePostCreation = (createPost, editPost, editingPost, onClose) => {
       // Extract mentions from HTML content
       const extractedMentions = extractMentionsFromContent(content);
       
+      // Ensure media data is in the correct format (either objects or strings)
       const postData = {
         content: content.trim(),
         tags: selectedTags,
-        images: mediaData.images,
-        videos: mediaData.videos,
-        documents: mediaData.documents,
-        links: mediaData.links,
+        images: mediaData.images, // Can be objects {url, name, id, type} or strings
+        videos: mediaData.videos, // Can be objects {url, name, id, type} or strings
+        documents: mediaData.documents, // Can be objects {url, name, id, type} or strings
+        links: mediaData.links, // Can be objects {url, title} or strings
         mentions: extractedMentions // Use extracted mentions from content
       };
+      
+    
 
       if (editingPost) {
         await editPost(editingPost.post_id, postData);

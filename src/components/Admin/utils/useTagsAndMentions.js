@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { adminAPI } from '../../../services/adminAPI.jsx';
 
-export const useTagsAndMentions = (tags, getAllEmployees, showError) => {
+export const useTagsAndMentions = (tags, showError) => {
   const [selectedTags, setSelectedTags] = useState([]);
   const [mentions, setMentions] = useState([]);
   const [newTag, setNewTag] = useState('');

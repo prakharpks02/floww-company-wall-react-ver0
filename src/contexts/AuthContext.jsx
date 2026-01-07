@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { userAPI } from '../services/api.jsx';
+import adminAPI from '../services/adminAPI.jsx';
 import { cookieUtils } from '../utils/cookieUtils';
 
 // Avatar URL generator helper
@@ -53,13 +54,20 @@ const fetchUser = async () => {
   
     
     if (!token) {
-      // Prevent infinite redirects
-      if (!hasRedirected) {
-        setHasRedirected(true);
-        // Add a small delay to prevent immediate redirect loops
-        setTimeout(() => {
-          window.location.href = import.meta.env.VITE_EMPLOYEE_LOGIN_URL;
-        }, 1000);
+      // Check if we're on a public route that doesn't require authentication
+      const currentPath = window.location.pathname;
+      const isPublicRoute = currentPath.startsWith('/post/');
+      
+      if (!isPublicRoute) {
+        // Only redirect to login for non-public routes
+        // Prevent infinite redirects
+        if (!hasRedirected) {
+          setHasRedirected(true);
+          // Add a small delay to prevent immediate redirect loops
+          setTimeout(() => {
+            window.location.href = import.meta.env.VITE_EMPLOYEE_LOGIN_URL;
+          }, 1000);
+        }
       }
       setLoading(false);
       return;
@@ -70,7 +78,7 @@ const fetchUser = async () => {
         try {
           
           
-          const response = await userAPI.getCurrentUser();
+          const response = await adminAPI.getCurrentUser();
           const userData = response.data;
           
           if (userData && userData.employee_name) {
@@ -78,6 +86,7 @@ const fetchUser = async () => {
             const adminUser = {
               id: userData.employee_id,
               employee_id: userData.employee_id,
+              employeeId: userData.employee_id, // Add camelCase for chat compatibility
               user_id: userData.employee_id,
               author_id: userData.employee_id,
               name: userData.employee_name,
@@ -107,6 +116,7 @@ const fetchUser = async () => {
         const adminUser = {
           id: 'ADMIN_USER',
           employee_id: 'ADMIN_USER',
+          employeeId: 'ADMIN_USER', // Add camelCase for chat compatibility
           user_id: 'ADMIN_USER',
           author_id: 'ADMIN_USER',
           name: 'Admin',
@@ -145,6 +155,7 @@ const fetchUser = async () => {
         const authenticatedUser = {
           id: userData.employee_id,
           employee_id: userData.employee_id,
+          employeeId: userData.employee_id, // Add camelCase for chat compatibility
           user_id: userData.employee_id,
           author_id: userData.employee_id,
           name: userData.employee_name, // Using employee_name as display name
@@ -173,6 +184,7 @@ const fetchUser = async () => {
         const fallbackUser = {
           id: 'EMPLOYEE_USER',
           employee_id: 'EMPLOYEE_USER',
+          employeeId: 'EMPLOYEE_USER', // Add camelCase for chat compatibility
           user_id: 'EMPLOYEE_USER',
           author_id: 'EMPLOYEE_USER',
           name: 'Employee User',
@@ -251,11 +263,6 @@ const fetchUser = async () => {
     return getCurrentUserId();
   };
 
-  // Get all employees (returns empty array since we don't manage users)
-  const getAllEmployees = () => {
-    return [];
-  };
-
   // Token-based auth doesn't require login/logout/register
   const login = async () => {
     throw new Error('Login not required with token authentication');
@@ -318,12 +325,13 @@ const fetchUser = async () => {
     isAuthenticated,
     getCurrentUserId,
     getCurrentAuthorId,
-    getAllEmployees,
     // Cookie management methods
     setAuthTokens,
     clearAuthTokens,
     getAuthTokens,
-    refreshTokensFromCookies
+    refreshTokensFromCookies,
+    // Check if user is admin based on user object or URL path
+    isAdmin: user?.is_admin || window.location.pathname.includes('/crm')
   };
 
   return (

@@ -13,7 +13,7 @@ import TagsAndMentionsSection from './BroadcastComponents/TagsAndMentionsSection
 import { Megaphone, Send, Loader2 } from 'lucide-react';
 
 const AdminBroadcastMessage = () => {
-  const { user, getAllEmployees } = useAuth();
+  const { user } = useAuth();
   const { tags } = usePost();
   const [content, setContent] = useState('');
   const [success, setSuccess] = useState(false);
@@ -24,7 +24,7 @@ const AdminBroadcastMessage = () => {
   
   const mediaHandling = useMediaHandling(uploadMedia, showError);
   
-  const tagsAndMentions = useTagsAndMentions(tags, getAllEmployees, showError);
+  const tagsAndMentions = useTagsAndMentions(tags, showError);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -176,11 +176,17 @@ const AdminBroadcastMessage = () => {
       {mediaHandling.showCropModal && mediaHandling.pendingImages.length > 0 && (
         <ImageCropModal
           isOpen={mediaHandling.showCropModal}
-          onCancel={() => mediaHandling.setShowCropModal(false)}
+          onCancel={() => {
+            mediaHandling.setShowCropModal(false);
+            mediaHandling.setPendingImages([]);
+          }}
           imageFile={mediaHandling.pendingImages[0]?.file}
           onSave={(croppedBlob) => 
             mediaHandling.handleCropComplete(croppedBlob, mediaHandling.pendingImages[0]?.file)
           }
+          onSkip={() => mediaHandling.handleSkipCrop(mediaHandling.pendingImages[0]?.file)}
+          onSkipAll={mediaHandling.handleSkipCropAll}
+          remainingImagesCount={mediaHandling.pendingImages.length - 1}
         />
       )}
     </div>

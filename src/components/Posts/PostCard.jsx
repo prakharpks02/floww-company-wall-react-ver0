@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Image } from 'lucide-react';
 import { usePostCard } from '../../hooks/usePostCard';
 import CreatePost from './CreatePost';
 import VideoPlayer from '../Media/VideoPlayer';
 import PDFPreview from '../Media/PDFPreview';
 import DocumentViewer from '../Media/DocumentViewer';
+import ImageViewer from '../Media/ImageViewer';
 import PostHeader from './PostHeader';
 import PostTags from './PostTags';
 import PostContent from './PostContent';
@@ -26,6 +27,9 @@ const PostCard = ({
   onAdminEdit,
   onAdminDelete
 }) => {
+  const [imageViewerOpen, setImageViewerOpen] = useState(false);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+
   const {
     // State
     normalizedPost,
@@ -64,6 +68,7 @@ const PostCard = ({
     hasAnyReaction,
     isAuthor,
     isBlocked,
+    isAdmin,
     emojiReactions,
     user,
 
@@ -162,7 +167,11 @@ const PostCard = ({
                           ? 'aspect-square max-h-32 sm:max-h-40'
                           : 'aspect-square max-h-24 sm:max-h-32'
                     }`}
-                    onClick={() => window.open(encodedUrl, '_blank')}
+                    onClick={() => {
+                      setSelectedImageIndex(idx);
+                      // Use setTimeout to ensure state update completes before opening
+                      setTimeout(() => setImageViewerOpen(true), 0);
+                    }}
                     loading="lazy"
                     onError={(e) => {
                       console.error('Image failed to load:', encodedUrl, e);
@@ -303,9 +312,17 @@ const PostCard = ({
   };
 
   return (
-    <div className={`bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4 max-w-full overflow-hidden ${
-      showOptimisticState ? 'opacity-75' : ''
-    }`}>
+    <div 
+      className={`bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4 ${
+        showOptimisticState ? 'opacity-75' : ''
+      }`}
+      style={{ 
+        maxWidth: '100%', 
+        overflow: 'hidden',
+        boxSizing: 'border-box',
+        width: '100%'
+      }}
+    >
       {/* Share Alert - Compact layout */}
       {showShareAlert && (
         <div className="mb-2">
@@ -346,6 +363,7 @@ const PostCard = ({
         <PostHeader
           post={normalizedPost}
           isAuthor={isAuthor}
+          isAdmin={isAdmin}
           isPublicView={isPublicView}
           showMenu={showMenu}
           setShowMenu={setShowMenu}
@@ -390,7 +408,7 @@ const PostCard = ({
             totalLikes={getTotalLikes()}
             totalReactions={getTotalReactions()}
             totalComments={getTotalComments()}
-            // shareCount={shareCount}
+            shareCount={shareCount}
             getTopReactions={getTopReactions}
             getAllReactions={getAllReactions}
           />
@@ -417,6 +435,8 @@ const PostCard = ({
             handleReactionsMouseEnter={handleReactionsMouseEnter}
             handleReactionsMouseLeave={handleReactionsMouseLeave}
             handleReaction={handleReaction}
+            handleReport={() => handleReport('post', normalizedPost.post_id || normalizedPost.id)}
+            isOwnPost={isAuthor}
           />
         </div>
 
@@ -484,6 +504,24 @@ const PostCard = ({
         showBlockModal={showBlockModal}
         setShowBlockModal={setShowBlockModal}
         post={normalizedPost}
+      />
+
+      {/* Image Viewer Modal */}
+      <ImageViewer
+        images={normalizedPost.images || []}
+        initialIndex={selectedImageIndex}
+        isOpen={imageViewerOpen}
+        onClose={() => setImageViewerOpen(false)}
+        authorName={normalizedPost.authorName || normalizedPost.name}
+        authorAvatar={normalizedPost.authorAvatar || normalizedPost.author?.avatar || normalizedPost.profile_picture}
+        timestamp={new Date(normalizedPost.created_at || normalizedPost.timestamp).toLocaleString('en-US', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        })}
       />
     </div>
   );

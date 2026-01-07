@@ -11,7 +11,11 @@ const VideoPlayer = ({ src, poster, className = "" }) => {
   const [showControls, setShowControls] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
 
-  const togglePlay = async () => {
+  const togglePlay = async (event) => {
+    if (event) {
+      event.stopPropagation();
+    }
+    
     if (videoRef.current) {
       try {
         if (videoRef.current.paused) {
@@ -21,6 +25,7 @@ const VideoPlayer = ({ src, poster, className = "" }) => {
         }
         // No need to setIsPlaying here, let onPlay/onPause handlers update it
       } catch (error) {
+        console.error('Error toggling video play:', error);
         // Fallback: update state based on actual video state
         setIsPlaying(!videoRef.current.paused);
       }
@@ -94,6 +99,7 @@ const VideoPlayer = ({ src, poster, className = "" }) => {
       className={`relative bg-black rounded-lg overflow-hidden aspect-video w-full ${className}`}
       onMouseEnter={() => setShowControls(true)}
       onMouseLeave={() => setShowControls(false)}
+      onTouchStart={() => setShowControls(true)}
     >
       <video
         ref={videoRef}
@@ -104,7 +110,7 @@ const VideoPlayer = ({ src, poster, className = "" }) => {
         onLoadedMetadata={handleLoadedMetadata}
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
-        onClick={togglePlay}
+        onClick={(e) => togglePlay(e)}
         preload="metadata"
       />
 
@@ -117,7 +123,15 @@ const VideoPlayer = ({ src, poster, className = "" }) => {
 
       {/* Controls Overlay */}
       {showControls && (
-        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2 sm:p-4">
+        <div 
+          className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2 sm:p-4"
+          onMouseEnter={() => setShowControls(true)}
+          onMouseLeave={() => setShowControls(false)}
+          style={{
+            pointerEvents: 'auto',
+            zIndex: 10
+          }}
+        >
           {/* Progress Bar */}
           <div
             className="w-full h-0 bg-white/10 rounded-full cursor-pointer mb-2 sm:mb-3 touch-friendly flex items-center"
@@ -133,9 +147,20 @@ const VideoPlayer = ({ src, poster, className = "" }) => {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2 sm:space-x-3">
               <button
-                onClick={togglePlay}
-                className="text-white hover:text-purple-300 transition-colors touch-friendly p-1"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  togglePlay(e);
+                }}
+                className="text-white hover:text-purple-300 transition-colors touch-friendly p-2 bg-transparent border-none cursor-pointer"
                 aria-label={isPlaying ? 'Pause video' : 'Play video'}
+                style={{
+                  minWidth: '40px',
+                  minHeight: '40px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
               >
                 {isPlaying ? <Pause className="h-5 w-5 sm:h-6 sm:w-6" /> : <Play className="h-5 w-5 sm:h-6 sm:w-6" />}
               </button>
@@ -191,7 +216,11 @@ const VideoPlayer = ({ src, poster, className = "" }) => {
       {!isPlaying && !isLoading && (
         <div className="absolute inset-0 flex items-center justify-center">
           <button
-            onClick={togglePlay}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              togglePlay(e);
+            }}
             className="bg-black/50 hover:bg-black/70 text-white rounded-full p-3 sm:p-4 transition-all duration-200 transform hover:scale-110 touch-friendly"
             aria-label="Play video"
           >

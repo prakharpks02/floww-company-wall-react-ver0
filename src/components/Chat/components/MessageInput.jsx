@@ -5,6 +5,7 @@ import {
   X, 
   Check
 } from 'lucide-react';
+import AttachedFilesPreview from './AttachedFilesPreview';
 
 const MessageInput = ({
   newMessage,
@@ -17,7 +18,9 @@ const MessageInput = ({
   onCancelEdit,
   onKeyPress,
   onShowAttachment,
-  isDesktop = false
+  isDesktop = false,
+  pendingFileUrls = [],
+  onRemoveFile
 }) => {
   const containerClass = isDesktop 
     ? "flex items-center gap-2"
@@ -46,50 +49,61 @@ const MessageInput = ({
   const editButtonsContainerClass = isDesktop ? "flex gap-1" : "flex gap-2";
 
   return (
-    <div className={containerClass}>
-      {/* <button
-        onClick={onShowAttachment}
-        className={attachmentButtonClass}
-      >
-        <Paperclip className={isDesktop ? "h-4 w-4 text-[#6d28d9]" : "h-5 w-5 text-purple-600"} />
-      </button> */}
-      
-      <div className="flex-1">
-        <input
-          type="text"
-          placeholder={editingMessage ? "Edit message..." : "Type a message..."}
-          value={editingMessage ? editMessageText : newMessage}
-          onChange={(e) => editingMessage ? setEditMessageText(e.target.value) : setNewMessage(e.target.value)}
-          onKeyPress={onKeyPress}
-          className={inputClass}
+    <div className="flex flex-col gap-2">
+      {/* Attached Files Preview */}
+      {pendingFileUrls && pendingFileUrls.length > 0 && (
+        <AttachedFilesPreview 
+          fileUrls={pendingFileUrls} 
+          onRemove={onRemoveFile}
         />
-      </div>
-      
-      {editingMessage ? (
-        <div className={editButtonsContainerClass}>
-          <button
-            onClick={onCancelEdit}
-            className={cancelButtonClass}
-          >
-            <X className={isDesktop ? "h-4 w-4 text-red-500" : "h-5 w-5"} />
-          </button>
-          <button
-            onClick={onSaveEdit}
-            disabled={!editMessageText.trim()}
-            className={saveButtonClass}
-          >
-            <Check className={isDesktop ? "h-4 w-4" : "h-5 w-5"} />
-          </button>
-        </div>
-      ) : (
-        <button
-          onClick={onSendMessage}
-          disabled={!newMessage.trim()}
-          className={sendButtonClass}
-        >
-          <Send className={isDesktop ? "h-4 w-4" : "h-5 w-5"} />
-        </button>
       )}
+      
+      {/* Message Input Area */}
+      <div className={containerClass}>
+        <button
+          onClick={onShowAttachment}
+          className={attachmentButtonClass}
+        >
+          <Paperclip className={isDesktop ? "h-4 w-4 text-[#6d28d9]" : "h-5 w-5 text-purple-600"} />
+        </button>
+        
+        <div className="flex-1">
+          <input
+            type="text"
+            placeholder={editingMessage ? "Edit message..." : "Type a message..."}
+            value={editingMessage ? editMessageText : newMessage}
+            onChange={(e) => editingMessage ? setEditMessageText(e.target.value) : setNewMessage(e.target.value)}
+            onKeyPress={onKeyPress}
+            className={inputClass}
+          />
+        </div>
+        
+        {editingMessage ? (
+          <div className={editButtonsContainerClass}>
+            <button
+              onClick={onCancelEdit}
+              className={cancelButtonClass}
+            >
+              <X className={isDesktop ? "h-4 w-4 text-red-500" : "h-5 w-5"} />
+            </button>
+            <button
+              onClick={onSaveEdit}
+              disabled={!editMessageText.trim()}
+              className={saveButtonClass}
+            >
+              <Check className={isDesktop ? "h-4 w-4" : "h-5 w-5"} />
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={onSendMessage}
+            disabled={!newMessage.trim() && pendingFileUrls.length === 0}
+            className={sendButtonClass}
+          >
+            <Send className={isDesktop ? "h-4 w-4" : "h-5 w-5"} />
+          </button>
+        )}
+      </div>
     </div>
   );
 };

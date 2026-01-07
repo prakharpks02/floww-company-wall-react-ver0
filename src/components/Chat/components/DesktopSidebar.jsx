@@ -30,7 +30,8 @@ const DesktopSidebar = ({
   getConversationPartner,
   getStatusColor,
   formatMessageTime,
-  currentUser
+  currentUser,
+  isAdmin
 }) => {
   return (
     <div className="w-64 bg-white/50 backdrop-blur-xl border-r border-white/20 flex flex-col shadow-[inset_0_0_20px_rgba(255,255,255,0.5)]">
@@ -41,6 +42,7 @@ const DesktopSidebar = ({
             <h2 className="text-base text-[#1f2937]">Chat</h2>
             <p className="text-xs text-[#6b7280]">Stay connected with your team</p>
           </div>
+          {isAdmin && (
           <div className="relative" ref={compactPlusMenuRef}>
             <button 
               onClick={() => setShowCompactPlusMenu(!showCompactPlusMenu)}
@@ -66,6 +68,7 @@ const DesktopSidebar = ({
               </div>
             )}
           </div>
+          )}
         </div>
         
         {/* Search Input */}
@@ -115,23 +118,24 @@ const DesktopSidebar = ({
                     <div className="flex items-center gap-2">
                       <div className="relative">
                         <div className="w-8 h-8 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-xl flex items-center justify-center text-white font-normal text-xs overflow-hidden">
-                          {conversation.type === 'group' && conversation.icon ? (
-                            <img 
-                              src={conversation.icon} 
-                              alt="Group Icon" 
-                              className="w-full h-full object-cover"
-                            />
-                          ) : conversation.type === 'group' ? (
-                            conversation.name ? conversation.name.substring(0, 2).toUpperCase() : 'GR'
-                          ) : partner?.avatar && partner.avatar.startsWith('http') ? (
-                            <img 
-                              src={partner.avatar} 
-                              alt={partner.name} 
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <span className="font-semibold">{partner?.name?.substring(0, 2).toUpperCase() || 'U'}</span>
-                          )}
+                          {(() => {
+                            // For groups: prioritize room_icon (conversation.icon validated URL)
+                            // For direct: use partner's profilePictureLink (NOT avatar which contains profile_picture_link)
+                            const iconUrl = conversation.icon && (conversation.icon.startsWith('http://') || conversation.icon.startsWith('https://')) ? conversation.icon : null;
+                            const partnerAvatarUrl = partner?.profilePictureLink && (partner.profilePictureLink.startsWith('http://') || partner.profilePictureLink.startsWith('https://')) ? partner.profilePictureLink : null;
+                            const avatarImageSrc = iconUrl || partnerAvatarUrl;
+                            
+                            // Prioritize iconText from room_icon API, then calculate from names
+                            const avatarText = conversation.iconText || (conversation.type === 'group'
+                              ? (conversation.name ? conversation.name.substring(0, 2).toUpperCase() : 'GR')
+                              : (partner?.name?.substring(0, 2).toUpperCase() || conversation.name?.substring(0, 2).toUpperCase() || 'U'));
+                            
+                            return avatarImageSrc ? (
+                              <img src={avatarImageSrc} alt={conversation.name || partner?.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <span className="font-semibold">{avatarText}</span>
+                            );
+                          })()}
                         </div>
                         <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border border-white shadow-sm ${getStatusColor(partner?.status)}`}></div>
                       </div>
@@ -211,7 +215,7 @@ const DesktopSidebar = ({
                                     className="w-full h-full object-cover"
                                   />
                                 ) : (
-                                  <span>{employee.avatar || employee.name.substring(0, 2).toUpperCase()}</span>
+                                  <span>{employee.name?.substring(0, 2).toUpperCase() || 'U'}</span>
                                 )}
                               </div>
                               <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white shadow-sm ${getStatusColor(employee.status)}`}></div>
@@ -316,37 +320,44 @@ const DesktopSidebar = ({
                             <div className="flex items-center gap-3">
                               <div className="relative">
                                 <div className="w-12 h-12 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-2xl flex items-center justify-center text-white font-normal shadow-[0_8px_32px_rgba(192,132,252,0.3)] overflow-hidden">
-                                  {conversation.type === 'group' && conversation.icon ? (
-                                    <img 
-                                      src={conversation.icon} 
-                                      alt="Group Icon" 
-                                      className="w-full h-full object-cover"
-                                    />
-                                  ) : conversation.type === 'group' ? (
-                                    conversation.name ? conversation.name.substring(0, 2).toUpperCase() : 'GR'
-                                  ) : partner?.avatar && partner.avatar.startsWith('http') ? (
-                                    <img 
-                                      src={partner.avatar} 
-                                      alt={partner.name} 
-                                      className="w-full h-full object-cover"
-                                    />
-                                  ) : (
-                                    <span className="font-semibold">{partner?.name?.substring(0, 2).toUpperCase() || 'U'}</span>
-                                  )}
+                                  {(() => {
+                                    // For groups: prioritize room_icon (conversation.icon validated URL)
+                                    // For direct: use partner's profilePictureLink (NOT avatar which contains profile_picture_link)
+                                    const iconUrl = conversation.icon && (conversation.icon.startsWith('http://') || conversation.icon.startsWith('https://')) ? conversation.icon : null;
+                                    const partnerAvatarUrl = partner?.profilePictureLink && (partner.profilePictureLink.startsWith('http://') || partner.profilePictureLink.startsWith('https://')) ? partner.profilePictureLink : null;
+                                    const avatarImageSrc = iconUrl || partnerAvatarUrl;
+                                    
+                                    // Prioritize iconText from room_icon API, then calculate from names
+                                    const avatarText = conversation.iconText || (conversation.type === 'group'
+                                      ? (conversation.name ? conversation.name.substring(0, 2).toUpperCase() : 'GR')
+                                      : (partner?.name?.substring(0, 2).toUpperCase() || conversation.name?.substring(0, 2).toUpperCase() || 'U'));
+                                    
+                                    return avatarImageSrc ? (
+                                      <img src={avatarImageSrc} alt={conversation.name || partner?.name} className="w-full h-full object-cover" />
+                                    ) : (
+                                      <span className="font-semibold">{avatarText}</span>
+                                    );
+                                  })()}
                                 </div>
                                 <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white shadow-sm ${getStatusColor(partner?.status)}`}></div>
                               </div>
                               <div className="flex-1 text-left min-w-0">
                                 <div className="flex items-center justify-between mb-1">
                                   <p className={`font-normal text-sm truncate ${isActive ? 'text-white' : 'text-[#1f2937]'}`}>
-                                    {partner?.name}
+                                    {conversation.name || partner?.name || 'Unknown'}
                                   </p>
                                   <span className={`text-xs ${isActive ? 'text-white/80' : 'text-[#6b7280]'}`}>
                                     {formatMessageTime(conversation.timestamp)}
                                   </span>
                                 </div>
                                 <p className={`text-sm truncate ${isActive ? 'text-white/80' : 'text-[#6b7280]'}`}>
-                                  {conversation.lastMessage}
+                                  {(() => {
+                                    const lastMsg = conversation.lastMessage?.text || conversation.lastMessage || '';
+                                    if (typeof lastMsg === 'string' && (lastMsg.startsWith('http://') || lastMsg.startsWith('https://'))) {
+                                      return '📎 File';
+                                    }
+                                    return lastMsg || 'No messages yet';
+                                  })()}
                                 </p>
                               </div>
                               {conversation.unreadCount > 0 && (
@@ -390,23 +401,24 @@ const DesktopSidebar = ({
                     <div className="flex items-center gap-3">
                       <div className="relative">
                         <div className="w-12 h-12 bg-gradient-to-br from-[#c084fc] to-[#d8b4fe] rounded-2xl flex items-center justify-center text-white font-normal shadow-[0_8px_32px_rgba(192,132,252,0.3)] overflow-hidden">
-                          {conversation.type === 'group' && conversation.icon ? (
-                            <img 
-                              src={conversation.icon} 
-                              alt="Group Icon" 
-                              className="w-full h-full object-cover"
-                            />
-                          ) : conversation.type === 'group' ? (
-                            conversation.name ? conversation.name.substring(0, 2).toUpperCase() : 'GR'
-                          ) : partner?.avatar && partner.avatar.startsWith('http') ? (
-                            <img 
-                              src={partner.avatar} 
-                              alt={partner.name} 
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <span className="font-semibold">{partner?.name?.substring(0, 2).toUpperCase() || 'U'}</span>
-                          )}
+                          {(() => {
+                            // For groups: prioritize room_icon (conversation.icon validated URL)
+                            // For direct: use partner's profilePictureLink (NOT avatar which contains profile_picture_link)
+                            const iconUrl = conversation.icon && (conversation.icon.startsWith('http://') || conversation.icon.startsWith('https://')) ? conversation.icon : null;
+                            const partnerAvatarUrl = partner?.profilePictureLink && (partner.profilePictureLink.startsWith('http://') || partner.profilePictureLink.startsWith('https://')) ? partner.profilePictureLink : null;
+                            const avatarImageSrc = iconUrl || partnerAvatarUrl;
+                            
+                            // Prioritize iconText from room_icon API, then calculate from names
+                            const avatarText = conversation.iconText || (conversation.type === 'group'
+                              ? (conversation.name ? conversation.name.substring(0, 2).toUpperCase() : 'GR')
+                              : (partner?.name?.substring(0, 2).toUpperCase() || conversation.name?.substring(0, 2).toUpperCase() || 'U'));
+                            
+                            return avatarImageSrc ? (
+                              <img src={avatarImageSrc} alt={conversation.name || partner?.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <span className="font-semibold">{avatarText}</span>
+                            );
+                          })()}
                         </div>
                         <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white shadow-sm ${getStatusColor(partner?.status)}`}></div>
                       </div>

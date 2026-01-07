@@ -126,8 +126,8 @@ const CommentReply = ({
   };
 
   return (
-    <div className="flex space-x-2">
-      <div className="w-6 h-6 bg-gradient-to-br from-green-400 to-blue-500 rounded-full flex items-center justify-center">
+    <div className="flex space-x-2 overflow-hidden max-w-full">
+      <div className="w-6 h-6 bg-gradient-to-br from-green-400 to-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
         <span className="text-xs font-medium text-white">
           {(() => {
             const authorName = reply.author?.username || 
@@ -141,8 +141,8 @@ const CommentReply = ({
           })()}
         </span>
       </div>
-      <div className="flex-1">
-        <div className="bg-white rounded-lg p-2 border border-gray-200">
+      <div className="flex-1 min-w-0 overflow-hidden">
+        <div className="bg-white rounded-lg p-2 border border-gray-200 overflow-hidden max-w-full">
           <div className="flex items-center justify-between mb-1">
             <div className="flex items-center space-x-2">
               <span className="font-medium text-xs text-gray-900">
@@ -218,7 +218,7 @@ const CommentReply = ({
           <div className="mb-2">
             {isEditing ? (
               /* Edit Mode */
-              <div className="space-y-2">
+              <div className="space-y-2 overflow-hidden max-w-full">
                 <MentionInput
                   value={editContent}
                   onChange={setEditContent}
@@ -244,9 +244,14 @@ const CommentReply = ({
               </div>
             ) : (
               /* Display Mode */
-              <div>
+              <div className="overflow-hidden">
                 <div 
-                  className="text-xs text-gray-700"
+                  className="text-xs text-gray-700 whitespace-pre-wrap"
+                  style={{
+                    wordBreak: 'break-all',
+                    overflowWrap: 'anywhere',
+                    maxWidth: '100%'
+                  }}
                   dangerouslySetInnerHTML={{ __html: highlightMentions(normalizedReply.content || '') }}
                 />
                 {reply.edited && (

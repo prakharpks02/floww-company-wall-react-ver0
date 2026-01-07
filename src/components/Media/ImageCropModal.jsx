@@ -23,8 +23,11 @@ function centerAspectCrop(mediaWidth, mediaHeight, aspect) {
 const ImageCropModal = ({ 
   imageFile, 
   onSave, 
-  onCancel, 
-  isOpen 
+  onCancel,
+  onSkip,
+  onSkipAll,
+  isOpen,
+  remainingImagesCount = 0
 }) => {
   const [crop, setCrop] = useState();
   const [completedCrop, setCompletedCrop] = useState();
@@ -95,19 +98,18 @@ const ImageCropModal = ({
       previewCanvasRef.current.toBlob(
         (blob) => {
           if (blob) {
-            const croppedFile = new File([blob], imageFile.name, {
-              type: imageFile.type,
-              lastModified: Date.now(),
-            });
-            onSave(croppedFile);
+            onSave(blob, imageFile);
           }
         },
         imageFile.type,
         quality
       );
     } else {
-      // If no crop is applied, use original file
-      onSave(imageFile);
+      // If no crop is applied, convert original image to blob
+      imageFile.arrayBuffer().then(buffer => {
+        const blob = new Blob([buffer], { type: imageFile.type });
+        onSave(blob, imageFile);
+      });
     }
   }, [completedCrop, scale, rotate, quality, imageFile, onSave]);
 
@@ -248,21 +250,46 @@ const ImageCropModal = ({
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-end space-x-3 p-4 border-t border-gray-200 bg-gray-50">
-          <button
-            onClick={onCancel}
-            className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            className="flex items-center space-x-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <Crop className="h-4 w-4" />
-            <span>Apply Crop</span>
-          </button>
+        {/* Action Buttons */}
+        <div className="flex justify-between items-center p-4 border-t border-gray-200">
+          <div>
+            {remainingImagesCount > 0 && (
+              <span className="text-sm text-gray-600">
+                {remainingImagesCount} image{remainingImagesCount > 1 ? 's' : ''} remaining
+              </span>
+            )}
+          </div>
+          <div className="flex space-x-3">
+            <button
+              onClick={onCancel}
+              className="px-6 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            {onSkipAll && remainingImagesCount > 0 && (
+              <button
+                onClick={onSkipAll}
+                className="px-6 py-2 text-orange-700 border border-orange-300 bg-orange-50 rounded-lg hover:bg-orange-100 transition-colors font-medium"
+              >
+                Skip Crop All ({remainingImagesCount + 1})
+              </button>
+            )}
+            {onSkip && (
+              <button
+                onClick={() => onSkip(imageFile)}
+                className="px-6 py-2 text-blue-700 border border-blue-300 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+              >
+                Skip This
+              </button>
+            )}
+            <button
+              onClick={handleSave}
+              className="flex items-center space-x-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <Crop className="h-4 w-4" />
+              <span>Apply Crop</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>

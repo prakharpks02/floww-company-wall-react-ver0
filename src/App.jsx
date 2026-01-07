@@ -12,7 +12,8 @@ import SinglePostView from './components/Posts/SinglePostView';
 import './App.css';
 import NotFound from './components/NotFound';
 
-function AppRoutes() {
+// Protected routes that require authentication
+function ProtectedRoutes() {
   const { user, isAuthenticated, loading } = useAuth();
 
   // Show loading while authentication is being checked
@@ -50,10 +51,6 @@ function AppRoutes() {
         element={<Dashboard />} 
       />
       <Route 
-        path="/post/:postId" 
-        element={<SinglePostView />} 
-      />
-      <Route 
         path="/" 
         element={<Navigate to="/employee/dashboard" />} 
       />
@@ -62,21 +59,46 @@ function AppRoutes() {
   );
 }
 
+// Main app routes including public access
+function AppRoutes() {
+  return (
+    <Routes>
+      {/* Public route - no authentication required, no AuthProvider */}
+      <Route 
+        path="/post/:postId" 
+        element={<SinglePostViewPublic />} 
+      />
+      {/* All other routes require authentication */}
+      <Route 
+        path="/*" 
+        element={
+          <AuthProvider>
+            <PostProvider>
+              <NotificationProvider>
+                <ChatProvider>
+                  <ProtectedRoutes />
+                </ChatProvider>
+              </NotificationProvider>
+            </PostProvider>
+          </AuthProvider>
+        } 
+      />
+    </Routes>
+  );
+}
+
+// Public SinglePostView without any authentication context
+const SinglePostViewPublic = () => {
+  return <SinglePostView />;
+};
+
 function App() {
   return (
     <ErrorBoundary>
       <Router>
-        <AuthProvider>
-          <PostProvider>
-            <NotificationProvider>
-              <ChatProvider>
-                <div className="min-h-screen bg-gray-50">
-                  <AppRoutes />
-                </div>
-              </ChatProvider>
-            </NotificationProvider>
-          </PostProvider>
-        </AuthProvider>
+        <div className="min-h-screen bg-gray-50">
+          <AppRoutes />
+        </div>
       </Router>
     </ErrorBoundary>
   );

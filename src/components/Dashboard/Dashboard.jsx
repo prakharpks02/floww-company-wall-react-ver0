@@ -177,7 +177,7 @@ const Dashboard = () => {
 
     // Handle regular user views
     if (activeView === 'myposts') {
-      return <MyPosts filters={filters} onPostsChange={handleUserPostsChange} />;
+       return <MyPosts filters={filters} onPostsChange={handleUserPostsChange} />;
     }
     
     if (activeView === 'broadcast') {

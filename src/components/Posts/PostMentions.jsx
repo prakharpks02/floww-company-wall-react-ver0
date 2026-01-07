@@ -2,6 +2,9 @@ import React from 'react';
 import { AtSign } from 'lucide-react';
 
 const PostMentions = ({ mentions }) => {
+  // Hide mention badges - mentions are already highlighted inline in the content
+  return null;
+  
   if (!mentions || mentions.length === 0) return null;
 
   return (

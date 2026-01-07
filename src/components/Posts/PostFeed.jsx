@@ -57,7 +57,7 @@ const PostFeed = ({ posts, activeView = 'home', showPagination = true, isLoading
   }
 
   return (
-    <div className="space-y-3 sm:space-y-4 lg:space-y-6">
+    <div className="space-y-3 sm:space-y-4 lg:space-y-6" style={{ maxWidth: '100%', overflow: 'hidden', boxSizing: 'border-box' }}>
       {posts.map((post, index) => (
         <PostCard 
           key={post.id || post.post_id || `post-${index}`} 

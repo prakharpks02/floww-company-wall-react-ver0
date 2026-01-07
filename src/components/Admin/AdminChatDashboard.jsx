@@ -293,7 +293,7 @@ const AdminChatDashboard = () => {
                   return (
                     <div>
                       <h3 className="font-medium mb-2">Messages ({roomMessages.length})</h3>
-                      <div className="space-y-3 max-h-96 overflow-y-auto">
+                      <div className="space-y-3 max-h-96 overflow-y-auto overflow-x-hidden">
                         {roomMessages.length > 0 ? (
                           roomMessages.map((message, index) => (
                       <div key={index} className="p-3 bg-white border rounded-lg">

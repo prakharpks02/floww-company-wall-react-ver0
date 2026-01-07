@@ -25,10 +25,26 @@ export const transformPostMedia = (post) => {
   post.media.forEach(item => {
     let mediaUrl = null;
     
-    // Handle both old format (JSON strings) and new format (simple URLs)
+    // Handle different media link formats
     if (item.link && typeof item.link === 'string') {
-      // Check if it's a JSON string (old format) or a simple URL (new format)
-      if (item.link.startsWith("{'") || item.link.startsWith('{"')) {
+      // Check if it's a stringified object format: "{'link': 'url'}"
+      if (item.link.startsWith("{'link':")) {
+        mediaTextPatterns.push(item.link);
+        try {
+          // Extract URL from stringified object format: "{'link': 'actual_url'}"
+          const match = item.link.match(/'link':\s*'([^']+)'/);
+          if (match && match[1]) {
+            mediaUrl = match[1];
+          }
+        } catch (e) {
+          // Try to extract URL with regex as fallback
+          const urlMatch = item.link.match(/https?:\/\/[^\s'"]+/);
+          if (urlMatch) {
+            mediaUrl = urlMatch[0];
+          }
+          return;
+        }
+      } else if (item.link.startsWith("{'") || item.link.startsWith('{"')) {
         // Old format - JSON string
         mediaTextPatterns.push(item.link);
         try {

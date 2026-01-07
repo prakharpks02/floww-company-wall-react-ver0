@@ -156,10 +156,22 @@ const ForwardModal = ({ isOpen, onClose, onForward, conversations, currentUserId
                     }`}
                   >
                     <div className="relative">
-                      <div className={`bg-gradient-to-br from-[#6d28d9] to-[#7c3aed] rounded-xl flex items-center justify-center text-white font-bold shadow-[0_3px_10px_rgba(109,40,217,0.3)] ${
+                      <div className={`bg-gradient-to-br from-[#6d28d9] to-[#7c3aed] rounded-xl flex items-center justify-center text-white font-bold shadow-[0_3px_10px_rgba(109,40,217,0.3)] overflow-hidden ${
                         isCompactMode ? 'w-5 h-5 lg:w-6 lg:h-6 text-xs' : 'w-6 h-6 lg:w-8 lg:h-8 text-xs lg:text-sm'
                       }`}>
-                        {partner?.avatar}
+                        {partner?.avatar && (partner.avatar.startsWith('http') || partner.avatar.startsWith('/') || partner.avatar.includes('.')) ? (
+                          <img 
+                            src={partner.avatar} 
+                            alt={partner?.name}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                              e.target.parentElement.textContent = partner?.name?.charAt(0).toUpperCase() || 'U';
+                            }}
+                          />
+                        ) : (
+                          partner?.avatar || partner?.name?.charAt(0).toUpperCase() || 'U'
+                        )}
                       </div>
                       {isSelected && (
                         <div className={`absolute -top-0.5 -right-0.5 bg-gradient-to-br from-[#86efac] to-[#4ade80] rounded-full flex items-center justify-center shadow-[0_3px_8px_rgba(134,239,172,0.4)] ${

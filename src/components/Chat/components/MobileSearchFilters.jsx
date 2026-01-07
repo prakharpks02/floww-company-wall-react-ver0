@@ -26,30 +26,26 @@ const MobileSearchFilters = ({
       <div className="flex gap-2">
         <button
           onClick={() => setShowGroupFilter(!showGroupFilter)}
-          className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
+          className={`flex-1 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 flex items-center justify-center gap-2 ${
             showGroupFilter 
               ? 'bg-purple-600 text-white' 
               : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
           }`}
         >
-          <div className="flex items-center gap-2">
-            <Users className="h-4 w-4" />
-            {showGroupFilter ? 'Groups Only' : 'Show All'}
-          </div>
+          <Users className="h-4 w-4 flex-shrink-0" />
+          <span>{showGroupFilter ? 'Groups Only' : 'Groups'}</span>
         </button>
         
         <button
           onClick={() => setShowFavouritesFilter(!showFavouritesFilter)}
-          className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
+          className={`flex-1 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 flex items-center justify-center gap-2 ${
             showFavouritesFilter 
               ? 'bg-yellow-500 text-white' 
               : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
           }`}
         >
-          <div className="flex items-center gap-2">
-            <Star className="h-4 w-4" />
-            {showFavouritesFilter ? 'Favorites Only' : 'Show All'}
-          </div>
+          <Star className="h-4 w-4 flex-shrink-0" />
+          <span>{showFavouritesFilter ? 'Favorites Only' : 'Favorites'}</span>
         </button>
       </div>
     </div>

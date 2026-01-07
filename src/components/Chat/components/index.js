@@ -21,3 +21,4 @@ export { default as ReplyIndicator } from './ReplyIndicator';
 export { default as MessageInput } from './MessageInput';
 export { default as EmptyStateDisplay } from './EmptyStateDisplay';
 export { default as ChatModals } from './ChatModals';
+export { default as UploadProgressDisplay } from './UploadProgressDisplay';

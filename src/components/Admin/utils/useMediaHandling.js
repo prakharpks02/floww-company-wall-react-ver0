@@ -107,6 +107,51 @@ export const useMediaHandling = (uploadMedia, showError) => {
     }
   };
 
+  const handleSkipCrop = async (originalFile) => {
+    try {
+      const uploadedImage = await uploadMedia(originalFile, 'image');
+      if (uploadedImage) {
+        setImages(prev => [...prev, uploadedImage]);
+      }
+      
+      // Remove from pending
+      setPendingImages(prev => prev.filter(img => img.file !== originalFile));
+      
+      // If no more pending images, close modal
+      if (pendingImages.length <= 1) {
+        setShowCropModal(false);
+      }
+    } catch (error) {
+      showError('Failed to upload image');
+    }
+  };
+
+  const handleSkipCropAll = async () => {
+    try {
+      // Close modal immediately
+      setShowCropModal(false);
+      
+      // Upload all pending images without cropping
+      for (const pendingImage of pendingImages) {
+        try {
+          const uploadedImage = await uploadMedia(pendingImage.file, 'image');
+          if (uploadedImage) {
+            setImages(prev => [...prev, uploadedImage]);
+          }
+        } catch (uploadError) {
+          console.error(`Error uploading image ${pendingImage.file.name}:`, uploadError);
+          showError(`Failed to upload ${pendingImage.file.name}`);
+        }
+      }
+      
+      // Clear pending images
+      setPendingImages([]);
+    } catch (error) {
+      showError('Failed to upload images');
+      setPendingImages([]);
+    }
+  };
+
   const handleAddLink = () => {
     if (linkUrl.trim()) {
       // Basic URL validation
@@ -171,6 +216,8 @@ export const useMediaHandling = (uploadMedia, showError) => {
     handleVideoSelect,
     handleDocumentSelect,
     handleCropComplete,
+    handleSkipCrop,
+    handleSkipCropAll,
     handleAddLink,
     removeImage,
     removeVideo,
@@ -181,6 +228,8 @@ export const useMediaHandling = (uploadMedia, showError) => {
     // Setters
     setLinkUrl,
     setShowLinkInput,
-    setCurrentImageFile
+    setCurrentImageFile,
+    setPendingImages,
+    setShowCropModal
   };
 };

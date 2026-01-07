@@ -1,17 +1,25 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Search, Plus, MoreVertical, Users, Pin, Filter } from 'lucide-react';
-import { getConversationPartner, formatMessageTime } from './utils/dummyData';
-import { useChat } from '../../contexts/ChatContext';
+import React, { useState, useEffect, useRef } from "react";
+import { Search, Plus, MoreVertical, Users, Pin, Filter } from "lucide-react";
+import { getConversationPartner, formatMessageTime } from "./utils/dummyData";
+import { useChat } from "../../contexts/ChatContext";
 
-const ChatSidebar = ({ onSelectConversation, onStartNewChat, activeConversation, onCreateGroup, onChatContextMenu, pinnedChats = [], chatFilter = 'all', onFilterChange }) => {
+const ChatSidebar = ({
+  onSelectConversation,
+  onStartNewChat,
+  activeConversation,
+  onCreateGroup,
+  onChatContextMenu,
+  pinnedChats = [],
+  chatFilter = "all",
+  onFilterChange,
+  isAdmin = false,
+}) => {
   const { conversations, employees, totalUnreadMessages } = useChat();
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [showUserSearch, setShowUserSearch] = useState(false);
   const [showPlusDropdown, setShowPlusDropdown] = useState(false);
   const dropdownRef = useRef(null);
-  
 
-  
   const currentUser = employees[0] || null; // First employee as current user
 
   // Close dropdown when clicking outside
@@ -22,40 +30,48 @@ const ChatSidebar = ({ onSelectConversation, onStartNewChat, activeConversation,
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
 
   // Filter employees for search
-  const filteredEmployees = employees.filter(emp => 
-    emp.id !== currentUser?.id && 
-    emp.name.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredEmployees = employees.filter(
+    (emp) =>
+      emp.id !== currentUser?.id &&
+      emp.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   // Filter conversations for search and type
-  const filteredConversations = conversations.filter(conv => {
+  const filteredConversations = conversations.filter((conv) => {
     const partner = getConversationPartner(conv, currentUser?.id);
-    const displayName = conv.name || partner?.name || 'Unknown User';
-    const matchesSearch = displayName.toLowerCase().includes(searchQuery.toLowerCase());
-    
+    const displayName =
+      conv.name || partner?.employee_name || partner?.name || "Unknown User";
+    const matchesSearch = displayName
+      .toLowerCase()
+      .includes(searchQuery.toLowerCase());
+
     // Apply chat filter
-    if (chatFilter === 'direct') {
-      return conv.type === 'direct' && matchesSearch;
-    } else if (chatFilter === 'groups') {
-      return conv.type === 'group' && matchesSearch;
+    if (chatFilter === "direct") {
+      return conv.type === "direct" && matchesSearch;
+    } else if (chatFilter === "groups") {
+      return conv.type === "group" && matchesSearch;
     }
-    
+
     return matchesSearch; // 'all' filter
   });
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'online': return 'bg-green-500';
-      case 'away': return 'bg-yellow-500';
-      case 'busy': return 'bg-red-500';
-      default: return 'bg-gray-400';
+      case "online":
+        return "bg-green-500";
+      case "away":
+        return "bg-yellow-500";
+      case "busy":
+        return "bg-red-500";
+      default:
+        return "bg-gray-400";
     }
   };
 
@@ -67,8 +83,10 @@ const ChatSidebar = ({ onSelectConversation, onStartNewChat, activeConversation,
 
   const startNewConversation = (employee) => {
     // Check if conversation already exists
-    const existingConv = conversations.find(conv => 
-      conv.participants.includes(employee.id) && conv.participants.includes(currentUser.id)
+    const existingConv = conversations.find(
+      (conv) =>
+        conv.participants.includes(employee.id) &&
+        conv.participants.includes(currentUser.id)
     );
 
     if (existingConv) {
@@ -77,7 +95,7 @@ const ChatSidebar = ({ onSelectConversation, onStartNewChat, activeConversation,
       onStartNewChat(employee);
     }
     setShowUserSearch(false);
-    setSearchQuery('');
+    setSearchQuery("");
   };
 
   return (
@@ -87,34 +105,36 @@ const ChatSidebar = ({ onSelectConversation, onStartNewChat, activeConversation,
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-semibold text-gray-800">Chats</h1>
           <div className="flex items-center gap-2">
-            <div className="relative" ref={dropdownRef}>
-              <button 
-                onClick={() => setShowPlusDropdown(!showPlusDropdown)}
-                className="p-2 hover:bg-gray-200 rounded-full transition-colors"
-              >
-                <Plus className="h-5 w-5 text-gray-600" />
-              </button>
-              
-              {/* Dropdown Menu */}
-              {showPlusDropdown && (
-                <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
-                  <div className="py-1">
-                    <button
-                      onClick={() => {
-                        onCreateGroup();
-                        setShowPlusDropdown(false);
-                      }}
-                      className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center gap-3 text-sm"
-                    >
-                      <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center">
-                        <Users className="h-4 w-4 text-white" />
-                      </div>
-                      <span>Create Group</span>
-                    </button>
+            {isAdmin && (
+              <div className="relative" ref={dropdownRef}>
+                <button
+                  onClick={() => setShowPlusDropdown(!showPlusDropdown)}
+                  className="p-2 hover:bg-gray-200 rounded-full transition-colors"
+                >
+                  <Plus className="h-5 w-5 text-gray-600" />
+                </button>
+
+                {/* Dropdown Menu */}
+                {showPlusDropdown && (
+                  <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                    <div className="py-1">
+                      <button
+                        onClick={() => {
+                          onCreateGroup();
+                          setShowPlusDropdown(false);
+                        }}
+                        className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center gap-3 text-sm"
+                      >
+                        <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center">
+                          <Users className="h-4 w-4 text-white" />
+                        </div>
+                        <span>Create Group</span>
+                      </button>
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            )}
             <button className="p-2 hover:bg-gray-200 rounded-full transition-colors">
               <MoreVertical className="h-5 w-5 text-gray-600" />
             </button>
@@ -134,36 +154,36 @@ const ChatSidebar = ({ onSelectConversation, onStartNewChat, activeConversation,
             className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm"
           />
         </div>
-        
+
         {/* Filter Buttons */}
         {!showUserSearch && (
           <div className="flex gap-1 mt-2">
             <button
-              onClick={() => onFilterChange && onFilterChange('all')}
+              onClick={() => onFilterChange && onFilterChange("all")}
               className={`px-3 py-1 text-xs rounded-full border transition-colors ${
-                chatFilter === 'all' 
-                  ? 'bg-[#FFAD46] text-white border-[#FFAD46]' 
-                  : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                chatFilter === "all"
+                  ? "bg-[#FFAD46] text-white border-[#FFAD46]"
+                  : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"
               }`}
             >
               All
             </button>
             <button
-              onClick={() => onFilterChange && onFilterChange('direct')}
+              onClick={() => onFilterChange && onFilterChange("direct")}
               className={`px-3 py-1 text-xs rounded-full border transition-colors ${
-                chatFilter === 'direct' 
-                  ? 'bg-[#FFAD46] text-white border-[#FFAD46]' 
-                  : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                chatFilter === "direct"
+                  ? "bg-[#FFAD46] text-white border-[#FFAD46]"
+                  : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"
               }`}
             >
               Direct
             </button>
             <button
-              onClick={() => onFilterChange && onFilterChange('groups')}
+              onClick={() => onFilterChange && onFilterChange("groups")}
               className={`px-3 py-1 text-xs rounded-full border transition-colors ${
-                chatFilter === 'groups' 
-                  ? 'bg-[#FFAD46] text-white border-[#FFAD46]' 
-                  : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                chatFilter === "groups"
+                  ? "bg-[#FFAD46] text-white border-[#FFAD46]"
+                  : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"
               }`}
             >
               Groups
@@ -179,7 +199,7 @@ const ChatSidebar = ({ onSelectConversation, onStartNewChat, activeConversation,
             <div className="px-3 py-2 text-sm font-medium text-gray-500 uppercase tracking-wide">
               CONTACTS
             </div>
-            {filteredEmployees.map(employee => (
+            {filteredEmployees.map((employee) => (
               <button
                 key={employee.id}
                 onClick={() => startNewConversation(employee)}
@@ -187,21 +207,32 @@ const ChatSidebar = ({ onSelectConversation, onStartNewChat, activeConversation,
               >
                 <div className="relative flex-shrink-0">
                   <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-md overflow-hidden">
-                    {employee.avatar && employee.avatar.startsWith('http') ? (
-                      <img 
-                        src={employee.avatar} 
-                        alt={employee.name} 
+                    {employee.avatar && employee.avatar.startsWith("http") ? (
+                      <img
+                        src={employee.avatar}
+                        alt={employee.name}
                         className="w-full h-full object-cover"
                       />
                     ) : (
-                      <span>{employee.avatar || employee.name.substring(0, 2).toUpperCase()}</span>
+                      <span>
+                        {employee.avatar ||
+                          employee.name.substring(0, 2).toUpperCase()}
+                      </span>
                     )}
                   </div>
-                  <div className={`absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-white ${getStatusColor(employee.status)}`}></div>
+                  <div
+                    className={`absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-white ${getStatusColor(
+                      employee.status
+                    )}`}
+                  ></div>
                 </div>
                 <div className="flex-1 text-left min-w-0">
-                  <div className="font-medium text-gray-900 truncate">{employee.name}</div>
-                  <div className="text-sm text-gray-500 truncate">{employee.role} • {employee.department}</div>
+                  <div className="font-medium text-gray-900 truncate">
+                    {employee.name}
+                  </div>
+                  <div className="text-sm text-gray-500 truncate">
+                    {employee.role} • {employee.department}
+                  </div>
                 </div>
               </button>
             ))}
@@ -215,77 +246,129 @@ const ChatSidebar = ({ onSelectConversation, onStartNewChat, activeConversation,
                   <Pin className="w-3 h-3" />
                   Pinned
                 </div>
-                {pinnedChats.map(pinnedChat => {
+                {pinnedChats.map((pinnedChat) => {
                   // Find the actual conversation object from the conversations array
-                  const conversation = conversations.find(conv => conv.id === pinnedChat.id);
+                  const conversation = conversations.find(
+                    (conv) => conv.id === pinnedChat.id
+                  );
                   if (!conversation) return null; // Skip if conversation not found
-                  
-                  const partner = getConversationPartner(conversation, currentUser.id);
+
+                  const partner = getConversationPartner(
+                    conversation,
+                    currentUser.id
+                  );
                   const isActive = activeConversation?.id === conversation.id;
-                  
+
                   // Use conversation.name if available (from admin API), otherwise fall back to partner name
-                  let displayName = conversation.name || partner?.name || 'Unknown User';
-                  
+                  let displayName =
+                    conversation.name ||
+                    partner?.employee_name ||
+                    partner?.name ||
+                    "Unknown User";
+
                   // CRITICAL: Clean up displayName - remove any URLs
-                  if (displayName && (displayName.startsWith('http://') || displayName.startsWith('https://'))) {
-                    displayName = 'Chat';
+                  if (
+                    displayName &&
+                    (displayName.startsWith("http://") ||
+                      displayName.startsWith("https://"))
+                  ) {
+                    displayName = "Chat";
                   } else if (displayName) {
                     // Check if name contains a URL concatenated with it
-                    const urlMatch = displayName.match(/(.*?)(https?:\/\/|www\.)/);
+                    const urlMatch = displayName.match(
+                      /(.*?)(https?:\/\/|www\.)/
+                    );
                     if (urlMatch) {
-                      displayName = urlMatch[1].trim().replace(/,\s*$/, '');
+                      displayName = urlMatch[1].trim().replace(/,\s*$/, "");
                     }
                   }
-                  
-                  const displayAvatar = conversation.type === 'group' 
-                    ? (conversation.icon || (conversation.name ? conversation.name.substring(0, 2).toUpperCase() : 'GR'))
-                    : (partner?.avatar || 'U');
-                  
-                  // Check if avatar is a URL (for profile pictures)
-                  const isAvatarUrl = typeof displayAvatar === 'string' && (displayAvatar.startsWith('http://') || displayAvatar.startsWith('https://'));
-                  const avatarImageSrc = conversation.icon || (conversation.type !== 'group' && isAvatarUrl ? displayAvatar : null);
-                  
+
+                  // AVATAR LOGIC: conversation.icon is for images, names are for text initials
+                  // Never use partner.avatar as text - it could be a URL or wrong data
+                  // Prioritize iconText from room_icon API field - if iconText exists, show text NOT image
+                  const iconUrl =
+                    conversation.icon &&
+                    (conversation.icon.startsWith("http://") ||
+                      conversation.icon.startsWith("https://"))
+                      ? conversation.icon
+                      : null;
+                  const partnerAvatarUrl =
+                    partner?.profilePictureLink &&
+                    (partner.profilePictureLink.startsWith("http://") ||
+                      partner.profilePictureLink.startsWith("https://"))
+                      ? partner.profilePictureLink
+                      : null;
+                  // ⚠️ CRITICAL: Only use image if NO iconText - iconText has highest priority
+                  const avatarImageSrc = conversation.iconText
+                    ? null
+                    : iconUrl || partnerAvatarUrl;
+                  const pinnedAvatarText =
+                    conversation.iconText ||
+                    (conversation.type === "group"
+                      ? conversation.name
+                        ? conversation.name.substring(0, 2).toUpperCase()
+                        : "GR"
+                      : partner?.name?.substring(0, 2).toUpperCase() ||
+                        displayName?.substring(0, 2).toUpperCase() ||
+                        "U");
+
                   return (
                     <button
-                      key={`pinned-${conversation.id}-${conversation.name || 'unnamed'}`}
+                      key={`pinned-${conversation.id}-${
+                        conversation.name || "unnamed"
+                      }`}
                       onClick={() => onSelectConversation(conversation)}
-                      onContextMenu={(e) => onChatContextMenu && onChatContextMenu(e, conversation)}
+                      onContextMenu={(e) =>
+                        onChatContextMenu && onChatContextMenu(e, conversation)
+                      }
                       className={`w-full flex items-center gap-3 p-3 transition-colors bg-orange-50 border-l-4 border-[#FFAD46] ${
-                        isActive 
-                          ? 'bg-orange-100 border-r-4 border-green-500' 
-                          : 'hover:bg-orange-100'
+                        isActive
+                          ? "bg-orange-100 border-r-4 border-green-500"
+                          : "hover:bg-orange-100"
                       }`}
                     >
                       <div className="relative flex-shrink-0">
                         {avatarImageSrc ? (
                           <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center overflow-hidden shadow-md">
-                            <img 
-                              src={avatarImageSrc} 
+                            <img
+                              src={avatarImageSrc}
                               alt={displayName}
                               className="w-full h-full object-cover"
                               onError={(e) => {
-                                e.target.style.display = 'none';
-                                e.target.parentElement.innerHTML = `<div class="w-full h-full bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white font-bold text-lg">${displayName ? displayName.substring(0, 2).toUpperCase() : 'U'}</div>`;
+                                e.target.style.display = "none";
+                                e.target.parentElement.innerHTML = `<div class="w-full h-full bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white font-bold text-lg">${
+                                  displayName
+                                    ? displayName.substring(0, 2).toUpperCase()
+                                    : "U"
+                                }</div>`;
                               }}
                             />
                           </div>
-                      ) : (
-                        <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-md">
-                          {pinnedAvatarText}
-                        </div>
-                      )}
-                      <div className={`absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-white ${getStatusColor(partner?.status)}`}></div>
-                      <div className="absolute -top-1 -right-1 w-4 h-4 bg-[#FFAD46] rounded-full flex items-center justify-center">
+                        ) : (
+                          <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-md">
+                            {pinnedAvatarText}
+                          </div>
+                        )}
+                        <div
+                          className={`absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-white ${getStatusColor(
+                            partner?.status
+                          )}`}
+                        ></div>
+                        <div className="absolute -top-1 -right-1 w-4 h-4 bg-[#FFAD46] rounded-full flex items-center justify-center">
                           <Pin className="w-2 h-2 text-white" />
                         </div>
                       </div>
                       <div className="flex-1 text-left min-w-0">
                         <div className="flex items-center justify-between mb-1">
-                          <div className="font-medium text-gray-900 truncate">{displayName}</div>
+                          <div className="font-medium text-gray-900 truncate">
+                            {displayName}
+                          </div>
                           <div className="flex items-center gap-1">
                             {conversation.lastMessage && (
                               <div className="text-xs text-gray-500">
-                                {formatMessageTime(conversation.lastMessage.timestamp)}
+                                {formatMessageTime(
+                                  conversation.lastMessage.timestamp
+                                )}
                               </div>
                             )}
                           </div>
@@ -293,22 +376,38 @@ const ChatSidebar = ({ onSelectConversation, onStartNewChat, activeConversation,
                         <div className="flex items-center justify-between">
                           <div className="text-sm text-gray-500 truncate">
                             {(() => {
-                              const lastMsg = conversation.lastMessage?.text || '';
+                              const lastMsg =
+                                conversation.lastMessage?.text || "";
                               // Check if message is a URL (image/file)
-                              if (lastMsg.startsWith('http://') || lastMsg.startsWith('https://')) {
+                              if (
+                                lastMsg.startsWith("http://") ||
+                                lastMsg.startsWith("https://")
+                              ) {
                                 // Check file type from URL
                                 const urlLower = lastMsg.toLowerCase();
-                                if (urlLower.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?|$|#)/i)) {
-                                  return '📷 Photo';
-                                } else if (urlLower.match(/\.(mp4|avi|mov|wmv|webm|mkv)(\?|$|#)/i)) {
-                                  return '🎥 Video';
-                                } else if (urlLower.match(/\.(pdf|doc|docx|xls|xlsx|ppt|pptx)(\?|$|#)/i)) {
-                                  return '📄 Document';
+                                if (
+                                  urlLower.match(
+                                    /\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?|$|#)/i
+                                  )
+                                ) {
+                                  return "📷 Photo";
+                                } else if (
+                                  urlLower.match(
+                                    /\.(mp4|avi|mov|wmv|webm|mkv)(\?|$|#)/i
+                                  )
+                                ) {
+                                  return "🎥 Video";
+                                } else if (
+                                  urlLower.match(
+                                    /\.(pdf|doc|docx|xls|xlsx|ppt|pptx)(\?|$|#)/i
+                                  )
+                                ) {
+                                  return "📄 Document";
                                 } else {
-                                  return '📎 File';
+                                  return "📎 File";
                                 }
                               }
-                              return lastMsg || 'No messages yet';
+                              return lastMsg || "No messages yet";
                             })()}
                           </div>
                           {conversation.unreadCount > 0 && (
@@ -327,121 +426,185 @@ const ChatSidebar = ({ onSelectConversation, onStartNewChat, activeConversation,
 
             {/* Regular Conversations */}
             {filteredConversations.length > 0 ? (
-              filteredConversations.filter(conv => !pinnedChats.find(p => p.id === conv.id)).map(conversation => {
-                const partner = getConversationPartner(conversation, currentUser.id);
-                const isActive = activeConversation?.id === conversation.id;
-                
-                // Use conversation.name (from room_name)
-                let displayName = conversation.name || partner?.name || 'Unknown User';
-                
-                // CRITICAL: Clean up displayName - remove any URLs
-                if (displayName && (displayName.startsWith('http://') || displayName.startsWith('https://'))) {
-                  displayName = 'Chat';
-                } else if (displayName) {
-                  // Check if name contains a URL concatenated with it
-                  const urlMatch = displayName.match(/(.*?)(https?:\/\/|www\.)/);
-                  if (urlMatch) {
-                    displayName = urlMatch[1].trim().replace(/,\s*$/, '');
+              filteredConversations
+                .filter((conv) => !pinnedChats.find((p) => p.id === conv.id))
+                .map((conversation) => {
+                  const partner = getConversationPartner(
+                    conversation,
+                    currentUser.id
+                  );
+                  const isActive = activeConversation?.id === conversation.id;
+
+                  // Use conversation.name (from room_name)
+                  let displayName =
+                    conversation.name ||
+                    partner?.employee_name ||
+                    partner?.name ||
+                    "Unknown User";
+
+                  // CRITICAL: Clean up displayName - remove any URLs
+                  if (
+                    displayName &&
+                    (displayName.startsWith("http://") ||
+                      displayName.startsWith("https://"))
+                  ) {
+                    displayName = "Chat";
+                  } else if (displayName) {
+                    // Check if name contains a URL concatenated with it
+                    const urlMatch = displayName.match(
+                      /(.*?)(https?:\/\/|www\.)/
+                    );
+                    if (urlMatch) {
+                      displayName = urlMatch[1].trim().replace(/,\s*$/, "");
+                    }
                   }
-                }
-                
-                const displayAvatar = conversation.type === 'group' 
-                  ? (conversation.icon || (conversation.name ? conversation.name.substring(0, 2).toUpperCase() : 'GR'))
-                  : (partner?.avatar || 'U');
-                
-                // Check if avatar is a URL (for profile pictures)
-                const isAvatarUrl = typeof displayAvatar === 'string' && (displayAvatar.startsWith('http://') || displayAvatar.startsWith('https://'));
-                const avatarImageSrc = conversation.icon || (conversation.type !== 'group' && isAvatarUrl ? displayAvatar : null);
-                
-                // Get safe display text for avatar (never show URL as text)
-                const regularAvatarText = (isAvatarUrl || !displayAvatar || displayAvatar === 'U') 
-                  ? (displayName ? displayName.substring(0, 2).toUpperCase() : 'U')
-                  : (displayAvatar.length <= 2 ? displayAvatar.toUpperCase() : displayAvatar.substring(0, 2).toUpperCase());
-                
-                // Get safe display text for avatar (never show URL as text)
-                const avatarText = (isAvatarUrl || !displayAvatar || displayAvatar === 'U') 
-                  ? (displayName ? displayName.substring(0, 2).toUpperCase() : 'U')
-                  : (displayAvatar.length <= 2 ? displayAvatar.toUpperCase() : displayAvatar.substring(0, 2).toUpperCase());
-                
-                return (
-                  <button
-                    key={`${conversation.id}-${conversation.name || 'unnamed'}`}
-                    onClick={() => onSelectConversation(conversation)}
-                    onContextMenu={(e) => onChatContextMenu && onChatContextMenu(e, conversation)}
-                    className={`w-full flex items-center gap-3 p-3 transition-colors ${
-                      isActive 
-                        ? 'bg-gray-100 border-r-4 border-green-500' 
-                        : 'hover:bg-gray-50'
-                    }`}
-                  >
-                    <div className="relative flex-shrink-0">
-                      {avatarImageSrc ? (
-                        <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center overflow-hidden shadow-md">
-                          <img 
-                            src={avatarImageSrc} 
-                            alt={displayName}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              e.target.style.display = 'none';
-                              e.target.parentElement.innerHTML = `<div class="w-full h-full bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white font-bold text-lg">${displayName ? displayName.substring(0, 2).toUpperCase() : 'U'}</div>`;
-                            }}
-                          />
+
+                  // AVATAR LOGIC: conversation.icon is for images, names are for text initials
+                  // Never use partner.avatar as text - it could be a URL or wrong data
+                  // Prioritize iconText from room_icon API field - if iconText exists, show text NOT image
+                  const iconUrl =
+                    conversation.icon &&
+                    (conversation.icon.startsWith("http://") ||
+                      conversation.icon.startsWith("https://"))
+                      ? conversation.icon
+                      : null;
+                  const partnerAvatarUrl =
+                    partner?.profilePictureLink &&
+                    (partner.profilePictureLink.startsWith("http://") ||
+                      partner.profilePictureLink.startsWith("https://"))
+                      ? partner.profilePictureLink
+                      : null;
+                  // ⚠️ CRITICAL: Only use image if NO iconText - iconText has highest priority
+                  const avatarImageSrc = conversation.iconText
+                    ? null
+                    : iconUrl || partnerAvatarUrl;
+
+                  // Get safe display text for avatar (never show URL as text)
+                  const regularAvatarText =
+                    conversation.iconText ||
+                    (conversation.type === "group"
+                      ? conversation.name
+                        ? conversation.name.substring(0, 2).toUpperCase()
+                        : "GR"
+                      : partner?.name?.substring(0, 2).toUpperCase() ||
+                        displayName?.substring(0, 2).toUpperCase() ||
+                        "U");
+
+                  return (
+                    <button
+                      key={`${conversation.id}-${
+                        conversation.name || "unnamed"
+                      }`}
+                      onClick={() => onSelectConversation(conversation)}
+                      onContextMenu={(e) =>
+                        onChatContextMenu && onChatContextMenu(e, conversation)
+                      }
+                      className={`w-full flex items-center gap-3 p-3 transition-colors ${
+                        isActive
+                          ? "bg-gray-100 border-r-4 border-green-500"
+                          : "hover:bg-gray-50"
+                      }`}
+                    >
+                      <div className="relative flex-shrink-0">
+                        {avatarImageSrc ? (
+                          <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center overflow-hidden shadow-md">
+                            <img
+                              src={avatarImageSrc}
+                              alt={displayName}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.target.style.display = "none";
+                                e.target.parentElement.innerHTML = `<div class="w-full h-full bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white font-bold text-lg">${
+                                  displayName
+                                    ? displayName.substring(0, 2).toUpperCase()
+                                    : "U"
+                                }</div>`;
+                              }}
+                            />
+                          </div>
+                        ) : (
+                          <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-md">
+                            {regularAvatarText}
+                          </div>
+                        )}
+                        <div
+                          className={`absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-white ${getStatusColor(
+                            partner?.status
+                          )}`}
+                        ></div>
+                      </div>
+                      <div className="flex-1 text-left min-w-0">
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="font-medium text-gray-900 truncate">
+                            {displayName}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            {conversation.lastMessage && (
+                              <div className="text-xs text-gray-500">
+                                {formatMessageTime(
+                                  conversation.lastMessage.timestamp
+                                )}
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      ) : (
-                        <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-md">
-                          {regularAvatarText}
-                        </div>
-                      )}
-                      <div className={`absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-white ${getStatusColor(partner?.status)}`}></div>
-                    </div>
-                    <div className="flex-1 text-left min-w-0">
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="font-medium text-gray-900 truncate">{displayName}</div>
-                        <div className="flex items-center gap-1">
-                          {conversation.lastMessage && (
-                            <div className="text-xs text-gray-500">
-                              {formatMessageTime(conversation.lastMessage.timestamp)}
+                        <div className="flex items-center justify-between">
+                          <div className="text-sm text-gray-600 truncate flex-1">
+                            {(() => {
+                              const lastMsg =
+                                conversation.lastMessage?.text || "";
+                              // Check if message is a URL (image/file)
+                              if (
+                                lastMsg.startsWith("http://") ||
+                                lastMsg.startsWith("https://")
+                              ) {
+                                // Check file type from URL
+                                const urlLower = lastMsg.toLowerCase();
+                                if (
+                                  urlLower.match(
+                                    /\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?|$|#)/i
+                                  )
+                                ) {
+                                  return "📷 Photo";
+                                } else if (
+                                  urlLower.match(
+                                    /\.(mp4|avi|mov|wmv|webm|mkv)(\?|$|#)/i
+                                  )
+                                ) {
+                                  return "🎥 Video";
+                                } else if (
+                                  urlLower.match(
+                                    /\.(pdf|doc|docx|xls|xlsx|ppt|pptx)(\?|$|#)/i
+                                  )
+                                ) {
+                                  return "📄 Document";
+                                } else {
+                                  return "📎 File";
+                                }
+                              }
+                              return lastMsg || "No messages yet";
+                            })()}
+                          </div>
+                          {conversation.unreadCount > 0 && (
+                            <div className="bg-green-500 text-white text-xs rounded-full h-6 w-6 flex items-center justify-center font-medium ml-2">
+                              {conversation.unreadCount > 99
+                                ? "99+"
+                                : conversation.unreadCount}
                             </div>
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center justify-between">
-                        <div className="text-sm text-gray-600 truncate flex-1">
-                          {(() => {
-                            const lastMsg = conversation.lastMessage?.text || '';
-                            // Check if message is a URL (image/file)
-                            if (lastMsg.startsWith('http://') || lastMsg.startsWith('https://')) {
-                              // Check file type from URL
-                              const urlLower = lastMsg.toLowerCase();
-                              if (urlLower.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?|$|#)/i)) {
-                                return '📷 Photo';
-                              } else if (urlLower.match(/\.(mp4|avi|mov|wmv|webm|mkv)(\?|$|#)/i)) {
-                                return '🎥 Video';
-                              } else if (urlLower.match(/\.(pdf|doc|docx|xls|xlsx|ppt|pptx)(\?|$|#)/i)) {
-                                return '📄 Document';
-                              } else {
-                                return '📎 File';
-                              }
-                            }
-                            return lastMsg || 'No messages yet';
-                          })()}
-                        </div>
-                        {conversation.unreadCount > 0 && (
-                          <div className="bg-green-500 text-white text-xs rounded-full h-6 w-6 flex items-center justify-center font-medium ml-2">
-                            {conversation.unreadCount > 99 ? '99+' : conversation.unreadCount}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </button>
-                );
-              })
+                    </button>
+                  );
+                })
             ) : (
               <div className="text-center text-gray-500 mt-12 px-4">
                 <div className="w-24 h-24 bg-gray-100 rounded-full mx-auto mb-4 flex items-center justify-center">
                   <Search className="h-12 w-12 text-gray-300" />
                 </div>
-                <h3 className="font-medium text-gray-900 mb-2">No conversations yet</h3>
+                <h3 className="font-medium text-gray-900 mb-2">
+                  No conversations yet
+                </h3>
                 <p className="text-sm text-gray-500">
                   Start a conversation by searching for colleagues above
                 </p>

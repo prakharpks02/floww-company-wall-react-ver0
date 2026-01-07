@@ -259,6 +259,36 @@ export const adminChatAPI = {
   },
 
   // =============================================================================
+  // USER SEARCH (Admin Only)
+  // =============================================================================
+
+  /**
+   * Get mention users for adding to groups (Admin endpoint)
+   * Note: This endpoint uses /api/wall/admin (not /api/wall/chat/admin)
+   */
+  getMentionUsers: async (search = '', limit = 10) => {
+    try {
+      // Build query parameters
+      const params = new URLSearchParams();
+      if (search) params.append('query', search);
+      params.append('limit', limit.toString());
+      
+      // Special base URL for this endpoint (without /chat)
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://console.gofloww.xyz';
+      const url = `${baseUrl}/api/wall/admin/get_user_for_mentions?${params.toString()}`;
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: getAdminHeaders()
+      });
+
+      return await handleAdminResponse(response);
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  // =============================================================================
   // MESSAGE MANAGEMENT (Admin Only)
   // =============================================================================
 

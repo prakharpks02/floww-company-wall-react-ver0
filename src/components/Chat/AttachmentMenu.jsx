@@ -1,5 +1,5 @@
 import React from 'react';
-import { Image, Camera, FileText, BarChart3 } from 'lucide-react';
+import { Image, /* Camera, */ FileText, BarChart3 } from 'lucide-react';
 
 const AttachmentMenu = ({ isOpen, onClose, onSelect, isGroup = false, isCompact = false }) => {
   if (!isOpen) return null;
@@ -14,7 +14,7 @@ const AttachmentMenu = ({ isOpen, onClose, onSelect, isGroup = false, isCompact 
       shadowColor: 'rgba(236,72,153,0.3)',
       action: () => onSelect('photos-videos')
     },
-    {
+    /*{
       id: 'camera',
       label: 'Camera',
       icon: Camera,
@@ -22,7 +22,7 @@ const AttachmentMenu = ({ isOpen, onClose, onSelect, isGroup = false, isCompact 
       hoverColor: 'hover:from-red-300 hover:to-red-500',
       shadowColor: 'rgba(239,68,68,0.3)',
       action: () => onSelect('camera')
-    },
+    },*/
     {
       id: 'document',
       label: 'Document',
@@ -77,7 +77,7 @@ const AttachmentMenu = ({ isOpen, onClose, onSelect, isGroup = false, isCompact 
           </div>
           
           {/* Options Grid */}
-          <div className={`grid ${isCompact ? 'grid-cols-3 gap-1' : 'grid-cols-2 gap-3'}`}>
+          <div className={`grid ${isCompact ? 'grid-cols-2 gap-2' : 'grid-cols-2 gap-3'}`}>
             {attachmentOptions.map((option) => {
               const IconComponent = option.icon;
               return (

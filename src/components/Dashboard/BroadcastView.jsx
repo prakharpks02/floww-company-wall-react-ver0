@@ -149,13 +149,13 @@ const BroadcastView = () => {
           content: cleanedContent,
           // Always show admin information for broadcast messages
           authorName: 'Admin',
-          authorId: 'admin',
+          authorId: 'Admin',
           authorEmail: 'admin@company.com',
           // Add author object with complete information for components that expect it
           author: {
-            user_id: 'admin',
-            employee_id: 'admin',
-            username: 'admin',
+            user_id: 'Admin',
+            employee_id: 'Admin',
+            username: 'Admin',
             name: 'Admin',
             employee_name: 'Admin',
             email: 'admin@company.com',
@@ -352,7 +352,7 @@ const BroadcastView = () => {
           </div>
         </div>
       ) : (
-        <div className="space-y-3 sm:space-y-4 lg:space-y-6 max-w-2xl mx-auto">
+        <div className="space-y-3 sm:space-y-4 lg:space-y-6">
           {broadcasts.map((broadcast) => (
             <div key={broadcast.post_id} className="relative">
               {/* Broadcast Badge */}

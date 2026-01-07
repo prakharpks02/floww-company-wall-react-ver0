@@ -25,26 +25,30 @@ const ImprovedMediaPreviews = ({
           <h4 className="text-sm font-medium text-gray-700 mb-2">Images</h4>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
             {/* Uploaded Images */}
-            {images.map((imageUrl, index) => (
-              <div key={`uploaded-${index}`} className="relative group">
-                <img
-                  src={imageUrl}
-                  alt={`Image ${index + 1}`}
-                  className="w-full h-24 object-cover rounded border"
-                  onError={(e) => {
-                    e.target.onerror = null;
-                    e.target.src = '/api/placeholder/100/100';
-                  }}
-                />
-                <button
-                  onClick={() => onRemoveImage(imageUrl)}
-                  className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
-                  title="Remove image"
-                >
-                  <X size={12} />
-                </button>
-              </div>
-            ))}
+            {images.map((image, index) => {
+              const imageUrl = typeof image === 'string' ? image : image.url;
+              const imageName = typeof image === 'object' ? image.name : `Image ${index + 1}`;
+              return (
+                <div key={`uploaded-${index}`} className="relative group">
+                  <img
+                    src={imageUrl}
+                    alt={imageName}
+                    className="w-full h-24 object-cover rounded border"
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = '/api/placeholder/100/100';
+                    }}
+                  />
+                  <button
+                    onClick={() => onRemoveImage(imageUrl)}
+                    className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                    title="Remove image"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              );
+            })}
             
             {/* Uploading Images */}
             {uploadingImages.map((uploadingImage, index) => (
@@ -99,22 +103,25 @@ const ImprovedMediaPreviews = ({
           <h4 className="text-sm font-medium text-gray-700 mb-2">Videos</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             {/* Uploaded Videos */}
-            {videos.map((videoUrl, index) => (
-              <div key={`video-uploaded-${index}`} className="relative group">
-                <video
-                  src={videoUrl}
-                  controls
-                  className="w-full h-32 object-cover rounded border"
-                />
-                <button
-                  onClick={() => onRemoveVideo(videoUrl)}
-                  className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
-                  title="Remove video"
-                >
-                  <X size={12} />
-                </button>
-              </div>
-            ))}
+            {videos.map((video, index) => {
+              const videoUrl = typeof video === 'string' ? video : video.url;
+              return (
+                <div key={`video-uploaded-${index}`} className="relative group">
+                  <video
+                    src={videoUrl}
+                    controls
+                    className="w-full h-32 object-cover rounded border"
+                  />
+                  <button
+                    onClick={() => onRemoveVideo(videoUrl)}
+                    className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                    title="Remove video"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              );
+            })}
             
             {/* Uploading Videos */}
             {uploadingVideos.map((uploadingVideo, index) => (
@@ -161,34 +168,39 @@ const ImprovedMediaPreviews = ({
           <h4 className="text-sm font-medium text-gray-700 mb-2">Documents</h4>
           <div className="space-y-2">
             {/* Uploaded Documents */}
-            {documents.map((docUrl, index) => (
-              <div key={`doc-uploaded-${index}`} className="relative group">
-                {docUrl.toLowerCase().includes('.pdf') ? (
-                  <div className="border rounded">
-                    <PDFPreview url={docUrl} />
-                    <button
-                      onClick={() => onRemoveDocument(docUrl)}
-                      className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
-                      title="Remove document"
-                    >
-                      <X size={12} />
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex items-center space-x-2 bg-gray-50 border rounded p-3">
-                    <FileText size={20} className="text-blue-500" />
-                    <span className="flex-1 text-sm">{docUrl.split('/').pop()}</span>
-                    <button
-                      onClick={() => onRemoveDocument(docUrl)}
-                      className="bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
-                      title="Remove document"
-                    >
-                      <X size={12} />
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))}
+            {documents.map((doc, index) => {
+              const docUrl = typeof doc === 'string' ? doc : doc.url;
+              const docName = typeof doc === 'object' ? doc.name : docUrl.split('/').pop();
+              const isPDF = typeof doc === 'object' ? doc.isPDF : docUrl.toLowerCase().includes('.pdf');
+              return (
+                <div key={`doc-uploaded-${index}`} className="relative group">
+                  {isPDF ? (
+                    <div className="border rounded">
+                      <PDFPreview url={docUrl} />
+                      <button
+                        onClick={() => onRemoveDocument(docUrl)}
+                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Remove document"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center space-x-2 bg-gray-50 border rounded p-3">
+                      <FileText size={20} className="text-blue-500" />
+                      <span className="flex-1 text-sm">{docName}</span>
+                      <button
+                        onClick={() => onRemoveDocument(docUrl)}
+                        className="bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Remove document"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
             
             {/* Uploading Documents */}
             {uploadingDocuments.map((uploadingDoc, index) => (

@@ -116,10 +116,9 @@ const fetchWithTimeout = async (url, options = {}) => {
   
   // Check if this endpoint should allow multiple simultaneous requests
   const allowConcurrentRequests = url.includes('/current_user') || 
-                                 url.includes('/get_single_post') ||
                                  url.includes('/reactions') ||
                                  url.includes('/get_user') ||
-                                 (url.includes('/posts') && options.method === 'GET');
+                                 (url.includes('/posts') && options.method === 'GET' && !url.includes('/get_single_post'));
   
  
   
@@ -450,14 +449,19 @@ export const postsAPI = {
     }
   },
 
-  // Get single post by ID
+  // Get single post by ID (PUBLIC - no authentication required)
   getPostById: async (postId) => {
     const endpoint = `${API_CONFIG.BASE_URL}/posts/${postId}/get_single_post`;
     logApiCall('GET', endpoint);
     
     try {
-      const response = await fetchWithTimeout(endpoint, {
-        method: 'GET'
+      // Use native fetch directly for public access - bypass authentication
+      const response = await fetch(endpoint, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        signal: AbortSignal.timeout(API_CONFIG.TIMEOUT)
       });
       
       const result = await handleResponse(response);
@@ -935,7 +939,11 @@ export const postsAPI = {
 export const mediaAPI = {
   // Upload single file
   uploadFile: async (file, type = 'image') => {
-    const endpoint = `${API_CONFIG.BASE_URL}/upload_file`;
+    // Determine if admin or employee based on current path
+    const isAdminEnvironment = window.location.pathname.includes('/crm');
+    const endpoint = isAdminEnvironment 
+      ? `${API_CONFIG.BASE_URL}/admin/upload_file`
+      : `${API_CONFIG.BASE_URL}/upload_file`;
     
     try {
       const formData = new FormData();
