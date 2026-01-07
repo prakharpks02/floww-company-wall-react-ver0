@@ -530,7 +530,14 @@ export class ChatWebSocketManager {
       }
 
       // WebSocket URL with authorization and auth-type as query parameters
-      const wsUrl = `wss://console.gofloww.xyz/ws/chat/${roomId}/?authorization=${authToken}&floww-socket-auth-type=${authType}`;
+      const baseURL =
+        import.meta.env.VITE_API_BASE_URL || "https://console.gofloww.xyz";
+
+      // convert https → wss and http → ws
+      const wsProtocol = baseURL.startsWith("https") ? "wss" : "ws";
+      const wsHost = baseURL.replace(/^https?:\/\//, "");
+
+      const wsUrl = `${wsProtocol}://${wsHost}/ws/chat/${roomId}/?authorization=${authToken}&floww-socket-auth-type=${authType}`;
 
       this.ws = new WebSocket(wsUrl);
 

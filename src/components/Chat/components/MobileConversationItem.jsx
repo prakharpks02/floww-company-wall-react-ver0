@@ -1,5 +1,5 @@
-import React from 'react';
-import { Pin, Star, MoreVertical } from 'lucide-react';
+import React from "react";
+import { Pin, Star, MoreVertical } from "lucide-react";
 
 const MobileConversationItem = ({
   conversation,
@@ -9,35 +9,36 @@ const MobileConversationItem = ({
   onSelect,
   onContextMenu,
   formatMessageTime,
-  getStatusColor
+  getStatusColor,
 }) => {
   const handleLongPress = (e) => {
     const timeoutId = setTimeout(() => {
       e.preventDefault();
       const touch = e.touches[0];
-      onContextMenu({
-        preventDefault: () => {},
-        clientX: touch.clientX,
-        clientY: touch.clientY
-      }, conversation);
+      onContextMenu(
+        {
+          preventDefault: () => {},
+          clientX: touch.clientX,
+          clientY: touch.clientY,
+        },
+        conversation
+      );
     }, 500);
-    
+
     const handleTouchEnd = () => {
       clearTimeout(timeoutId);
-      document.removeEventListener('touchend', handleTouchEnd);
-      document.removeEventListener('touchmove', handleTouchEnd);
+      document.removeEventListener("touchend", handleTouchEnd);
+      document.removeEventListener("touchmove", handleTouchEnd);
     };
-    
-    document.addEventListener('touchend', handleTouchEnd);
-    document.addEventListener('touchmove', handleTouchEnd);
+
+    document.addEventListener("touchend", handleTouchEnd);
+    document.addEventListener("touchmove", handleTouchEnd);
   };
 
   const handleThreeDotsClick = (e) => {
     e.stopPropagation();
     onContextMenu(e, conversation);
   };
-  
- 
 
   return (
     <div className="relative">
@@ -48,42 +49,56 @@ const MobileConversationItem = ({
         className="w-full flex items-center gap-4 p-3 hover:bg-white rounded-lg transition-all duration-200"
       >
         <div className="relative">
-          {partner?.avatar && (partner.avatar.startsWith('http') || partner.avatar.startsWith('https')) ? (
+          {partner?.avatar &&
+          (partner.avatar.startsWith("http") ||
+            partner.avatar.startsWith("https")) ? (
             <div className="w-12 h-12 rounded-full overflow-hidden shadow-md">
-              <img 
-                src={partner.avatar} 
-                alt={partner.name} 
+              <img
+                src={partner.avatar}
+                alt={partner.name}
                 className="w-full h-full object-cover"
                 onError={(e) => {
                   // Fallback to initials if image fails to load
-                  e.target.style.display = 'none';
+                  e.target.style.display = "none";
                 }}
               />
             </div>
-          ) : conversation?.icon && (conversation.icon.startsWith('http') || conversation.icon.startsWith('https')) ? (
+          ) : conversation?.icon &&
+            (conversation.icon.startsWith("http") ||
+              conversation.icon.startsWith("https")) ? (
             <div className="w-12 h-12 rounded-full overflow-hidden shadow-md">
-              <img 
-                src={conversation.icon} 
-                alt={conversation.name || partner?.name} 
+              <img
+                src={conversation.icon}
+                alt={conversation.name || partner?.name}
                 className="w-full h-full object-cover"
                 onError={(e) => {
                   // Fallback to initials if image fails to load
-                  e.target.style.display = 'none';
+                  e.target.style.display = "none";
                 }}
               />
             </div>
           ) : (
             <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full flex items-center justify-center text-white text-lg shadow-md">
-              <span className="font-semibold">{partner?.name?.substring(0, 2).toUpperCase() || conversation?.name?.substring(0, 2).toUpperCase() || 'U'}</span>
+              <span className="font-semibold">
+                {partner?.name?.substring(0, 2).toUpperCase() ||
+                  conversation?.name?.substring(0, 2).toUpperCase() ||
+                  "U"}
+              </span>
             </div>
           )}
-          <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${getStatusColor(partner?.status)}`}></div>
+          <div
+            className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${getStatusColor(
+              partner?.status
+            )}`}
+          ></div>
         </div>
-        
+
         <div className="flex-1 text-left min-w-0">
           <div className="flex items-center justify-between mb-1">
             <div className="flex items-center gap-2">
-              <div className="text-base font-normal truncate">{partner?.name}</div>
+              <div className="text-base font-normal truncate">
+                {partner?.name}
+              </div>
               {isPinned && (
                 <Pin className="h-4 w-4 text-purple-600 flex-shrink-0" />
               )}
@@ -105,17 +120,9 @@ const MobileConversationItem = ({
             </div>
           </div>
           <div className="text-sm text-gray-500 truncate">
-            {conversation.lastMessage?.text || 'No messages yet'}
+            {conversation.lastMessage?.text || "No messages yet"}
           </div>
         </div>
-      </button>
-      
-      {/* Mobile-only three dots menu */}
-      <button
-        onClick={handleThreeDotsClick}
-        className="absolute right-2 top-1/2 transform -translate-y-1/2 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-all duration-200 md:hidden"
-      >
-        <MoreVertical className="h-4 w-4" />
       </button>
     </div>
   );
