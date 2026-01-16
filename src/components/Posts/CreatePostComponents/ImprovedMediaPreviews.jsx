@@ -1,21 +1,21 @@
-import React from 'react';
-import { X, FileText, Loader2, AlertCircle } from 'lucide-react';
-import PDFPreview from '../../Media/PDFPreview';
+import React from "react";
+import { X, FileText, Loader2, AlertCircle } from "lucide-react";
+import PDFPreview from "../../Media/PDFPreview";
 
-const ImprovedMediaPreviews = ({ 
-  images, 
-  videos, 
-  documents, 
+const ImprovedMediaPreviews = ({
+  images,
+  videos,
+  documents,
   links,
   uploadingImages = [],
   uploadingVideos = [],
   uploadingDocuments = [],
   uploadErrors = {},
-  onRemoveImage, 
-  onRemoveVideo, 
-  onRemoveDocument, 
+  onRemoveImage,
+  onRemoveVideo,
+  onRemoveDocument,
   onRemoveLink,
-  onRetryUpload
+  onRetryUpload,
 }) => {
   return (
     <div className="space-y-4">
@@ -23,37 +23,68 @@ const ImprovedMediaPreviews = ({
       {(images.length > 0 || uploadingImages.length > 0) && (
         <div>
           <h4 className="text-sm font-medium text-gray-700 mb-2">Images</h4>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
             {/* Uploaded Images */}
             {images.map((image, index) => {
-              const imageUrl = typeof image === 'string' ? image : image.url;
-              const imageName = typeof image === 'object' ? image.name : `Image ${index + 1}`;
+              const imageUrl = typeof image === "string" ? image : image.url;
+              const imageName =
+                typeof image === "object" ? image.name : `Image ${index + 1}`;
               return (
-                <div key={`uploaded-${index}`} className="relative group">
+                <div
+                  key={`uploaded-${index}`}
+                  className="relative group rounded-lg overflow-hidden border bg-gray-100"
+                >
                   <img
                     src={imageUrl}
                     alt={imageName}
-                    className="w-full h-24 object-cover rounded border"
+                    className="
+      w-full
+      h-24 sm:h-28 lg:h-32
+      object-cover
+    "
                     onError={(e) => {
-                      e.target.onerror = null;
-                      e.target.src = '/api/placeholder/100/100';
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src = "/api/placeholder/300/200";
                     }}
                   />
+
+                  {/* Remove Image Button */}
                   <button
+                    type="button"
                     onClick={() => onRemoveImage(imageUrl)}
-                    className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                    aria-label="Remove image"
                     title="Remove image"
+                    className="
+      absolute top-2 right-2
+      z-10
+
+      flex items-center justify-center
+      rounded-full
+
+      w-8 h-8
+      sm:w-9 sm:h-9
+
+      bg-black/60 text-white
+      backdrop-blur
+
+      hover:bg-red-600
+      active:scale-95
+
+      transition-all duration-150
+      focus:outline-none focus:ring-2 focus:ring-red-400
+      touch-manipulation
+    "
                   >
-                    <X size={12} />
+                    <X className="w-4 h-4 sm:w-5 sm:h-5" />
                   </button>
                 </div>
               );
             })}
-            
+
             {/* Uploading Images */}
             {uploadingImages.map((uploadingImage, index) => (
               <div key={`uploading-${index}`} className="relative group">
-                <div className="w-full h-24 rounded border bg-gray-100 flex items-center justify-center">
+                <div className="w-full h-20 sm:h-24 lg:h-32 rounded border bg-gray-100 flex items-center justify-center">
                   {uploadingImage.error ? (
                     <div className="text-center">
                       <AlertCircle className="w-6 h-6 text-red-500 mx-auto mb-1" />
@@ -74,19 +105,22 @@ const ImprovedMediaPreviews = ({
                     </div>
                   )}
                 </div>
-                
+
                 {/* Preview of uploading image */}
                 {uploadingImage.file && !uploadingImage.error && (
                   <img
-                    src={uploadingImage.preview || URL.createObjectURL(uploadingImage.file)}
+                    src={
+                      uploadingImage.preview ||
+                      URL.createObjectURL(uploadingImage.file)
+                    }
                     alt="Uploading..."
-                    className="absolute inset-0 w-full h-24 object-cover rounded border opacity-50"
+                    className="absolute inset-0 w-full h-20 sm:h-24 lg:h-32 object-cover rounded border opacity-50"
                   />
                 )}
               </div>
             ))}
           </div>
-          
+
           {/* Show upload errors */}
           {uploadErrors.images && (
             <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-600">
@@ -104,7 +138,7 @@ const ImprovedMediaPreviews = ({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             {/* Uploaded Videos */}
             {videos.map((video, index) => {
-              const videoUrl = typeof video === 'string' ? video : video.url;
+              const videoUrl = typeof video === "string" ? video : video.url;
               return (
                 <div key={`video-uploaded-${index}`} className="relative group">
                   <video
@@ -114,7 +148,7 @@ const ImprovedMediaPreviews = ({
                   />
                   <button
                     onClick={() => onRemoveVideo(videoUrl)}
-                    className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="absolute top-1 right-1 bg-white text-red-500 rounded-full w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center text-xs shadow-md hover:bg-gray-100"
                     title="Remove video"
                   >
                     <X size={12} />
@@ -122,7 +156,7 @@ const ImprovedMediaPreviews = ({
                 </div>
               );
             })}
-            
+
             {/* Uploading Videos */}
             {uploadingVideos.map((uploadingVideo, index) => (
               <div key={`video-uploading-${index}`} className="relative group">
@@ -143,15 +177,19 @@ const ImprovedMediaPreviews = ({
                   ) : (
                     <div className="text-center">
                       <Loader2 className="w-6 h-6 text-blue-500 animate-spin mx-auto mb-1" />
-                      <p className="text-xs text-gray-600">Uploading video...</p>
-                      <p className="text-xs text-gray-500">{uploadingVideo.file?.name}</p>
+                      <p className="text-xs text-gray-600">
+                        Uploading video...
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {uploadingVideo.file?.name}
+                      </p>
                     </div>
                   )}
                 </div>
               </div>
             ))}
           </div>
-          
+
           {/* Show upload errors */}
           {uploadErrors.videos && (
             <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-600">
@@ -169,9 +207,13 @@ const ImprovedMediaPreviews = ({
           <div className="space-y-2">
             {/* Uploaded Documents */}
             {documents.map((doc, index) => {
-              const docUrl = typeof doc === 'string' ? doc : doc.url;
-              const docName = typeof doc === 'object' ? doc.name : docUrl.split('/').pop();
-              const isPDF = typeof doc === 'object' ? doc.isPDF : docUrl.toLowerCase().includes('.pdf');
+              const docUrl = typeof doc === "string" ? doc : doc.url;
+              const docName =
+                typeof doc === "object" ? doc.name : docUrl.split("/").pop();
+              const isPDF =
+                typeof doc === "object"
+                  ? doc.isPDF
+                  : docUrl.toLowerCase().includes(".pdf");
               return (
                 <div key={`doc-uploaded-${index}`} className="relative group">
                   {isPDF ? (
@@ -179,7 +221,7 @@ const ImprovedMediaPreviews = ({
                       <PDFPreview url={docUrl} />
                       <button
                         onClick={() => onRemoveDocument(docUrl)}
-                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="absolute top-1 right-1 bg-white text-red-500 rounded-full w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center text-xs shadow-md hover:bg-gray-100"
                         title="Remove document"
                       >
                         <X size={12} />
@@ -191,7 +233,7 @@ const ImprovedMediaPreviews = ({
                       <span className="flex-1 text-sm">{docName}</span>
                       <button
                         onClick={() => onRemoveDocument(docUrl)}
-                        className="bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="bg-white text-red-500 rounded-full w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center text-xs shadow-md hover:bg-gray-100"
                         title="Remove document"
                       >
                         <X size={12} />
@@ -201,16 +243,21 @@ const ImprovedMediaPreviews = ({
                 </div>
               );
             })}
-            
+
             {/* Uploading Documents */}
             {uploadingDocuments.map((uploadingDoc, index) => (
-              <div key={`doc-uploading-${index}`} className="flex items-center space-x-2 bg-gray-50 border rounded p-3">
+              <div
+                key={`doc-uploading-${index}`}
+                className="flex items-center space-x-2 bg-gray-50 border rounded p-3"
+              >
                 <FileText size={20} className="text-blue-500" />
                 <div className="flex-1">
                   <div className="text-sm">{uploadingDoc.file?.name}</div>
                   {uploadingDoc.error ? (
                     <div className="flex items-center space-x-2">
-                      <span className="text-xs text-red-600">Upload failed</span>
+                      <span className="text-xs text-red-600">
+                        Upload failed
+                      </span>
                       {onRetryUpload && (
                         <button
                           onClick={() => onRetryUpload(uploadingDoc)}
@@ -234,7 +281,7 @@ const ImprovedMediaPreviews = ({
               </div>
             ))}
           </div>
-          
+
           {/* Show upload errors */}
           {uploadErrors.documents && (
             <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-600">
@@ -251,9 +298,14 @@ const ImprovedMediaPreviews = ({
           <h4 className="text-sm font-medium text-gray-700 mb-2">Links</h4>
           <div className="space-y-2">
             {links.map((linkUrl, index) => (
-              <div key={`link-${index}`} className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded p-3">
+              <div
+                key={`link-${index}`}
+                className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded p-3"
+              >
                 <div>
-                  <div className="text-sm font-medium text-blue-800">{new URL(linkUrl).hostname}</div>
+                  <div className="text-sm font-medium text-blue-800">
+                    {new URL(linkUrl).hostname}
+                  </div>
                   <div className="text-xs text-blue-600">{linkUrl}</div>
                 </div>
                 <button
