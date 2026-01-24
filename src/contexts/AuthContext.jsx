@@ -1,11 +1,11 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { userAPI } from '../services/api.jsx';
-import adminAPI from '../services/adminAPI.jsx';
-import { cookieUtils } from '../utils/cookieUtils';
+import React, { createContext, useContext, useState, useEffect } from "react";
+import { userAPI } from "../services/api.jsx";
+import adminAPI from "../services/adminAPI.jsx";
+import { cookieUtils } from "../utils/cookieUtils";
 
 // Avatar URL generator helper
 const generateAvatarUrl = (name, options = {}) => {
-  const { background = 'random', color = 'white', size = 128 } = options;
+  const { background = "random", color = "white", size = 128 } = options;
   const encodedName = encodeURIComponent(name);
   const apiUrl = import.meta.env.VITE_DEFAULT_AVATAR_API;
   return `${apiUrl}/?name=${encodedName}&background=${background}&color=${color}&size=${size}`;
@@ -18,7 +18,7 @@ const AuthContext = createContext();
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 };
@@ -29,58 +29,60 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [hasRedirected, setHasRedirected] = useState(false);
 
-// Get appropriate token and determine user type based on current URL
-const getTokenAndUserType = () => {
-  const currentPath = window.location.pathname;
-  const { employeeToken, employeeId, adminToken } = cookieUtils.getAuthTokens();
-  
-  // If current path contains /crm, use admin token
-  if (currentPath.includes('/crm')) {
-    return { token: adminToken, isAdmin: true };
-  }
-  
-  // For employee routes, validate both token and ID
-  if (employeeToken && employeeId) {
-    return { token: employeeToken, isAdmin: false };
-  }
-  
-  // No valid employee authentication
-  return { token: null, isAdmin: false };
-};
+  // Get appropriate token and determine user type based on current URL
+  const getTokenAndUserType = () => {
+    const currentPath = window.location.pathname;
+    const { employeeToken, employeeId, adminToken } =
+      cookieUtils.getAuthTokens();
 
-const fetchUser = async () => {
-  try {
-    const { token, isAdmin } = getTokenAndUserType();
-  
-    
-    if (!token) {
-      // Check if we're on a public route that doesn't require authentication
-      const currentPath = window.location.pathname;
-      const isPublicRoute = currentPath.startsWith('/post/');
-      
-      if (!isPublicRoute) {
-        // Only redirect to login for non-public routes
-        // Prevent infinite redirects
-        if (!hasRedirected) {
-          setHasRedirected(true);
-          // Add a small delay to prevent immediate redirect loops
-          setTimeout(() => {
-            window.location.href = import.meta.env.VITE_EMPLOYEE_LOGIN_URL;
-          }, 1000);
-        }
-      }
-      setLoading(false);
-      return;
+    // If current path contains /crm, use admin token
+    if (currentPath.includes("/crm")) {
+      return { token: adminToken, isAdmin: true };
     }
+
+    // For employee routes, validate both token and ID
+    if (employeeToken && employeeId) {
+      return { token: employeeToken, isAdmin: false };
+    }
+
+    // No valid employee authentication
+    return { token: null, isAdmin: false };
+  };
+
+  const fetchUser = async () => {
+    try {
+      const { token, isAdmin } = getTokenAndUserType();
+
+      if (!token) {
+        // Check if we're on a public route that doesn't require authentication
+        const currentPath = window.location.pathname;
+        const isPublicRoute = currentPath.startsWith("/post/");
+
+        if (!isPublicRoute) {
+          // Only redirect to login for non-public routes
+          // Prevent infinite redirects
+          if (!hasRedirected) {
+            setHasRedirected(true);
+            // Add a small delay to prevent immediate redirect loops
+            setTimeout(() => {
+              cookieUtils.clearAuthCookies();
+              const redirectUri = "https://account.gofloww.co";
+              window.location.href = `${redirectUri}/login?redirect=${encodeURIComponent(
+                "https://buzz.gofloww.co",
+              )}`;
+            }, 1000);
+          }
+        }
+        setLoading(false);
+        return;
+      }
 
       // For admin users, try to fetch real data from API first
       if (isAdmin) {
         try {
-          
-          
           const response = await adminAPI.getCurrentUser();
           const userData = response.data;
-          
+
           if (userData && userData.employee_name) {
             // Use real admin data from API
             const adminUser = {
@@ -97,61 +99,63 @@ const fetchUser = async () => {
               is_blocked: userData.is_blocked || false,
               authenticated: true,
               token: token,
-              profile_picture_link: userData.profile_picture_link || generateAvatarUrl(userData.employee_name, { background: '9f7aea', color: 'white', size: 128 }),
-              position: userData.job_title || 'Administrator',
-              department: 'Administration',
-              is_admin: true
+              profile_picture_link:
+                userData.profile_picture_link ||
+                generateAvatarUrl(userData.employee_name, {
+                  background: "9f7aea",
+                  color: "white",
+                  size: 128,
+                }),
+              position: userData.job_title || "Administrator",
+              department: "Administration",
+              is_admin: true,
             };
-            
-         
+
             setUser(adminUser);
-          
+
             return;
           }
-        } catch (apiError) {
-          
-        }
-        
+        } catch (apiError) {}
+
         // Fallback to hardcoded admin data if API fails
         const adminUser = {
-          id: 'ADMIN_USER',
-          employee_id: 'ADMIN_USER',
-          employeeId: 'ADMIN_USER', // Add camelCase for chat compatibility
-          user_id: 'ADMIN_USER',
-          author_id: 'ADMIN_USER',
-          name: 'Admin',
-          username: 'admin',
-          email: 'admin@company.com',
-          company_email: 'admin@company.com',
-          personal_email: 'admin@company.com',
+          id: "ADMIN_USER",
+          employee_id: "ADMIN_USER",
+          employeeId: "ADMIN_USER", // Add camelCase for chat compatibility
+          user_id: "ADMIN_USER",
+          author_id: "ADMIN_USER",
+          name: "Admin",
+          username: "admin",
+          email: "admin@company.com",
+          company_email: "admin@company.com",
+          personal_email: "admin@company.com",
           is_blocked: false,
           authenticated: true,
           token: token,
-          profile_picture_link: generateAvatarUrl('Admin', { background: '9f7aea', color: 'white', size: 128 }),
-          position: 'Administrator',
-          department: 'Administration',
-          is_admin: true
+          profile_picture_link: generateAvatarUrl("Admin", {
+            background: "9f7aea",
+            color: "white",
+            size: 128,
+          }),
+          position: "Administrator",
+          department: "Administration",
+          is_admin: true,
         };
         setUser(adminUser);
-   
+
         return;
       }
 
       // For employee users, fetch real data from API
       try {
-      
-        
         const response = await userAPI.getCurrentUser();
-      
-        
+
         const userData = response.data;
-        
-      
-        
+
         if (!userData) {
-          throw new Error('No user data received from API');
+          throw new Error("No user data received from API");
         }
-        
+
         const authenticatedUser = {
           id: userData.employee_id,
           employee_id: userData.employee_id,
@@ -166,45 +170,47 @@ const fetchUser = async () => {
           is_blocked: userData.is_blocked || false,
           authenticated: true,
           token: token,
-          profile_picture_link: userData.profile_picture_link || generateAvatarUrl(userData.employee_name, { background: '9f7aea', color: 'white', size: 128 }),
+          profile_picture_link:
+            userData.profile_picture_link ||
+            generateAvatarUrl(userData.employee_name, {
+              background: "9f7aea",
+              color: "white",
+              size: 128,
+            }),
           position: userData.job_title, // Using job_title instead of 'Employee'
-          department: 'General',
-          is_admin: false
+          department: "General",
+          is_admin: false,
         };
 
-    
         setUser(authenticatedUser);
-        
       } catch (apiError) {
-        
-        
-      
-        
         // Fallback to basic employee user if API fails
         const fallbackUser = {
-          id: 'EMPLOYEE_USER',
-          employee_id: 'EMPLOYEE_USER',
-          employeeId: 'EMPLOYEE_USER', // Add camelCase for chat compatibility
-          user_id: 'EMPLOYEE_USER',
-          author_id: 'EMPLOYEE_USER',
-          name: 'Employee User',
-          username: 'employee',
-          email: 'employee@company.com',
-          company_email: 'employee@company.com',
-          personal_email: 'employee@company.com',
+          id: "EMPLOYEE_USER",
+          employee_id: "EMPLOYEE_USER",
+          employeeId: "EMPLOYEE_USER", // Add camelCase for chat compatibility
+          user_id: "EMPLOYEE_USER",
+          author_id: "EMPLOYEE_USER",
+          name: "Employee User",
+          username: "employee",
+          email: "employee@company.com",
+          company_email: "employee@company.com",
+          personal_email: "employee@company.com",
           is_blocked: false,
           authenticated: true,
           token: token,
-          profile_picture_link: generateAvatarUrl('Employee', { background: '9f7aea', color: 'white', size: 128 }),
-          position: 'Employee',
-          department: 'General',
-          is_admin: false
+          profile_picture_link: generateAvatarUrl("Employee", {
+            background: "9f7aea",
+            color: "white",
+            size: 128,
+          }),
+          position: "Employee",
+          department: "General",
+          is_admin: false,
         };
         setUser(fallbackUser);
-       
       }
     } catch (error) {
-      
       setUser(null);
     } finally {
       setLoading(false);
@@ -214,7 +220,6 @@ const fetchUser = async () => {
   useEffect(() => {
     // Listen for URL changes to switch tokens
     const handleLocationChange = () => {
-     
       setLoading(true);
       fetchUser();
     };
@@ -223,25 +228,25 @@ const fetchUser = async () => {
     fetchUser();
 
     // Listen for popstate (back/forward navigation)
-    window.addEventListener('popstate', handleLocationChange);
-    
+    window.addEventListener("popstate", handleLocationChange);
+
     // Listen for pushstate/replacestate (programmatic navigation)
     const originalPushState = history.pushState;
     const originalReplaceState = history.replaceState;
-    
-    history.pushState = function(...args) {
+
+    history.pushState = function (...args) {
       originalPushState.apply(history, args);
       handleLocationChange();
     };
-    
-    history.replaceState = function(...args) {
+
+    history.replaceState = function (...args) {
       originalReplaceState.apply(history, args);
       handleLocationChange();
     };
 
     // Cleanup
     return () => {
-      window.removeEventListener('popstate', handleLocationChange);
+      window.removeEventListener("popstate", handleLocationChange);
       history.pushState = originalPushState;
       history.replaceState = originalReplaceState;
     };
@@ -255,7 +260,7 @@ const fetchUser = async () => {
 
   // Get current user ID (simplified for token auth)
   const getCurrentUserId = () => {
-    return user?.id || 'authenticated_user';
+    return user?.id || "authenticated_user";
   };
 
   // Get current author ID (same as user ID for consistency)
@@ -265,11 +270,11 @@ const fetchUser = async () => {
 
   // Token-based auth doesn't require login/logout/register
   const login = async () => {
-    throw new Error('Login not required with token authentication');
+    throw new Error("Login not required with token authentication");
   };
 
   const register = async () => {
-    throw new Error('Registration not required with token authentication');
+    throw new Error("Registration not required with token authentication");
   };
 
   // Cookie management methods
@@ -286,14 +291,19 @@ const fetchUser = async () => {
   };
 
   const refreshTokensFromCookies = async () => {
-    const { employeeToken, employeeId, adminToken } = cookieUtils.getAuthTokens();
-    
+    const { employeeToken, employeeId, adminToken } =
+      cookieUtils.getAuthTokens();
+
     // Check if we have valid authentication (either admin token OR both employee token and ID)
     const hasValidAuth = adminToken || (employeeToken && employeeId);
-    
+
     if (!hasValidAuth) {
-      // No valid authentication found, redirect to main Floww application
-      window.location.href = import.meta.env.VITE_APP_BASE_URL ;
+      // No valid authentication found, clear cookies and redirect to login
+      cookieUtils.clearAuthCookies();
+      const redirectUri = "https://account.gofloww.co";
+      window.location.href = `${redirectUri}/login?redirect=${encodeURIComponent(
+        "https://buzz.gofloww.co",
+      )}`;
       return;
     }
 
@@ -302,9 +312,12 @@ const fetchUser = async () => {
     try {
       await fetchUser();
     } catch (error) {
-      // Clear invalid tokens and redirect
+      // Clear invalid tokens and redirect to login
       clearAuthTokens();
-      window.location.href = import.meta.env.VITE_APP_BASE_URL ;
+      const redirectUri = "https://account.gofloww.co";
+      window.location.href = `${redirectUri}/login?redirect=${encodeURIComponent(
+        "https://buzz.gofloww.co",
+      )}`;
     } finally {
       setLoading(false);
     }
@@ -312,8 +325,11 @@ const fetchUser = async () => {
 
   const logout = () => {
     setUser(null);
-    clearAuthTokens(); // Clear cookies instead of just redirecting
-    window.location.href = import.meta.env.VITE_CONSOLE_URL;
+    clearAuthTokens(); // Clear cookies
+    const redirectUri = "https://account.gofloww.co";
+    window.location.href = `${redirectUri}/login?redirect=${encodeURIComponent(
+      "https://buzz.gofloww.co",
+    )}`;
   };
 
   const value = {
@@ -331,7 +347,7 @@ const fetchUser = async () => {
     getAuthTokens,
     refreshTokensFromCookies,
     // Check if user is admin based on user object or URL path
-    isAdmin: user?.is_admin || window.location.pathname.includes('/crm')
+    isAdmin: user?.is_admin || window.location.pathname.includes("/crm"),
   };
 
   return (

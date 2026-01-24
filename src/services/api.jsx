@@ -2,7 +2,7 @@
 // API CONFIGURATION
 // =============================================================================
 
-import { cookieUtils } from '../utils/cookieUtils';
+import { cookieUtils } from "../utils/cookieUtils";
 
 // Request deduplication cache
 const requestCache = new Map();
@@ -10,18 +10,18 @@ const CACHE_DURATION = 2000; // 2 second cache for deduplication
 const activeRequests = new Set(); // Track currently active requests
 
 // Get authentication token based on environment and user type
-const getAuthToken = (userType = 'employee') => {
+const getAuthToken = (userType = "employee") => {
   const { employeeToken, employeeId, adminToken } = cookieUtils.getAuthTokens();
-  
-  if (userType === 'admin') {
+
+  if (userType === "admin") {
     return adminToken;
   }
-  
+
   // For employee, validate both token and ID exist
   if (employeeToken && employeeId) {
     return employeeToken;
   }
-  
+
   return null;
 };
 
@@ -33,7 +33,7 @@ const storeTokenInCookies = (employeeToken, adminToken, employeeId = null) => {
 // Get current user type from current URL path
 const getCurrentUserType = () => {
   const currentPath = window.location.pathname;
-  return currentPath.includes('/crm') ? 'admin' : 'employee';
+  return currentPath.includes("/crm") ? "admin" : "employee";
 };
 
 // Get authentication headers for API requests
@@ -41,14 +41,14 @@ const getAuthHeaders = () => {
   const currentUserType = getCurrentUserType();
   const token = getAuthToken(currentUserType);
   return {
-    'Authorization': token
+    Authorization: token,
   };
 };
 
 const FLOWW_TOKEN = getAuthToken();
 
 const API_CONFIG = {
-  BASE_URL: import.meta.env.VITE_API_BASE_URL + '/api/wall',
+  BASE_URL: import.meta.env.VITE_API_BASE_URL + "/api/wall",
   TIMEOUT: 10000, // 10 seconds
 };
 
@@ -65,21 +65,27 @@ const logApiCall = () => {
 const checkAuthToken = (userType = null) => {
   const currentUserType = userType || getCurrentUserType();
   const currentToken = getAuthToken(currentUserType);
-  
+
   if (!currentToken) {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== "undefined") {
       const hostname = window.location.hostname;
-      const isLocalDev = hostname === "localhost" || hostname.includes('local.gofloww.xyz');
-      
+      const isLocalDev =
+        hostname === "localhost" || hostname.includes("local.gofloww.xyz");
+
       if (isLocalDev) {
-        throw new Error(`Missing ${currentUserType} authentication token for local development`);
+        throw new Error(
+          `Missing ${currentUserType} authentication token for local development`,
+        );
       } else {
-        if (currentUserType === 'admin') {
-          window.location.href = import.meta.env.VITE_ADMIN_DASHBOARD_URL || 'http://localhost:8000/crm/dashboard';
-        } else {
-          window.location.href = import.meta.env.VITE_APP_BASE_URL;
-        }
-        throw new Error('Missing authentication token. Redirecting...');
+        // Clear any remaining auth cookies and redirect to login
+        cookieUtils.clearAuthCookies();
+        const redirectUri = "https://account.gofloww.co";
+        window.location.href = `${redirectUri}/login?redirect=${encodeURIComponent(
+          "https://buzz.gofloww.co",
+        )}`;
+        throw new Error(
+          "Missing authentication token. Redirecting to login...",
+        );
       }
     }
   }
@@ -89,18 +95,20 @@ const checkAuthToken = (userType = null) => {
 // Helper function to handle API responses
 const handleResponse = async (response) => {
   let data;
-  
+
   try {
     data = await response.json();
   } catch (error) {
     // If response is not JSON, create a generic error response
-    data = { message: 'Invalid response format' };
+    data = { message: "Invalid response format" };
   }
-  
+
   if (!response.ok) {
-    throw new Error(data.message || data.error || `HTTP error! status: ${response.status}`);
+    throw new Error(
+      data.message || data.error || `HTTP error! status: ${response.status}`,
+    );
   }
-  
+
   return data;
 };
 
@@ -109,19 +117,20 @@ const fetchWithTimeout = async (url, options = {}) => {
   // Get fresh token for each request and check authentication
   const userType = options.userType || getCurrentUserType();
   const currentToken = checkAuthToken(userType);
-  
+
   // Create cache key for request deduplication
-  const cacheKey = `${options.method || 'GET'}-${url}-${JSON.stringify(options.body || {})}-${Date.now() - (Date.now() % CACHE_DURATION)}`;
-  const simpleKey = `${options.method || 'GET'}-${url.split('?')[0]}`; // For active request tracking
-  
+  const cacheKey = `${options.method || "GET"}-${url}-${JSON.stringify(options.body || {})}-${Date.now() - (Date.now() % CACHE_DURATION)}`;
+  const simpleKey = `${options.method || "GET"}-${url.split("?")[0]}`; // For active request tracking
+
   // Check if this endpoint should allow multiple simultaneous requests
-  const allowConcurrentRequests = url.includes('/current_user') || 
-                                 url.includes('/reactions') ||
-                                 url.includes('/get_user') ||
-                                 (url.includes('/posts') && options.method === 'GET' && !url.includes('/get_single_post'));
-  
- 
-  
+  const allowConcurrentRequests =
+    url.includes("/current_user") ||
+    url.includes("/reactions") ||
+    url.includes("/get_user") ||
+    (url.includes("/posts") &&
+      options.method === "GET" &&
+      !url.includes("/get_single_post"));
+
   // Check if there's a cached request in progress
   if (requestCache.has(cacheKey)) {
     const cached = requestCache.get(cacheKey);
@@ -129,55 +138,55 @@ const fetchWithTimeout = async (url, options = {}) => {
       return cached.promise;
     }
   }
-  
+
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT);
-  
+
   // Handle headers properly for different request types
   let headers = {
-    'Authorization': currentToken,
+    Authorization: currentToken,
   };
-  
+
   // Only set Content-Type for non-FormData requests
   if (!(options.body instanceof FormData)) {
-    headers['Content-Type'] = 'application/json';
+    headers["Content-Type"] = "application/json";
   }
-  
+
   // Merge with any additional headers provided
   if (options.headers) {
     headers = { ...headers, ...options.headers };
   }
-  
+
   // Remove userType from options before passing to fetch
   const { userType: _, ...fetchOptions } = options;
-  
+
   const requestPromise = (async () => {
     // Mark request as active (only if we're tracking duplicates for this endpoint)
     if (!allowConcurrentRequests) {
       activeRequests.add(simpleKey);
     }
-    
+
     try {
       const response = await fetch(url, {
         ...fetchOptions,
         signal: controller.signal,
-        headers
+        headers,
       });
-      
+
       clearTimeout(timeoutId);
-      
+
       // Clean up cache after request completes
       setTimeout(() => {
         requestCache.delete(cacheKey);
       }, CACHE_DURATION);
-      
+
       return response;
     } catch (error) {
       clearTimeout(timeoutId);
       requestCache.delete(cacheKey);
-      
-      if (error.name === 'AbortError') {
-        throw new Error('Request timeout');
+
+      if (error.name === "AbortError") {
+        throw new Error("Request timeout");
       }
       throw error;
     } finally {
@@ -187,13 +196,13 @@ const fetchWithTimeout = async (url, options = {}) => {
       }
     }
   })();
-  
+
   // Cache the request promise
   requestCache.set(cacheKey, {
     promise: requestPromise,
-    timestamp: Date.now()
+    timestamp: Date.now(),
   });
-  
+
   return requestPromise;
 };
 
@@ -204,11 +213,11 @@ const fetchWithTimeout = async (url, options = {}) => {
 const StorageManager = {
   // Storage keys
   KEYS: {
-    USER_ID: 'userId',
-    USER_SESSION: 'userSession',
-    HR_USER: 'hrUser',
-    HR_POSTS: 'hrPosts',
-    REGISTERED_USERS: 'registeredUsers'
+    USER_ID: "userId",
+    USER_SESSION: "userSession",
+    HR_USER: "hrUser",
+    HR_POSTS: "hrPosts",
+    REGISTERED_USERS: "registeredUsers",
   },
 
   // Get item from localStorage with error handling
@@ -246,16 +255,18 @@ const StorageManager = {
     const keysToRemove = [
       StorageManager.KEYS.USER_ID,
       StorageManager.KEYS.USER_SESSION,
-      StorageManager.KEYS.HR_USER
+      StorageManager.KEYS.HR_USER,
     ];
-    
-    keysToRemove.forEach(key => StorageManager.removeItem(key));
+
+    keysToRemove.forEach((key) => StorageManager.removeItem(key));
   },
 
   // Clear all application data
   clearAllData: () => {
-    Object.values(StorageManager.KEYS).forEach(key => StorageManager.removeItem(key));
-  }
+    Object.values(StorageManager.KEYS).forEach((key) =>
+      StorageManager.removeItem(key),
+    );
+  },
 };
 
 // =============================================================================
@@ -269,7 +280,7 @@ export const userAPI = {
 
   // Get current user status (always returns true with token auth)
   getCurrentUserId: () => {
-    return 'authenticated_user'; // Backend handles actual user identification
+    return "authenticated_user"; // Backend handles actual user identification
   },
 
   // Get user session (simplified for token auth)
@@ -278,14 +289,18 @@ export const userAPI = {
     return {
       authenticated: !!token,
       token: token,
-      environment: typeof window !== 'undefined' ? 
-        (window.location.hostname === "localhost" ? 'development' : 'production') : 'server'
+      environment:
+        typeof window !== "undefined"
+          ? window.location.hostname === "localhost"
+            ? "development"
+            : "production"
+          : "server",
     };
   },
 
   // Store token in cookies (for production use)
-  storeToken: (token, userType = 'employee', employeeId = null) => {
-    if (userType === 'admin') {
+  storeToken: (token, userType = "employee", employeeId = null) => {
+    if (userType === "admin") {
       storeTokenInCookies(null, token, null);
     } else {
       storeTokenInCookies(token, null, employeeId);
@@ -300,13 +315,13 @@ export const userAPI = {
   // Get user by ID
   getUserById: async (userId) => {
     const endpoint = `${API_CONFIG.BASE_URL}/users/${userId}`;
-    logApiCall('GET', endpoint);
-    
+    logApiCall("GET", endpoint);
+
     try {
       const response = await fetchWithTimeout(endpoint, {
-        method: 'GET'
+        method: "GET",
       });
-      
+
       const result = await handleResponse(response);
       return result;
     } catch (error) {
@@ -317,14 +332,38 @@ export const userAPI = {
   // Get current user details
   getCurrentUser: async () => {
     const endpoint = `${API_CONFIG.BASE_URL}/get_user`;
-    logApiCall('POST', endpoint);
-    
+    logApiCall("POST", endpoint);
+
     try {
+      // Check if auth cookies exist
+      const { employeeToken, employeeId } = cookieUtils.getAuthTokens();
+      if (!employeeToken || !employeeId) {
+        // No valid auth cookies found, redirect to login
+        cookieUtils.clearAuthCookies();
+        const redirectUri = "https://account.gofloww.co";
+        window.location.href = `${redirectUri}/login?redirect=${encodeURIComponent(
+          "https://buzz.gofloww.co",
+        )}`;
+        throw new Error(
+          "No authentication cookies found - redirecting to login",
+        );
+      }
+
       const response = await fetchWithTimeout(endpoint, {
-        method: 'POST',
-        body: JSON.stringify({})
+        method: "POST",
+        body: JSON.stringify({}),
       });
-      
+
+      // Handle 403 Forbidden - clear cookies and redirect to login
+      if (response.status === 403) {
+        cookieUtils.clearAuthCookies();
+        const redirectUri = "https://account.gofloww.co";
+        window.location.href = `${redirectUri}/login?redirect=${encodeURIComponent(
+          "https://buzz.gofloww.co",
+        )}`;
+        throw new Error("Unauthorized access - redirecting to login");
+      }
+
       const result = await handleResponse(response);
       return result;
     } catch (error) {
@@ -338,21 +377,21 @@ export const userAPI = {
   },
 
   // Get users for mentions (employee side)
-  getUsersForMentions: async (query = '', limit = 10) => {
+  getUsersForMentions: async (query = "", limit = 10) => {
     const endpoint = `${API_CONFIG.BASE_URL}/get_user_for_mentions?query=${encodeURIComponent(query)}&limit=${limit}`;
-    logApiCall('GET', endpoint);
-    
+    logApiCall("GET", endpoint);
+
     try {
       const response = await fetchWithTimeout(endpoint, {
-        method: 'GET'
+        method: "GET",
       });
-      
+
       const result = await handleResponse(response);
       return result;
     } catch (error) {
       throw error;
     }
-  }
+  },
 };
 
 // =============================================================================
@@ -363,13 +402,13 @@ export const postsAPI = {
   // Create new post
   createPost: async (postData) => {
     const endpoint = `${API_CONFIG.BASE_URL}/posts/create_post`;
-    
+
     try {
       const response = await fetchWithTimeout(endpoint, {
-        method: 'POST',
-        body: JSON.stringify(postData)
+        method: "POST",
+        body: JSON.stringify(postData),
       });
-      
+
       const result = await handleResponse(response);
       return result;
     } catch (error) {
@@ -385,26 +424,26 @@ export const postsAPI = {
     } else {
       endpoint = `${API_CONFIG.BASE_URL}/posts?page=${page}&limit=${limit}`;
     }
-    
-    logApiCall('GET', endpoint);
-    
+
+    logApiCall("GET", endpoint);
+
     try {
       const response = await fetchWithTimeout(endpoint, {
-        method: 'GET'
+        method: "GET",
       });
-      
+
       const result = await handleResponse(response);
-      
+
       // Handle different response structures
       const posts = result?.data?.posts || result?.posts || result?.data || [];
       const nextCursor = result?.data?.nextCursor || result?.nextCursor || null;
       const hasMore = result?.data?.hasMore || result?.hasMore || false;
-      
+
       return {
         posts,
         nextCursor,
         hasMore,
-        raw: result
+        raw: result,
       };
     } catch (error) {
       throw error;
@@ -415,15 +454,16 @@ export const postsAPI = {
   getMyPosts: async () => {
     // For admin users, use admin endpoint, for employees use regular posts endpoint
     const currentUserType = getCurrentUserType();
-    const endpoint = currentUserType === 'admin' 
-      ? `${API_CONFIG.BASE_URL}/admin/posts`
-      : `${API_CONFIG.BASE_URL}/posts`;
-    
+    const endpoint =
+      currentUserType === "admin"
+        ? `${API_CONFIG.BASE_URL}/admin/posts`
+        : `${API_CONFIG.BASE_URL}/posts`;
+
     try {
       const response = await fetchWithTimeout(endpoint, {
-        method: 'GET'
+        method: "GET",
       });
-      
+
       const result = await handleResponse(response);
       return result;
     } catch (error) {
@@ -435,13 +475,13 @@ export const postsAPI = {
   getUserPosts: async (page = 1, limit = 20) => {
     // Use the /posts/me endpoint for current user's posts
     const endpoint = `${API_CONFIG.BASE_URL}/posts/me?page=${page}&limit=${limit}`;
-    logApiCall('GET', endpoint);
-    
+    logApiCall("GET", endpoint);
+
     try {
       const response = await fetchWithTimeout(endpoint, {
-        method: 'GET'
+        method: "GET",
       });
-      
+
       const result = await handleResponse(response);
       return result;
     } catch (error) {
@@ -452,18 +492,18 @@ export const postsAPI = {
   // Get single post by ID (PUBLIC - no authentication required)
   getPostById: async (postId) => {
     const endpoint = `${API_CONFIG.BASE_URL}/posts/${postId}/get_single_post`;
-    logApiCall('GET', endpoint);
-    
+    logApiCall("GET", endpoint);
+
     try {
       // Use native fetch directly for public access - bypass authentication
       const response = await fetch(endpoint, {
-        method: 'GET',
+        method: "GET",
         headers: {
-          'Content-Type': 'application/json'
+          "Content-Type": "application/json",
         },
-        signal: AbortSignal.timeout(API_CONFIG.TIMEOUT)
+        signal: AbortSignal.timeout(API_CONFIG.TIMEOUT),
       });
-      
+
       const result = await handleResponse(response);
       return result;
     } catch (error) {
@@ -476,19 +516,20 @@ export const postsAPI = {
     // Use post_id from the data if available, otherwise use the passed postId
     const actualPostId = updateData.post_id || postId;
     const endpoint = `${API_CONFIG.BASE_URL}/posts/edit/${actualPostId}`;
-    
+
     // Transform the data to match backend expectations
     const backendData = {
       content: updateData.content,
       post_content: updateData.content,
-      ...(updateData.tags && updateData.tags.length > 0 && { 
-        tags: updateData.tags.map(tag => {
-          if (typeof tag === 'string') {
-            return { name: tag, color: '#3B82F6' };
-          }
-          return tag;
-        })
-      }),
+      ...(updateData.tags &&
+        updateData.tags.length > 0 && {
+          tags: updateData.tags.map((tag) => {
+            if (typeof tag === "string") {
+              return { name: tag, color: "#3B82F6" };
+            }
+            return tag;
+          }),
+        }),
       ...((!updateData.tags || updateData.tags.length === 0) && { tags: [] }),
       ...(() => {
         if (updateData.media && updateData.media.length > 0) {
@@ -496,19 +537,23 @@ export const postsAPI = {
         }
         return {};
       })(),
-      mentions: updateData.mentions ? updateData.mentions.map(m => {
-        return typeof m === 'object' && m.employee_id ? m.employee_id : m;
-      }).filter(Boolean) : []
+      mentions: updateData.mentions
+        ? updateData.mentions
+            .map((m) => {
+              return typeof m === "object" && m.employee_id ? m.employee_id : m;
+            })
+            .filter(Boolean)
+        : [],
     };
-    
-    logApiCall('POST', endpoint, backendData);
-    
+
+    logApiCall("POST", endpoint, backendData);
+
     try {
       const response = await fetchWithTimeout(endpoint, {
-        method: 'POST',
-        body: JSON.stringify(backendData)
+        method: "POST",
+        body: JSON.stringify(backendData),
       });
-      
+
       const result = await handleResponse(response);
       return result;
     } catch (error) {
@@ -519,17 +564,18 @@ export const postsAPI = {
   // Delete post
   deletePost: async (postId) => {
     // Handle both direct postId and post data with post_id
-    const actualPostId = (typeof postId === 'object' && postId.post_id) ? postId.post_id : postId;
+    const actualPostId =
+      typeof postId === "object" && postId.post_id ? postId.post_id : postId;
     const endpoint = `${API_CONFIG.BASE_URL}/posts/delete/${actualPostId}`;
-    
-    logApiCall('POST', endpoint);
-    
+
+    logApiCall("POST", endpoint);
+
     try {
       const response = await fetchWithTimeout(endpoint, {
-        method: 'POST',
-        body: JSON.stringify({})
+        method: "POST",
+        body: JSON.stringify({}),
       });
-      
+
       const result = await handleResponse(response);
       return result;
     } catch (error) {
@@ -540,20 +586,21 @@ export const postsAPI = {
   // Like/Unlike post
   toggleLike: async (postId) => {
     // Ensure postId is properly extracted if it's an object
-    const actualPostId = (typeof postId === 'object' && postId.post_id) ? postId.post_id : postId;
+    const actualPostId =
+      typeof postId === "object" && postId.post_id ? postId.post_id : postId;
     const endpoint = `${API_CONFIG.BASE_URL}/posts/${actualPostId}/reactions`;
-    
-    logApiCall('POST', endpoint);
-    
+
+    logApiCall("POST", endpoint);
+
     try {
       const response = await fetchWithTimeout(endpoint, {
-        method: 'POST',
-        body: JSON.stringify({ 
-          reactionType: 'like',
-          reaction_type: 'like' // Add both formats for compatibility
-        })
+        method: "POST",
+        body: JSON.stringify({
+          reactionType: "like",
+          reaction_type: "like", // Add both formats for compatibility
+        }),
       });
-      
+
       const result = await handleResponse(response);
       return result;
     } catch (error) {
@@ -564,32 +611,32 @@ export const postsAPI = {
   // Add post reaction
   addReaction: async (postId, reactionType, emoji) => {
     // Ensure postId is properly extracted if it's an object
-    const actualPostId = (typeof postId === 'object' && postId.post_id) ? postId.post_id : postId;
+    const actualPostId =
+      typeof postId === "object" && postId.post_id ? postId.post_id : postId;
     const endpoint = `${API_CONFIG.BASE_URL}/posts/${actualPostId}/reactions`;
-    
+
     // Prepare request body with multiple formats for compatibility
     const requestBody = {
       reactionType: reactionType,
-      reaction_type: reactionType // Some backends expect snake_case
+      reaction_type: reactionType, // Some backends expect snake_case
     };
-    
+
     // Only add emoji if it's provided and not undefined
     if (emoji !== undefined && emoji !== null) {
       requestBody.emoji = emoji;
     }
-    
-    logApiCall('POST', endpoint, requestBody);
-    
+
+    logApiCall("POST", endpoint, requestBody);
+
     try {
       const response = await fetchWithTimeout(endpoint, {
-        method: 'POST',
-        body: JSON.stringify(requestBody)
+        method: "POST",
+        body: JSON.stringify(requestBody),
       });
-      
+
       const result = await handleResponse(response);
       return result;
     } catch (error) {
-      
       throw error;
     }
   },
@@ -597,26 +644,26 @@ export const postsAPI = {
   // Remove post reaction
   removeReaction: async (postId, reactionType) => {
     // Ensure postId is properly extracted if it's an object
-    const actualPostId = (typeof postId === 'object' && postId.post_id) ? postId.post_id : postId;
+    const actualPostId =
+      typeof postId === "object" && postId.post_id ? postId.post_id : postId;
     const endpoint = `${API_CONFIG.BASE_URL}/posts/${actualPostId}/reactions/delete`;
-    
+
     const requestBody = {
       reactionType: reactionType,
-      reaction_type: reactionType // Add both formats for compatibility
+      reaction_type: reactionType, // Add both formats for compatibility
     };
-    
-    logApiCall('POST', endpoint, requestBody);
-    
+
+    logApiCall("POST", endpoint, requestBody);
+
     try {
       const response = await fetchWithTimeout(endpoint, {
-        method: 'POST',
-        body: JSON.stringify(requestBody)
+        method: "POST",
+        body: JSON.stringify(requestBody),
       });
-      
+
       const result = await handleResponse(response);
       return result;
     } catch (error) {
-      
       throw error;
     }
   },
@@ -624,14 +671,14 @@ export const postsAPI = {
   // Add comment to post
   addComment: async (postId, commentData) => {
     const endpoint = `${API_CONFIG.BASE_URL}/posts/${postId}/comments`;
-    logApiCall('POST', endpoint, commentData);
-    
+    logApiCall("POST", endpoint, commentData);
+
     try {
       const response = await fetchWithTimeout(endpoint, {
-        method: 'POST',
-        body: JSON.stringify(commentData)
+        method: "POST",
+        body: JSON.stringify(commentData),
       });
-      
+
       const result = await handleResponse(response);
       return result;
     } catch (error) {
@@ -642,13 +689,13 @@ export const postsAPI = {
   // Get comments for post
   getComments: async (postId, page = 1, limit = 20) => {
     const endpoint = `${API_CONFIG.BASE_URL}/posts/${postId}/comments?page=${page}&limit=${limit}`;
-    logApiCall('GET', endpoint);
-    
+    logApiCall("GET", endpoint);
+
     try {
       const response = await fetchWithTimeout(endpoint, {
-        method: 'GET'
+        method: "GET",
       });
-      
+
       const result = await handleResponse(response);
       return result;
     } catch (error) {
@@ -659,14 +706,14 @@ export const postsAPI = {
   // Add reply to comment
   addReply: async (postId, commentId, replyData) => {
     const endpoint = `${API_CONFIG.BASE_URL}/posts/${postId}/comments/${commentId}/replies`;
-    logApiCall('POST', endpoint, replyData);
-    
+    logApiCall("POST", endpoint, replyData);
+
     try {
       const response = await fetchWithTimeout(endpoint, {
-        method: 'POST',
-        body: JSON.stringify(replyData)
+        method: "POST",
+        body: JSON.stringify(replyData),
       });
-      
+
       const result = await handleResponse(response);
       return result;
     } catch (error) {
@@ -677,14 +724,14 @@ export const postsAPI = {
   // Get replies for a comment
   getReplies: async (postId, commentId, page = 1, limit = 20) => {
     const endpoint = `${API_CONFIG.BASE_URL}/posts/${postId}/comments/${commentId}/replies?page=${page}&limit=${limit}`;
-    logApiCall('POST', endpoint);
-    
+    logApiCall("POST", endpoint);
+
     try {
       const response = await fetchWithTimeout(endpoint, {
-        method: 'POST',
-        body: JSON.stringify({})
+        method: "POST",
+        body: JSON.stringify({}),
       });
-      
+
       const result = await handleResponse(response);
       return result;
     } catch (error) {
@@ -696,13 +743,13 @@ export const postsAPI = {
   // Delete comment (using postId and commentId) - DEPRECATED: Use deleteCommentById instead
   deleteCommentLegacy: async (postId, commentId) => {
     const endpoint = `${API_CONFIG.BASE_URL}/posts/${postId}/comments/${commentId}`;
-    logApiCall('DELETE', endpoint);
-    
+    logApiCall("DELETE", endpoint);
+
     try {
       const response = await fetchWithTimeout(endpoint, {
-        method: 'DELETE'
+        method: "DELETE",
       });
-      
+
       const result = await handleResponse(response);
       return result;
     } catch (error) {
@@ -713,13 +760,13 @@ export const postsAPI = {
   // Delete reply
   deleteReply: async (postId, commentId, replyId) => {
     const endpoint = `${API_CONFIG.BASE_URL}/posts/${postId}/comments/${commentId}/replies/${replyId}`;
-    logApiCall('DELETE', endpoint);
-    
+    logApiCall("DELETE", endpoint);
+
     try {
       const response = await fetchWithTimeout(endpoint, {
-        method: 'DELETE'
+        method: "DELETE",
       });
-      
+
       const result = await handleResponse(response);
       return result;
     } catch (error) {
@@ -730,30 +777,29 @@ export const postsAPI = {
   // Add reaction to comment
   addCommentReaction: async (commentId, reactionType, emoji = null) => {
     const endpoint = `${API_CONFIG.BASE_URL}/comments/${commentId}/reactions`;
-    
+
     // Prepare request body with multiple formats for compatibility
     const requestBody = {
       reactionType: reactionType,
-      reaction_type: reactionType // Some backends expect snake_case
+      reaction_type: reactionType, // Some backends expect snake_case
     };
-    
+
     // Only add emoji if it's provided and not null/undefined
     if (emoji !== null && emoji !== undefined) {
       requestBody.emoji = emoji;
     }
-    
-    logApiCall('POST', endpoint, requestBody);
-    
+
+    logApiCall("POST", endpoint, requestBody);
+
     try {
       const response = await fetchWithTimeout(endpoint, {
-        method: 'POST',
-        body: JSON.stringify(requestBody)
+        method: "POST",
+        body: JSON.stringify(requestBody),
       });
-      
+
       const result = await handleResponse(response);
       return result;
     } catch (error) {
-      
       throw error;
     }
   },
@@ -761,24 +807,23 @@ export const postsAPI = {
   // Delete reaction from comment
   deleteCommentReaction: async (commentId, reactionType) => {
     const endpoint = `${API_CONFIG.BASE_URL}/comments/${commentId}/reactions/delete`;
-    
+
     const requestBody = {
       reactionType: reactionType,
-      reaction_type: reactionType // Add both formats for compatibility
+      reaction_type: reactionType, // Add both formats for compatibility
     };
-    
-    logApiCall('POST', endpoint, requestBody);
-    
+
+    logApiCall("POST", endpoint, requestBody);
+
     try {
       const response = await fetchWithTimeout(endpoint, {
-        method: 'POST',
-        body: JSON.stringify(requestBody)
+        method: "POST",
+        body: JSON.stringify(requestBody),
       });
-      
+
       const result = await handleResponse(response);
       return result;
     } catch (error) {
-      
       throw error;
     }
   },
@@ -786,13 +831,13 @@ export const postsAPI = {
   // Delete comment by comment_id (POST) - Current API endpoint
   deleteComment: async (commentId) => {
     const endpoint = `${API_CONFIG.BASE_URL}/comments/${commentId}/delete`;
-    logApiCall('POST', endpoint);
+    logApiCall("POST", endpoint);
     try {
       const response = await fetchWithTimeout(endpoint, {
-        method: 'POST',
-        body: JSON.stringify({})
+        method: "POST",
+        body: JSON.stringify({}),
       });
-      
+
       const result = await handleResponse(response);
       return result;
     } catch (error) {
@@ -803,31 +848,37 @@ export const postsAPI = {
   // Edit comment by comment_id (POST)
   editComment: async (commentId, contentOrData) => {
     const endpoint = `${API_CONFIG.BASE_URL}/comments/${commentId}/edit`;
-    
-   
-    
+
     // Handle both string content and object data
-    const content = typeof contentOrData === 'string' ? contentOrData : contentOrData.content;
-    const mentions = typeof contentOrData === 'object' ? contentOrData.mentions || [] : [];
-    
- 
+    const content =
+      typeof contentOrData === "string" ? contentOrData : contentOrData.content;
+    const mentions =
+      typeof contentOrData === "object" ? contentOrData.mentions || [] : [];
+
     // Try multiple field names to match backend expectations
     const requestBody = {
       content: content,
       comment: content,
       new_content: content,
-      mentions: mentions.length > 0 ? mentions.map(m => {
-        return typeof m === 'object' && m.employee_id ? m.employee_id : m;
-      }).filter(Boolean) : []
+      mentions:
+        mentions.length > 0
+          ? mentions
+              .map((m) => {
+                return typeof m === "object" && m.employee_id
+                  ? m.employee_id
+                  : m;
+              })
+              .filter(Boolean)
+          : [],
     };
-    
-    logApiCall('POST', endpoint, requestBody);
+
+    logApiCall("POST", endpoint, requestBody);
     try {
       const response = await fetchWithTimeout(endpoint, {
-        method: 'POST',
-        body: JSON.stringify(requestBody)
+        method: "POST",
+        body: JSON.stringify(requestBody),
       });
-      
+
       const result = await handleResponse(response);
       return result;
     } catch (error) {
@@ -838,25 +889,34 @@ export const postsAPI = {
   // Add reply to comment
   addCommentReply: async (postId, commentId, contentOrData) => {
     const endpoint = `${API_CONFIG.BASE_URL}/posts/${postId}/comments/${commentId}/replies`;
-    
+
     // Handle both string content and object data
-    const content = typeof contentOrData === 'string' ? contentOrData : contentOrData.content;
-    const mentions = typeof contentOrData === 'object' ? contentOrData.mentions || [] : [];
-    
+    const content =
+      typeof contentOrData === "string" ? contentOrData : contentOrData.content;
+    const mentions =
+      typeof contentOrData === "object" ? contentOrData.mentions || [] : [];
+
     const requestBody = {
       content: content,
-      mentions: mentions.length > 0 ? mentions.map(m => {
-        return typeof m === 'object' && m.employee_id ? m.employee_id : m;
-      }).filter(Boolean) : []
+      mentions:
+        mentions.length > 0
+          ? mentions
+              .map((m) => {
+                return typeof m === "object" && m.employee_id
+                  ? m.employee_id
+                  : m;
+              })
+              .filter(Boolean)
+          : [],
     };
-    
-    logApiCall('POST', endpoint, requestBody);
+
+    logApiCall("POST", endpoint, requestBody);
     try {
       const response = await fetchWithTimeout(endpoint, {
-        method: 'POST',
-        body: JSON.stringify(requestBody)
+        method: "POST",
+        body: JSON.stringify(requestBody),
       });
-      
+
       const result = await handleResponse(response);
       return result;
     } catch (error) {
@@ -866,15 +926,16 @@ export const postsAPI = {
 
   // Report post
   reportPost: async (postId, reason) => {
-    const actualPostId = (typeof postId === 'object' && postId.post_id) ? postId.post_id : postId;
+    const actualPostId =
+      typeof postId === "object" && postId.post_id ? postId.post_id : postId;
     const endpoint = `${API_CONFIG.BASE_URL}/posts/${actualPostId}/report`;
-    
+
     try {
       const response = await fetchWithTimeout(endpoint, {
-        method: 'POST',
-        body: JSON.stringify({ reason })
+        method: "POST",
+        body: JSON.stringify({ reason }),
       });
-      
+
       const result = await handleResponse(response);
       return result;
     } catch (error) {
@@ -885,13 +946,13 @@ export const postsAPI = {
   // Report comment
   reportComment: async (commentId, reason) => {
     const endpoint = `${API_CONFIG.BASE_URL}/comments/${commentId}/report`;
-    
+
     try {
       const response = await fetchWithTimeout(endpoint, {
-        method: 'POST',
-        body: JSON.stringify({ reason })
+        method: "POST",
+        body: JSON.stringify({ reason }),
       });
-      
+
       const result = await handleResponse(response);
       return result;
     } catch (error) {
@@ -902,12 +963,12 @@ export const postsAPI = {
   // Get broadcast posts
   getBroadcastPosts: async () => {
     const endpoint = `${API_CONFIG.BASE_URL}/posts/broadcast`;
-    
+
     try {
       const response = await fetchWithTimeout(endpoint, {
-        method: 'GET'
+        method: "GET",
       });
-      
+
       const result = await handleResponse(response);
       return result;
     } catch (error) {
@@ -918,18 +979,18 @@ export const postsAPI = {
   // Get pinned posts (for employee side)
   getPinnedPosts: async () => {
     const endpoint = `${API_CONFIG.BASE_URL}/posts/pinned`;
-    
+
     try {
       const response = await fetchWithTimeout(endpoint, {
-        method: 'GET'
+        method: "GET",
       });
-      
+
       const result = await handleResponse(response);
       return result;
     } catch (error) {
       throw error;
     }
-  }
+  },
 };
 
 // =============================================================================
@@ -938,23 +999,23 @@ export const postsAPI = {
 
 export const mediaAPI = {
   // Upload single file
-  uploadFile: async (file, type = 'image') => {
+  uploadFile: async (file, type = "image") => {
     // Determine if admin or employee based on current path
-    const isAdminEnvironment = window.location.pathname.includes('/crm');
-    const endpoint = isAdminEnvironment 
+    const isAdminEnvironment = window.location.pathname.includes("/crm");
+    const endpoint = isAdminEnvironment
       ? `${API_CONFIG.BASE_URL}/admin/upload_file`
       : `${API_CONFIG.BASE_URL}/upload_file`;
-    
+
     try {
       const formData = new FormData();
-      formData.append('file', file);
-      formData.append('type', type);
-      
+      formData.append("file", file);
+      formData.append("type", type);
+
       const response = await fetchWithTimeout(endpoint, {
-        method: 'POST',
-        body: formData
+        method: "POST",
+        body: formData,
       });
-      
+
       const result = await handleResponse(response);
       return result;
     } catch (error) {
@@ -963,9 +1024,9 @@ export const mediaAPI = {
   },
 
   // Upload multiple files
-  uploadFiles: async (files, type = 'image') => {
+  uploadFiles: async (files, type = "image") => {
     try {
-      const uploadPromises = files.map(file => this.uploadFile(file, type));
+      const uploadPromises = files.map((file) => this.uploadFile(file, type));
       const results = await Promise.all(uploadPromises);
       return results;
     } catch (error) {
@@ -976,20 +1037,20 @@ export const mediaAPI = {
   // Delete media file
   deleteFile: async (fileUrl) => {
     const endpoint = `${API_CONFIG.BASE_URL}/media/delete`;
-    logApiCall('DELETE', endpoint, { fileUrl });
-    
+    logApiCall("DELETE", endpoint, { fileUrl });
+
     try {
       const response = await fetchWithTimeout(endpoint, {
-        method: 'DELETE',
-        body: JSON.stringify({ fileUrl })
+        method: "DELETE",
+        body: JSON.stringify({ fileUrl }),
       });
-      
+
       const result = await handleResponse(response);
       return result;
     } catch (error) {
       throw error;
     }
-  }
+  },
 };
 
 // =============================================================================
@@ -1000,13 +1061,13 @@ export const notificationsAPI = {
   // Get user notifications
   getNotifications: async (page = 1, limit = 20) => {
     const endpoint = `${API_CONFIG.BASE_URL}/notifications?page=${page}&limit=${limit}`;
-    logApiCall('GET', endpoint);
-    
+    logApiCall("GET", endpoint);
+
     try {
       const response = await fetchWithTimeout(endpoint, {
-        method: 'GET'
+        method: "GET",
       });
-      
+
       const result = await handleResponse(response);
       return result;
     } catch (error) {
@@ -1017,14 +1078,14 @@ export const notificationsAPI = {
   // Mark notification as read
   markAsRead: async (notificationId) => {
     const endpoint = `${API_CONFIG.BASE_URL}/notifications/${notificationId}/read`;
-    logApiCall('POST', endpoint);
-    
+    logApiCall("POST", endpoint);
+
     try {
       const response = await fetchWithTimeout(endpoint, {
-        method: 'POST',
-        body: JSON.stringify({})
+        method: "POST",
+        body: JSON.stringify({}),
       });
-      
+
       const result = await handleResponse(response);
       return result;
     } catch (error) {
@@ -1035,20 +1096,20 @@ export const notificationsAPI = {
   // Mark all notifications as read
   markAllAsRead: async () => {
     const endpoint = `${API_CONFIG.BASE_URL}/notifications/read-all`;
-    logApiCall('POST', endpoint);
-    
+    logApiCall("POST", endpoint);
+
     try {
       const response = await fetchWithTimeout(endpoint, {
-        method: 'POST',
-        body: JSON.stringify({})
+        method: "POST",
+        body: JSON.stringify({}),
       });
-      
+
       const result = await handleResponse(response);
       return result;
     } catch (error) {
       throw error;
     }
-  }
+  },
 };
 
 // =============================================================================
@@ -1059,14 +1120,14 @@ export const adminAPI = {
   // Get all users
   getAllUsers: async (page = 1, limit = 50) => {
     const endpoint = `${API_CONFIG.BASE_URL}/admin/users?page=${page}&limit=${limit}`;
-    logApiCall('GET', endpoint);
-    
+    logApiCall("GET", endpoint);
+
     try {
       const response = await fetchWithTimeout(endpoint, {
-        method: 'GET',
-        userType: 'admin'
+        method: "GET",
+        userType: "admin",
       });
-      
+
       const result = await handleResponse(response);
       return result;
     } catch (error) {
@@ -1077,15 +1138,15 @@ export const adminAPI = {
   // Toggle user block status
   toggleUserBlock: async (userId, block = true) => {
     const endpoint = `${API_CONFIG.BASE_URL}/admin/users/${userId}/block`;
-    logApiCall('POST', endpoint, { block });
-    
+    logApiCall("POST", endpoint, { block });
+
     try {
       const response = await fetchWithTimeout(endpoint, {
-        method: 'POST',
+        method: "POST",
         body: JSON.stringify({ block }),
-        userType: 'admin'
+        userType: "admin",
       });
-      
+
       const result = await handleResponse(response);
       return result;
     } catch (error) {
@@ -1095,17 +1156,18 @@ export const adminAPI = {
 
   // Delete post as admin
   deletePostAdmin: async (postId) => {
-    const actualPostId = (typeof postId === 'object' && postId.post_id) ? postId.post_id : postId;
+    const actualPostId =
+      typeof postId === "object" && postId.post_id ? postId.post_id : postId;
     const endpoint = `${API_CONFIG.BASE_URL}/admin/posts/${actualPostId}/delete`;
-    logApiCall('POST', endpoint);
-    
+    logApiCall("POST", endpoint);
+
     try {
       const response = await fetchWithTimeout(endpoint, {
-        method: 'POST',
+        method: "POST",
         body: JSON.stringify({}),
-        userType: 'admin'
+        userType: "admin",
       });
-      
+
       const result = await handleResponse(response);
       return result;
     } catch (error) {
@@ -1116,14 +1178,14 @@ export const adminAPI = {
   // Get blocked users
   getBlockedUsers: async () => {
     const endpoint = `${API_CONFIG.BASE_URL}/admin/blocked-users`;
-    logApiCall('GET', endpoint);
-    
+    logApiCall("GET", endpoint);
+
     try {
       const response = await fetchWithTimeout(endpoint, {
-        method: 'GET',
-        userType: 'admin'
+        method: "GET",
+        userType: "admin",
       });
-      
+
       const result = await handleResponse(response);
       return result;
     } catch (error) {
@@ -1134,15 +1196,15 @@ export const adminAPI = {
   // Admin delete comment
   adminDeleteComment: async (commentId) => {
     const endpoint = `${API_CONFIG.BASE_URL}/admin/comments/${commentId}/delete`;
-    logApiCall('POST', endpoint);
-    
+    logApiCall("POST", endpoint);
+
     try {
       const response = await fetchWithTimeout(endpoint, {
-        method: 'POST',
+        method: "POST",
         body: JSON.stringify({}),
-        userType: 'admin'
+        userType: "admin",
       });
-      
+
       const result = await handleResponse(response);
       return result;
     } catch (error) {
@@ -1153,21 +1215,21 @@ export const adminAPI = {
   // Admin delete reply
   adminDeleteReply: async (postId, commentId, replyId) => {
     const endpoint = `${API_CONFIG.BASE_URL}/admin/posts/${postId}/comments/${commentId}/replies/${replyId}/delete`;
-    logApiCall('POST', endpoint);
-    
+    logApiCall("POST", endpoint);
+
     try {
       const response = await fetchWithTimeout(endpoint, {
-        method: 'POST',
+        method: "POST",
         body: JSON.stringify({}),
-        userType: 'admin'
+        userType: "admin",
       });
-      
+
       const result = await handleResponse(response);
       return result;
     } catch (error) {
       throw error;
     }
-  }
+  },
 };
 
 // =============================================================================
@@ -1178,13 +1240,13 @@ export const utilityAPI = {
   // Get server information
   getServerInfo: async () => {
     const endpoint = `${API_CONFIG.BASE_URL}/info`;
-    logApiCall('GET', endpoint);
-    
+    logApiCall("GET", endpoint);
+
     try {
       const response = await fetchWithTimeout(endpoint, {
-        method: 'GET'
+        method: "GET",
       });
-      
+
       const result = await handleResponse(response);
       return result;
     } catch (error) {
@@ -1207,12 +1269,12 @@ export const utilityAPI = {
       return !!getAuthToken();
     },
     isEmployeeAuthenticated: () => {
-      return !!getAuthToken('employee');
+      return !!getAuthToken("employee");
     },
     isAdminAuthenticated: () => {
-      return !!getAuthToken('admin');
-    }
-  }
+      return !!getAuthToken("admin");
+    },
+  },
 };
 
 // =============================================================================
@@ -1230,7 +1292,7 @@ const api = {
     handleResponse,
     fetchWithTimeout,
     logApiCall,
-    checkAuthToken
+    checkAuthToken,
   },
   auth: {
     isLoggedIn: () => userAPI.isAuthenticated(),
@@ -1244,23 +1306,24 @@ const api = {
       } catch (error) {
         return false;
       }
-    }
+    },
   },
   quick: {
-    post: (content, options = {}) => postsAPI.createPost({
-      content,
-      ...options
-    }),
+    post: (content, options = {}) =>
+      postsAPI.createPost({
+        content,
+        ...options,
+      }),
     getUser: (userId) => userAPI.getUserById(userId),
     getFeed: (page = 1) => postsAPI.getPosts(page),
   },
   errors: {
-    NETWORK_ERROR: 'NETWORK_ERROR',
-    TIMEOUT_ERROR: 'TIMEOUT_ERROR',
-    AUTH_ERROR: 'AUTH_ERROR',
-    NOT_FOUND: 'NOT_FOUND',
-    SERVER_ERROR: 'SERVER_ERROR'
-  }
+    NETWORK_ERROR: "NETWORK_ERROR",
+    TIMEOUT_ERROR: "TIMEOUT_ERROR",
+    AUTH_ERROR: "AUTH_ERROR",
+    NOT_FOUND: "NOT_FOUND",
+    SERVER_ERROR: "SERVER_ERROR",
+  },
 };
 
 // =============================================================================
@@ -1283,7 +1346,6 @@ export default api;
 // =============================================================================
 
 // Initialize API on load
-if (typeof window !== 'undefined') {
+if (typeof window !== "undefined") {
   // Check if we're in development mode and log initialization
-
 }
