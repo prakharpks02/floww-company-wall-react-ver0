@@ -5,7 +5,7 @@ export const cookieUtils = {
     const value = `; ${document.cookie}`;
     const parts = value.split(`; ${name}=`);
     if (parts.length === 2) {
-      return parts.pop().split(';').shift();
+      return parts.pop().split(";").shift();
     }
     return null;
   },
@@ -13,59 +13,59 @@ export const cookieUtils = {
   // Set a cookie with optional expiration and other attributes
   setCookie: (name, value, options = {}) => {
     let cookie = `${name}=${value}`;
-    
+
     if (options.expires) {
       cookie += `; expires=${options.expires.toUTCString()}`;
     }
-    
+
     if (options.maxAge) {
       cookie += `; max-age=${options.maxAge}`;
     }
-    
+
     if (options.domain) {
       cookie += `; domain=${options.domain}`;
     }
-    
+
     if (options.path) {
       cookie += `; path=${options.path}`;
     } else {
       cookie += `; path=/`;
     }
-    
+
     if (options.secure) {
       cookie += `; secure`;
     }
-    
+
     if (options.httpOnly) {
       cookie += `; httponly`;
     }
-    
+
     if (options.sameSite) {
       cookie += `; samesite=${options.sameSite}`;
     }
-    
+
     document.cookie = cookie;
   },
 
   // Remove a cookie by setting it to expire
   removeCookie: (name, options = {}) => {
     const expiredDate = new Date(0);
-    cookieUtils.setCookie(name, '', { 
-      ...options, 
-      expires: expiredDate 
+    cookieUtils.setCookie(name, "", {
+      ...options,
+      expires: expiredDate,
     });
   },
 
   // Get authentication tokens from cookies
   getAuthTokens: () => {
-    const employeeToken = cookieUtils.getCookie('floww-employee-token');
-    const employeeId = cookieUtils.getCookie('floww-employee-id');
-    const adminToken = cookieUtils.getCookie('floww-admin-token');
-    
+    const employeeToken = cookieUtils.getCookie("floww-employee-token");
+    const employeeId = cookieUtils.getCookie("floww-employee-id");
+    const adminToken = cookieUtils.getCookie("floww-admin-token");
+
     return {
       employeeToken,
       employeeId,
-      adminToken
+      adminToken,
     };
   },
 
@@ -83,50 +83,83 @@ export const cookieUtils = {
 
   // Check if any valid authentication exists
   isAuthenticated: () => {
-    return cookieUtils.isEmployeeAuthenticated() || cookieUtils.isAdminAuthenticated();
+    return (
+      cookieUtils.isEmployeeAuthenticated() ||
+      cookieUtils.isAdminAuthenticated()
+    );
   },
 
   // Set authentication tokens in cookies
-  setAuthTokens: (employeeToken, adminToken, employeeId = null, options = {}) => {
+  setAuthTokens: (
+    employeeToken,
+    adminToken,
+    employeeId = null,
+    options = {},
+  ) => {
     // Determine if we should use domain-wide cookies
     const hostname = window.location.hostname;
-    const isGoflowwDomain = hostname.includes('gofloww.xyz');
-    
+    const isGoflowwDomain = hostname.includes("gofloww.xyz");
+
     const defaultOptions = {
       maxAge: 7 * 24 * 60 * 60, // 7 days
-      secure: window.location.protocol === 'https:',
-      sameSite: 'lax',
+      secure: window.location.protocol === "https:",
+      sameSite: "lax",
       // Set domain for gofloww.xyz subdomains
-      ...(isGoflowwDomain && { domain: '.gofloww.xyz' })
+      ...(isGoflowwDomain && { domain: ".gofloww.xyz" }),
     };
 
     if (employeeToken) {
-      cookieUtils.setCookie('floww-employee-token', employeeToken, {
+      cookieUtils.setCookie("floww-employee-token", employeeToken, {
         ...defaultOptions,
-        ...options
+        ...options,
       });
     }
 
     if (employeeId) {
-      cookieUtils.setCookie('floww-employee-id', employeeId, {
+      cookieUtils.setCookie("floww-employee-id", employeeId, {
         ...defaultOptions,
-        ...options
+        ...options,
       });
     }
 
     if (adminToken) {
-      cookieUtils.setCookie('floww-admin-token', adminToken, {
+      cookieUtils.setCookie("floww-admin-token", adminToken, {
         ...defaultOptions,
-        ...options
+        ...options,
       });
     }
   },
 
   // Clear all auth tokens
   clearAuthTokens: () => {
-    cookieUtils.removeCookie('floww-employee-token');
-    cookieUtils.removeCookie('floww-employee-id');
-    cookieUtils.removeCookie('floww-admin-token');
-  }
+    cookieUtils.removeCookie("floww-employee-token");
+    cookieUtils.removeCookie("floww-employee-id");
+    cookieUtils.removeCookie("floww-admin-token");
+  },
+
+  // Get cookie domain for gofloww
+  getCookieDomain: () => {
+    const hostname = window.location.hostname;
+    if (hostname.includes("gofloww.co")) {
+      return ".gofloww.co";
+    }
+    return ".gofloww.xyz";
+  },
+
+  // Clear all auth cookies across domain
+  clearAuthCookies: () => {
+    const domain = cookieUtils.getCookieDomain();
+    const cookies = [
+      "floww-employee-token",
+      "floww-employee-id",
+      "floww-mail-token",
+      "floww-admin-token",
+      "floww-token",
+      "floww-atom-token",
+    ];
+
+    cookies.forEach((name) => {
+      cookieUtils.removeCookie(name, { path: "/", domain });
+    });
+  },
 };
- 
